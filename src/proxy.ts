@@ -8,7 +8,7 @@ export default auth((req) => {
   // Public routes
   if (pathname === '/login' || pathname === '/signup' || pathname === '/') {
     // Redirect logged-in users away from auth pages
-    if (session) {
+    if (session?.user?.email) {
       const role = (session.user as any)?.role
       if (role === 'OWNER' || role === 'MANAGER') {
         return NextResponse.redirect(new URL('/dashboard/admin', req.url))
@@ -20,7 +20,7 @@ export default auth((req) => {
 
   // Protected routes — must be authenticated
   if (pathname.startsWith('/dashboard')) {
-    if (!session) {
+    if (!session?.user?.email) {
       return NextResponse.redirect(new URL('/login', req.url))
     }
 
