@@ -22,6 +22,8 @@ export default function ProjectsPage() {
     const [p, e] = await Promise.all([fetch('/api/projects').then(r => r.json()), fetch('/api/employees').then(r => r.json())])
     setProjects(Array.isArray(p) ? p : []); setEmployees(Array.isArray(e) ? e : []); setLoading(false)
   }
+   
+   
   useEffect(() => { load() }, [])
 
   async function handleCreate(e: React.FormEvent) {

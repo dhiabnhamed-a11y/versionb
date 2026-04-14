@@ -9,7 +9,7 @@ export default auth((req) => {
   if (pathname === '/login' || pathname === '/signup' || pathname === '/') {
     // Redirect logged-in users away from auth pages
     if (session?.user?.email) {
-      const role = (session.user as any)?.role
+      const role = (session.user as { id?: string, role?: string; companyId?: string })?.role
       if (role === 'OWNER' || role === 'MANAGER') {
         return NextResponse.redirect(new URL('/dashboard/admin', req.url))
       }
@@ -24,7 +24,7 @@ export default auth((req) => {
       return NextResponse.redirect(new URL('/login', req.url))
     }
 
-    const role = (session.user as any)?.role
+    const role = (session.user as { id?: string, role?: string; companyId?: string })?.role
     // Employee cannot access admin routes
     if (pathname.startsWith('/dashboard/admin') && role === 'EMPLOYEE') {
       return NextResponse.redirect(new URL('/dashboard/employee', req.url))

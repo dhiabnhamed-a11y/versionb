@@ -26,6 +26,8 @@ export default function EmployeeAlertsPage() {
     setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, read: true } : a))
   }
 
+   
+   
   useEffect(() => { load() }, [])
   const unread = alerts.filter(a => !a.read).length
 

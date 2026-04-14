@@ -21,6 +21,8 @@ export default function EmployeeDashboard() {
   const [updating, setUpdating] = useState<string | null>(null)
 
   async function load() { const d = await fetch('/api/tasks').then(r => r.json()); setTasks(Array.isArray(d) ? d : []); setLoading(false) }
+   
+   
   useEffect(() => { load() }, [])
 
   async function advanceStage(task: Task) {

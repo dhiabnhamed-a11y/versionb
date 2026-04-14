@@ -18,6 +18,8 @@ export default function EmployeesPage() {
   const [success, setSuccess] = useState('')
 
   async function load() { const d = await fetch('/api/employees').then(r => r.json()); setEmployees(Array.isArray(d) ? d : []); setLoading(false) }
+   
+   
   useEffect(() => { load() }, [])
 
   async function handleAdd(e: React.FormEvent) {

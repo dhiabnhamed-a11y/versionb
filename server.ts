@@ -13,7 +13,7 @@ const handle = app.getRequestHandler()
 
 // Store socket io instance globally so API routes can access it
 declare global {
-  // eslint-disable-next-line no-var
+   
   var io: SocketIOServer | undefined
 }
 
