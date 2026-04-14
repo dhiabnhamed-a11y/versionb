@@ -41,8 +41,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true, userId: user.id }, { status: 201 })
-  } catch (err) {
+  } catch (err: any) {
     console.error(err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    return NextResponse.json({ error: err.message || 'Server error', details: String(err) }, { status: 500 })
   }
 }
