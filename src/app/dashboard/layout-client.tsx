@@ -101,7 +101,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
             <Wifi size={13} style={{ color: '#10b981' }} />
             <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Real-time</span>
           </div>
-          <div style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
+          <div suppressHydrationWarning style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
             {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
           </div>
         </header>

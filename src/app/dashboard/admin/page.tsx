@@ -50,7 +50,7 @@ export default function AdminDashboard() {
     <div style={{ maxWidth: '1100px' }}>
       <div style={{ marginBottom: '28px' }}>
         <h1 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '4px', letterSpacing: '-0.02em' }}>
-          {greeting}, <span className="gradient-text">{user?.name?.split(' ')[0]}</span>
+          <span suppressHydrationWarning>{greeting}</span>, <span className="gradient-text">{user?.name?.split(' ')[0]}</span>
         </h1>
         <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Here&apos;s what&apos;s happening across your workspace today.</p>
       </div>
