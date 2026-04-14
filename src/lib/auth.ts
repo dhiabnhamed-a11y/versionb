@@ -59,4 +59,5 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: '/login',
   },
   session: { strategy: 'jwt' },
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || "taskforce-super-secret-key-2024-change-in-production",
 })
