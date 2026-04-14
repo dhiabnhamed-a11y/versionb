@@ -1,0 +1,87 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { formatTimeAgo } from '@/lib/utils'
+import { Bell, Clock, Phone, AlertTriangle, CheckCircle2 } from 'lucide-react'
+
+interface Alert {
+  id: string; type: string; title: string; message: string; read: boolean; createdAt: string
+  sender: { name: string }
+}
+
+const typeConfig: Record<string, { icon: typeof Bell; color: string; bg: string; border: string; label: string }> = {
+  URGENT_TASK: { icon: AlertTriangle, color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.18)', label: 'Urgent Task' },
+  DEADLINE_WARNING: { icon: Clock, color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.18)', label: 'Deadline' },
+  MANAGER_CALL: { icon: Phone, color: '#3b82f6', bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.18)', label: 'Manager Call' },
+}
+
+export default function EmployeeAlertsPage() {
+  const [alerts, setAlerts] = useState<Alert[]>([])
+  const [loading, setLoading] = useState(true)
+
+  async function load() { const d = await fetch('/api/alerts').then(r => r.json()); setAlerts(Array.isArray(d) ? d : []); setLoading(false) }
+
+  async function markRead(alertId: string) {
+    await fetch('/api/alerts', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ alertId }) })
+    setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, read: true } : a))
+  }
+
+  useEffect(() => { load() }, [])
+  const unread = alerts.filter(a => !a.read).length
+
+  return (
+    <div style={{ maxWidth: '640px' }}>
+      <div style={{ marginBottom: '24px' }}>
+        <h1 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '-0.02em' }}>
+          <Bell size={22} style={{ color: 'var(--accent)' }} /> Alerts
+          {unread > 0 && <span style={{ fontSize: '12px', background: 'rgba(239,68,68,0.15)', color: '#f87171', borderRadius: '4px', padding: '2px 8px', fontWeight: '700' }}>{unread} new</span>}
+        </h1>
+        <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Notifications from your manager</p>
+      </div>
+
+      {loading ? (
+        <div style={{ textAlign: 'center', padding: '60px' }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
+      ) : alerts.length === 0 ? (
+        <div className="card" style={{ textAlign: 'center', padding: '48px' }}>
+          <Bell size={32} style={{ color: 'var(--text-muted)', opacity: 0.3, margin: '0 auto 10px', display: 'block' }} />
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No alerts yet — you&apos;re all clear</p>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          {alerts.map((alert, i) => {
+            const cfg = typeConfig[alert.type] || typeConfig.URGENT_TASK
+            const Icon = cfg.icon
+            return (
+              <div key={alert.id} className="animate-fade-in" style={{ animationDelay: `${i * 40}ms`, background: alert.read ? 'var(--bg-card)' : cfg.bg, border: `1px solid ${alert.read ? 'var(--border)' : cfg.border}`, borderRadius: '12px', padding: '16px', transition: 'all 0.2s' }}>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                  <div className="icon-box" style={{ width: '36px', height: '36px', background: cfg.bg, border: `1px solid ${cfg.border}` }}>
+                    <Icon size={16} style={{ color: cfg.color }} />
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>{cfg.label}</span>
+                        {!alert.read && <span style={{ width: '6px', height: '6px', background: '#ef4444', borderRadius: '50%' }} />}
+                      </div>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)', flexShrink: 0 }}>{formatTimeAgo(alert.createdAt)}</span>
+                    </div>
+                    <h3 style={{ fontWeight: '600', fontSize: '14px', marginBottom: '4px' }}>{alert.title}</h3>
+                    <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '8px' }}>{alert.message}</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>From <strong style={{ color: 'var(--text-secondary)' }}>{alert.sender?.name}</strong></span>
+                      {!alert.read && (
+                        <button onClick={() => markRead(alert.id)} style={{ fontSize: '11px', color: 'var(--accent-hover)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <CheckCircle2 size={12} /> Mark read
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
