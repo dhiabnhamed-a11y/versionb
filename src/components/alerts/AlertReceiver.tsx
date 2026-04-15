@@ -46,7 +46,7 @@ export default function AlertReceiver({ userId }: { userId: string }) {
       playAlertSound()
       if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400])
       if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(`TaskForce Alert: ${data.title}`, { body: data.message, icon: '/favicon.ico' })
+        new Notification(`Tasked: ${data.title}`, { body: data.message, icon: '/favicon.ico' })
       } else if ('Notification' in window && Notification.permission !== 'denied') {
         Notification.requestPermission()
       }
@@ -70,7 +70,9 @@ export default function AlertReceiver({ userId }: { userId: string }) {
           <AlertTriangle size={28} />
         </div>
 
-        <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '8px', letterSpacing: '-0.02em' }}>{alert.title}</h2>
+        <h2 className="font-display text-xl font-semibold tracking-tight" style={{ marginBottom: '8px' }}>
+          {alert.title}
+        </h2>
         <p style={{ color: 'var(--text-secondary)', fontSize: '14px', lineHeight: '1.6', marginBottom: '24px' }}>{alert.message}</p>
 
         <button onClick={() => setAlert(null)} className="btn-primary" style={{ width: '100%', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', fontSize: '14px' }}>

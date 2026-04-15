@@ -6,8 +6,17 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import AlertReceiver from '@/components/alerts/AlertReceiver'
 import {
-  LayoutDashboard, FolderKanban, CheckSquare, Users, Bell,
-  ListTodo, BarChart3, Zap, LogOut, Wifi, Menu
+  LayoutDashboard,
+  FolderKanban,
+  CheckSquare,
+  Users,
+  Bell,
+  ListTodo,
+  BarChart3,
+  Hexagon,
+  LogOut,
+  Radio,
+  Menu,
 } from 'lucide-react'
 
 const adminLinks = [
@@ -29,7 +38,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const user = session?.user as any
+  const user = session?.user as { id?: string; name?: string; role?: string }
   const isEmployee = user?.role === 'EMPLOYEE'
   const links = isEmployee ? employeeLinks : adminLinks
 
@@ -37,78 +46,129 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   const badgeClass = user?.role === 'OWNER' ? 'badge-owner' : user?.role === 'MANAGER' ? 'badge-manager' : 'badge-employee'
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh' }}>
+    <div className="flex min-h-screen min-h-dvh">
       {sidebarOpen && (
-        <div onClick={() => setSidebarOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 40, backdropFilter: 'blur(2px)' }} />
+        <button
+          type="button"
+          aria-label="Close menu"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
 
-      {/* Sidebar */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-        <div style={{ padding: '20px 16px 16px', borderBottom: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div className="icon-box" style={{ width: '34px', height: '34px', background: 'var(--accent-gradient)' }}>
-              <Zap size={17} color="white" />
+        <div className="border-b px-4 py-5" style={{ borderColor: 'var(--sidebar-border)' }}>
+          <div className="flex items-center gap-3">
+            <div
+              className="icon-box flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px]"
+              style={{ background: 'var(--accent-gradient)', boxShadow: '0 8px 28px rgba(13, 148, 136, 0.35)' }}
+            >
+              <Hexagon size={20} color="white" strokeWidth={2.2} />
             </div>
-            <div>
-              <div style={{ fontWeight: '700', fontSize: '15px', letterSpacing: '-0.02em' }} className="gradient-text">TaskForce</div>
-              <div style={{ fontSize: '10px', color: 'var(--text-muted)', fontWeight: '500', letterSpacing: '0.03em', textTransform: 'uppercase' }}>Workforce OS</div>
+            <div className="min-w-0">
+              <div className="font-display text-lg font-semibold tracking-tight text-slate-100">Tasked</div>
+              <div
+                className="text-[10px] font-semibold uppercase tracking-[0.14em]"
+                style={{ color: '#64748b' }}
+              >
+                Operations studio
+              </div>
             </div>
           </div>
         </div>
 
-        <nav style={{ flex: 1, padding: '12px 10px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
-          <div style={{ fontSize: '10px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', padding: '4px 12px', marginBottom: '4px' }}>
-            {isEmployee ? 'Workspace' : 'Management'}
+        <nav className="flex flex-1 flex-col gap-0.5 px-3 py-4">
+          <div
+            className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.12em]"
+            style={{ color: '#475569' }}
+          >
+            {isEmployee ? 'Your workspace' : 'Command center'}
           </div>
-          {links.map(link => {
+          {links.map((link) => {
             const isActive = pathname === link.href
             const Icon = link.icon
             return (
-              <Link key={link.href} href={link.href} className={`sidebar-link ${isActive ? 'active' : ''}`} onClick={() => setSidebarOpen(false)}>
+              <Link
+                key={link.href}
+                href={link.href}
+                className={`sidebar-link ${isActive ? 'active' : ''}`}
+                onClick={() => setSidebarOpen(false)}
+              >
                 <Icon size={18} />
                 <span>{link.label}</span>
                 {link.label === 'Send Alert' && (
-                  <span style={{ marginLeft: 'auto', background: 'rgba(239,68,68,0.12)', color: '#f87171', borderRadius: '4px', padding: '1px 6px', fontSize: '9px', fontWeight: '700', letterSpacing: '0.04em' }}>LIVE</span>
+                  <span
+                    className="ml-auto rounded-md px-1.5 py-0.5 text-[9px] font-bold tracking-wide"
+                    style={{
+                      background: 'rgba(239, 68, 68, 0.18)',
+                      color: '#fca5a5',
+                    }}
+                  >
+                    LIVE
+                  </span>
                 )}
               </Link>
             )
           })}
         </nav>
 
-        <div style={{ padding: '12px 10px', borderTop: '1px solid var(--border)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', borderRadius: '8px', background: 'var(--bg-secondary)', marginBottom: '8px' }}>
-            <div style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'var(--accent-gradient)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: '700', color: 'white', flexShrink: 0 }}>
+        <div className="border-t px-3 py-4" style={{ borderColor: 'var(--sidebar-border)' }}>
+          <div
+            className="mb-3 flex items-center gap-3 rounded-xl px-2 py-2"
+            style={{ background: 'var(--sidebar-surface)' }}
+          >
+            <div
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-xs font-bold text-white"
+              style={{ background: 'var(--accent-gradient)' }}
+            >
               {user?.name?.charAt(0)?.toUpperCase() || '?'}
             </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: '12px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{user?.name || '...'}</div>
-              <span className={`badge ${badgeClass}`} style={{ fontSize: '9px', padding: '0px 6px' }}>{roleLabel}</span>
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-xs font-semibold" style={{ color: '#e2e8f0' }}>
+                {user?.name || '…'}
+              </div>
+              <span className={`badge ${badgeClass} mt-1 !px-2 !py-0 !text-[9px]`}>{roleLabel}</span>
             </div>
           </div>
-          <button onClick={() => signOut({ callbackUrl: '/login' })} className="btn-secondary" style={{ width: '100%', fontSize: '12px', padding: '7px 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-            <LogOut size={14} /> Sign out
+          <button
+            type="button"
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            className="btn-secondary w-full !border-white/10 !bg-white/5 !text-slate-300 hover:!border-teal-400/40 hover:!bg-teal-500/10 hover:!text-teal-200"
+            style={{ fontSize: '12px', padding: '8px 12px' }}
+          >
+            <span className="flex items-center justify-center gap-2">
+              <LogOut size={14} /> Sign out
+            </span>
           </button>
         </div>
       </aside>
 
-      {/* Main */}
-      <div className="main-content" style={{ flex: 1 }}>
-        <header style={{ background: 'var(--bg-card)', borderBottom: '1px solid var(--border)', padding: '0 24px', height: '52px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0, zIndex: 30 }}>
-          <button onClick={() => setSidebarOpen(true)} className="mobile-menu-btn" style={{ background: 'none', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', display: 'none' }}>
-            <Menu size={20} />
+      <div className="main-content flex min-h-screen min-h-dvh flex-1 flex-col">
+        <header className="dash-header sticky top-0 z-30 flex h-[52px] items-center justify-between px-5 md:px-8">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="mobile-menu-btn -ml-1 flex items-center justify-center rounded-lg p-2"
+            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+          >
+            <Menu size={20} className="text-[var(--text-primary)]" />
           </button>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Wifi size={13} style={{ color: '#10b981' }} />
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)' }}>Real-time</span>
+          <div className="flex items-center gap-2">
+            <span
+              className="flex h-2 w-2 animate-pulse rounded-full"
+              style={{ background: 'var(--accent-bright)', boxShadow: '0 0 10px var(--accent-bright)' }}
+            />
+            <Radio size={14} style={{ color: 'var(--accent)' }} />
+            <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+              Real-time channel active
+            </span>
           </div>
-          <div suppressHydrationWarning style={{ fontSize: '12px', color: 'var(--text-muted)' }}>
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+          <div suppressHydrationWarning className="text-xs font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>
+            {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
           </div>
         </header>
 
-        <main style={{ padding: '28px 24px' }}>
-          {children}
-        </main>
+        <main className="flex-1 px-5 py-8 md:px-8 md:py-10">{children}</main>
       </div>
 
       {user?.id && <AlertReceiver userId={user.id} />}

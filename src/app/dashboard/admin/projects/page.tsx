@@ -36,10 +36,10 @@ export default function ProjectsPage() {
     <div style={{ maxWidth: '1000px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '-0.02em' }}>
-            <FolderKanban size={22} style={{ color: 'var(--accent)' }} /> Projects
+          <h1 className="page-heading flex items-center gap-2.5">
+            <FolderKanban size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> Projects
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{projects.length} active projects</p>
+          <p className="page-sub">{projects.length} active projects</p>
         </div>
         <button onClick={() => setShowModal(true)} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
           <Plus size={15} /> New Project
@@ -85,7 +85,7 @@ export default function ProjectsPage() {
       {showModal && (
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal">
-            <h2 style={{ fontSize: '17px', fontWeight: '700', marginBottom: '20px' }}>Create Project</h2>
+            <h2 className="font-display mb-5 text-lg font-semibold tracking-tight">Create project</h2>
             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>Name *</label><input className="input" placeholder="e.g. Q2 Campaign" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required /></div>
               <div><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>Description</label><textarea className="input" placeholder="What is this about?" value={form.description} onChange={e => setForm({ ...form, description: e.target.value })} rows={3} /></div>

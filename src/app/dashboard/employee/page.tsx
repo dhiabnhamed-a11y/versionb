@@ -13,7 +13,12 @@ interface Task {
 
 const STAGES = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']
 const STAGE_LABELS: Record<string, string> = { TODO: 'To Do', IN_PROGRESS: 'In Progress', REVIEW: 'Review', DONE: 'Done' }
-const STAGE_COLORS: Record<string, string> = { TODO: '#505a70', IN_PROGRESS: '#3b82f6', REVIEW: '#f59e0b', DONE: '#10b981' }
+const STAGE_COLORS: Record<string, string> = {
+  TODO: 'var(--text-muted)',
+  IN_PROGRESS: '#0f766e',
+  REVIEW: '#d97706',
+  DONE: '#059669',
+}
 
 export default function EmployeeDashboard() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -39,19 +44,19 @@ export default function EmployeeDashboard() {
   const overdue = tasks.filter(t => t.stage !== 'DONE' && t.deadline && new Date(t.deadline) < new Date())
 
   const statCards = [
-    { label: 'To Do', count: todo.length, color: '#505a70' },
-    { label: 'In Progress', count: inProgress.length, color: '#3b82f6' },
-    { label: 'Review', count: review.length, color: '#f59e0b' },
-    { label: 'Done', count: done.length, color: '#10b981' },
+    { label: 'To Do', count: todo.length, color: '#64748b' },
+    { label: 'In Progress', count: inProgress.length, color: '#0f766e' },
+    { label: 'Review', count: review.length, color: '#d97706' },
+    { label: 'Done', count: done.length, color: '#059669' },
   ]
 
   return (
     <div style={{ maxWidth: '820px' }}>
       <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '-0.02em' }}>
-          <ListTodo size={22} style={{ color: 'var(--accent)' }} /> My Tasks
+        <h1 className="page-heading flex items-center gap-2.5">
+          <ListTodo size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> My tasks
         </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+        <p className="page-sub">
           {tasks.length} assigned · {done.length} completed{overdue.length > 0 && <span style={{ color: '#ef4444' }}> · {overdue.length} overdue</span>}
         </p>
       </div>

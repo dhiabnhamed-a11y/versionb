@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { formatDate, formatTimeAgo } from '@/lib/utils'
-import { Plus, CheckSquare, Filter, Trash2, Clock, FolderKanban, User, Loader2 } from 'lucide-react'
+import { Plus, CheckSquare, Trash2, Clock, FolderKanban, User, Loader2, ListTodo } from 'lucide-react'
 
 interface Task {
   id: string; title: string; description?: string; priority: string
@@ -16,7 +16,12 @@ interface Employee { id: string; name: string; email: string }
 
 const STAGES = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']
 const STAGE_LABELS: Record<string, string> = { TODO: 'To Do', IN_PROGRESS: 'In Progress', REVIEW: 'Review', DONE: 'Done' }
-const STAGE_COLORS: Record<string, string> = { TODO: 'var(--text-muted)', IN_PROGRESS: '#3b82f6', REVIEW: '#f59e0b', DONE: '#10b981' }
+const STAGE_COLORS: Record<string, string> = {
+  TODO: 'var(--text-muted)',
+  IN_PROGRESS: '#0f766e',
+  REVIEW: '#d97706',
+  DONE: '#059669',
+}
 
 export default function AdminTasksPage() {
   const [tasks, setTasks] = useState<Task[]>([])
@@ -51,19 +56,24 @@ export default function AdminTasksPage() {
     <div style={{ maxWidth: '1000px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
-          <h1 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '-0.02em' }}>
-            <CheckSquare size={22} style={{ color: 'var(--accent)' }} /> Tasks
+          <h1 className="page-heading flex items-center gap-2.5">
+            <CheckSquare size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> Tasks
           </h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{tasks.length} total across all projects</p>
+          <p className="page-sub">{tasks.length} total across all projects</p>
         </div>
         <button onClick={() => setShowModal(true)} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
           <Plus size={15} /> New Task
         </button>
       </div>
 
-      <div style={{ display: 'flex', gap: '6px', marginBottom: '18px', flexWrap: 'wrap' }}>
-        {['ALL', ...STAGES].map(s => (
-          <button key={s} onClick={() => setFilterStage(s)} style={{ padding: '5px 12px', borderRadius: '6px', border: `1px solid ${filterStage === s ? 'rgba(59,130,246,0.3)' : 'var(--border)'}`, background: filterStage === s ? 'rgba(59,130,246,0.08)' : 'transparent', color: filterStage === s ? 'var(--accent-hover)' : 'var(--text-muted)', fontSize: '12px', fontWeight: '500', cursor: 'pointer', transition: 'all 0.15s' }}>
+      <div className="mb-[18px] flex flex-wrap gap-2">
+        {['ALL', ...STAGES].map((s) => (
+          <button
+            key={s}
+            type="button"
+            onClick={() => setFilterStage(s)}
+            className={`filter-chip ${filterStage === s ? 'filter-chip-active' : ''}`}
+          >
             {s === 'ALL' ? 'All' : STAGE_LABELS[s]}
           </button>
         ))}
@@ -73,7 +83,7 @@ export default function AdminTasksPage() {
         <div style={{ textAlign: 'center', padding: '60px' }}><div className="spinner" style={{ margin: '0 auto' }} /></div>
       ) : filtered.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px' }} className="card">
-          <ClipboardList size={32} style={{ color: 'var(--text-muted)', opacity: 0.3, margin: '0 auto 12px', display: 'block' }} />
+          <ListTodo size={32} style={{ color: 'var(--text-muted)', opacity: 0.35, margin: '0 auto 12px', display: 'block' }} />
           <p style={{ color: 'var(--text-muted)', marginBottom: '12px', fontSize: '13px' }}>No tasks found</p>
           <button onClick={() => setShowModal(true)} className="btn-primary" style={{ fontSize: '12px' }}>Create Task</button>
         </div>
@@ -118,7 +128,7 @@ export default function AdminTasksPage() {
       {showModal && (
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal">
-            <h2 style={{ fontSize: '17px', fontWeight: '700', marginBottom: '20px', letterSpacing: '-0.01em' }}>Create Task</h2>
+            <h2 className="font-display mb-5 text-lg font-semibold tracking-tight">Create task</h2>
             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>Project *</label><select className="input" value={form.projectId} onChange={e => setForm({ ...form, projectId: e.target.value })} required><option value="">Select...</option>{projects.map(p => <option key={p.id} value={p.id}>{p.title}</option>)}</select></div>
               <div><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>Title *</label><input className="input" placeholder="Task title" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} required /></div>
@@ -141,5 +151,3 @@ export default function AdminTasksPage() {
     </div>
   )
 }
-
-function ClipboardList(props: any) { return <CheckSquare {...props} /> }

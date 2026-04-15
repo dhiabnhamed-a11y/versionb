@@ -26,23 +26,30 @@ export default function EmployeeProgressPage() {
   return (
     <div style={{ maxWidth: '720px' }}>
       <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '-0.02em' }}>
-          <BarChart3 size={22} style={{ color: 'var(--accent)' }} /> My Progress
+        <h1 className="page-heading flex items-center gap-2.5">
+          <BarChart3 size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> My progress
         </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Track your performance across projects</p>
+        <p className="page-sub">How you&apos;re moving work across projects</p>
       </div>
 
       {/* Overall score */}
-      <div className="card" style={{ marginBottom: '20px', background: 'linear-gradient(135deg, rgba(59,130,246,0.08), rgba(6,182,212,0.05))', border: '1px solid rgba(59,130,246,0.15)' }}>
+      <div
+        className="card"
+        style={{
+          marginBottom: '20px',
+          background: 'linear-gradient(135deg, rgba(15, 118, 110, 0.09), rgba(217, 119, 6, 0.05))',
+          border: '1px solid rgba(15, 118, 110, 0.18)',
+        }}
+      >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <div style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '4px', fontWeight: '500' }}>Overall Completion</div>
             <div style={{ fontSize: '42px', fontWeight: '800', letterSpacing: '-0.03em' }} className="gradient-text">{overall}%</div>
             <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>{done} of {total} tasks completed</div>
           </div>
-          <div style={{ width: '88px', height: '88px', borderRadius: '50%', background: `conic-gradient(#3b82f6 ${overall * 3.6}deg, var(--bg-elevated) 0deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: '88px', height: '88px', borderRadius: '50%', background: `conic-gradient(#0f766e ${overall * 3.6}deg, var(--bg-elevated) 0deg)`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              {overall >= 80 ? <Trophy size={22} style={{ color: '#f59e0b' }} /> : overall >= 50 ? <Zap size={22} style={{ color: '#3b82f6' }} /> : <Target size={22} style={{ color: 'var(--text-muted)' }} />}
+              {overall >= 80 ? <Trophy size={22} style={{ color: '#d97706' }} /> : overall >= 50 ? <Zap size={22} style={{ color: '#0f766e' }} /> : <Target size={22} style={{ color: 'var(--text-muted)' }} />}
             </div>
           </div>
         </div>
@@ -57,7 +64,7 @@ export default function EmployeeProgressPage() {
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          <h2 style={{ fontSize: '13px', fontWeight: '600', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>By Project</h2>
+          <h2 className="font-display text-sm font-semibold tracking-tight text-[var(--text-muted)]">By project</h2>
           {Object.entries(byProject).map(([projectName, projectTasks], i) => {
             const pDone = projectTasks.filter(t => t.stage === 'DONE').length
             const pTotal = projectTasks.length
@@ -74,15 +81,15 @@ export default function EmployeeProgressPage() {
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{pTotal} tasks</div>
                     </div>
                   </div>
-                  <div style={{ fontSize: '22px', fontWeight: '800', color: pPct >= 80 ? '#10b981' : pPct >= 50 ? '#f59e0b' : 'var(--accent)', letterSpacing: '-0.02em' }}>{pPct}%</div>
+                  <div style={{ fontSize: '22px', fontWeight: '800', color: pPct >= 80 ? '#059669' : pPct >= 50 ? '#d97706' : 'var(--accent)', letterSpacing: '-0.02em' }}>{pPct}%</div>
                 </div>
                 <div className="progress-bar" style={{ height: '5px' }}>
-                  <div className="progress-fill" style={{ width: `${pPct}%`, background: pPct >= 80 ? '#10b981' : pPct >= 50 ? '#f59e0b' : '#3b82f6' }} />
+                  <div className="progress-fill" style={{ width: `${pPct}%`, background: pPct >= 80 ? '#059669' : pPct >= 50 ? '#d97706' : '#0f766e' }} />
                 </div>
                 <div style={{ display: 'flex', gap: '14px', marginTop: '10px', flexWrap: 'wrap' }}>
                   {['TODO','IN_PROGRESS','REVIEW','DONE'].map(stage => {
                     const count = projectTasks.filter(t => t.stage === stage).length
-                    const colors: Record<string,string> = { TODO: '#505a70', IN_PROGRESS: '#3b82f6', REVIEW: '#f59e0b', DONE: '#10b981' }
+                    const colors: Record<string, string> = { TODO: '#64748b', IN_PROGRESS: '#0f766e', REVIEW: '#d97706', DONE: '#059669' }
                     const labels: Record<string,string> = { TODO: 'To Do', IN_PROGRESS: 'Active', REVIEW: 'Review', DONE: 'Done' }
                     return <div key={stage} style={{ fontSize: '11px', color: 'var(--text-muted)' }}><span style={{ color: colors[stage], fontWeight: '700' }}>{count}</span> {labels[stage]}</div>
                   })}

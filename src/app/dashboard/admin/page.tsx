@@ -36,23 +36,26 @@ export default function AdminDashboard() {
 
   const user = session?.user as any
 
-  const statCards = stats ? [
-    { label: 'Total Tasks', value: stats.totalTasks, icon: ClipboardList, color: '#3b82f6', bg: 'rgba(59,130,246,0.08)' },
-    { label: 'Completed', value: stats.doneTasks, icon: CheckCircle2, color: '#10b981', bg: 'rgba(16,185,129,0.08)' },
-    { label: 'In Progress', value: stats.inProgressTasks, icon: Zap, color: '#f59e0b', bg: 'rgba(245,158,11,0.08)' },
-    { label: 'Overdue', value: stats.overdueTasks, icon: AlertTriangle, color: '#ef4444', bg: 'rgba(239,68,68,0.08)' },
-    { label: 'Team Members', value: stats.totalEmployees, icon: Users, color: '#06b6d4', bg: 'rgba(6,182,212,0.08)' },
-  ] : []
+  const statCards = stats
+    ? [
+        { label: 'Total Tasks', value: stats.totalTasks, icon: ClipboardList, color: '#0f766e', bg: 'rgba(15,118,110,0.1)' },
+        { label: 'Completed', value: stats.doneTasks, icon: CheckCircle2, color: '#059669', bg: 'rgba(5,150,105,0.09)' },
+        { label: 'In Progress', value: stats.inProgressTasks, icon: Zap, color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
+        { label: 'Overdue', value: stats.overdueTasks, icon: AlertTriangle, color: '#dc2626', bg: 'rgba(220,38,38,0.08)' },
+        { label: 'Team Members', value: stats.totalEmployees, icon: Users, color: '#0e7490', bg: 'rgba(14,116,144,0.09)' },
+      ]
+    : []
 
   const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening'
 
   return (
     <div style={{ maxWidth: '1100px' }}>
       <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '4px', letterSpacing: '-0.02em' }}>
-          <span suppressHydrationWarning>{greeting}</span>, <span className="gradient-text">{user?.name?.split(' ')[0]}</span>
+        <h1 className="page-heading">
+          <span suppressHydrationWarning>{greeting}</span>,{' '}
+          <span className="gradient-text">{user?.name?.split(' ')[0]}</span>
         </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Here&apos;s what&apos;s happening across your workspace today.</p>
+        <p className="page-sub">Here&apos;s momentum across your workspace today.</p>
       </div>
 
       {/* Stats */}
@@ -88,7 +91,7 @@ export default function AdminDashboard() {
         {/* Employee Performance */}
         <div className="card">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-            <h2 style={{ fontSize: '14px', fontWeight: '700', letterSpacing: '-0.01em' }}>Team Performance</h2>
+            <h2 className="font-display text-base font-semibold tracking-tight">Team performance</h2>
             <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>By completion rate</span>
           </div>
           {!stats?.performance?.length ? (
@@ -124,12 +127,12 @@ export default function AdminDashboard() {
         {/* Task breakdown + Quick actions */}
         {stats && (
           <div className="card">
-            <h2 style={{ fontSize: '14px', fontWeight: '700', marginBottom: '18px', letterSpacing: '-0.01em' }}>Task Breakdown</h2>
+            <h2 className="font-display mb-[18px] text-base font-semibold tracking-tight">Task breakdown</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {[
-                { label: 'Completed', value: stats.doneTasks, total: stats.totalTasks, color: '#10b981' },
-                { label: 'In Progress', value: stats.inProgressTasks, total: stats.totalTasks, color: '#3b82f6' },
-                { label: 'Overdue', value: stats.overdueTasks, total: stats.totalTasks, color: '#ef4444' },
+                { label: 'Completed', value: stats.doneTasks, total: stats.totalTasks, color: '#059669' },
+                { label: 'In Progress', value: stats.inProgressTasks, total: stats.totalTasks, color: '#0f766e' },
+                { label: 'Overdue', value: stats.overdueTasks, total: stats.totalTasks, color: '#dc2626' },
               ].map(item => {
                 const pct = stats.totalTasks ? Math.round((item.value / stats.totalTasks) * 100) : 0
                 return (

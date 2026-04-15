@@ -1,14 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Bell, Radio, Phone, Clock, Zap, Send, Loader2, CheckCircle2, ChevronDown } from 'lucide-react'
+import { Bell, Radio, Phone, Clock, Send, Loader2, CheckCircle2 } from 'lucide-react'
 
 interface Employee { id: string; name: string; email: string; role: string }
 
 const ALERT_TYPES = [
-  { value: 'URGENT_TASK', label: 'Urgent Task', desc: 'Immediate action required', icon: Bell, color: '#ef4444' },
-  { value: 'DEADLINE_WARNING', label: 'Deadline Warning', desc: 'Approaching deadline', icon: Clock, color: '#f59e0b' },
-  { value: 'MANAGER_CALL', label: 'Manager Call', desc: 'Request a callback', icon: Phone, color: '#3b82f6' },
+  { value: 'URGENT_TASK', label: 'Urgent Task', desc: 'Immediate action required', icon: Bell, color: '#dc2626' },
+  { value: 'DEADLINE_WARNING', label: 'Deadline Warning', desc: 'Approaching deadline', icon: Clock, color: '#d97706' },
+  { value: 'MANAGER_CALL', label: 'Manager Call', desc: 'Request a callback', icon: Phone, color: '#0e7490' },
 ]
 
 export default function SendAlertPage() {
@@ -37,16 +37,27 @@ export default function SendAlertPage() {
   return (
     <div style={{ maxWidth: '560px' }}>
       <div style={{ marginBottom: '28px' }}>
-        <h1 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '-0.02em' }}>
-          <Bell size={22} style={{ color: 'var(--accent)' }} /> Send Alert
+        <h1 className="page-heading flex items-center gap-2.5">
+          <Bell size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> Send alert
         </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Instantly notify an employee with a real-time sound alert.</p>
+        <p className="page-sub">Reach a teammate instantly with sound, vibration, and a full-screen signal.</p>
       </div>
 
-      <div style={{ background: 'rgba(59,130,246,0.05)', border: '1px solid rgba(59,130,246,0.12)', borderRadius: '10px', padding: '14px 16px', marginBottom: '24px', display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
+      <div
+        style={{
+          background: 'var(--accent-subtle)',
+          border: '1px solid rgba(15, 118, 110, 0.2)',
+          borderRadius: 'var(--radius-md)',
+          padding: '14px 16px',
+          marginBottom: '24px',
+          display: 'flex',
+          gap: '10px',
+          alignItems: 'flex-start',
+        }}
+      >
         <Radio size={16} style={{ color: 'var(--accent)', marginTop: '1px', flexShrink: 0 }} />
         <div>
-          <div style={{ fontSize: '12px', fontWeight: '600', color: 'var(--accent-hover)', marginBottom: '2px' }}>Real-Time Delivery</div>
+          <div style={{ fontSize: '12px', fontWeight: '700', color: 'var(--accent)', marginBottom: '2px' }}>Real-time delivery</div>
           <div style={{ fontSize: '12px', color: 'var(--text-muted)', lineHeight: '1.5' }}>
             The employee will instantly hear a sound alert, see a full-screen notification, and their device will vibrate.
           </div>
@@ -60,8 +71,8 @@ export default function SendAlertPage() {
             {ALERT_TYPES.map(t => {
               const Icon = t.icon
               return (
-                <label key={t.value} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px', borderRadius: '8px', border: `1px solid ${form.type === t.value ? 'rgba(59,130,246,0.3)' : 'var(--border)'}`, background: form.type === t.value ? 'rgba(59,130,246,0.05)' : 'transparent', cursor: 'pointer', transition: 'all 0.15s' }}>
-                  <input type="radio" name="alertType" value={t.value} checked={form.type === t.value} onChange={e => setForm({ ...form, type: e.target.value })} style={{ accentColor: '#3b82f6' }} />
+                <label key={t.value} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '11px 14px', borderRadius: 'var(--radius-sm)', border: `1px solid ${form.type === t.value ? 'var(--accent-ring)' : 'var(--border)'}`, background: form.type === t.value ? 'var(--accent-subtle)' : 'transparent', cursor: 'pointer', transition: 'all 0.15s' }}>
+                  <input type="radio" name="alertType" value={t.value} checked={form.type === t.value} onChange={e => setForm({ ...form, type: e.target.value })} className="accent-teal-600" />
                   <Icon size={16} style={{ color: t.color }} />
                   <div>
                     <div style={{ fontSize: '13px', fontWeight: '500' }}>{t.label}</div>

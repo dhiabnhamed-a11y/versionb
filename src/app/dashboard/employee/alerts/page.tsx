@@ -10,9 +10,9 @@ interface Alert {
 }
 
 const typeConfig: Record<string, { icon: typeof Bell; color: string; bg: string; border: string; label: string }> = {
-  URGENT_TASK: { icon: AlertTriangle, color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.18)', label: 'Urgent Task' },
-  DEADLINE_WARNING: { icon: Clock, color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.18)', label: 'Deadline' },
-  MANAGER_CALL: { icon: Phone, color: '#3b82f6', bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.18)', label: 'Manager Call' },
+  URGENT_TASK: { icon: AlertTriangle, color: '#dc2626', bg: 'rgba(220,38,38,0.08)', border: 'rgba(220,38,38,0.18)', label: 'Urgent Task' },
+  DEADLINE_WARNING: { icon: Clock, color: '#d97706', bg: 'rgba(217,119,6,0.1)', border: 'rgba(217,119,6,0.2)', label: 'Deadline' },
+  MANAGER_CALL: { icon: Phone, color: '#0e7490', bg: 'rgba(14,116,144,0.09)', border: 'rgba(14,116,144,0.22)', label: 'Manager Call' },
 }
 
 export default function EmployeeAlertsPage() {
@@ -34,11 +34,11 @@ export default function EmployeeAlertsPage() {
   return (
     <div style={{ maxWidth: '640px' }}>
       <div style={{ marginBottom: '24px' }}>
-        <h1 style={{ fontSize: '22px', fontWeight: '700', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '10px', letterSpacing: '-0.02em' }}>
-          <Bell size={22} style={{ color: 'var(--accent)' }} /> Alerts
+        <h1 className="page-heading flex flex-wrap items-center gap-2">
+          <Bell size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> Alerts
           {unread > 0 && <span style={{ fontSize: '12px', background: 'rgba(239,68,68,0.15)', color: '#f87171', borderRadius: '4px', padding: '2px 8px', fontWeight: '700' }}>{unread} new</span>}
         </h1>
-        <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Notifications from your manager</p>
+        <p className="page-sub">Notifications from your leads</p>
       </div>
 
       {loading ? (

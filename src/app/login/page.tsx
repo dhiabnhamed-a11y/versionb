@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { Zap, Mail, Lock, ArrowRight, Loader2 } from 'lucide-react'
+import { motion } from 'framer-motion'
+import { Hexagon, Mail, Lock, ArrowRight, Loader2, Sparkles } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -28,57 +29,112 @@ export default function LoginPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px', background: 'var(--bg-primary)' }}>
-      {/* Subtle gradient blobs */}
-      <div style={{ position: 'fixed', top: '15%', left: '10%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(59,130,246,0.06) 0%, transparent 60%)', borderRadius: '50%', pointerEvents: 'none' }} />
-      <div style={{ position: 'fixed', bottom: '10%', right: '15%', width: '400px', height: '400px', background: 'radial-gradient(circle, rgba(6,182,212,0.04) 0%, transparent 60%)', borderRadius: '50%', pointerEvents: 'none' }} />
-
-      <div className="animate-slide-up" style={{ width: '100%', maxWidth: '400px' }}>
-        {/* Logo */}
-        <div style={{ textAlign: 'center', marginBottom: '36px' }}>
-          <div className="icon-box" style={{ width: '52px', height: '52px', background: 'var(--accent-gradient)', margin: '0 auto 16px', boxShadow: '0 8px 24px var(--accent-glow)' }}>
-            <Zap size={24} color="white" />
+    <div className="auth-shell">
+      <div className="auth-brand">
+        <div className="auth-brand-inner">
+          <div className="auth-brand-mark">
+            <Hexagon size={26} color="white" strokeWidth={2.2} />
           </div>
-          <h1 style={{ fontSize: '26px', fontWeight: '700', marginBottom: '6px' }} className="gradient-text">TaskForce</h1>
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>Sign in to your workspace</p>
+          <h1>Calm control for how your team ships work.</h1>
+          <p>
+            Tasked brings projects, ownership, and live signals into one refined surface — so nothing important gets lost in the noise.
+          </p>
         </div>
+        <div className="auth-brand-footer flex flex-wrap items-center gap-x-4 gap-y-2">
+          <span className="flex items-center gap-1.5">
+            <Sparkles size={12} className="text-teal-400/80" />
+            Crafted for clarity
+          </span>
+          <span className="hidden sm:inline" style={{ opacity: 0.35 }}>
+            ·
+          </span>
+          <span>© Tasked</span>
+        </div>
+      </div>
 
-        {/* Form Card */}
-        <div className="glass" style={{ borderRadius: '14px', padding: '28px' }}>
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div className="auth-panel">
+        <motion.div
+          className="auth-card"
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+        >
+          <div className="mb-8 text-center md:text-left">
+            <p className="font-display text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Welcome back</p>
+            <p className="mt-1.5 text-sm" style={{ color: 'var(--text-muted)' }}>
+              Sign in to your workspace
+            </p>
+          </div>
+
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                <Mail size={13} /> Email address
+              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                <Mail size={13} strokeWidth={2} /> Email
               </label>
-              <input id="login-email" className="input" type="email" placeholder="you@company.com" value={email} onChange={e => setEmail(e.target.value)} required />
+              <input
+                id="login-email"
+                className="input"
+                type="email"
+                placeholder="you@company.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                autoComplete="email"
+              />
             </div>
             <div>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>
-                <Lock size={13} /> Password
+              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
+                <Lock size={13} strokeWidth={2} /> Password
               </label>
-              <input id="login-password" className="input" type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required />
+              <input
+                id="login-password"
+                className="input"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                autoComplete="current-password"
+              />
             </div>
 
             {error && (
-              <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '8px', padding: '10px 14px', color: '#f87171', fontSize: '13px' }}>
+              <div
+                className="rounded-[var(--radius-sm)] border px-3.5 py-2.5 text-sm"
+                style={{
+                  background: 'rgba(239, 68, 68, 0.06)',
+                  borderColor: 'rgba(239, 68, 68, 0.2)',
+                  color: '#b91c1c',
+                }}
+              >
                 {error}
               </div>
             )}
 
-            <button id="login-submit" className="btn-primary" type="submit" disabled={loading} style={{ marginTop: '4px', height: '42px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
-              {loading ? <Loader2 size={16} className="animate-spin" style={{ animation: 'spin 0.7s linear infinite' }} /> : <><span>Sign In</span><ArrowRight size={15} /></>}
+            <button
+              id="login-submit"
+              className="btn-primary mt-1 flex h-11 items-center justify-center gap-2"
+              type="submit"
+              disabled={loading}
+            >
+              {loading ? (
+                <Loader2 size={18} className="animate-spin" style={{ animation: 'spin 0.7s linear infinite' }} />
+              ) : (
+                <>
+                  <span>Sign in</span>
+                  <ArrowRight size={16} strokeWidth={2.25} />
+                </>
+              )}
             </button>
           </form>
 
-          <div style={{ marginTop: '20px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '13px' }}>
-            Don&apos;t have an account?{' '}
-            <Link href="/signup" style={{ color: 'var(--accent-hover)', fontWeight: '600', textDecoration: 'none' }}>Create one</Link>
-          </div>
-        </div>
-
-        <div style={{ marginTop: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '11px', opacity: 0.7 }}>
-          Sign up as <strong style={{ color: 'var(--text-secondary)' }}>Owner</strong> to get full admin access
-        </div>
+          <p className="mt-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
+            New here?{' '}
+            <Link href="/signup" className="font-semibold text-[var(--accent)] underline-offset-4 hover:underline">
+              Create an account
+            </Link>
+          </p>
+        </motion.div>
       </div>
     </div>
   )
