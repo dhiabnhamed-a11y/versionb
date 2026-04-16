@@ -3,7 +3,7 @@ import { auth } from '@/lib/auth'
 import { getDatabaseConfigHint, prisma } from '@/lib/db'
 import {
   getProjectCameraSupport,
-  isMissingCameraTypeError,
+  isProjectCameraEnumCompatibilityError,
   withProjectCameraDefaults,
 } from '@/lib/project-camera-support'
 
@@ -54,7 +54,7 @@ export async function GET() {
         orderBy: { createdAt: 'desc' },
       })
     } catch (error) {
-      if (!support.hasCameraColumns || !isMissingCameraTypeError(error)) {
+      if (!support.hasCameraColumns || !isProjectCameraEnumCompatibilityError(error)) {
         throw error
       }
 
@@ -119,7 +119,7 @@ export async function POST(req: Request) {
         select: getProjectCreateSelect(support.hasCameraColumns),
       })
     } catch (error) {
-      if (!support.hasCameraColumns || !isMissingCameraTypeError(error)) {
+      if (!support.hasCameraColumns || !isProjectCameraEnumCompatibilityError(error)) {
         throw error
       }
 

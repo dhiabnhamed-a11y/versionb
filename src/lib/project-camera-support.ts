@@ -65,13 +65,15 @@ export function withProjectCameraDefaults<T extends ProjectWithOptionalCameraFie
   }
 }
 
-export function isMissingCameraTypeError(error: unknown) {
+export function isProjectCameraEnumCompatibilityError(error: unknown) {
   if (!(error instanceof Error)) {
     return false
   }
 
   return (
     error.message.includes('type "public.CameraType" does not exist') ||
-    error.message.includes('type "CameraType" does not exist')
+    error.message.includes('type "CameraType" does not exist') ||
+    error.message.includes("Attempted to serialize non-enum-compatible value 'null' for enum 'CameraType'") ||
+    error.message.includes('non-enum-compatible value') && error.message.includes('CameraType')
   )
 }
