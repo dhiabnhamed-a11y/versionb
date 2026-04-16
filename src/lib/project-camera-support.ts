@@ -5,6 +5,7 @@ type CameraTypeValue = 'device' | 'external'
 type ProjectCameraSupport = {
   hasCameraColumns: boolean
   hasCameraMediaTable: boolean
+  hasCameraTypeEnum: boolean
 }
 
 type ProjectWithOptionalCameraFields = {
@@ -21,7 +22,7 @@ export async function getProjectCameraSupport(): Promise<ProjectCameraSupport> {
   if (!globalForProjectCameraSupport.projectCameraSupportPromise) {
     globalForProjectCameraSupport.projectCameraSupportPromise = (async () => {
       try {
-        const [columns, tables] = await Promise.all([
+        const [columns, tables, enums] = await Promise.all([
           prisma.$queryRaw<Array<{ column_name: string }>>`
             SELECT column_name
             FROM information_schema.columns
@@ -35,19 +36,29 @@ export async function getProjectCameraSupport(): Promise<ProjectCameraSupport> {
             WHERE table_schema = current_schema()
               AND table_name = 'ProjectCameraMedia'
           `,
+          prisma.$queryRaw<Array<{ typname: string }>>`
+            SELECT t.typname
+            FROM pg_type t
+            JOIN pg_namespace n ON n.oid = t.typnamespace
+            WHERE n.nspname = current_schema()
+              AND t.typname = 'CameraType'
+          `,
         ])
 
         const columnNames = new Set(columns.map((column) => column.column_name))
+        const hasCameraTypeEnum = enums.some((entry) => entry.typname === 'CameraType')
 
         return {
-          hasCameraColumns: columnNames.has('hasCamera') && columnNames.has('cameraType'),
+          hasCameraColumns: columnNames.has('hasCamera') && columnNames.has('cameraType') && hasCameraTypeEnum,
           hasCameraMediaTable: tables.some((table) => table.table_name === 'ProjectCameraMedia'),
+          hasCameraTypeEnum,
         }
       } catch (error) {
         console.warn('[project-camera-support] Falling back to camera-disabled compatibility mode.', error)
         return {
           hasCameraColumns: false,
           hasCameraMediaTable: false,
+          hasCameraTypeEnum: false,
         }
       }
     })()

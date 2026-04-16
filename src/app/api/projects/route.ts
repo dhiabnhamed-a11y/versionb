@@ -173,18 +173,22 @@ export async function GET() {
   try {
     const support = await getProjectCameraSupport()
     let projects
-    try {
-      projects = await prisma.project.findMany({
-        where: { companyId: user.companyId },
-        select: getProjectListSelect(support.hasCameraColumns),
-        orderBy: { createdAt: 'desc' },
-      })
-    } catch (error) {
-      if (!isProjectCameraEnumCompatibilityError(error)) {
-        throw error
-      }
-
+    if (!support.hasCameraColumns || !support.hasCameraTypeEnum) {
       projects = await findProjectsWithoutCameraFields(user.companyId)
+    } else {
+      try {
+        projects = await prisma.project.findMany({
+          where: { companyId: user.companyId },
+          select: getProjectListSelect(true),
+          orderBy: { createdAt: 'desc' },
+        })
+      } catch (error) {
+        if (!isProjectCameraEnumCompatibilityError(error)) {
+          throw error
+        }
+
+        projects = await findProjectsWithoutCameraFields(user.companyId)
+      }
     }
 
     return NextResponse.json(projects.map(withProjectCameraDefaults))
@@ -224,33 +228,38 @@ export async function POST(req: Request) {
     }
 
     let project
-    try {
-      project = await prisma.project.create({
-        data: {
-          title,
-          description,
-          companyId: user.companyId,
-          managerId: managerId || null,
-          ...(support.hasCameraColumns
-            ? {
-                hasCamera: Boolean(hasCamera),
-                cameraType: cameraType === 'external' ? 'external' : 'device',
-              }
-            : {}),
-        },
-        select: getProjectCreateSelect(support.hasCameraColumns),
-      })
-    } catch (error) {
-      if (!isProjectCameraEnumCompatibilityError(error)) {
-        throw error
-      }
-
+    if (!support.hasCameraColumns || !support.hasCameraTypeEnum) {
       project = await createProjectWithoutCameraFields({
         title,
         description,
         companyId: user.companyId,
         managerId,
       })
+    } else {
+      try {
+        project = await prisma.project.create({
+          data: {
+            title,
+            description,
+            companyId: user.companyId,
+            managerId: managerId || null,
+            hasCamera: Boolean(hasCamera),
+            cameraType: cameraType === 'external' ? 'external' : 'device',
+          },
+          select: getProjectCreateSelect(true),
+        })
+      } catch (error) {
+        if (!isProjectCameraEnumCompatibilityError(error)) {
+          throw error
+        }
+
+        project = await createProjectWithoutCameraFields({
+          title,
+          description,
+          companyId: user.companyId,
+          managerId,
+        })
+      }
     }
 
     return NextResponse.json(withProjectCameraDefaults(project), { status: 201 })
