@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 import AlertReceiver from '@/components/alerts/AlertReceiver'
 import Image from 'next/image'
 import logo from '@/app/logo.png'
+import { isRealtimeAlertsEnabled } from '@/lib/socket-client'
 import {
   LayoutDashboard,
   FolderKanban,
@@ -42,6 +43,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   const user = session?.user as { id?: string; name?: string; role?: string }
   const isEmployee = user?.role === 'EMPLOYEE'
   const links = isEmployee ? employeeLinks : adminLinks
+  const realtimeEnabled = isRealtimeAlertsEnabled()
 
   const roleLabel = user?.role === 'OWNER' ? 'Owner' : user?.role === 'MANAGER' ? 'Manager' : 'Employee'
   const badgeClass = user?.role === 'OWNER' ? 'badge-owner' : user?.role === 'MANAGER' ? 'badge-manager' : 'badge-employee'
@@ -156,12 +158,15 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
           </button>
           <div className="flex items-center gap-2">
             <span
-              className="flex h-2 w-2 animate-pulse rounded-full"
-              style={{ background: 'var(--accent-bright)', boxShadow: '0 0 10px var(--accent-bright)' }}
+              className={`flex h-2 w-2 rounded-full ${realtimeEnabled ? 'animate-pulse' : ''}`}
+              style={{
+                background: realtimeEnabled ? 'var(--accent-bright)' : 'var(--text-muted)',
+                boxShadow: realtimeEnabled ? '0 0 10px var(--accent-bright)' : 'none',
+              }}
             />
-            <Radio size={14} style={{ color: 'var(--accent)' }} />
+            <Radio size={14} style={{ color: realtimeEnabled ? 'var(--accent)' : 'var(--text-muted)' }} />
             <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-              Real-time channel active
+              {realtimeEnabled ? 'Real-time channel active' : 'Real-time alerts unavailable on this deployment'}
             </span>
           </div>
           <div suppressHydrationWarning className="text-xs font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>
@@ -172,7 +177,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
         <main className="flex-1 px-5 py-8 md:px-8 md:py-10">{children}</main>
       </div>
 
-      {user?.id && <AlertReceiver userId={user.id} />}
+      {user?.id && realtimeEnabled && <AlertReceiver userId={user.id} />}
     </div>
   )
 }

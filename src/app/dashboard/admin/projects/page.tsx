@@ -18,10 +18,17 @@ interface Employee {
   name: string
 }
 
+interface ApiFailure {
+  error?: string
+  detail?: string
+  hint?: string
+}
+
 export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<ApiFailure | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [form, setForm] = useState({
     title: '',
@@ -31,16 +38,21 @@ export default function ProjectsPage() {
     cameraType: 'device' as 'device' | 'external',
   })
   const [saving, setSaving] = useState(false)
+  const [formError, setFormError] = useState<ApiFailure | null>(null)
 
   async function fetchProjectsData() {
-    const [p, e] = await Promise.all([
-      fetch('/api/projects').then((r) => r.json()),
-      fetch('/api/employees').then((r) => r.json()),
+    const [projectResponse, employeeResponse] = await Promise.all([
+      fetch('/api/projects'),
+      fetch('/api/employees'),
     ])
 
+    const [projectBody, employeeBody] = await Promise.all([projectResponse.json(), employeeResponse.json()])
+
     return {
-      projects: Array.isArray(p) ? p : [],
-      employees: Array.isArray(e) ? e : [],
+      ok: projectResponse.ok,
+      projects: Array.isArray(projectBody) ? projectBody : [],
+      employees: Array.isArray(employeeBody) ? employeeBody : [],
+      projectError: Array.isArray(projectBody) ? null : ((projectBody as ApiFailure) ?? null),
     }
   }
 
@@ -52,6 +64,7 @@ export default function ProjectsPage() {
       if (!active) return
       setProjects(data.projects)
       setEmployees(data.employees)
+      setLoadError(data.ok ? null : data.projectError)
       setLoading(false)
     }
 
@@ -64,8 +77,9 @@ export default function ProjectsPage() {
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault()
+    setFormError(null)
     setSaving(true)
-    await fetch('/api/projects', {
+    const response = await fetch('/api/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -76,7 +90,12 @@ export default function ProjectsPage() {
         cameraType: form.cameraType,
       }),
     })
+    const body = (await response.json()) as Project | ApiFailure
     setSaving(false)
+    if (!response.ok) {
+      setFormError(body as ApiFailure)
+      return
+    }
     setShowModal(false)
     setForm({
       title: '',
@@ -88,6 +107,7 @@ export default function ProjectsPage() {
     const data = await fetchProjectsData()
     setProjects(data.projects)
     setEmployees(data.employees)
+    setLoadError(data.ok ? null : data.projectError)
   }
 
   return (
@@ -115,6 +135,31 @@ export default function ProjectsPage() {
           <Plus size={15} /> New Project
         </button>
       </div>
+
+      {loadError && (
+        <div
+          className="card"
+          style={{
+            marginBottom: '16px',
+            borderColor: 'rgba(220, 38, 38, 0.2)',
+            background: 'rgba(220, 38, 38, 0.04)',
+          }}
+        >
+          <p style={{ color: '#b91c1c', fontSize: '13px', fontWeight: 700, marginBottom: '6px' }}>
+            {loadError.error || 'Projects could not be loaded'}
+          </p>
+          {loadError.detail && (
+            <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '6px' }}>
+              {loadError.detail}
+            </p>
+          )}
+          {loadError.hint && (
+            <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+              {loadError.hint}
+            </p>
+          )}
+        </div>
+      )}
 
       {loading ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
@@ -310,6 +355,30 @@ export default function ProjectsPage() {
                   )}
                 </button>
               </div>
+              {formError && (
+                <div
+                  style={{
+                    borderRadius: '8px',
+                    border: '1px solid rgba(220, 38, 38, 0.18)',
+                    background: 'rgba(220, 38, 38, 0.05)',
+                    padding: '10px 12px',
+                  }}
+                >
+                  <p style={{ color: '#b91c1c', fontSize: '12px', fontWeight: 700 }}>
+                    {formError.error || 'Project could not be created'}
+                  </p>
+                  {formError.detail && (
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '4px' }}>
+                      {formError.detail}
+                    </p>
+                  )}
+                  {formError.hint && (
+                    <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '4px' }}>
+                      {formError.hint}
+                    </p>
+                  )}
+                </div>
+              )}
             </form>
           </div>
         </div>

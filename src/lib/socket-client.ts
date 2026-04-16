@@ -3,48 +3,21 @@ import { io, Socket } from 'socket.io-client'
 
 let socket: Socket | null = null
 let socketInitPromise: Promise<Socket | null> | null = null
-let socketUnavailable = false
-
-async function hasSocketEndpoint() {
-  if (typeof window === 'undefined' || socketUnavailable) {
-    return false
-  }
-
-  try {
-    const response = await fetch(`/api/socketio?EIO=4&transport=polling&t=${Date.now()}`, {
-      method: 'GET',
-      cache: 'no-store',
-      credentials: 'same-origin',
-    })
-
-    if (response.status === 404) {
-      socketUnavailable = true
-      return false
-    }
-
-    return response.ok
-  } catch {
-    socketUnavailable = true
-    return false
-  }
-}
+const realtimeEnabled =
+  typeof window !== 'undefined' &&
+  (process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_ENABLE_REALTIME_ALERTS === 'true')
 
 export async function getSocket(): Promise<Socket | null> {
   if (socket) {
     return socket
   }
 
-  if (socketUnavailable) {
+  if (!realtimeEnabled) {
     return null
   }
 
   if (!socketInitPromise) {
     socketInitPromise = (async () => {
-      const endpointAvailable = await hasSocketEndpoint()
-      if (!endpointAvailable) {
-        return null
-      }
-
       socket = io({
         path: '/api/socketio',
         addTrailingSlash: false,
@@ -64,4 +37,8 @@ export function disconnectSocket() {
     socket.disconnect()
     socket = null
   }
+}
+
+export function isRealtimeAlertsEnabled() {
+  return realtimeEnabled
 }

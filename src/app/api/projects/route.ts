@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { getDatabaseConfigHint, prisma } from '@/lib/db'
 import { getProjectCameraSupport, withProjectCameraDefaults } from '@/lib/project-camera-support'
 
 // GET all projects for company
@@ -33,7 +33,14 @@ export async function GET() {
     return NextResponse.json(projects.map(withProjectCameraDefaults))
   } catch (err) {
     console.error(err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: 'Unable to load projects',
+        detail: err instanceof Error ? err.message : 'Unknown database error',
+        hint: getDatabaseConfigHint(),
+      },
+      { status: 500 }
+    )
   }
 }
 
@@ -86,6 +93,13 @@ export async function POST(req: Request) {
     return NextResponse.json(withProjectCameraDefaults(project), { status: 201 })
   } catch (err) {
     console.error(err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: 'Unable to create project',
+        detail: err instanceof Error ? err.message : 'Unknown database error',
+        hint: getDatabaseConfigHint(),
+      },
+      { status: 500 }
+    )
   }
 }
