@@ -90,7 +90,7 @@ export default function EmployeesPage() {
         <div className="modal-backdrop" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
           <div className="modal" style={{ maxWidth: '400px' }}>
             <h2 className="font-display mb-1.5 text-lg font-semibold tracking-tight">Add team member</h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '20px' }}>User must already have a Tasked account.</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '20px' }}>User must already have a TASKIT account.</p>
             <form onSubmit={handleAdd} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>Email</label><input className="input" type="email" placeholder="employee@company.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} required /></div>
               <div><label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>Role</label><select className="input" value={form.role} onChange={e => setForm({ ...form, role: e.target.value })}><option value="EMPLOYEE">Employee</option><option value="MANAGER">Manager</option></select></div>

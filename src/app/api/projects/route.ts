@@ -34,13 +34,23 @@ export async function POST(req: NextRequest) {
   if (user.role === 'EMPLOYEE') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
-    const { title, description, managerId } = await req.json()
+       const body = await req.json()
+    const { title, description, managerId, hasCamera, cameraType } = body as {
+      title: string
+      description?: string
+      managerId?: string
+      hasCamera?: boolean
+      cameraType?: 'device' | 'external'
+    }
+
     const project = await prisma.project.create({
       data: {
         title,
         description,
         companyId: user.companyId,
         managerId: managerId || null,
+        hasCamera: Boolean(hasCamera),
+        cameraType: cameraType === 'external' ? 'external' : 'device',
       },
     })
     return NextResponse.json(project, { status: 201 })

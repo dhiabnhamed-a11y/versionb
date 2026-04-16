@@ -5,6 +5,8 @@ import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import AlertReceiver from '@/components/alerts/AlertReceiver'
+import Image from 'next/image'
+import logo from '@/app/logo.png'
 import {
   LayoutDashboard,
   FolderKanban,
@@ -13,7 +15,6 @@ import {
   Bell,
   ListTodo,
   BarChart3,
-  Hexagon,
   LogOut,
   Radio,
   Menu,
@@ -63,10 +64,10 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
               className="icon-box flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px]"
               style={{ background: 'var(--accent-gradient)', boxShadow: '0 8px 28px rgba(13, 148, 136, 0.35)' }}
             >
-              <Hexagon size={20} color="white" strokeWidth={2.2} />
+              <Image src={logo} alt="TASKIT logo" width={22} height={22} className="h-5 w-5" />
             </div>
             <div className="min-w-0">
-              <div className="font-display text-lg font-semibold tracking-tight text-slate-100">Tasked</div>
+              <div className="font-display text-lg font-semibold tracking-tight text-slate-100">TASKIT</div>
               <div
                 className="text-[10px] font-semibold uppercase tracking-[0.14em]"
                 style={{ color: '#64748b' }}

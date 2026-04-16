@@ -39,18 +39,38 @@ model Company {
   projects Project[]
 }
 
+enum CameraType {
+  device
+  external
+}
+
 model Project {
-  id          String   @id @default(cuid())
+  id          String     @id @default(cuid())
   title       String
   description String?
   companyId   String
   managerId   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  hasCamera   Boolean    @default(false)
+  cameraType  CameraType @default(device)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
 
-  company  Company @relation(fields: [companyId], references: [id])
-  manager  User?   @relation("ProjectManager", fields: [managerId], references: [id])
-  tasks    Task[]
+  company     Company               @relation(fields: [companyId], references: [id])
+  manager     User?                 @relation("ProjectManager", fields: [managerId], references: [id])
+  tasks       Task[]
+  cameraMedia ProjectCameraMedia[]
+}
+
+model ProjectCameraMedia {
+  id        String   @id @default(cuid())
+  projectId String
+  fileUrl   String
+  type      String // image | video
+  createdAt DateTime @default(now())
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId])
 }
 
 model Task {

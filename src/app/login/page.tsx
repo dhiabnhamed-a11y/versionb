@@ -5,7 +5,9 @@ import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Hexagon, Mail, Lock, ArrowRight, Loader2, Sparkles } from 'lucide-react'
+import Image from 'next/image'
+import logo from '@/app/logo.png'
+import { Mail, Lock, ArrowRight, Loader2, Sparkles } from 'lucide-react'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -33,11 +35,11 @@ export default function LoginPage() {
       <div className="auth-brand">
         <div className="auth-brand-inner">
           <div className="auth-brand-mark">
-            <Hexagon size={26} color="white" strokeWidth={2.2} />
+            <Image src={logo} alt="TASKIT logo" width={28} height={28} className="h-7 w-7" />
           </div>
           <h1>Calm control for how your team ships work.</h1>
           <p>
-            Tasked brings projects, ownership, and live signals into one refined surface — so nothing important gets lost in the noise.
+            TASKIT brings projects, ownership, and live signals into one refined surface — so nothing important gets lost in the noise.
           </p>
         </div>
         <div className="auth-brand-footer flex flex-wrap items-center gap-x-4 gap-y-2">
@@ -48,7 +50,7 @@ export default function LoginPage() {
           <span className="hidden sm:inline" style={{ opacity: 0.35 }}>
             ·
           </span>
-          <span>© Tasked</span>
+          <span>© TASKIT</span>
         </div>
       </div>
 

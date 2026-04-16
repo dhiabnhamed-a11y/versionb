@@ -4,7 +4,9 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { Hexagon, User, Mail, Lock, Shield, Briefcase, UserCheck, ArrowRight, Loader2, Layers } from 'lucide-react'
+import Image from 'next/image'
+import logo from '@/app/logo.png'
+import { User, Mail, Lock, Shield, Briefcase, UserCheck, ArrowRight, Loader2, Layers } from 'lucide-react'
 
 export default function SignupPage() {
   const router = useRouter()
@@ -38,11 +40,11 @@ export default function SignupPage() {
       <div className="auth-brand">
         <div className="auth-brand-inner">
           <div className="auth-brand-mark">
-            <Hexagon size={26} color="white" strokeWidth={2.2} />
+            <Image src={logo} alt="TASKIT logo" width={28} height={28} className="h-7 w-7" />
           </div>
           <h1>One workspace. Every commitment, visible.</h1>
           <p>
-            Onboard your organization in minutes. Tasked keeps roles, projects, and urgent signals aligned — without
+            Onboard your organization in minutes. TASKIT keeps roles, projects, and urgent signals aligned — without
             another generic dashboard clone.
           </p>
         </div>
@@ -54,7 +56,7 @@ export default function SignupPage() {
           <span className="hidden sm:inline" style={{ opacity: 0.35 }}>
             ·
           </span>
-          <span>Tasked</span>
+          <span>TASKIT</span>
         </div>
       </div>
 

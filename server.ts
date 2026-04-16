@@ -49,6 +49,6 @@ app.prepare().then(() => {
   })
 
   httpServer.listen(port, () => {
-    console.log(`🚀 Tasked server ready at http://${hostname}:${port}`)
+    console.log(`🚀 TASKIT server ready at http://${hostname}:${port}`)
   })
 })
