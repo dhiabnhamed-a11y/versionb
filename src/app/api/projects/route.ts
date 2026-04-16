@@ -1,4 +1,6 @@
+import { randomUUID } from 'crypto'
 import { NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { auth } from '@/lib/auth'
 import { getDatabaseConfigHint, prisma } from '@/lib/db'
 import {
@@ -34,6 +36,130 @@ function getProjectCreateSelect(includeCameraFields: boolean) {
   } as const
 }
 
+type RawProjectRow = {
+  id: string
+  title: string
+  description: string | null
+  managerId: string | null
+  createdAt: Date
+  updatedAt: Date
+  managerUserId: string | null
+  managerName: string | null
+}
+
+type RawTaskRow = {
+  id: string
+  projectId: string
+  stage: string
+  priority: string
+}
+
+async function findProjectsWithoutCameraFields(companyId: string) {
+  const projectRows = await prisma.$queryRaw<RawProjectRow[]>`
+    SELECT
+      p."id",
+      p."title",
+      p."description",
+      p."managerId",
+      p."createdAt",
+      p."updatedAt",
+      u."id" AS "managerUserId",
+      u."name" AS "managerName"
+    FROM "Project" p
+    LEFT JOIN "User" u ON u."id" = p."managerId"
+    WHERE p."companyId" = ${companyId}
+    ORDER BY p."createdAt" DESC
+  `
+
+  const projectIds = projectRows.map((project) => project.id)
+  const taskRows =
+    projectIds.length > 0
+      ? await prisma.$queryRaw<RawTaskRow[]>`
+          SELECT
+            t."id",
+            t."projectId",
+            t."stage",
+            t."priority"
+          FROM "Task" t
+          WHERE t."projectId" IN (${Prisma.join(projectIds)})
+        `
+      : []
+
+  const tasksByProjectId = new Map<string, Array<{ id: string; stage: string; priority: string }>>()
+  for (const task of taskRows) {
+    const tasks = tasksByProjectId.get(task.projectId) ?? []
+    tasks.push({ id: task.id, stage: task.stage, priority: task.priority })
+    tasksByProjectId.set(task.projectId, tasks)
+  }
+
+  return projectRows.map((project) =>
+    withProjectCameraDefaults({
+      id: project.id,
+      title: project.title,
+      description: project.description ?? undefined,
+      managerId: project.managerId ?? undefined,
+      createdAt: project.createdAt,
+      updatedAt: project.updatedAt,
+      manager: project.managerUserId && project.managerName ? { id: project.managerUserId, name: project.managerName } : undefined,
+      tasks: tasksByProjectId.get(project.id) ?? [],
+    })
+  )
+}
+
+async function createProjectWithoutCameraFields(input: {
+  title: string
+  description?: string
+  companyId: string
+  managerId?: string
+}) {
+  const now = new Date()
+  const id = randomUUID()
+  const rows = await prisma.$queryRaw<
+    Array<{
+      id: string
+      title: string
+      description: string | null
+      managerId: string | null
+      companyId: string
+      createdAt: Date
+      updatedAt: Date
+    }>
+  >`
+    INSERT INTO "Project" (
+      "id",
+      "title",
+      "description",
+      "companyId",
+      "managerId",
+      "createdAt",
+      "updatedAt"
+    )
+    VALUES (
+      ${id},
+      ${input.title},
+      ${input.description ?? null},
+      ${input.companyId},
+      ${input.managerId ?? null},
+      ${now},
+      ${now}
+    )
+    RETURNING
+      "id",
+      "title",
+      "description",
+      "managerId",
+      "companyId",
+      "createdAt",
+      "updatedAt"
+  `
+
+  return withProjectCameraDefaults({
+    ...rows[0],
+    description: rows[0]?.description ?? undefined,
+    managerId: rows[0]?.managerId ?? undefined,
+  })
+}
+
 // GET all projects for company
 export async function GET() {
   const session = await auth()
@@ -58,11 +184,7 @@ export async function GET() {
         throw error
       }
 
-      projects = await prisma.project.findMany({
-        where: { companyId: user.companyId },
-        select: getProjectListSelect(false),
-        orderBy: { createdAt: 'desc' },
-      })
+      projects = await findProjectsWithoutCameraFields(user.companyId)
     }
 
     return NextResponse.json(projects.map(withProjectCameraDefaults))
@@ -123,14 +245,11 @@ export async function POST(req: Request) {
         throw error
       }
 
-      project = await prisma.project.create({
-        data: {
-          title,
-          description,
-          companyId: user.companyId,
-          managerId: managerId || null,
-        },
-        select: getProjectCreateSelect(false),
+      project = await createProjectWithoutCameraFields({
+        title,
+        description,
+        companyId: user.companyId,
+        managerId,
       })
     }
 

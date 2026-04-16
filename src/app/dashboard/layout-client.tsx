@@ -160,13 +160,13 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
             <span
               className={`flex h-2 w-2 rounded-full ${realtimeEnabled ? 'animate-pulse' : ''}`}
               style={{
-                background: realtimeEnabled ? 'var(--accent-bright)' : 'var(--text-muted)',
+                background: realtimeEnabled ? 'var(--accent-bright)' : 'var(--accent)',
                 boxShadow: realtimeEnabled ? '0 0 10px var(--accent-bright)' : 'none',
               }}
             />
-            <Radio size={14} style={{ color: realtimeEnabled ? 'var(--accent)' : 'var(--text-muted)' }} />
+            <Radio size={14} style={{ color: 'var(--accent)' }} />
             <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-              {realtimeEnabled ? 'Real-time channel active' : 'Real-time alerts unavailable on this deployment'}
+              {realtimeEnabled ? 'Real-time channel active' : 'Workspace ready'}
             </span>
           </div>
           <div suppressHydrationWarning className="text-xs font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>

@@ -8,6 +8,7 @@ type ProjectCameraSupport = {
 }
 
 type ProjectWithOptionalCameraFields = {
+  [key: string]: unknown
   hasCamera?: boolean | null
   cameraType?: CameraTypeValue | null
 }
