@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { Fraunces, Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
-import logo from './logo.png'
 
 const fraunces = Fraunces({
   subsets: ['latin'],
@@ -16,11 +15,11 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'TASKIT - Work orchestration for focused teams',
+  title: 'TASKIT | Free team operations workspace',
   description:
-    'A distinctive workspace for projects, tasks, and real-time team alerts - built for clarity and momentum.',
+    'A polished SaaS workspace for projects, tasks, and real-time team alerts. Free to start right now.',
   icons: {
-    icon: logo.src,
+    icon: '/icon.svg',
   },
 }
 

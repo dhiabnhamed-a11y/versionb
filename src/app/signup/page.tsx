@@ -4,8 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import Image from 'next/image'
-import logo from '@/app/logo.png'
+import { BrandMark } from '@/components/brand/BrandMark'
 import { User, Mail, Lock, Shield, Briefcase, UserCheck, ArrowRight, Loader2, Layers } from 'lucide-react'
 
 export default function SignupPage() {
@@ -31,7 +30,7 @@ export default function SignupPage() {
 
   const roles = [
     { value: 'OWNER', label: 'Owner', desc: 'Full workspace control', icon: Shield },
-    { value: 'MANAGER', label: 'Manager', desc: 'Projects, tasks & alerts', icon: Briefcase },
+    { value: 'MANAGER', label: 'Manager', desc: 'Projects, tasks and alerts', icon: Briefcase },
     { value: 'EMPLOYEE', label: 'Member', desc: 'Focus on your assignments', icon: UserCheck },
   ]
 
@@ -40,21 +39,21 @@ export default function SignupPage() {
       <div className="auth-brand">
         <div className="auth-brand-inner">
           <div className="auth-brand-mark">
-            <Image src={logo} alt="TASKIT logo" width={28} height={28} className="h-7 w-7" />
+            <BrandMark className="h-16 w-16" />
           </div>
           <h1>One workspace. Every commitment, visible.</h1>
           <p>
-            Onboard your organization in minutes. TASKIT keeps roles, projects, and urgent signals aligned — without
-            another generic dashboard clone.
+            Onboard your organization in minutes. TASKIT keeps roles, projects, and urgent signals aligned without another
+            generic dashboard clone.
           </p>
         </div>
         <div className="auth-brand-footer flex flex-wrap items-center gap-x-4 gap-y-2">
           <span className="flex items-center gap-1.5">
-            <Layers size={12} className="text-amber-400/90" />
+            <Layers size={12} className="text-lime-200/90" />
             Role-aware from day one
           </span>
           <span className="hidden sm:inline" style={{ opacity: 0.35 }}>
-            ·
+            .
           </span>
           <span>TASKIT</span>
         </div>
@@ -72,7 +71,7 @@ export default function SignupPage() {
               Create your account
             </p>
             <p className="mt-1.5 text-sm" style={{ color: 'var(--text-muted)' }}>
-              Choose a role — you can refine permissions later.
+              Choose a role. You can refine permissions later.
             </p>
           </div>
 
@@ -125,12 +124,12 @@ export default function SignupPage() {
                 Account type
               </label>
               <div className="flex flex-col gap-2">
-                {roles.map((r) => {
-                  const Icon = r.icon
-                  const selected = form.role === r.value
+                {roles.map((roleOption) => {
+                  const Icon = roleOption.icon
+                  const selected = form.role === roleOption.value
                   return (
                     <label
-                      key={r.value}
+                      key={roleOption.value}
                       className="flex cursor-pointer items-center gap-3 rounded-[var(--radius-sm)] border px-3 py-2.5 transition-colors"
                       style={{
                         borderColor: selected ? 'var(--accent-ring)' : 'var(--border)',
@@ -140,16 +139,16 @@ export default function SignupPage() {
                       <input
                         type="radio"
                         name="role"
-                        value={r.value}
+                        value={roleOption.value}
                         checked={selected}
                         onChange={(e) => setForm({ ...form, role: e.target.value })}
-                        className="accent-teal-600"
+                        className="accent-cyan-600"
                       />
                       <Icon size={17} style={{ color: selected ? 'var(--accent)' : 'var(--text-muted)' }} />
                       <div>
-                        <div className="text-sm font-semibold">{r.label}</div>
+                        <div className="text-sm font-semibold">{roleOption.label}</div>
                         <div className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                          {r.desc}
+                          {roleOption.desc}
                         </div>
                       </div>
                     </label>

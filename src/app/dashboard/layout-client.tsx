@@ -5,8 +5,7 @@ import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import AlertReceiver from '@/components/alerts/AlertReceiver'
-import Image from 'next/image'
-import logo from '@/app/logo.png'
+import { BrandMark } from '@/components/brand/BrandMark'
 import { isRealtimeAlertsEnabled } from '@/lib/socket-client'
 import {
   LayoutDashboard,
@@ -63,17 +62,18 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
         <div className="border-b px-4 py-5" style={{ borderColor: 'var(--sidebar-border)' }}>
           <div className="flex items-center gap-3">
             <div
-              className="icon-box flex h-10 w-10 shrink-0 items-center justify-center rounded-[14px]"
-              style={{ background: 'var(--accent-gradient)', boxShadow: '0 8px 28px rgba(13, 148, 136, 0.35)' }}
+              className="icon-box flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border"
+              style={{
+                background: 'linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.05))',
+                borderColor: 'rgba(255,255,255,0.08)',
+                boxShadow: '0 20px 40px rgba(2, 15, 24, 0.28)',
+              }}
             >
-              <Image src={logo} alt="TASKIT logo" width={22} height={22} className="h-5 w-5" />
+              <BrandMark className="h-9 w-9" />
             </div>
             <div className="min-w-0">
-              <div className="font-display text-lg font-semibold tracking-tight text-slate-100">TASKIT</div>
-              <div
-                className="text-[10px] font-semibold uppercase tracking-[0.14em]"
-                style={{ color: '#64748b' }}
-              >
+              <div className="font-display text-xl font-semibold tracking-tight text-slate-100">TASKIT</div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: '#64748b' }}>
                 Operations studio
               </div>
             </div>
@@ -81,10 +81,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
         </div>
 
         <nav className="flex flex-1 flex-col gap-0.5 px-3 py-4">
-          <div
-            className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.12em]"
-            style={{ color: '#475569' }}
-          >
+          <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: '#475569' }}>
             {isEmployee ? 'Your workspace' : 'Command center'}
           </div>
           {links.map((link) => {
@@ -116,10 +113,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
         </nav>
 
         <div className="border-t px-3 py-4" style={{ borderColor: 'var(--sidebar-border)' }}>
-          <div
-            className="mb-3 flex items-center gap-3 rounded-xl px-2 py-2"
-            style={{ background: 'var(--sidebar-surface)' }}
-          >
+          <div className="mb-3 flex items-center gap-3 rounded-xl px-2 py-2" style={{ background: 'var(--sidebar-surface)' }}>
             <div
               className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-xs font-bold text-white"
               style={{ background: 'var(--accent-gradient)' }}
@@ -128,7 +122,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
             </div>
             <div className="min-w-0 flex-1">
               <div className="truncate text-xs font-semibold" style={{ color: '#e2e8f0' }}>
-                {user?.name || '…'}
+                {user?.name || '...'}
               </div>
               <span className={`badge ${badgeClass} mt-1 !px-2 !py-0 !text-[9px]`}>{roleLabel}</span>
             </div>
@@ -136,7 +130,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: '/login' })}
-            className="btn-secondary w-full !border-white/10 !bg-white/5 !text-slate-300 hover:!border-teal-400/40 hover:!bg-teal-500/10 hover:!text-teal-200"
+            className="btn-secondary w-full !border-white/10 !bg-white/5 !text-slate-300 hover:!border-cyan-400/40 hover:!bg-cyan-500/10 hover:!text-cyan-200"
             style={{ fontSize: '12px', padding: '8px 12px' }}
           >
             <span className="flex items-center justify-center gap-2">

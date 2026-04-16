@@ -1,0 +1,20 @@
+<svg width="256" height="256" viewBox="0 0 208 208" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="shell" x1="32" y1="34" x2="176" y2="176" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2142FF" />
+      <stop offset="0.52" stop-color="#24C8F8" />
+      <stop offset="1" stop-color="#C8FB6D" />
+    </linearGradient>
+    <linearGradient id="core" x1="76" y1="76" x2="132" y2="132" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#3151FF" />
+      <stop offset="1" stop-color="#74F4FF" />
+    </linearGradient>
+  </defs>
+  <g fill="url(#shell)" stroke="#08172B" stroke-opacity="0.72" stroke-width="4">
+    <path d="M34 86C34 56.1766 58.1766 32 88 32H116V58H88C72.536 58 60 70.536 60 86V114H34V86Z" />
+    <path d="M34 86C34 56.1766 58.1766 32 88 32H116V58H88C72.536 58 60 70.536 60 86V114H34V86Z" transform="rotate(90 104 104)" />
+    <path d="M34 86C34 56.1766 58.1766 32 88 32H116V58H88C72.536 58 60 70.536 60 86V114H34V86Z" transform="rotate(180 104 104)" />
+    <path d="M34 86C34 56.1766 58.1766 32 88 32H116V58H88C72.536 58 60 70.536 60 86V114H34V86Z" transform="rotate(270 104 104)" />
+  </g>
+  <rect x="76" y="76" width="56" height="56" fill="url(#core)" stroke="#08172B" stroke-opacity="0.72" stroke-width="4" />
+</svg>

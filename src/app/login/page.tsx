@@ -5,8 +5,7 @@ import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import Image from 'next/image'
-import logo from '@/app/logo.png'
+import { BrandMark } from '@/components/brand/BrandMark'
 import { Mail, Lock, ArrowRight, Loader2, Sparkles } from 'lucide-react'
 
 export default function LoginPage() {
@@ -25,7 +24,7 @@ export default function LoginPage() {
     if (res?.error) {
       setError('Invalid email or password')
     } else {
-      router.push('/')
+      router.push('/dashboard')
       router.refresh()
     }
   }
@@ -35,22 +34,23 @@ export default function LoginPage() {
       <div className="auth-brand">
         <div className="auth-brand-inner">
           <div className="auth-brand-mark">
-            <Image src={logo} alt="TASKIT logo" width={28} height={28} className="h-7 w-7" />
+            <BrandMark className="h-16 w-16" />
           </div>
           <h1>Calm control for how your team ships work.</h1>
           <p>
-            TASKIT brings projects, ownership, and live signals into one refined surface — so nothing important gets lost in the noise.
+            TASKIT brings projects, ownership, and live signals into one refined surface so nothing important gets lost in
+            the noise.
           </p>
         </div>
         <div className="auth-brand-footer flex flex-wrap items-center gap-x-4 gap-y-2">
           <span className="flex items-center gap-1.5">
-            <Sparkles size={12} className="text-teal-400/80" />
+            <Sparkles size={12} className="text-cyan-200/80" />
             Crafted for clarity
           </span>
           <span className="hidden sm:inline" style={{ opacity: 0.35 }}>
-            ·
+            .
           </span>
-          <span>© TASKIT</span>
+          <span>Copyright TASKIT</span>
         </div>
       </div>
 
@@ -92,7 +92,7 @@ export default function LoginPage() {
                 id="login-password"
                 className="input"
                 type="password"
-                placeholder="••••••••"
+                placeholder="Enter your password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
