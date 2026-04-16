@@ -3,9 +3,7 @@ import { io, Socket } from 'socket.io-client'
 
 let socket: Socket | null = null
 let socketInitPromise: Promise<Socket | null> | null = null
-const realtimeEnabled =
-  typeof window !== 'undefined' &&
-  (process.env.NODE_ENV !== 'production' || process.env.NEXT_PUBLIC_ENABLE_REALTIME_ALERTS === 'true')
+const realtimeEnabled = typeof window !== 'undefined' && process.env.NODE_ENV !== 'production'
 
 export async function getSocket(): Promise<Socket | null> {
   if (socket) {

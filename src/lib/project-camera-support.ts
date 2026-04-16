@@ -70,10 +70,17 @@ export function isProjectCameraEnumCompatibilityError(error: unknown) {
     return false
   }
 
+  const message = error.message
+
   return (
-    error.message.includes('type "public.CameraType" does not exist') ||
-    error.message.includes('type "CameraType" does not exist') ||
-    error.message.includes("Attempted to serialize non-enum-compatible value 'null' for enum 'CameraType'") ||
-    error.message.includes('non-enum-compatible value') && error.message.includes('CameraType')
+    message.includes('type "public.CameraType" does not exist') ||
+    message.includes('type "CameraType" does not exist') ||
+    message.includes("Attempted to serialize non-enum-compatible value 'null' for enum 'CameraType'") ||
+    (message.includes('non-enum-compatible value') && message.includes('CameraType')) ||
+    message.includes('Error converting field "cameraType"') ||
+    message.includes('Error converting field "hasCamera"') ||
+    message.includes('Failed to deserialize column of type') ||
+    message.includes('column "cameraType"') ||
+    message.includes('column "hasCamera"')
   )
 }
