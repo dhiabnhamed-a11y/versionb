@@ -64,3 +64,14 @@ export function withProjectCameraDefaults<T extends ProjectWithOptionalCameraFie
     cameraType: project.cameraType === 'external' ? 'external' : 'device',
   }
 }
+
+export function isMissingCameraTypeError(error: unknown) {
+  if (!(error instanceof Error)) {
+    return false
+  }
+
+  return (
+    error.message.includes('type "public.CameraType" does not exist') ||
+    error.message.includes('type "CameraType" does not exist')
+  )
+}
