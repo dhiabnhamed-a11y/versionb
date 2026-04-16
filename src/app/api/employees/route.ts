@@ -1,13 +1,21 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
+type SessionUser = {
+  role?: string
+  companyId?: string | null
+}
+
 // GET employees for this company
-export async function GET(req: NextRequest) {
+export async function GET() {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const user = session.user as any
+  const user = session.user as SessionUser
+  if (!user.companyId) {
+    return NextResponse.json([])
+  }
 
   try {
     const employees = await prisma.user.findMany({
@@ -31,15 +39,18 @@ export async function GET(req: NextRequest) {
 }
 
 // POST add employee to company
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const user = session.user as any
+  const user = session.user as SessionUser
+  if (!user.companyId) {
+    return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
+  }
   if (user.role === 'EMPLOYEE') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
-    const { email, role } = await req.json()
+    const { email, role } = (await req.json()) as { email: string; role?: string }
 
     const target = await prisma.user.findUnique({ where: { email } })
     if (!target) return NextResponse.json({ error: 'User not found' }, { status: 404 })

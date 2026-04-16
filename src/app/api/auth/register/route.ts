@@ -4,7 +4,12 @@ import bcrypt from 'bcryptjs'
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, password, role } = await req.json()
+    const { name, email, password, role } = (await req.json()) as {
+      name?: string
+      email?: string
+      password?: string
+      role?: string
+    }
 
     if (!name || !email || !password) {
       return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
@@ -41,8 +46,9 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ success: true, userId: user.id }, { status: 201 })
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error(err)
-    return NextResponse.json({ error: err.message || 'Server error', details: String(err) }, { status: 500 })
+    const message = err instanceof Error ? err.message : 'Server error'
+    return NextResponse.json({ error: message, details: String(err) }, { status: 500 })
   }
 }

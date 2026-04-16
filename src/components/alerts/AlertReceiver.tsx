@@ -3,6 +3,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import type { Socket } from 'socket.io-client'
 import { getSocket } from '@/lib/socket-client'
 import { AlertTriangle, X, CheckCircle2 } from 'lucide-react'
 
@@ -34,27 +35,39 @@ function playAlertSound() {
 
 export default function AlertReceiver({ userId }: { userId: string }) {
   const [alert, setAlert] = useState<AlertData | null>(null)
-  const socketRef = useRef<any>(null)
+  const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
-    const socket = getSocket()
-    socketRef.current = socket
+    let isMounted = true
 
-    socket.on('connect', () => { socket.emit('join', userId) })
-    socket.on('alert', (data: AlertData) => {
-      setAlert(data)
-      playAlertSound()
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400])
-      if ('Notification' in window && Notification.permission === 'granted') {
-        new Notification(`TASKIT: ${data.title}`, { body: data.message, icon: '/favicon.ico' })
-      } else if ('Notification' in window && Notification.permission !== 'denied') {
-        Notification.requestPermission()
-      }
-    })
+    void (async () => {
+      const socket = await getSocket()
+      if (!isMounted || !socket) return
 
-    if (socket.connected) socket.emit('join', userId)
+      socketRef.current = socket
 
-    return () => { socket.off('alert'); socket.off('connect') }
+      socket.on('connect', () => {
+        socket.emit('join', userId)
+      })
+      socket.on('alert', (data: AlertData) => {
+        setAlert(data)
+        playAlertSound()
+        if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400])
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification(`TASKIT: ${data.title}`, { body: data.message, icon: '/favicon.ico' })
+        } else if ('Notification' in window && Notification.permission !== 'denied') {
+          Notification.requestPermission()
+        }
+      })
+
+      if (socket.connected) socket.emit('join', userId)
+    })()
+
+    return () => {
+      isMounted = false
+      socketRef.current?.off('alert')
+      socketRef.current?.off('connect')
+    }
   }, [userId])
 
   if (!alert) return null

@@ -25,16 +25,34 @@ export default function EmployeeDashboard() {
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState<string | null>(null)
 
-  async function load() { const d = await fetch('/api/tasks').then(r => r.json()); setTasks(Array.isArray(d) ? d : []); setLoading(false) }
-   
-   
-  useEffect(() => { load() }, [])
+  async function fetchTasks() {
+    const data = await fetch('/api/tasks').then((response) => response.json())
+    return Array.isArray(data) ? data : []
+  }
+
+  useEffect(() => {
+    let active = true
+
+    const loadTasks = async () => {
+      const nextTasks = await fetchTasks()
+      if (!active) return
+      setTasks(nextTasks)
+      setLoading(false)
+    }
+
+    void loadTasks()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   async function advanceStage(task: Task) {
     const idx = STAGES.indexOf(task.stage); if (idx >= STAGES.length - 1) return
     setUpdating(task.id)
     await fetch(`/api/tasks/${task.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ stage: STAGES[idx + 1] }) })
-    setUpdating(null); load()
+    setUpdating(null)
+    setTasks(await fetchTasks())
   }
 
   const todo = tasks.filter(t => t.stage === 'TODO')

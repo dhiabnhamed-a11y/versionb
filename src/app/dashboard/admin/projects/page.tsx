@@ -32,18 +32,34 @@ export default function ProjectsPage() {
   })
   const [saving, setSaving] = useState(false)
 
-  async function load() {
+  async function fetchProjectsData() {
     const [p, e] = await Promise.all([
       fetch('/api/projects').then((r) => r.json()),
       fetch('/api/employees').then((r) => r.json()),
     ])
-    setProjects(Array.isArray(p) ? p : [])
-    setEmployees(Array.isArray(e) ? e : [])
-    setLoading(false)
+
+    return {
+      projects: Array.isArray(p) ? p : [],
+      employees: Array.isArray(e) ? e : [],
+    }
   }
 
   useEffect(() => {
-    load()
+    let active = true
+
+    const loadProjects = async () => {
+      const data = await fetchProjectsData()
+      if (!active) return
+      setProjects(data.projects)
+      setEmployees(data.employees)
+      setLoading(false)
+    }
+
+    void loadProjects()
+
+    return () => {
+      active = false
+    }
   }, [])
 
   async function handleCreate(e: React.FormEvent) {
@@ -69,7 +85,9 @@ export default function ProjectsPage() {
       hasCamera: false,
       cameraType: 'device',
     })
-    load()
+    const data = await fetchProjectsData()
+    setProjects(data.projects)
+    setEmployees(data.employees)
   }
 
   return (

@@ -15,7 +15,7 @@
     "@libsql/client": "^0.17.2",
     "@prisma/adapter-libsql": "^7.7.0",
     "@prisma/client": "^5.22.0",
-    "@supabase/supabase-js": "^2.103.2",
+    "@supabase/supabase-js": "^2.103.3",
     "@types/bcryptjs": "^2.4.6",
     "bcryptjs": "^3.0.3",
     "framer-motion": "^12.38.0",

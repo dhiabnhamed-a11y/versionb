@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Users, Plus, Loader2, AlertTriangle } from 'lucide-react'
+import { Users, Plus, AlertTriangle } from 'lucide-react'
 
 interface Employee {
   id: string; name: string; email: string; role: string
@@ -17,17 +17,38 @@ export default function EmployeesPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
 
-  async function load() { const d = await fetch('/api/employees').then(r => r.json()); setEmployees(Array.isArray(d) ? d : []); setLoading(false) }
-   
-   
-  useEffect(() => { load() }, [])
+  async function fetchEmployees() {
+    const data = await fetch('/api/employees').then((response) => response.json())
+    return Array.isArray(data) ? data : []
+  }
+
+  useEffect(() => {
+    let active = true
+
+    const loadEmployees = async () => {
+      const nextEmployees = await fetchEmployees()
+      if (!active) return
+      setEmployees(nextEmployees)
+      setLoading(false)
+    }
+
+    void loadEmployees()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault(); setSaving(true); setError(''); setSuccess('')
     const res = await fetch('/api/employees', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
     const data = await res.json(); setSaving(false)
     if (!res.ok) setError(data.error || 'Failed')
-    else { setSuccess(`${data.name} added`); setForm({ email: '', role: 'EMPLOYEE' }); load() }
+    else {
+      setSuccess(`${data.name} added`)
+      setForm({ email: '', role: 'EMPLOYEE' })
+      setEmployees(await fetchEmployees())
+    }
   }
 
   return (

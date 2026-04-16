@@ -1,13 +1,29 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
+type SessionUser = {
+  id: string
+  role: string
+}
+
+type CreateAlertBody = {
+  type?: string
+  title: string
+  message: string
+  recipientId: string
+}
+
+type MarkAlertReadBody = {
+  alertId: string
+}
+
 // GET alerts for the current user
-export async function GET(req: NextRequest) {
+export async function GET() {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const user = session.user as any
+  const user = session.user as SessionUser
 
   try {
     const alerts = await prisma.alert.findMany({
@@ -26,15 +42,15 @@ export async function GET(req: NextRequest) {
 }
 
 // POST send an alert to an employee
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const user = session.user as any
+  const user = session.user as SessionUser
   if (user.role === 'EMPLOYEE') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
-    const { type, title, message, recipientId } = await req.json()
+    const { type, title, message, recipientId } = (await req.json()) as CreateAlertBody
 
     const alert = await prisma.alert.create({
       data: {
@@ -71,14 +87,14 @@ export async function POST(req: NextRequest) {
 }
 
 // PATCH mark alert as read
-export async function PATCH(req: NextRequest) {
+export async function PATCH(req: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const user = session.user as any
+  const user = session.user as SessionUser
 
   try {
-    const { alertId } = await req.json()
+    const { alertId } = (await req.json()) as MarkAlertReadBody
     const alert = await prisma.alert.update({
       where: { id: alertId, recipientId: user.id },
       data: { read: true },

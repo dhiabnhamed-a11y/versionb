@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { ClipboardList, CheckCircle2, CheckSquare, Zap, AlertTriangle, Users, ArrowRight, Bell } from 'lucide-react'
+import { ClipboardList, CheckCircle2, CheckSquare, Zap, AlertTriangle, Users, Bell } from 'lucide-react'
 
 interface Stats {
   totalTasks: number; doneTasks: number; inProgressTasks: number
@@ -31,10 +31,23 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/analytics').then(r => r.json()).then(d => { setStats(d); setLoading(false) })
+    let active = true
+
+    const loadStats = async () => {
+      const data = (await fetch('/api/analytics').then((response) => response.json())) as Stats
+      if (!active) return
+      setStats(data)
+      setLoading(false)
+    }
+
+    void loadStats()
+
+    return () => {
+      active = false
+    }
   }, [])
 
-  const user = session?.user as any
+  const user = session?.user as { name?: string }
 
   const statCards = stats
     ? [

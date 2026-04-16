@@ -33,22 +33,48 @@ export default function AdminTasksPage() {
   const [form, setForm] = useState({ title: '', description: '', priority: 'MEDIUM', deadline: '', assigneeId: '', projectId: '' })
   const [saving, setSaving] = useState(false)
 
-  async function loadData() {
+  async function fetchTasksPageData() {
     const [t, p, e] = await Promise.all([fetch('/api/tasks').then(r => r.json()), fetch('/api/projects').then(r => r.json()), fetch('/api/employees').then(r => r.json())])
-    setTasks(Array.isArray(t) ? t : []); setProjects(Array.isArray(p) ? p : []); setEmployees(Array.isArray(e) ? e : []); setLoading(false)
+    return {
+      tasks: Array.isArray(t) ? t : [],
+      projects: Array.isArray(p) ? p : [],
+      employees: Array.isArray(e) ? e : [],
+    }
   }
 
-   
-   
-  useEffect(() => { loadData() }, [])
+  useEffect(() => {
+    let active = true
+
+    const loadData = async () => {
+      const data = await fetchTasksPageData()
+      if (!active) return
+      setTasks(data.tasks)
+      setProjects(data.projects)
+      setEmployees(data.employees)
+      setLoading(false)
+    }
+
+    void loadData()
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault(); if (!form.projectId) return; setSaving(true)
     await fetch('/api/tasks', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
-    setSaving(false); setShowModal(false); setForm({ title: '', description: '', priority: 'MEDIUM', deadline: '', assigneeId: '', projectId: '' }); loadData()
+    setSaving(false); setShowModal(false); setForm({ title: '', description: '', priority: 'MEDIUM', deadline: '', assigneeId: '', projectId: '' })
+    const data = await fetchTasksPageData()
+    setTasks(data.tasks); setProjects(data.projects); setEmployees(data.employees)
   }
 
-  async function handleDelete(id: string) { if (!confirm('Delete this task?')) return; await fetch(`/api/tasks/${id}`, { method: 'DELETE' }); loadData() }
+  async function handleDelete(id: string) {
+    if (!confirm('Delete this task?')) return
+    await fetch(`/api/tasks/${id}`, { method: 'DELETE' })
+    const data = await fetchTasksPageData()
+    setTasks(data.tasks); setProjects(data.projects); setEmployees(data.employees)
+  }
 
   const filtered = filterStage === 'ALL' ? tasks : tasks.filter(t => t.stage === filterStage)
 

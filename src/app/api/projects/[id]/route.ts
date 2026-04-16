@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { getProjectIfAllowed } from '@/lib/project-access'
+import { getProjectCameraSupport, withProjectCameraDefaults } from '@/lib/project-camera-support'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -13,14 +14,32 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const allowed = await getProjectIfAllowed(id, user)
   if (!allowed) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  const support = await getProjectCameraSupport()
   const project = await prisma.project.findFirst({
     where: { id },
-    include: {
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      companyId: true,
+      managerId: true,
+      createdAt: true,
+      updatedAt: true,
+      ...(support.hasCameraColumns ? { hasCamera: true, cameraType: true } : {}),
       manager: { select: { id: true, name: true } },
       tasks: { select: { id: true, stage: true, title: true } },
-      cameraMedia: { orderBy: { createdAt: 'desc' }, take: 12 },
+      ...(support.hasCameraMediaTable
+        ? {
+            cameraMedia: { orderBy: { createdAt: 'desc' }, take: 12 },
+          }
+        : {}),
     },
   })
 
-  return NextResponse.json(project)
+  if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  return NextResponse.json({
+    ...withProjectCameraDefaults(project),
+    cameraMedia: 'cameraMedia' in project ? project.cameraMedia : [],
+  })
 }

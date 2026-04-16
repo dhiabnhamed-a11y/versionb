@@ -19,16 +19,32 @@ export default function EmployeeAlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(true)
 
-  async function load() { const d = await fetch('/api/alerts').then(r => r.json()); setAlerts(Array.isArray(d) ? d : []); setLoading(false) }
+  async function fetchAlerts() {
+    const data = await fetch('/api/alerts').then((response) => response.json())
+    return Array.isArray(data) ? data : []
+  }
 
   async function markRead(alertId: string) {
     await fetch('/api/alerts', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ alertId }) })
     setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, read: true } : a))
   }
 
-   
-   
-  useEffect(() => { load() }, [])
+  useEffect(() => {
+    let active = true
+
+    const loadAlerts = async () => {
+      const nextAlerts = await fetchAlerts()
+      if (!active) return
+      setAlerts(nextAlerts)
+      setLoading(false)
+    }
+
+    void loadAlerts()
+
+    return () => {
+      active = false
+    }
+  }, [])
   const unread = alerts.filter(a => !a.read).length
 
   return (

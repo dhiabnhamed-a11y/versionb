@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { getProjectCameraSupport, withProjectCameraDefaults } from '@/lib/project-camera-support'
 
 export type SessionUser = {
   id: string
@@ -13,13 +14,24 @@ export type SessionUser = {
 export async function getProjectIfAllowed(projectId: string, user: SessionUser) {
   if (!user.companyId) return null
 
+  const support = await getProjectCameraSupport()
   const project = await prisma.project.findFirst({
     where: { id: projectId, companyId: user.companyId },
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      companyId: true,
+      managerId: true,
+      createdAt: true,
+      updatedAt: true,
+      ...(support.hasCameraColumns ? { hasCamera: true, cameraType: true } : {}),
+    },
   })
   if (!project) return null
 
   if (user.role === 'OWNER' || user.role === 'MANAGER') {
-    return project
+    return withProjectCameraDefaults(project)
   }
 
   if (user.role === 'EMPLOYEE') {
@@ -29,5 +41,5 @@ export async function getProjectIfAllowed(projectId: string, user: SessionUser) 
     if (!assignedHere) return null
   }
 
-  return project
+  return withProjectCameraDefaults(project)
 }

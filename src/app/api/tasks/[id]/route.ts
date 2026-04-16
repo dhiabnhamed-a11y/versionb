@@ -1,7 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { getStageProgress } from '@/lib/utils'
+
+type SessionUser = {
+  id: string
+  role: string
+}
+
+type UpdateTaskBody = {
+  stage?: string
+  title?: string
+  description?: string | null
+  priority?: string
+  deadline?: string | null
+  assigneeId?: string | null
+}
 
 // PATCH update a task (stage, progress, etc.)
 export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/tasks/[id]'>) {
@@ -9,17 +24,17 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/tasks/[id]
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await ctx.params
-  const user = session.user as any
+  const user = session.user as SessionUser
 
   try {
-    const body = await req.json()
+    const body = (await req.json()) as UpdateTaskBody
     const { stage, title, description, priority, deadline, assigneeId } = body
 
     const existing = await prisma.task.findUnique({ where: { id } })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     // Employees can only update stage
-    const updateData: any = {}
+    const updateData: Prisma.TaskUncheckedUpdateInput = {}
     if (stage) {
       updateData.stage = stage
       updateData.progress = getStageProgress(stage)
@@ -59,7 +74,7 @@ export async function DELETE(req: NextRequest, ctx: RouteContext<'/api/tasks/[id
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const user = session.user as any
+  const user = session.user as SessionUser
   if (user.role === 'EMPLOYEE') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await ctx.params

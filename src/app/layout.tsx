@@ -1,11 +1,27 @@
 import type { Metadata } from 'next'
+import { Fraunces, Plus_Jakarta_Sans } from 'next/font/google'
 import './globals.css'
 import logo from './logo.png'
 
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-display',
+})
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-sans',
+})
+
 export const metadata: Metadata = {
-  title: 'TASKIT — Work orchestration for focused teams',
+  title: 'TASKIT - Work orchestration for focused teams',
   description:
-    'A distinctive workspace for projects, tasks, and real-time team alerts — built for clarity and momentum.',
+    'A distinctive workspace for projects, tasks, and real-time team alerts - built for clarity and momentum.',
+  icons: {
+    icon: logo.src,
+  },
 }
 
 export default function RootLayout({
@@ -14,16 +30,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link rel="icon" href={logo.src} />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Plus+Jakarta+Sans:ital,wght@0,400;0,500;0,600;0,700;1,500&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html lang="en" className={`${fraunces.variable} ${plusJakartaSans.variable}`}>
       <body>{children}</body>
     </html>
   )

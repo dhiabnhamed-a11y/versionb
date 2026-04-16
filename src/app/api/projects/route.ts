@@ -1,24 +1,36 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { getProjectCameraSupport, withProjectCameraDefaults } from '@/lib/project-camera-support'
 
 // GET all projects for company
-export async function GET(req: NextRequest) {
+export async function GET() {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const user = session.user as any
+  const user = session.user as { companyId?: string | null }
+  if (!user.companyId) {
+    return NextResponse.json([])
+  }
 
   try {
+    const support = await getProjectCameraSupport()
     const projects = await prisma.project.findMany({
       where: { companyId: user.companyId },
-      include: {
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        managerId: true,
+        createdAt: true,
+        updatedAt: true,
+        ...(support.hasCameraColumns ? { hasCamera: true, cameraType: true } : {}),
         manager: { select: { id: true, name: true } },
         tasks: { select: { id: true, stage: true, priority: true } },
       },
       orderBy: { createdAt: 'desc' },
     })
-    return NextResponse.json(projects)
+    return NextResponse.json(projects.map(withProjectCameraDefaults))
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
@@ -26,15 +38,19 @@ export async function GET(req: NextRequest) {
 }
 
 // POST create project
-export async function POST(req: NextRequest) {
+export async function POST(req: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const user = session.user as any
+  const user = session.user as { role?: string; companyId?: string | null }
+  if (!user.companyId) {
+    return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
+  }
   if (user.role === 'EMPLOYEE') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
-       const body = await req.json()
+    const support = await getProjectCameraSupport()
+    const body = await req.json()
     const { title, description, managerId, hasCamera, cameraType } = body as {
       title: string
       description?: string
@@ -49,11 +65,25 @@ export async function POST(req: NextRequest) {
         description,
         companyId: user.companyId,
         managerId: managerId || null,
-        hasCamera: Boolean(hasCamera),
-        cameraType: cameraType === 'external' ? 'external' : 'device',
+        ...(support.hasCameraColumns
+          ? {
+              hasCamera: Boolean(hasCamera),
+              cameraType: cameraType === 'external' ? 'external' : 'device',
+            }
+          : {}),
+      },
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        managerId: true,
+        companyId: true,
+        createdAt: true,
+        updatedAt: true,
+        ...(support.hasCameraColumns ? { hasCamera: true, cameraType: true } : {}),
       },
     })
-    return NextResponse.json(project, { status: 201 })
+    return NextResponse.json(withProjectCameraDefaults(project), { status: 201 })
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

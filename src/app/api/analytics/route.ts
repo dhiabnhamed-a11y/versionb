@@ -1,12 +1,26 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
-export async function GET(req: NextRequest) {
+type SessionUser = {
+  companyId?: string | null
+}
+
+export async function GET() {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const user = session.user as any
+  const user = session.user as SessionUser
+  if (!user.companyId) {
+    return NextResponse.json({
+      totalTasks: 0,
+      doneTasks: 0,
+      inProgressTasks: 0,
+      overdueTasks: 0,
+      totalEmployees: 0,
+      performance: [],
+    })
+  }
 
   try {
     const [totalTasks, doneTasks, inProgressTasks, overdueTasks, totalEmployees] =
