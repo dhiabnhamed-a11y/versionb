@@ -180,7 +180,7 @@ export async function GET() {
         orderBy: { createdAt: 'desc' },
       })
     } catch (error) {
-      if (!support.hasCameraColumns || !isProjectCameraEnumCompatibilityError(error)) {
+      if (!isProjectCameraEnumCompatibilityError(error)) {
         throw error
       }
 
@@ -241,7 +241,7 @@ export async function POST(req: Request) {
         select: getProjectCreateSelect(support.hasCameraColumns),
       })
     } catch (error) {
-      if (!support.hasCameraColumns || !isProjectCameraEnumCompatibilityError(error)) {
+      if (!isProjectCameraEnumCompatibilityError(error)) {
         throw error
       }
 
