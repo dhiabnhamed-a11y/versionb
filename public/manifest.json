@@ -1,0 +1,25 @@
+{
+  "name": "TASKIT",
+  "short_name": "TASKIT",
+  "description": "TASKIT is an installable work orchestration app for projects, tasks, monitoring, and real-time team alerts.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#f2fbfb",
+  "theme_color": "#0a2231",
+  "icons": [
+    {
+      "src": "/icons/taskit-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/taskit-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

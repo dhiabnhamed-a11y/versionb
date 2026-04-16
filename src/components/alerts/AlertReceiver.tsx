@@ -54,9 +54,7 @@ export default function AlertReceiver({ userId }: { userId: string }) {
         playAlertSound()
         if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400])
         if ('Notification' in window && Notification.permission === 'granted') {
-          new Notification(`TASKIT: ${data.title}`, { body: data.message, icon: '/favicon.ico' })
-        } else if ('Notification' in window && Notification.permission !== 'denied') {
-          Notification.requestPermission()
+          new Notification(`TASKIT: ${data.title}`, { body: data.message, icon: '/icons/taskit-192.png' })
         }
       })
 

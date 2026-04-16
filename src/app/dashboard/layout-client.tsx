@@ -3,10 +3,12 @@
 import { useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import AlertReceiver from '@/components/alerts/AlertReceiver'
-import { BrandMark } from '@/components/brand/BrandMark'
+import PushNotificationBootstrap from '@/components/pwa/PushNotificationBootstrap'
 import { isRealtimeAlertsEnabled } from '@/lib/socket-client'
+import logo from '@/app/logo.png'
 import {
   LayoutDashboard,
   FolderKanban,
@@ -49,6 +51,8 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
 
   return (
     <div className="flex min-h-screen min-h-dvh">
+      <PushNotificationBootstrap userId={user?.id} />
+
       {sidebarOpen && (
         <button
           type="button"
@@ -69,7 +73,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
                 boxShadow: '0 20px 40px rgba(2, 15, 24, 0.28)',
               }}
             >
-              <BrandMark className="h-9 w-9" />
+              <Image src={logo} alt="TASKIT logo" width={36} height={36} className="h-9 w-9 object-contain" />
             </div>
             <div className="min-w-0">
               <div className="font-display text-xl font-semibold tracking-tight text-slate-100">TASKIT</div>

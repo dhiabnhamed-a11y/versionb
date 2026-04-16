@@ -1,6 +1,7 @@
 import Link from 'next/link'
+import Image from 'next/image'
 import { auth } from '@/lib/auth'
-import { BrandMark } from '@/components/brand/BrandMark'
+import logo from '@/app/logo.png'
 import {
   ArrowRight,
   BellRing,
@@ -73,7 +74,7 @@ export default async function HomePage() {
         <nav className="marketing-nav glass">
           <Link href="/" className="flex items-center gap-3 text-[var(--text-primary)] no-underline">
             <div className="brand-chip">
-              <BrandMark className="h-12 w-12" />
+              <Image src={logo} alt="TASKIT logo" width={48} height={48} className="h-12 w-12 object-contain" priority />
             </div>
             <div>
               <div className="text-lg font-semibold tracking-[-0.04em]">TASKIT</div>
@@ -159,7 +160,7 @@ export default async function HomePage() {
                 </h2>
               </div>
               <div className="brand-chip brand-chip-lg">
-                <BrandMark className="h-20 w-20 md:h-24 md:w-24" />
+                <Image src={logo} alt="TASKIT logo" width={96} height={96} className="h-20 w-20 object-contain md:h-24 md:w-24" />
               </div>
             </div>
 

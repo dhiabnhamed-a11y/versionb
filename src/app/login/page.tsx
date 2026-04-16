@@ -5,7 +5,8 @@ import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { BrandMark } from '@/components/brand/BrandMark'
+import Image from 'next/image'
+import logo from '@/app/logo.png'
 import { Mail, Lock, ArrowRight, Loader2, Sparkles } from 'lucide-react'
 
 export default function LoginPage() {
@@ -34,7 +35,7 @@ export default function LoginPage() {
       <div className="auth-brand">
         <div className="auth-brand-inner">
           <div className="auth-brand-mark">
-            <BrandMark className="h-16 w-16" />
+            <Image src={logo} alt="TASKIT logo" width={64} height={64} className="h-16 w-16 object-contain" priority />
           </div>
           <h1>Calm control for how your team ships work.</h1>
           <p>

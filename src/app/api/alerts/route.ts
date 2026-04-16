@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { isFirebaseAdminConfigured, sendNotification } from '@/lib/firebase-admin'
 
 type SessionUser = {
   id: string
@@ -77,6 +78,24 @@ export async function POST(req: Request) {
         createdAt: alert.createdAt,
       })
       console.log(`📢 Alert emitted to user:${recipientId}`)
+    }
+
+    // Mirror alerts to FCM so users still receive notifications when TASKIT is backgrounded.
+    if (isFirebaseAdminConfigured()) {
+      const recipientTokens = await prisma.pushToken.findMany({
+        where: { userId: recipientId },
+        select: { token: true },
+      })
+
+      await Promise.allSettled(
+        recipientTokens.map(({ token }) =>
+          sendNotification(token, `TASKIT: ${alert.title}`, alert.message, {
+            url: '/dashboard/employee/alerts',
+            type: alert.type,
+            alertId: alert.id,
+          })
+        )
+      )
     }
 
     return NextResponse.json(alert, { status: 201 })
