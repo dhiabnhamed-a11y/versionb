@@ -31,6 +31,7 @@
   --sidebar-hover: rgba(255, 255, 255, 0.05);
   --sidebar-active-bg: rgba(36, 200, 248, 0.14);
   --sidebar-active-border: rgba(134, 232, 255, 0.36);
+  --dashboard-content-gutter: 1rem;
   --radius-sm: 8px;
   --radius-md: 14px;
   --radius-lg: 20px;
@@ -798,6 +799,11 @@ body {
 }
 
 @media (min-width: 769px) {
+  .dashboard-shell-header,
+  .dashboard-shell-body {
+    padding-left: calc(2rem + var(--dashboard-content-gutter));
+  }
+
   .mobile-menu-btn {
     display: none !important;
   }

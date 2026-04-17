@@ -145,7 +145,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
       </aside>
 
       <div className="main-content flex min-h-screen min-h-dvh flex-1 flex-col">
-        <header className="dash-header sticky top-0 z-30 flex h-[52px] items-center justify-between px-5 md:px-8">
+        <header className="dashboard-shell-header dash-header sticky top-0 z-30 flex h-[52px] items-center justify-between px-5 md:px-8">
           <button
             type="button"
             onClick={() => setSidebarOpen(true)}
@@ -172,7 +172,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
           </div>
         </header>
 
-        <main className="flex-1 px-5 py-8 md:px-8 md:py-10">{children}</main>
+        <main className="dashboard-shell-body flex-1 px-5 py-8 md:px-8 md:py-10">{children}</main>
       </div>
 
       {user?.id && realtimeEnabled && <AlertReceiver userId={user.id} />}
