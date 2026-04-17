@@ -8,7 +8,7 @@ export async function GET(_req: Request, context: RouteContext<'/api/invites/[co
   try {
     const invite = await getInvitePreview(code)
     if (!invite) {
-      return NextResponse.json({ error: 'Invite not found.' }, { status: 404 })
+      return NextResponse.json({ error: 'Invalid invite code.' }, { status: 404 })
     }
 
     return NextResponse.json({

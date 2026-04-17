@@ -1,17 +1,46 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createOwnerSignup, isSignupRole } from '@/lib/onboarding'
 import { InviteFlowError, redeemInviteSignup } from '@/lib/invites'
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, password, inviteCode } = (await req.json()) as {
+    const { name, email, password, role, companyName, inviteCode } = (await req.json()) as {
       name?: string
       email?: string
       password?: string
+      role?: string
+      companyName?: string
       inviteCode?: string
     }
 
-    if (!name || !email || !password || !inviteCode) {
-      return NextResponse.json({ error: 'Missing fields' }, { status: 400 })
+    if (!name?.trim() || !email?.trim() || !password || !role?.trim()) {
+      return NextResponse.json({ error: 'Full name, email, password, and role are required.' }, { status: 400 })
+    }
+
+    const normalizedRole = role.trim().toUpperCase()
+
+    if (!isSignupRole(normalizedRole)) {
+      return NextResponse.json({ error: 'Invalid signup role.' }, { status: 400 })
+    }
+
+    // Keep the role split on the server so invite-only and owner-only rules cannot be bypassed in the UI.
+    if (normalizedRole === 'OWNER') {
+      if (!companyName?.trim()) {
+        return NextResponse.json({ error: 'Company name is required for Owner signup.' }, { status: 400 })
+      }
+
+      const owner = await createOwnerSignup({
+        name,
+        email,
+        password,
+        companyName,
+      })
+
+      return NextResponse.json({ success: true, userId: owner.userId, companyId: owner.companyId }, { status: 201 })
+    }
+
+    if (!inviteCode?.trim()) {
+      return NextResponse.json({ error: 'Invalid invite code.' }, { status: 400 })
     }
 
     const user = await redeemInviteSignup({
@@ -19,6 +48,7 @@ export async function POST(req: NextRequest) {
       email,
       password,
       inviteCode,
+      requestedRole: normalizedRole,
     })
 
     return NextResponse.json({ success: true, userId: user.id }, { status: 201 })

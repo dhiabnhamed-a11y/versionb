@@ -20,28 +20,31 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company          Company?  @relation("CompanyMembers", fields: [companyId], references: [id])
-  ownedCompany     Company?  @relation("CompanyOwner")
-  managedProjects  Project[] @relation("ProjectManager")
-  assignedTasks    Task[]    @relation("TaskAssignee")
-  activities       Activity[]
-  sentAlerts       Alert[]   @relation("AlertSender")
-  receivedAlerts   Alert[]   @relation("AlertRecipient")
-  pushTokens       PushToken[]
-  createdInvites   Invite[]  @relation("InviteCreatedBy")
-  redeemedInvites  Invite[]  @relation("InviteUsedBy")
+  company                Company?        @relation("CompanyMembers", fields: [companyId], references: [id])
+  ownedCompany           Company?        @relation("CompanyOwner")
+  managedProjects        Project[]       @relation("ProjectManager")
+  assignedTasks          Task[]          @relation("TaskAssignee")
+  activities             Activity[]
+  sentAlerts             Alert[]         @relation("AlertSender")
+  receivedAlerts         Alert[]         @relation("AlertRecipient")
+  pushTokens             PushToken[]
+  createdInvites         Invite[]        @relation("InviteCreatedBy")
+  redeemedInvites        Invite[]        @relation("InviteUsedBy")
+  reviewedAccessRequests AccessRequest[] @relation("AccessRequestReviewedBy")
 }
 
 model Company {
-  id        String   @id @default(cuid())
-  name      String
-  ownerId   String   @unique
-  createdAt DateTime @default(now())
+  id          String   @id @default(cuid())
+  name        String
+  emailDomain String?  @unique
+  ownerId     String   @unique
+  createdAt   DateTime @default(now())
 
-  owner    User      @relation("CompanyOwner", fields: [ownerId], references: [id])
-  members  User[]    @relation("CompanyMembers")
-  projects Project[]
-  invites  Invite[]
+  owner          User            @relation("CompanyOwner", fields: [ownerId], references: [id])
+  members        User[]          @relation("CompanyMembers")
+  projects       Project[]
+  invites        Invite[]
+  accessRequests AccessRequest[]
 }
 
 model Invite {
@@ -52,16 +55,39 @@ model Invite {
   role         String
   createdById  String
   usedById     String?
+  used         Boolean   @default(false)
   expiresAt    DateTime
   createdAt    DateTime  @default(now())
   usedAt       DateTime?
 
-  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  createdBy User    @relation("InviteCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
-  usedBy    User?   @relation("InviteUsedBy", fields: [usedById], references: [id], onDelete: SetNull)
+  company       Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy     User           @relation("InviteCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  usedBy        User?          @relation("InviteUsedBy", fields: [usedById], references: [id], onDelete: SetNull)
+  accessRequest AccessRequest?
 
   @@index([companyId, invitedEmail])
-  @@index([companyId, usedAt, expiresAt])
+  @@index([companyId, used, expiresAt])
+}
+
+model AccessRequest {
+  id           String   @id @default(cuid())
+  companyId    String
+  email        String
+  name         String
+  role         String
+  status       String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  reviewedAt   DateTime?
+  reviewedById String?
+  inviteId     String?  @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  reviewedBy User?   @relation("AccessRequestReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  invite     Invite? @relation(fields: [inviteId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status, createdAt])
+  @@index([companyId, email, status])
 }
 
 enum CameraType {

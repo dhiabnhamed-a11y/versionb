@@ -16,7 +16,7 @@ type InviteRecord = Invite & {
   }
 }
 
-type SerializedInvite = {
+export type SerializedInvite = {
   id: string
   code: string
   invitedEmail: string
@@ -24,21 +24,24 @@ type SerializedInvite = {
   role: string
   companyId: string
   companyName: string
+  used: boolean
   expiresAt: string
   createdAt: string
   usedAt: string | null
   inviteLink: string
 }
 
-export class InviteFlowError extends Error {
+export class OnboardingFlowError extends Error {
   status: number
 
   constructor(message: string, status = 400) {
     super(message)
-    this.name = 'InviteFlowError'
+    this.name = 'OnboardingFlowError'
     this.status = status
   }
 }
+
+export const InviteFlowError = OnboardingFlowError
 
 export function normalizeEmail(email: string) {
   return email.trim().toLowerCase()
@@ -90,6 +93,7 @@ function serializeInvite(invite: InviteRecord): SerializedInvite {
     role: invite.role,
     companyId: invite.companyId,
     companyName: invite.company.name,
+    used: invite.used,
     expiresAt: invite.expiresAt.toISOString(),
     createdAt: invite.createdAt.toISOString(),
     usedAt: invite.usedAt?.toISOString() ?? null,
@@ -113,14 +117,22 @@ async function getInvitePreviewRecord(code: string) {
   })
 }
 
-export async function getInvitePreview(code: string) {
+async function getActiveInviteForCode(code: string) {
   const invite = await getInvitePreviewRecord(code)
   if (!invite) return null
 
+  // Invite reuse is blocked by both the explicit `used` flag and the audit timestamp.
   const isExpired = invite.expiresAt <= new Date()
-  if (invite.usedAt || isExpired) {
+  if (invite.used || invite.usedAt || isExpired) {
     return null
   }
+
+  return invite
+}
+
+export async function getInvitePreview(code: string) {
+  const invite = await getActiveInviteForCode(code)
+  if (!invite) return null
 
   return serializeInvite(invite)
 }
@@ -139,19 +151,19 @@ export async function createCompanyInvite(input: CreateInviteInput) {
   const role = input.role.trim().toUpperCase()
 
   if (!email || !email.includes('@')) {
-    throw new InviteFlowError('Enter a valid email address.')
+    throw new OnboardingFlowError('Enter a valid email address.')
   }
 
   if (!isInvitableRole(role)) {
-    throw new InviteFlowError('Invalid invite role.')
+    throw new OnboardingFlowError('Invalid invite role.')
   }
 
   if (input.companyAdminRole === 'EMPLOYEE') {
-    throw new InviteFlowError('Only company admins can create invites.', 403)
+    throw new OnboardingFlowError('Only company admins can create invites.', 403)
   }
 
   if (input.companyAdminRole !== 'OWNER' && role === 'MANAGER') {
-    throw new InviteFlowError('Only the company owner can invite another admin.', 403)
+    throw new OnboardingFlowError('Only the company owner can invite another admin.', 403)
   }
 
   const now = new Date()
@@ -167,10 +179,10 @@ export async function createCompanyInvite(input: CreateInviteInput) {
 
   if (existingUser) {
     if (existingUser.companyId === input.companyId) {
-      throw new InviteFlowError('That user already belongs to your company.', 409)
+      throw new OnboardingFlowError('That user already belongs to your company.', 409)
     }
 
-    throw new InviteFlowError('That email is already registered in another workspace.', 409)
+    throw new OnboardingFlowError('That email is already registered in another workspace.', 409)
   }
 
   const ttlHours = input.ttlHours ?? getInviteTtlHours()
@@ -181,6 +193,7 @@ export async function createCompanyInvite(input: CreateInviteInput) {
       where: {
         companyId: input.companyId,
         invitedEmail: email,
+        used: false,
         usedAt: null,
         expiresAt: {
           gt: now,
@@ -237,6 +250,7 @@ type RedeemInviteInput = {
   email: string
   password: string
   inviteCode: string
+  requestedRole: string
 }
 
 export async function redeemInviteSignup(input: RedeemInviteInput) {
@@ -244,41 +258,41 @@ export async function redeemInviteSignup(input: RedeemInviteInput) {
   const email = normalizeEmail(input.email)
   const password = input.password
   const inviteCode = normalizeInviteCode(input.inviteCode)
+  const requestedRole = input.requestedRole.trim().toUpperCase()
 
   if (!name) {
-    throw new InviteFlowError('Full name is required.')
+    throw new OnboardingFlowError('Full name is required.')
   }
 
   if (!email || !email.includes('@')) {
-    throw new InviteFlowError('Enter a valid email address.')
+    throw new OnboardingFlowError('Enter a valid email address.')
   }
 
   if (!inviteCode) {
-    throw new InviteFlowError('Invite code is required.')
+    throw new OnboardingFlowError('Invite code is required.')
+  }
+
+  if (!isInvitableRole(requestedRole)) {
+    throw new OnboardingFlowError('Invalid signup role.', 400)
   }
 
   if (password.length < 8) {
-    throw new InviteFlowError('Password must be at least 8 characters long.')
+    throw new OnboardingFlowError('Password must be at least 8 characters long.')
   }
 
-  const invite = await prisma.invite.findFirst({
-    where: {
-      code: inviteCode,
-      invitedEmail: email,
-      usedAt: null,
-      expiresAt: {
-        gt: new Date(),
-      },
-    },
-    select: {
-      id: true,
-      companyId: true,
-      role: true,
-    },
-  })
+  const invite = await getActiveInviteForCode(inviteCode)
 
   if (!invite) {
-    throw new InviteFlowError('This invite is invalid, expired, or does not match that email.', 404)
+    throw new OnboardingFlowError('Invalid invite code.', 404)
+  }
+
+  // Bind the invite to both the expected email and the expected role to prevent role escalation.
+  if (invite.invitedEmail !== email) {
+    throw new OnboardingFlowError('Invalid invite code for this email.', 403)
+  }
+
+  if (invite.role !== requestedRole) {
+    throw new OnboardingFlowError('Invite role does not match the selected role.', 403)
   }
 
   const existingUser = await prisma.user.findUnique({
@@ -291,7 +305,7 @@ export async function redeemInviteSignup(input: RedeemInviteInput) {
   })
 
   if (existingUser) {
-    throw new InviteFlowError('Email already exists.', 409)
+    throw new OnboardingFlowError('Email already exists.', 409)
   }
 
   const supabaseAdmin = getSupabaseAdmin()
@@ -302,16 +316,17 @@ export async function redeemInviteSignup(input: RedeemInviteInput) {
     user_metadata: {
       name,
       invite_code: inviteCode,
+      signup_role: requestedRole,
       taskit_onboarding: true,
     },
   })
 
   if (error || !data.user) {
     if (error?.message?.toLowerCase().includes('already')) {
-      throw new InviteFlowError('That email is already registered in Supabase Auth.', 409)
+      throw new OnboardingFlowError('That email is already registered in Supabase Auth.', 409)
     }
 
-    throw new InviteFlowError(error?.message ?? 'Supabase Auth user creation failed.', 500)
+    throw new OnboardingFlowError(error?.message ?? 'Supabase Auth user creation failed.', 500)
   }
 
   const authUserId = data.user.id
@@ -351,6 +366,7 @@ async function createInvitedUser(
     where: {
       id: input.invite.id,
       invitedEmail: input.email,
+      used: false,
       usedAt: null,
       expiresAt: {
         gt: new Date(),
@@ -364,7 +380,7 @@ async function createInvitedUser(
   })
 
   if (!freshInvite) {
-    throw new InviteFlowError('This invite is no longer available.', 409)
+    throw new OnboardingFlowError('This invite is no longer available.', 409)
   }
 
   const passwordHash = await bcrypt.hash(input.password, 12)
@@ -389,9 +405,11 @@ async function createInvitedUser(
   const claimResult = await tx.invite.updateMany({
     where: {
       id: freshInvite.id,
+      used: false,
       usedAt: null,
     },
     data: {
+      used: true,
       usedAt: new Date(),
       usedById: user.id,
     },
@@ -399,7 +417,7 @@ async function createInvitedUser(
 
   // updateMany lets us atomically fail if another request consumed the invite first.
   if (claimResult.count !== 1) {
-    throw new InviteFlowError('This invite has already been used.', 409)
+    throw new OnboardingFlowError('This invite has already been used.', 409)
   }
 
   return user

@@ -1,12 +1,8 @@
-import SignupInviteClient from '@/components/auth/SignupInviteClient'
+import SignupOnboardingClient from '@/components/auth/SignupOnboardingClient'
 
-export default async function SignupPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ invite?: string | string[] }>
-}) {
-  const params = await searchParams
+export default async function SignupPage(props: PageProps<'/signup'>) {
+  const params = await props.searchParams
   const invite = Array.isArray(params.invite) ? params.invite[0] : params.invite
 
-  return <SignupInviteClient initialInviteCode={invite ?? ''} />
+  return <SignupOnboardingClient initialInviteCode={invite ?? ''} />
 }
