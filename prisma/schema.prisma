@@ -15,6 +15,7 @@ model User {
   password  String
   role      String   @default("EMPLOYEE") // OWNER, MANAGER, EMPLOYEE
   avatar    String?
+  authUserId String? @unique @db.Uuid
   companyId String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -27,6 +28,8 @@ model User {
   sentAlerts       Alert[]   @relation("AlertSender")
   receivedAlerts   Alert[]   @relation("AlertRecipient")
   pushTokens       PushToken[]
+  createdInvites   Invite[]  @relation("InviteCreatedBy")
+  redeemedInvites  Invite[]  @relation("InviteUsedBy")
 }
 
 model Company {
@@ -38,6 +41,27 @@ model Company {
   owner    User      @relation("CompanyOwner", fields: [ownerId], references: [id])
   members  User[]    @relation("CompanyMembers")
   projects Project[]
+  invites  Invite[]
+}
+
+model Invite {
+  id           String    @id @default(cuid())
+  companyId    String
+  code         String    @unique
+  invitedEmail String
+  role         String
+  createdById  String
+  usedById     String?
+  expiresAt    DateTime
+  createdAt    DateTime  @default(now())
+  usedAt       DateTime?
+
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User    @relation("InviteCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  usedBy    User?   @relation("InviteUsedBy", fields: [usedById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, invitedEmail])
+  @@index([companyId, usedAt, expiresAt])
 }
 
 enum CameraType {

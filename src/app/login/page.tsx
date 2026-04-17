@@ -132,9 +132,9 @@ export default function LoginPage() {
           </form>
 
           <p className="mt-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-            New here?{' '}
+            Have an invite?{' '}
             <Link href="/signup" className="font-semibold text-[var(--accent)] underline-offset-4 hover:underline">
-              Create an account
+              Join your workspace
             </Link>
           </p>
         </motion.div>
