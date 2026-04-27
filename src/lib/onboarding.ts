@@ -1,6 +1,7 @@
 import bcrypt from 'bcryptjs'
 import { Prisma } from '@prisma/client'
 
+import { isCompanyType, type CompanyType } from '@/lib/company-types'
 import { prisma } from '@/lib/db'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import {
@@ -68,6 +69,10 @@ type CreateOwnerSignupInput = {
   email: string
   password: string
   companyName: string
+  country: string
+  industry: string
+  registrationNumber: string
+  companyType: CompanyType
 }
 
 type SubmitAccessRequestInput = {
@@ -158,6 +163,10 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
   const email = normalizeEmail(input.email)
   const password = input.password
   const companyName = input.companyName.trim()
+  const country = input.country.trim()
+  const industry = input.industry.trim()
+  const registrationNumber = input.registrationNumber.trim().toUpperCase()
+  const companyType = input.companyType.trim().toUpperCase()
   const emailDomain = extractEmailDomain(email)
 
   if (!name) {
@@ -176,9 +185,25 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
     throw new InviteFlowError('Company name is required for Owner signup.')
   }
 
+  if (!country) {
+    throw new InviteFlowError('Country is required for company registration.')
+  }
+
+  if (!industry) {
+    throw new InviteFlowError('Industry is required for company registration.')
+  }
+
+  if (registrationNumber.length < 3) {
+    throw new InviteFlowError('A valid company registration number is required.')
+  }
+
+  if (!isCompanyType(companyType)) {
+    throw new InviteFlowError('Choose a valid company type before creating your workspace.')
+  }
+
   assertOwnerDomainAllowed(emailDomain)
 
-  const [existingUser, existingCompany] = await Promise.all([
+  const [existingUser, existingCompanyByDomain, existingCompanyByRegistration] = await Promise.all([
     prisma.user.findUnique({
       where: { email },
       select: { id: true },
@@ -187,14 +212,22 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
       where: { emailDomain },
       select: { id: true },
     }),
+    prisma.company.findFirst({
+      where: { registrationNumber },
+      select: { id: true },
+    }),
   ])
 
   if (existingUser) {
     throw new InviteFlowError('Email already exists.', 409)
   }
 
-  if (existingCompany) {
+  if (existingCompanyByDomain) {
     throw new InviteFlowError('This company domain is already linked to TASKIT. Request access instead.', 409)
+  }
+
+  if (existingCompanyByRegistration) {
+    throw new InviteFlowError('That company registration number is already registered.', 409)
   }
 
   const { data, error } = await getSupabaseAdmin().auth.admin.createUser({
@@ -206,6 +239,10 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
       signup_role: 'OWNER',
       company_name: companyName,
       company_domain: emailDomain,
+      company_country: country,
+      company_industry: industry,
+      company_registration_number: registrationNumber,
+      company_type: companyType,
       taskit_onboarding: true,
     },
   })
@@ -231,6 +268,7 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
             email,
             password: passwordHash,
             role: 'OWNER',
+            accountStatus: 'PENDING',
             authUserId,
           },
           select: {
@@ -242,6 +280,11 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
           data: {
             name: companyName,
             emailDomain,
+            country,
+            industry,
+            registrationNumber,
+            companyType,
+            status: 'PENDING',
             ownerId: user.id,
           },
           select: {

@@ -1,0 +1,576 @@
+.introBlock {
+  margin-bottom: 1.4rem;
+}
+
+.introCaption {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.4rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid rgba(36, 200, 248, 0.16);
+  background: rgba(36, 200, 248, 0.08);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.introTitle {
+  margin-top: 0.85rem;
+  font-family: var(--font-display);
+  font-size: 1.85rem;
+  font-weight: 600;
+  letter-spacing: -0.04em;
+  color: var(--text-primary);
+}
+
+.introDescription {
+  margin-top: 0.45rem;
+  font-size: 0.91rem;
+  line-height: 1.65;
+  color: var(--text-muted);
+}
+
+.sectionBlock {
+  margin-bottom: 1rem;
+  padding: 1.05rem;
+  border: 1px solid var(--border);
+  border-radius: 1.25rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(237, 248, 247, 0.72));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.78);
+}
+
+.sectionBlockPrimary {
+  background: linear-gradient(180deg, rgba(245, 252, 252, 0.98), rgba(232, 246, 245, 0.88));
+}
+
+.sectionHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+}
+
+.stepBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.28rem 0.5rem;
+  border-radius: 999px;
+  background: rgba(8, 20, 28, 0.06);
+  color: var(--text-secondary);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.sectionTitle {
+  margin-top: 0.75rem;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
+}
+
+.sectionDescription {
+  margin-top: 0.35rem;
+  max-width: 36rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.contextChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  align-self: flex-start;
+  padding: 0.55rem 0.75rem;
+  border: 1px solid rgba(8, 20, 28, 0.08);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 700;
+  box-shadow: 0 8px 18px rgba(7, 28, 36, 0.05);
+}
+
+.contextChipLocked {
+  border-color: rgba(19, 141, 136, 0.18);
+  background: rgba(19, 141, 136, 0.08);
+  color: var(--accent);
+}
+
+.companyGrid {
+  display: grid;
+  gap: 0.85rem;
+  margin-top: 1rem;
+}
+
+.companyCard {
+  --company-accent: var(--accent);
+  --company-surface: rgba(19, 141, 136, 0.08);
+  --company-outline: rgba(19, 141, 136, 0.18);
+  --company-spotlight: rgba(36, 200, 248, 0.18);
+  position: relative;
+  overflow: hidden;
+  padding: 1rem;
+  border: 1px solid var(--company-outline);
+  border-radius: 1.1rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), var(--company-surface));
+  text-align: left;
+  box-shadow: 0 12px 30px rgba(7, 28, 36, 0.04);
+  transition:
+    transform 0.18s ease,
+    border-color 0.2s ease,
+    box-shadow 0.22s ease,
+    background 0.2s ease;
+}
+
+.companyCard::before {
+  content: "";
+  position: absolute;
+  top: -24%;
+  left: 58%;
+  width: 10rem;
+  height: 10rem;
+  border-radius: 999px;
+  background: var(--company-spotlight);
+  filter: blur(42px);
+  opacity: 0;
+  transition: opacity 0.22s ease;
+  pointer-events: none;
+}
+
+.companyCard:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--company-accent);
+  box-shadow: 0 16px 34px rgba(7, 28, 36, 0.08);
+}
+
+.companyCard:hover::before,
+.companyCardSelected::before {
+  opacity: 1;
+}
+
+.companyCard:disabled {
+  cursor: not-allowed;
+}
+
+.companyCardSelected {
+  border-color: var(--company-accent);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.99), rgba(255, 255, 255, 0.86) 34%, var(--company-surface));
+  box-shadow:
+    0 0 0 1px var(--company-accent),
+    0 20px 38px rgba(7, 28, 36, 0.08);
+}
+
+.companyCardTop {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+}
+
+.companyIconWrap {
+  width: 3rem;
+  height: 3rem;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255, 255, 255, 0.88);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--company-accent);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 10px 22px rgba(7, 28, 36, 0.07);
+}
+
+.companyCardHeading {
+  min-width: 0;
+}
+
+.companyEyebrow {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--company-accent);
+}
+
+.companyLabel {
+  display: block;
+  margin-top: 0.18rem;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.companyStatus {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin-left: auto;
+  padding: 0.45rem 0.65rem;
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+  box-shadow: 0 8px 16px rgba(7, 28, 36, 0.06);
+}
+
+.companyCardSelected .companyStatus {
+  color: var(--company-accent);
+}
+
+.companyWorkspaceTag {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  margin-top: 0.9rem;
+  padding: 0.32rem 0.55rem;
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.companyTitle {
+  position: relative;
+  z-index: 1;
+  margin-top: 0.8rem;
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text-primary);
+}
+
+.companyDescription {
+  position: relative;
+  z-index: 1;
+  margin-top: 0.45rem;
+  font-size: 0.85rem;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.flowRow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+}
+
+.flowStepGroup {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.flowArrow {
+  color: var(--company-accent);
+  opacity: 0.7;
+}
+
+.flowPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.36rem 0.58rem;
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.companyMeta {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  margin-top: 0.85rem;
+}
+
+.metaChip {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.38rem 0.62rem;
+  border: 1px solid var(--company-outline);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.58);
+  color: var(--text-secondary);
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
+.bulletGrid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.9rem;
+}
+
+.bulletItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--text-secondary);
+}
+
+.bulletItemIcon {
+  flex-shrink: 0;
+  margin-top: 0.12rem;
+  color: var(--company-accent);
+}
+
+.workflowPreview {
+  --company-accent: var(--accent);
+  --company-spotlight: rgba(36, 200, 248, 0.18);
+  position: relative;
+  overflow: hidden;
+  margin-top: 1rem;
+  padding: 1rem;
+  border-radius: 1.15rem;
+  background: linear-gradient(145deg, #061b28 0%, #0c2534 58%, #102b37 100%);
+  color: #e6f1f5;
+}
+
+.workflowPreview::before {
+  content: "";
+  position: absolute;
+  top: -20%;
+  right: -10%;
+  width: 14rem;
+  height: 14rem;
+  border-radius: 999px;
+  background: var(--company-spotlight);
+  filter: blur(58px);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.workflowHeader {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.workflowEyebrow {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(230, 241, 245, 0.65);
+}
+
+.workflowTitle {
+  max-width: 28rem;
+  margin-top: 0.35rem;
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  color: white;
+}
+
+.workflowBadge {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 0.48rem 0.75rem;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f5fbff;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.workflowDescription {
+  position: relative;
+  z-index: 1;
+  max-width: 34rem;
+  margin-top: 0.65rem;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  color: #b7cad3;
+}
+
+.workflowStats {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.workflowStat {
+  padding: 0.8rem 0.85rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(8px);
+}
+
+.workflowStatLabel {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgba(230, 241, 245, 0.55);
+}
+
+.workflowStatValue {
+  margin-top: 0.35rem;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: #f8fdff;
+}
+
+.lockNotice {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+  padding: 0.8rem 0.95rem;
+  border: 1px solid rgba(19, 141, 136, 0.18);
+  border-radius: var(--radius-sm);
+  background: rgba(19, 141, 136, 0.06);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.55;
+}
+
+.lockNoticeIcon {
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+  color: var(--accent);
+}
+
+.roleBlock {
+  margin-top: 1rem;
+}
+
+.roleGrid {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.roleCard {
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.68);
+  text-align: left;
+  transition:
+    border-color 0.2s ease,
+    background 0.2s ease,
+    box-shadow 0.22s ease,
+    transform 0.18s ease;
+}
+
+.roleCard:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: var(--accent-bright);
+  box-shadow: 0 14px 28px rgba(7, 28, 36, 0.06);
+}
+
+.roleCardSelected {
+  border-color: var(--accent-ring);
+  background: linear-gradient(180deg, rgba(19, 141, 136, 0.1), rgba(255, 255, 255, 0.85));
+  box-shadow:
+    0 0 0 1px rgba(36, 200, 248, 0.18),
+    0 12px 24px rgba(7, 28, 36, 0.05);
+}
+
+.roleCard:disabled {
+  cursor: not-allowed;
+  opacity: 0.78;
+}
+
+.roleCardTop {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.roleTitle {
+  font-size: 0.92rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.roleDescription {
+  margin-top: 0.35rem;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.roleTag {
+  display: inline-flex;
+  margin-top: 0.6rem;
+  padding: 0.3rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.roleCardSelected .roleTag {
+  border-color: rgba(36, 200, 248, 0.18);
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.fieldHint {
+  display: grid;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+
+@media (min-width: 640px) {
+  .sectionBlock {
+    padding: 1.2rem;
+  }
+
+  .workflowStats {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 720px) {
+  .sectionHeader {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+
+  .workflowHeader {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: flex-start;
+  }
+}

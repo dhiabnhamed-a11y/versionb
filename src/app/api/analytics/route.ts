@@ -23,7 +23,14 @@ export async function GET() {
   }
 
   try {
-    const [totalTasks, doneTasks, inProgressTasks, overdueTasks, totalEmployees] =
+    const company = await prisma.company.findUnique({
+      where: { id: user.companyId },
+      select: {
+        companyType: true,
+      },
+    })
+
+    const [totalTasks, doneTasks, inProgressTasks, overdueTasks, totalEmployees, roomCount, submissionCount] =
       await Promise.all([
         prisma.task.count({ where: { project: { companyId: user.companyId } } }),
         prisma.task.count({ where: { stage: 'DONE', project: { companyId: user.companyId } } }),
@@ -36,6 +43,8 @@ export async function GET() {
           },
         }),
         prisma.user.count({ where: { companyId: user.companyId, role: 'EMPLOYEE' } }),
+        prisma.room.count({ where: { companyId: user.companyId } }),
+        prisma.taskSubmission.count({ where: { task: { project: { companyId: user.companyId } } } }),
       ])
 
     // Employee performance: tasks done per person
@@ -59,11 +68,14 @@ export async function GET() {
     }))
 
     return NextResponse.json({
+      companyType: company?.companyType ?? 'OTHER',
       totalTasks,
       doneTasks,
       inProgressTasks,
       overdueTasks,
       totalEmployees,
+      roomCount,
+      submissionCount,
       performance,
     })
   } catch (err) {

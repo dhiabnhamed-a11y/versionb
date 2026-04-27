@@ -108,7 +108,7 @@ export default function SendAlertPage() {
         {success && (
           <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', borderRadius: '8px', padding: '12px 14px', color: '#10b981', fontSize: '13px', display: 'flex', gap: '8px', alignItems: 'center' }}>
             <CheckCircle2 size={16} />
-            <span><strong>Alert sent</strong> — the employee has been notified.</span>
+            <span><strong>Alert sent</strong> - the employee has been notified.</span>
           </div>
         )}
 

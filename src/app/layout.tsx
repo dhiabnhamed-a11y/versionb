@@ -16,9 +16,9 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'TASKIT | Free team operations workspace',
+  title: 'TASKIT | Industry, agency, and team workspaces',
   description:
-    'A polished SaaS workspace for projects, tasks, and real-time team alerts. Free to start right now.',
+    'A polished workspace for industry teams, digital agencies, and standard project teams with projects, tasks, uploads, and real-time alerts.',
   manifest: '/manifest.json',
   icons: {
     icon: [
@@ -43,7 +43,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${fraunces.variable} ${plusJakartaSans.variable}`}>
+    <html lang="en" data-scroll-behavior="smooth" className={`${fraunces.variable} ${plusJakartaSans.variable}`}>
       <body>
         <PWARegistration />
         {children}

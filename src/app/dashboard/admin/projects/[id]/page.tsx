@@ -3,25 +3,46 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import { ArrowLeft, Camera, FolderKanban, User } from 'lucide-react'
+import { useSession } from 'next-auth/react'
+import { getCompanyTypeCopy, getDeliverableTypeLabel, normalizeCompanyType } from '@/lib/company-types'
+import { ArrowLeft, Camera, FolderKanban, User, Building2, Link2 } from 'lucide-react'
 import { ProjectCamera } from '@/components/camera/ProjectCamera'
 
 type ProjectDetail = {
   id: string
   title: string
   description: string | null
+  room?: { id: string; name: string } | null
   hasCamera: boolean
   cameraType: 'device' | 'external'
   manager: { id: string; name: string } | null
-  tasks: { id: string; stage: string; title: string }[]
+  tasks: {
+    id: string
+    stage: string
+    title: string
+    deliverableType?: string
+    submissions: {
+      id: string
+      fileUrl: string
+      fileName: string
+      fileType: string
+      note?: string | null
+      createdAt: string
+      user: { id: string; name: string }
+    }[]
+  }[]
 }
 
 export default function ProjectDetailPage() {
+  const { data: session } = useSession()
   const params = useParams()
   const id = params.id as string
   const [project, setProject] = useState<ProjectDetail | null>(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const companyType = normalizeCompanyType((session?.user as { companyType?: string | null } | undefined)?.companyType)
+  const companyCopy = getCompanyTypeCopy(companyType)
+  const isAgency = companyType === 'DIGITAL_AGENCY'
 
   useEffect(() => {
     let cancelled = false
@@ -85,13 +106,19 @@ export default function ProjectDetailPage() {
               <FolderKanban className="h-6 w-6" strokeWidth={1.85} />
             </div>
             <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
-                  {project.title}
-                </h1>
-                {project.hasCamera && (
-                  <span className="inline-flex items-center gap-1 rounded-full border border-[var(--accent-ring)] bg-[var(--accent-subtle)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)]">
-                    <Camera className="h-3 w-3" />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h1 className="font-display text-2xl font-semibold tracking-tight text-[var(--text-primary)]">
+                      {project.title}
+                    </h1>
+                    {project.room && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(33,66,255,0.18)] bg-[rgba(33,66,255,0.06)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#2142ff]">
+                        <Building2 className="h-3 w-3" />
+                        {project.room.name}
+                      </span>
+                    )}
+                    {project.hasCamera && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-[var(--accent-ring)] bg-[var(--accent-subtle)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)]">
+                        <Camera className="h-3 w-3" />
                     Camera on
                   </span>
                 )}
@@ -119,15 +146,48 @@ export default function ProjectDetailPage() {
       {project.hasCamera && <ProjectCamera projectId={project.id} />}
 
       <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-card)] p-5">
-        <h2 className="font-display mb-3 text-base font-semibold">Tasks in this project</h2>
+        <h2 className="font-display mb-3 text-base font-semibold">
+          {companyCopy.taskPluralLabel} in this {companyCopy.projectLabel.toLowerCase()}
+        </h2>
         {project.tasks.length === 0 ? (
-          <p className="text-sm text-[var(--text-muted)]">No tasks yet.</p>
+          <p className="text-sm text-[var(--text-muted)]">No {companyCopy.taskPluralLabel.toLowerCase()} yet.</p>
         ) : (
           <ul className="divide-y divide-[var(--border)]">
             {project.tasks.map((t) => (
-              <li key={t.id} className="flex items-center justify-between py-2 text-sm">
-                <span className="font-medium text-[var(--text-primary)]">{t.title}</span>
-                <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">{t.stage}</span>
+              <li key={t.id} className="py-3 text-sm">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-medium text-[var(--text-primary)]">{t.title}</span>
+                    {isAgency && (
+                      <span className="rounded-full border border-[rgba(124,58,237,0.18)] bg-[rgba(124,58,237,0.06)] px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em] text-[#7c3aed]">
+                        {getDeliverableTypeLabel(t.deliverableType)}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">{t.stage}</span>
+                </div>
+                {t.submissions.length > 0 && (
+                  <div className="mt-3 grid gap-2">
+                    {t.submissions.map((submission) => (
+                      <div key={submission.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] px-3 py-2">
+                        <div>
+                          <div className="text-xs font-semibold text-[var(--text-primary)]">{submission.fileName}</div>
+                          <div className="text-[11px] text-[var(--text-muted)]">{submission.user.name}</div>
+                          {submission.note && <div className="mt-1 text-[11px] text-[var(--text-secondary)]">{submission.note}</div>}
+                        </div>
+                        <a
+                          href={submission.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-secondary inline-flex items-center gap-1 px-3 py-1.5 text-[11px]"
+                        >
+                          <Link2 className="h-3.5 w-3.5" />
+                          Open file
+                        </a>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </li>
             ))}
           </ul>

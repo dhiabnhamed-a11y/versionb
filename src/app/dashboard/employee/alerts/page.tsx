@@ -62,7 +62,7 @@ export default function EmployeeAlertsPage() {
       ) : alerts.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '48px' }}>
           <Bell size={32} style={{ color: 'var(--text-muted)', opacity: 0.3, margin: '0 auto 10px', display: 'block' }} />
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No alerts yet — you&apos;re all clear</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No alerts yet - you&apos;re all clear</p>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>

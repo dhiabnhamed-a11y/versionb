@@ -9,16 +9,17 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  name      String
-  email     String   @unique
-  password  String
-  role      String   @default("EMPLOYEE") // OWNER, MANAGER, EMPLOYEE
-  avatar    String?
-  authUserId String? @unique @db.Uuid
-  companyId String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(cuid())
+  name          String
+  email         String   @unique
+  password      String
+  role          String   @default("EMPLOYEE") // SUPER_ADMIN, OWNER, MANAGER, EMPLOYEE
+  accountStatus String   @default("ACTIVE") // PENDING, ACTIVE, REJECTED, DISABLED
+  avatar        String?
+  authUserId    String?  @unique @db.Uuid
+  companyId     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   company                Company?        @relation("CompanyMembers", fields: [companyId], references: [id])
   ownedCompany           Company?        @relation("CompanyOwner")
@@ -31,20 +32,50 @@ model User {
   createdInvites         Invite[]        @relation("InviteCreatedBy")
   redeemedInvites        Invite[]        @relation("InviteUsedBy")
   reviewedAccessRequests AccessRequest[] @relation("AccessRequestReviewedBy")
+  reviewedCompanies      Company[]       @relation("CompanyReviewedBy")
+  taskSubmissions        TaskSubmission[]
 }
 
 model Company {
-  id          String   @id @default(cuid())
-  name        String
-  emailDomain String?  @unique
-  ownerId     String   @unique
-  createdAt   DateTime @default(now())
+  id                 String    @id @default(cuid())
+  name               String
+  emailDomain        String?   @unique
+  companyType        String    @default("OTHER")
+  country            String?
+  industry           String?
+  registrationNumber String?   @unique
+  status             String    @default("PENDING") // PENDING, ACTIVE, REJECTED, DISABLED
+  reviewNote         String?
+  reviewedAt         DateTime?
+  reviewedById       String?
+  ownerId            String    @unique
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   owner          User            @relation("CompanyOwner", fields: [ownerId], references: [id])
+  reviewedBy     User?           @relation("CompanyReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   members        User[]          @relation("CompanyMembers")
+  rooms          Room[]
   projects       Project[]
   invites        Invite[]
   accessRequests AccessRequest[]
+
+  @@index([status, createdAt])
+  @@index([name, registrationNumber, status])
+}
+
+model Room {
+  id          String    @id @default(cuid())
+  name        String
+  description String?
+  companyId   String
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projects Project[]
+
+  @@index([companyId, createdAt])
 }
 
 model Invite {
@@ -100,6 +131,7 @@ model Project {
   title       String
   description String?
   companyId   String
+  roomId      String?
   managerId   String?
   hasCamera   Boolean    @default(false)
   cameraType  CameraType @default(device)
@@ -107,9 +139,12 @@ model Project {
   updatedAt   DateTime   @updatedAt
 
   company     Company               @relation(fields: [companyId], references: [id])
+  room        Room?                 @relation(fields: [roomId], references: [id], onDelete: SetNull)
   manager     User?                 @relation("ProjectManager", fields: [managerId], references: [id])
   tasks       Task[]
   cameraMedia ProjectCameraMedia[]
+
+  @@index([companyId, roomId])
 }
 
 model ProjectCameraMedia {
@@ -125,21 +160,40 @@ model ProjectCameraMedia {
 }
 
 model Task {
-  id          String   @id @default(cuid())
-  title       String
-  description String?
-  priority    String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
-  deadline    DateTime?
-  assigneeId  String?
-  projectId   String
-  stage       String   @default("TODO") // TODO, IN_PROGRESS, REVIEW, DONE
-  progress    Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(cuid())
+  title           String
+  description     String?
+  priority        String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  deliverableType String   @default("GENERAL")
+  deadline        DateTime?
+  assigneeId      String?
+  projectId       String
+  stage           String   @default("TODO") // TODO, IN_PROGRESS, REVIEW, DONE
+  progress        Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  assignee   User?      @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  project    Project    @relation(fields: [projectId], references: [id])
-  activities Activity[]
+  assignee    User?            @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  project     Project          @relation(fields: [projectId], references: [id])
+  activities  Activity[]
+  submissions TaskSubmission[]
+}
+
+model TaskSubmission {
+  id        String   @id @default(cuid())
+  taskId     String
+  userId     String
+  fileUrl    String
+  fileName   String
+  fileType   String
+  note       String?
+  createdAt  DateTime @default(now())
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([taskId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model Activity {

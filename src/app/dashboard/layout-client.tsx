@@ -7,6 +7,7 @@ import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import AlertReceiver from '@/components/alerts/AlertReceiver'
 import PushNotificationBootstrap from '@/components/pwa/PushNotificationBootstrap'
+import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
 import { isRealtimeAlertsEnabled } from '@/lib/socket-client'
 import logo from '@/app/logo.png'
 import {
@@ -20,38 +21,58 @@ import {
   LogOut,
   Radio,
   Menu,
+  ShieldCheck,
 } from 'lucide-react'
-
-const adminLinks = [
-  { href: '/dashboard/admin', label: 'Overview', icon: LayoutDashboard },
-  { href: '/dashboard/admin/projects', label: 'Projects', icon: FolderKanban },
-  { href: '/dashboard/admin/tasks', label: 'Tasks', icon: CheckSquare },
-  { href: '/dashboard/admin/employees', label: 'Team', icon: Users },
-  { href: '/dashboard/admin/alerts', label: 'Send Alert', icon: Bell },
-]
-
-const employeeLinks = [
-  { href: '/dashboard/employee', label: 'My Tasks', icon: ListTodo },
-  { href: '/dashboard/employee/alerts', label: 'Alerts', icon: Bell },
-  { href: '/dashboard/employee/progress', label: 'Progress', icon: BarChart3 },
-]
 
 export default function DashboardLayoutClient({ children }: { children: React.ReactNode }) {
   const { data: session } = useSession()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
-  const user = session?.user as { id?: string; name?: string; role?: string }
+  const user = session?.user as { id?: string; name?: string; role?: string; companyType?: string | null }
+  const isSuperAdmin = user?.role === 'SUPER_ADMIN'
   const isEmployee = user?.role === 'EMPLOYEE'
-  const links = isEmployee ? employeeLinks : adminLinks
+  const companyType = normalizeCompanyType(user?.companyType)
+  const companyCopy = getCompanyTypeCopy(companyType)
+  const links = isSuperAdmin
+    ? [{ href: '/dashboard/super-admin', label: 'Company approvals', icon: ShieldCheck }]
+    : isEmployee
+    ? [
+        {
+          href: '/dashboard/employee',
+          label: companyType === 'DIGITAL_AGENCY' ? 'My briefs' : 'My tasks',
+          icon: ListTodo,
+        },
+        { href: '/dashboard/employee/alerts', label: 'Alerts', icon: Bell },
+        { href: '/dashboard/employee/progress', label: 'Progress', icon: BarChart3 },
+      ]
+    : [
+        { href: '/dashboard/admin', label: 'Overview', icon: LayoutDashboard },
+        {
+          href: '/dashboard/admin/projects',
+          label:
+            companyType === 'INDUSTRY'
+              ? `${companyCopy.groupPluralLabel} & ${companyCopy.projectPluralLabel}`
+              : companyCopy.projectPluralLabel,
+          icon: FolderKanban,
+        },
+        { href: '/dashboard/admin/tasks', label: companyCopy.taskPluralLabel, icon: CheckSquare },
+        { href: '/dashboard/admin/employees', label: 'Team', icon: Users },
+        { href: '/dashboard/admin/alerts', label: 'Send Alert', icon: Bell },
+      ]
   const realtimeEnabled = isRealtimeAlertsEnabled()
+  const workspaceNavLabel = isSuperAdmin
+    ? 'Approval center'
+    :
+    companyType === 'INDUSTRY' ? 'Operations grid' : companyType === 'DIGITAL_AGENCY' ? 'Studio board' : 'Command center'
 
-  const roleLabel = user?.role === 'OWNER' ? 'Owner' : user?.role === 'MANAGER' ? 'Manager' : 'Employee'
-  const badgeClass = user?.role === 'OWNER' ? 'badge-owner' : user?.role === 'MANAGER' ? 'badge-manager' : 'badge-employee'
+  const roleLabel = isSuperAdmin ? 'Super Admin' : user?.role === 'OWNER' ? 'Owner' : user?.role === 'MANAGER' ? 'Manager' : 'Employee'
+  const badgeClass = isSuperAdmin ? 'badge-owner' : user?.role === 'OWNER' ? 'badge-owner' : user?.role === 'MANAGER' ? 'badge-manager' : 'badge-employee'
+  const workspaceLabel = isSuperAdmin ? 'Super Admin Console' : companyCopy.workspaceLabel
 
   return (
     <div className="flex min-h-screen min-h-dvh">
-      <PushNotificationBootstrap userId={user?.id} />
+      {!isSuperAdmin && <PushNotificationBootstrap userId={user?.id} />}
 
       {sidebarOpen && (
         <button
@@ -78,7 +99,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
             <div className="min-w-0">
               <div className="font-display text-xl font-semibold tracking-tight text-slate-100">TASKIT</div>
               <div className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: '#64748b' }}>
-                Operations studio
+                {workspaceLabel}
               </div>
             </div>
           </div>
@@ -86,7 +107,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
 
         <nav className="flex flex-1 flex-col gap-0.5 px-3 py-4">
           <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: '#475569' }}>
-            {isEmployee ? 'Your workspace' : 'Command center'}
+            {isEmployee ? 'Your workspace' : workspaceNavLabel}
           </div>
           {links.map((link) => {
             const isActive = pathname === link.href
@@ -164,7 +185,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
             />
             <Radio size={14} style={{ color: 'var(--accent)' }} />
             <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-              {realtimeEnabled ? 'Real-time channel active' : 'Workspace ready'}
+              {isSuperAdmin ? 'Approval system active' : realtimeEnabled ? 'Real-time channel active' : 'Workspace ready'}
             </span>
           </div>
           <div suppressHydrationWarning className="text-xs font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>
@@ -175,7 +196,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
         <main className="dashboard-shell-body flex-1 px-5 py-8 md:px-8 md:py-10">{children}</main>
       </div>
 
-      {user?.id && realtimeEnabled && <AlertReceiver userId={user.id} />}
+      {user?.id && realtimeEnabled && !isSuperAdmin && <AlertReceiver userId={user.id} />}
     </div>
   )
 }

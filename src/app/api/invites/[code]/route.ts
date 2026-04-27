@@ -16,6 +16,7 @@ export async function GET(_req: Request, context: RouteContext<'/api/invites/[co
       invitedEmailMasked: invite.invitedEmailMasked,
       role: invite.role,
       companyName: invite.companyName,
+      companyType: invite.companyType,
       expiresAt: invite.expiresAt,
     })
   } catch (error) {

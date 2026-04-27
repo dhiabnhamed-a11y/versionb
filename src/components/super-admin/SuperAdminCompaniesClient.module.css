@@ -1,0 +1,310 @@
+.shell {
+  display: grid;
+  gap: 1rem;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  justify-content: space-between;
+}
+
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.32rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(36, 200, 248, 0.08);
+  color: var(--text-secondary);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.summaryCard {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.85rem;
+  padding: 1rem 1.05rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92), rgba(237, 248, 247, 0.78));
+}
+
+.summaryIcon {
+  color: var(--accent);
+}
+
+.summaryLabel {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.summaryValue {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  color: var(--text-primary);
+}
+
+.topControls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+}
+
+.tabButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.6rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text-secondary);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tabButtonActive {
+  border-color: var(--accent-ring);
+  background: rgba(19, 141, 136, 0.1);
+  color: var(--text-primary);
+}
+
+.tabCount {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  padding: 0.15rem 0.35rem;
+  border-radius: 999px;
+  background: rgba(8, 20, 28, 0.08);
+  font-size: 0.72rem;
+}
+
+.searchWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 0.85rem;
+  color: var(--text-muted);
+}
+
+.searchInput {
+  width: 100%;
+  padding: 0.8rem 0.95rem 0.8rem 2.4rem;
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--text-primary);
+  font: inherit;
+}
+
+.contentGrid {
+  display: grid;
+  gap: 1rem;
+}
+
+.tableHeader,
+.detailsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.tableTitle {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tableSubtitle {
+  margin-top: 0.25rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.tableWrap {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  padding: 0 0.75rem 0.8rem;
+  text-align: left;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+.table td {
+  padding: 0.85rem 0.75rem;
+  border-top: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.table tbody tr {
+  cursor: pointer;
+}
+
+.activeRow {
+  background: rgba(19, 141, 136, 0.05);
+}
+
+.companyCell {
+  display: flex;
+  gap: 0.75rem;
+}
+
+.companyAvatar {
+  display: inline-flex;
+  width: 2.25rem;
+  height: 2.25rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.8rem;
+  background: rgba(19, 141, 136, 0.08);
+  color: var(--accent);
+}
+
+.companyName,
+.ownerName,
+.regValue,
+.detailValue {
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.companyMeta,
+.smallMeta,
+.detailSubtext,
+.detailsEmpty,
+.emptyCell,
+.loadingCell {
+  font-size: 0.8rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.loadingCell,
+.emptyCell {
+  padding: 1.5rem 0.75rem;
+  text-align: center;
+}
+
+.loadingCell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.55rem;
+}
+
+.actionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.32rem 0.6rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.statusPENDING {
+  background: rgba(217, 119, 6, 0.12);
+  color: #b45309;
+}
+
+.statusACTIVE {
+  background: rgba(5, 150, 105, 0.12);
+  color: #047857;
+}
+
+.statusREJECTED {
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+}
+
+.statusDISABLED {
+  background: rgba(71, 85, 105, 0.12);
+  color: #334155;
+}
+
+.detailsBody {
+  display: grid;
+  gap: 1rem;
+}
+
+.detailsGrid {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.detailsBlock {
+  padding: 0.9rem 0.95rem;
+  border: 1px solid var(--border);
+  border-radius: 0.95rem;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.detailLabel {
+  margin-bottom: 0.35rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
+@media (min-width: 900px) {
+  .header {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .topControls {
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .searchWrap {
+    width: min(100%, 24rem);
+  }
+
+  .contentGrid {
+    grid-template-columns: minmax(0, 1.5fr) minmax(320px, 0.9fr);
+  }
+
+  .detailsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

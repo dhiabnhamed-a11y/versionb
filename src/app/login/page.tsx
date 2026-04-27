@@ -1,25 +1,51 @@
 'use client'
 
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import logo from '@/app/logo.png'
 import { Mail, Lock, ArrowRight, Loader2, Sparkles } from 'lucide-react'
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const registrationState = searchParams.get('registered')
+  const inactiveReason = searchParams.get('reason')
+
+  const notice =
+    registrationState === 'pending'
+      ? 'Registration submitted. A Super Admin must approve your company before you can sign in.'
+      : registrationState === '1'
+        ? 'Your account was created successfully.'
+        : inactiveReason === 'inactive'
+          ? 'This account is not currently active. Please contact the Super Admin.'
+          : ''
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     setLoading(true)
     setError('')
+
+    const loginCheck = await fetch('/api/auth/login-check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.trim(), password }),
+    })
+
+    const loginCheckData = (await loginCheck.json()) as { error?: string }
+    if (!loginCheck.ok) {
+      setLoading(false)
+      setError(loginCheckData.error || 'Invalid email or password')
+      return
+    }
+
     const res = await signIn('credentials', { email, password, redirect: false })
     setLoading(false)
     if (res?.error) {
@@ -65,9 +91,22 @@ export default function LoginPage() {
           <div className="mb-8 text-center md:text-left">
             <p className="font-display text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Welcome back</p>
             <p className="mt-1.5 text-sm" style={{ color: 'var(--text-muted)' }}>
-              Sign in to your workspace
+              Sign in to your approved workspace
             </p>
           </div>
+
+          {notice && (
+            <div
+              className="mb-4 rounded-[var(--radius-sm)] border px-3.5 py-2.5 text-sm"
+              style={{
+                background: 'rgba(19, 141, 136, 0.06)',
+                borderColor: 'rgba(19, 141, 136, 0.16)',
+                color: 'var(--text-secondary)',
+              }}
+            >
+              {notice}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div>
@@ -140,5 +179,13 @@ export default function LoginPage() {
         </motion.div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginContent />
+    </Suspense>
   )
 }

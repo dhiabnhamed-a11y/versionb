@@ -1,11 +1,12 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { auth } from '@/lib/auth'
+import { COMPANY_TYPE_OPTIONS, getCompanyTypeSlug } from '@/lib/company-types'
+import { getRoleHomePath } from '@/lib/security'
 import logo from '@/app/logo.png'
 import {
   ArrowRight,
   BadgeCheck,
-  BellRing,
   Building2,
   BriefcaseBusiness,
   ChartNoAxesCombined,
@@ -20,46 +21,46 @@ import {
 
 const featureCards = [
   {
+    title: 'Industry structure built in',
+    description: 'Separate work by rooms, let each room hold its own projects, and keep tasks moving inside every project.',
+    icon: Building2,
+  },
+  {
+    title: 'Digital agency delivery flow',
+    description: 'Assign image, affiche, and video briefs to employees, then collect uploaded deliverables inside the same workspace.',
+    icon: BriefcaseBusiness,
+  },
+  {
     title: 'Role-aware control',
     description: 'Give owners, managers, and employees the exact permissions they need with less noise and clearer responsibility.',
     icon: ShieldCheck,
   },
   {
-    title: 'Live alerts that surface fast',
-    description: 'Escalate urgent issues instantly so blockers do not stay buried in chat threads, calls, or spreadsheets.',
-    icon: BellRing,
-  },
-  {
-    title: 'Projects, tasks, and progress together',
-    description: 'Track execution from planning to delivery in one place with clear ownership, deadlines, and status at every stage.',
-    icon: Layers3,
-  },
-  {
-    title: 'A calmer operating rhythm',
-    description: 'Replace scattered tools with a focused workspace that keeps customer-facing teams aligned without visual clutter.',
+    title: 'Live alerts and progress together',
+    description: 'Escalate urgent issues quickly while keeping projects, tasks, and delivery progress visible in one place.',
     icon: ChartNoAxesCombined,
   },
 ]
 
 const workflowSteps = [
   {
-    title: 'Launch a private workspace',
-    description: 'Create your company space, assign ownership, and invite only the people who should see operational work.',
+    title: 'Choose your company type',
+    description: 'Pick industry, digital agency, or other before signup so TASKIT starts with the right structure from day one.',
   },
   {
-    title: 'Run the work visibly',
-    description: 'Organize projects, assign tasks, and keep deadlines, priorities, and accountability in one clear view.',
+    title: 'Launch the matching workspace',
+    description: 'Create your company, verify the owner domain, and let TASKIT prepare the workflow that fits how your team already works.',
   },
   {
-    title: 'Respond in real time',
-    description: 'Use alerts and live status changes to react quickly when work needs attention from customer operations teams.',
+    title: 'Invite the team and execute',
+    description: 'Bring in managers and employees, assign work, collect updates, and keep delivery moving in real time.',
   },
 ]
 
 const trustPoints = [
   {
-    title: 'Customer workspaces only',
-    description: 'Reserved for verified customer organizations and their invited staff.',
+    title: 'Type-aware onboarding',
+    description: 'Every workspace begins with the structure that matches the company that is signing up.',
     icon: Building2,
   },
   {
@@ -68,28 +69,36 @@ const trustPoints = [
     icon: LockKeyhole,
   },
   {
-    title: 'Made for live coordination',
-    description: 'Urgent alerts, project updates, and task ownership stay visible in one place.',
+    title: 'One platform, multiple workflows',
+    description: 'Industry teams, agencies, and standard project teams can all run on the same TASKIT foundation.',
     icon: BadgeCheck,
   },
 ]
 
 const customerAccessRules = [
-  'This website is only for customer users and invited team members.',
-  'Access is intended for active workspaces, not open public browsing.',
-  'Each workspace keeps role-based visibility for owners, managers, and employees.',
+  'Industry workspaces split work into rooms, then projects, then tasks.',
+  'Digital agencies send creative briefs, collect uploads, and review finished work.',
+  'Other companies keep the current TASKIT interface with no extra complexity.',
 ]
 
-function getDashboardHref(role?: string) {
-  return role === 'EMPLOYEE' ? '/dashboard/employee' : '/dashboard/admin'
-}
+const companyTracks = COMPANY_TYPE_OPTIONS.map((option, index) => ({
+  ...option,
+  href: `/signup?companyType=${getCompanyTypeSlug(option.value)}`,
+  icon: index === 0 ? Building2 : index === 1 ? BriefcaseBusiness : Layers3,
+  cta:
+    option.value === 'INDUSTRY'
+      ? 'Start industry setup'
+      : option.value === 'DIGITAL_AGENCY'
+        ? 'Start agency setup'
+        : 'Use standard setup',
+}))
 
 export default async function HomePage() {
   const session = await auth()
   const role = (session?.user as { role?: string } | undefined)?.role
-  const dashboardHref = getDashboardHref(role)
-  const primaryHref = session ? dashboardHref : '/signup'
-  const primaryLabel = session ? 'Open workspace' : 'Start free'
+  const dashboardHref = getRoleHomePath(role)
+  const primaryHref = session ? dashboardHref : '#company-types'
+  const primaryLabel = session ? 'Open workspace' : 'Choose company type'
   const secondaryHref = session ? dashboardHref : '/login'
   const secondaryLabel = session ? 'Go to dashboard' : 'Sign in'
 
@@ -113,6 +122,9 @@ export default async function HomePage() {
           </Link>
 
           <div className="hidden items-center gap-8 text-sm font-medium text-[var(--text-secondary)] lg:flex">
+            <a href="#company-types" className="transition-colors hover:text-[var(--text-primary)]">
+              Company types
+            </a>
             <a href="#features" className="transition-colors hover:text-[var(--text-primary)]">
               Features
             </a>
@@ -141,16 +153,16 @@ export default async function HomePage() {
           <div className="max-w-3xl">
             <div className="marketing-pill mb-6 inline-flex items-center gap-2">
               <Sparkles size={14} />
-              <span>Private customer workspace. Free to start. No pricing wall right now.</span>
+              <span>Choose the right workflow before signup. Free to start. No pricing wall right now.</span>
             </div>
 
             <h1 className="max-w-4xl font-display text-[clamp(3.25rem,8vw,6.3rem)] font-semibold leading-[0.92] tracking-[-0.06em] text-[var(--text-primary)]">
-              A more trusted front door for customer operations, delivery, and urgent team coordination.
+              One workspace that adapts to industry teams, digital agencies, and everyone else.
             </h1>
 
             <p className="mt-6 max-w-2xl text-lg leading-8 text-[var(--text-secondary)] md:text-xl">
-              TASKIT helps customer teams manage projects, assign accountability, and send urgent operational alerts from
-              one calmer, professional workspace.
+              TASKIT now starts with a company-type choice before signup, so each team gets the right operating model:
+              rooms to projects to tasks, creative briefs to deliverable uploads, or the same clean interface you already know.
             </p>
 
             <div className="mt-8 flex flex-col gap-4 sm:flex-row">
@@ -165,9 +177,9 @@ export default async function HomePage() {
 
             <div className="marketing-proof-strip mt-10 grid gap-4 sm:grid-cols-3">
               {[
-                { value: 'Private access', label: 'Built for customer organizations and invited teams' },
-                { value: 'Role-aware views', label: 'Owners, managers, and employees see the right controls' },
-                { value: 'Real-time alerts', label: 'Urgent changes surface immediately when action is needed' },
+                { value: 'Industry mode', label: 'Rooms, projects, and tasks stay separated and easy to follow' },
+                { value: 'Agency mode', label: 'Briefs turn into uploads and handoff-ready deliverables' },
+                { value: 'Standard mode', label: 'Keep the current TASKIT interface when that is all you need' },
               ].map((item) => (
                 <div key={item.value} className="marketing-stat">
                   <div className="text-sm font-semibold text-[var(--text-primary)]">{item.value}</div>
@@ -182,9 +194,9 @@ export default async function HomePage() {
 
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
-                <div className="marketing-panel-label">Workspace trust brief</div>
+                <div className="marketing-panel-label">Signup paths</div>
                 <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-[var(--text-primary)]">
-                  Built to look credible the moment a customer team lands on it
+                  Pick the workflow your company needs before anyone creates the workspace
                 </h2>
               </div>
               <div className="brand-chip brand-chip-lg">
@@ -198,9 +210,9 @@ export default async function HomePage() {
                   <UsersRound size={18} />
                 </div>
                 <div>
-                  <div className="marketing-panel-label">Customer access only</div>
+                  <div className="marketing-panel-label">Three workspace modes</div>
                   <h3 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
-                    This website is only for customer users
+                    Choose the system that matches how your company already operates
                   </h3>
                 </div>
               </div>
@@ -214,43 +226,35 @@ export default async function HomePage() {
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-2">
-              <div className="marketing-panel-card">
-                <div className="marketing-panel-label">Operations</div>
-                <div className="mt-2 flex items-center gap-3">
-                  <div className="marketing-mini-icon">
-                    <BriefcaseBusiness size={18} />
+            <div className="mt-6 grid gap-4">
+              {companyTracks.map((track) => {
+                const Icon = track.icon
+                return (
+                  <div key={track.value} className="marketing-panel-card">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex items-start gap-3">
+                        <div className="marketing-mini-icon">
+                          <Icon size={18} />
+                        </div>
+                        <div>
+                          <div className="text-base font-semibold text-[var(--text-primary)]">{track.label}</div>
+                          <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">{track.title}</p>
+                        </div>
+                      </div>
+                      <Link href={track.href} className="btn-secondary px-4 py-2 text-xs">
+                        {track.cta}
+                      </Link>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-base font-semibold text-[var(--text-primary)]">Project control</div>
-                    <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">
-                      See what is active, who owns it, and what needs attention before customers feel the delay.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="marketing-panel-card">
-                <div className="marketing-panel-label">Response</div>
-                <div className="mt-2 flex items-center gap-3">
-                  <div className="marketing-mini-icon">
-                    <BellRing size={18} />
-                  </div>
-                  <div>
-                    <div className="text-base font-semibold text-[var(--text-primary)]">Urgent alerts</div>
-                    <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">
-                      Push important updates immediately when a task, deadline, or callback needs eyes on it.
-                    </p>
-                  </div>
-                </div>
-              </div>
+                )
+              })}
             </div>
 
             <div className="mt-5 grid gap-4">
               {[
-                'A polished first impression for teams managing active customer work',
-                'Sharper typography and clearer section flow to improve confidence and readability',
-                'Trust cues that explain who the product is for before people sign in',
+                'A clearer first decision before signup so teams enter the right workflow immediately',
+                'Sharper typography and stronger section hierarchy for a more premium first impression',
+                'Type-aware framing that explains industry, agency, and standard use cases at a glance',
               ].map((item) => (
                 <div key={item} className="marketing-trust-row">
                   <CheckCircle2 size={18} className="text-[var(--accent)]" />
@@ -276,15 +280,55 @@ export default async function HomePage() {
           })}
         </section>
 
+        <section id="company-types" className="marketing-section">
+          <div className="marketing-section-head">
+            <div className="marketing-panel-label">Company types</div>
+            <h2 className="mt-3 font-display text-5xl font-semibold tracking-[-0.05em] text-[var(--text-primary)]">
+              Signup now starts by asking what kind of company you have.
+            </h2>
+            <p className="mt-4 max-w-3xl text-base leading-7 text-[var(--text-secondary)]">
+              That first choice changes the workspace you create. Industry companies get rooms, digital agencies get
+              creative brief delivery, and other teams keep the current TASKIT interface.
+            </p>
+          </div>
+
+          <div className="mt-10 grid gap-5 lg:grid-cols-3">
+            {companyTracks.map((track) => {
+              const Icon = track.icon
+              return (
+                <article key={track.value} className="marketing-feature-card">
+                  <div className="marketing-mini-icon">
+                    <Icon size={18} />
+                  </div>
+                  <h3 className="mt-5 text-2xl font-semibold tracking-[-0.03em] text-[var(--text-primary)]">{track.label}</h3>
+                  <p className="mt-3 text-sm leading-7 text-[var(--text-muted)]">{track.description}</p>
+                  <div className="mt-4 grid gap-2">
+                    {track.bullets.map((bullet) => (
+                      <div key={bullet} className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                        <CheckCircle2 size={15} className="text-[var(--accent)]" />
+                        <span>{bullet}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <Link href={track.href} className="btn-primary mt-6 inline-flex items-center gap-2 px-5 py-3 text-sm">
+                    <span>{track.cta}</span>
+                    <ArrowRight size={16} strokeWidth={2.2} />
+                  </Link>
+                </article>
+              )
+            })}
+          </div>
+        </section>
+
         <section id="features" className="marketing-section">
           <div className="marketing-section-head">
             <div className="marketing-panel-label">Core features</div>
             <h2 className="mt-3 font-display text-5xl font-semibold tracking-[-0.05em] text-[var(--text-primary)]">
-              Everything important is visible without feeling crowded.
+              Everything important is visible without forcing every company into the same shape.
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--text-secondary)]">
-              TASKIT combines clearer typography, stronger grouping, and focused product framing so teams understand the
-              value quickly and trust what they are looking at.
+              TASKIT combines clearer typography, stronger grouping, and workflow-specific structure so teams can trust
+              what they are looking at immediately.
             </p>
           </div>
 
@@ -310,11 +354,11 @@ export default async function HomePage() {
           <div>
             <div className="marketing-panel-label">Workflow</div>
             <h2 className="mt-3 font-display text-5xl font-semibold tracking-[-0.05em] text-[var(--text-primary)]">
-              From onboarding to execution, the path stays easy to follow.
+              From company choice to daily execution, the path stays easy to follow.
             </h2>
             <p className="mt-4 max-w-xl text-base leading-7 text-[var(--text-secondary)]">
-              The landing page now explains how real customer teams begin, how access is controlled, and how work moves
-              from setup to daily delivery.
+              The landing page now explains how teams begin, how access is controlled, and how work moves from setup to
+              daily delivery inside each workspace type.
             </p>
           </div>
 
@@ -335,10 +379,10 @@ export default async function HomePage() {
           <div className="marketing-why-card">
             <div className="marketing-panel-label">Trust layer</div>
             <h2 className="mt-3 font-display text-5xl font-semibold tracking-[-0.05em] text-white">
-              Designed to look serious enough for real customer operations.
+              Designed to feel serious enough for real company operations and creative delivery.
             </h2>
             <p className="mt-4 max-w-xl text-base leading-7 text-cyan-50/80">
-              From the first screen, the product now communicates private access, structured roles, and a cleaner
+              From the first screen, the product now communicates role structure, workflow clarity, and a cleaner
               operating standard that teams can trust.
             </p>
           </div>
@@ -346,8 +390,8 @@ export default async function HomePage() {
           <div className="grid gap-4">
             {[
               {
-                title: 'Customer-first framing',
-                description: 'The homepage now makes it clear that TASKIT serves customer organizations and invited team members.',
+                title: 'Clear company-type framing',
+                description: 'The homepage now shows exactly how industry teams, agencies, and standard workspaces fit the product.',
                 icon: Eye,
               },
               {
@@ -357,7 +401,7 @@ export default async function HomePage() {
               },
               {
                 title: 'Confident product trust cues',
-                description: 'The page highlights private access, live response, and role-aware visibility without sounding vague.',
+                description: 'The page highlights role-aware visibility, workflow choice, and live response without sounding vague.',
                 icon: ShieldCheck,
               },
             ].map((item) => {
@@ -381,11 +425,11 @@ export default async function HomePage() {
           <div className="max-w-3xl">
             <div className="marketing-panel-label">Start now</div>
             <h2 className="mt-3 font-display text-5xl font-semibold tracking-[-0.05em] text-[var(--text-primary)]">
-              Launch TASKIT for free and give your customer team a more trusted place to operate.
+              Pick your company type, launch TASKIT for free, and start with the right workflow from the first screen.
             </h2>
             <p className="mt-4 text-base leading-7 text-[var(--text-secondary)]">
-              No pricing wall, no confusing setup, and no noisy first impression. Just open the workspace and start
-              organizing the work that matters.
+              No pricing wall, no confusing setup, and no generic one-size-fits-all onboarding. Just choose the mode and
+              start organizing the work that matters.
             </p>
           </div>
 

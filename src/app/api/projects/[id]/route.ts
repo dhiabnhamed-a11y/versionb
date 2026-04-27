@@ -26,8 +26,34 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
       createdAt: true,
       updatedAt: true,
       ...(support.hasCameraColumns ? { hasCamera: true, cameraType: true } : {}),
+      room: { select: { id: true, name: true } },
       manager: { select: { id: true, name: true } },
-      tasks: { select: { id: true, stage: true, title: true } },
+      tasks: {
+        select: {
+          id: true,
+          stage: true,
+          title: true,
+          deliverableType: true,
+          submissions: {
+            orderBy: { createdAt: 'desc' },
+            take: 4,
+            select: {
+              id: true,
+              fileUrl: true,
+              fileName: true,
+              fileType: true,
+              note: true,
+              createdAt: true,
+              user: {
+                select: {
+                  id: true,
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      },
       ...(support.hasCameraMediaTable
         ? {
             cameraMedia: { orderBy: { createdAt: 'desc' }, take: 12 },

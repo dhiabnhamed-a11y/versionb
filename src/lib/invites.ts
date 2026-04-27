@@ -13,6 +13,8 @@ const DEFAULT_INVITE_TTL_HOURS = 48
 type InviteRecord = Invite & {
   company: {
     name: string
+    companyType: string
+    status: string
   }
 }
 
@@ -24,6 +26,7 @@ export type SerializedInvite = {
   role: string
   companyId: string
   companyName: string
+  companyType: string
   used: boolean
   expiresAt: string
   createdAt: string
@@ -93,6 +96,7 @@ function serializeInvite(invite: InviteRecord): SerializedInvite {
     role: invite.role,
     companyId: invite.companyId,
     companyName: invite.company.name,
+    companyType: invite.company.companyType,
     used: invite.used,
     expiresAt: invite.expiresAt.toISOString(),
     createdAt: invite.createdAt.toISOString(),
@@ -111,6 +115,8 @@ async function getInvitePreviewRecord(code: string) {
       company: {
         select: {
           name: true,
+          companyType: true,
+          status: true,
         },
       },
     },
@@ -167,15 +173,29 @@ export async function createCompanyInvite(input: CreateInviteInput) {
   }
 
   const now = new Date()
-  const existingUser = await prisma.user.findUnique({
-    where: {
-      email,
-    },
-    select: {
-      id: true,
-      companyId: true,
-    },
-  })
+  const [existingUser, company] = await Promise.all([
+    prisma.user.findUnique({
+      where: {
+        email,
+      },
+      select: {
+        id: true,
+        companyId: true,
+      },
+    }),
+    prisma.company.findUnique({
+      where: {
+        id: input.companyId,
+      },
+      select: {
+        status: true,
+      },
+    }),
+  ])
+
+  if (!company || company.status !== 'ACTIVE') {
+    throw new OnboardingFlowError('Invites can only be created for active company accounts.', 403)
+  }
 
   if (existingUser) {
     if (existingUser.companyId === input.companyId) {
@@ -217,6 +237,8 @@ export async function createCompanyInvite(input: CreateInviteInput) {
         company: {
           select: {
             name: true,
+            companyType: true,
+            status: true,
           },
         },
       },
@@ -235,6 +257,8 @@ export async function listCompanyInvites(companyId: string) {
       company: {
         select: {
           name: true,
+          companyType: true,
+          status: true,
         },
       },
     },
@@ -295,6 +319,10 @@ export async function redeemInviteSignup(input: RedeemInviteInput) {
     throw new OnboardingFlowError('Invite role does not match the selected role.', 403)
   }
 
+  if (invite.company.status !== 'ACTIVE') {
+    throw new OnboardingFlowError('This company account is not active.', 403)
+  }
+
   const existingUser = await prisma.user.findUnique({
     where: {
       email,
@@ -317,6 +345,7 @@ export async function redeemInviteSignup(input: RedeemInviteInput) {
       name,
       invite_code: inviteCode,
       signup_role: requestedRole,
+      company_type: invite.company.companyType,
       taskit_onboarding: true,
     },
   })
@@ -391,6 +420,7 @@ async function createInvitedUser(
       email: input.email,
       password: passwordHash,
       role: freshInvite.role,
+      accountStatus: 'ACTIVE',
       companyId: freshInvite.companyId,
       authUserId: input.authUserId,
     },

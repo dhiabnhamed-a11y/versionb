@@ -1,32 +1,54 @@
-import { auth } from '@/lib/auth'
 import { NextResponse } from 'next/server'
+
+import { auth } from '@/lib/auth'
+import { canAuthenticateAuthState, getRoleHomePath, isAuthorizedSuperAdminIdentity } from '@/lib/security'
+
+type SessionUser = {
+  id?: string
+  email?: string | null
+  role?: string | null
+  companyId?: string | null
+  accountStatus?: string | null
+  companyStatus?: string | null
+}
 
 export default auth((req) => {
   const { pathname } = req.nextUrl
-  const session = req.auth
+  const user = req.auth?.user as SessionUser | undefined
+  const isLoggedIn = Boolean(user?.email)
+  const isApprovedSession = user ? canAuthenticateAuthState(user) : false
+  const isSuperAdmin = user ? isAuthorizedSuperAdminIdentity(user) : false
 
-  // Public routes
   if (pathname === '/login' || pathname === '/signup' || pathname === '/') {
-    // Redirect logged-in users away from auth pages
-    if (session?.user?.email) {
-      const role = (session.user as { id?: string, role?: string; companyId?: string })?.role
-      if (role === 'OWNER' || role === 'MANAGER') {
-        return NextResponse.redirect(new URL('/dashboard/admin', req.url))
-      }
-      return NextResponse.redirect(new URL('/dashboard/employee', req.url))
+    if (isLoggedIn && isApprovedSession) {
+      return NextResponse.redirect(new URL(getRoleHomePath(user?.role), req.url))
     }
+
     return NextResponse.next()
   }
 
-  // Protected routes — must be authenticated
   if (pathname.startsWith('/dashboard')) {
-    if (!session?.user?.email) {
+    if (!isLoggedIn) {
       return NextResponse.redirect(new URL('/login', req.url))
     }
 
-    const role = (session.user as { id?: string, role?: string; companyId?: string })?.role
-    // Employee cannot access admin routes
-    if (pathname.startsWith('/dashboard/admin') && role === 'EMPLOYEE') {
+    if (!isApprovedSession) {
+      return NextResponse.redirect(new URL('/login?reason=inactive', req.url))
+    }
+
+    if (pathname.startsWith('/dashboard/super-admin')) {
+      if (!isSuperAdmin) {
+        return NextResponse.redirect(new URL(getRoleHomePath(user?.role), req.url))
+      }
+
+      return NextResponse.next()
+    }
+
+    if (isSuperAdmin) {
+      return NextResponse.redirect(new URL('/dashboard/super-admin', req.url))
+    }
+
+    if (pathname.startsWith('/dashboard/admin') && user?.role === 'EMPLOYEE') {
       return NextResponse.redirect(new URL('/dashboard/employee', req.url))
     }
   }

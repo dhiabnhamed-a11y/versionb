@@ -13,3 +13,4 @@ export function getSupabaseAdmin() {
 }
 
 export const PROJECT_CAMERA_BUCKET = process.env.SUPABASE_PROJECT_CAMERA_BUCKET || 'project-camera'
+export const TASK_DELIVERABLE_BUCKET = process.env.SUPABASE_TASK_DELIVERABLE_BUCKET || 'task-deliverables'

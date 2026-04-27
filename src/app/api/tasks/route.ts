@@ -12,6 +12,7 @@ type CreateTaskBody = {
   title: string
   description?: string
   priority?: string
+  deliverableType?: string
   deadline?: string
   assigneeId?: string
   projectId: string
@@ -38,7 +39,36 @@ export async function GET(req: NextRequest) {
       },
       include: {
         assignee: { select: { id: true, name: true, email: true, avatar: true } },
-        project: { select: { id: true, title: true } },
+        project: {
+          select: {
+            id: true,
+            title: true,
+            room: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        submissions: {
+          select: {
+            id: true,
+            fileUrl: true,
+            fileName: true,
+            fileType: true,
+            note: true,
+            createdAt: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+          orderBy: { createdAt: 'desc' },
+          take: user.role === 'EMPLOYEE' ? 6 : 3,
+        },
         activities: {
           include: { user: { select: { name: true } } },
           orderBy: { createdAt: 'desc' },
@@ -66,13 +96,14 @@ export async function POST(req: NextRequest) {
   if (user.role === 'EMPLOYEE') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
-    const { title, description, priority, deadline, assigneeId, projectId } = (await req.json()) as CreateTaskBody
+    const { title, description, priority, deliverableType, deadline, assigneeId, projectId } = (await req.json()) as CreateTaskBody
 
     const task = await prisma.task.create({
       data: {
         title,
         description,
         priority: priority || 'MEDIUM',
+        deliverableType: deliverableType?.trim().toUpperCase() || 'GENERAL',
         deadline: deadline ? new Date(deadline) : null,
         assigneeId,
         projectId,
@@ -81,7 +112,18 @@ export async function POST(req: NextRequest) {
       },
       include: {
         assignee: { select: { id: true, name: true, email: true } },
-        project: { select: { id: true, title: true } },
+        project: {
+          select: {
+            id: true,
+            title: true,
+            room: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
     })
 

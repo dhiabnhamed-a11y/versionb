@@ -1,6 +1,7 @@
 import { randomUUID } from 'crypto'
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
+import { normalizeCompanyType } from '@/lib/company-types'
 import { auth } from '@/lib/auth'
 import { getDatabaseConfigHint, prisma } from '@/lib/db'
 import {
@@ -14,10 +15,12 @@ function getProjectListSelect(includeCameraFields: boolean) {
     id: true,
     title: true,
     description: true,
+    roomId: true,
     managerId: true,
     createdAt: true,
     updatedAt: true,
     ...(includeCameraFields ? { hasCamera: true, cameraType: true } : {}),
+    room: { select: { id: true, name: true } },
     manager: { select: { id: true, name: true } },
     tasks: { select: { id: true, stage: true, priority: true } },
   } as const
@@ -28,11 +31,13 @@ function getProjectCreateSelect(includeCameraFields: boolean) {
     id: true,
     title: true,
     description: true,
+    roomId: true,
     managerId: true,
     companyId: true,
     createdAt: true,
     updatedAt: true,
     ...(includeCameraFields ? { hasCamera: true, cameraType: true } : {}),
+    room: { select: { id: true, name: true } },
   } as const
 }
 
@@ -97,9 +102,11 @@ async function findProjectsWithoutCameraFields(companyId: string) {
       id: project.id,
       title: project.title,
       description: project.description ?? undefined,
+      roomId: undefined,
       managerId: project.managerId ?? undefined,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
+      room: null,
       manager: project.managerUserId && project.managerName ? { id: project.managerUserId, name: project.managerName } : undefined,
       tasks: tasksByProjectId.get(project.id) ?? [],
     })
@@ -210,7 +217,7 @@ export async function POST(req: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const user = session.user as { role?: string; companyId?: string | null }
+  const user = session.user as { role?: string; companyId?: string | null; companyType?: string | null }
   if (!user.companyId) {
     return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
   }
@@ -219,12 +226,33 @@ export async function POST(req: Request) {
   try {
     const support = await getProjectCameraSupport()
     const body = await req.json()
-    const { title, description, managerId, hasCamera, cameraType } = body as {
+    const { title, description, managerId, roomId, hasCamera, cameraType } = body as {
       title: string
       description?: string
       managerId?: string
+      roomId?: string
       hasCamera?: boolean
       cameraType?: 'device' | 'external'
+    }
+
+    if (normalizeCompanyType(user.companyType) === 'INDUSTRY' && !roomId?.trim()) {
+      return NextResponse.json({ error: 'Projects in industry workspaces must belong to a room.' }, { status: 400 })
+    }
+
+    if (roomId?.trim()) {
+      const room = await prisma.room.findFirst({
+        where: {
+          id: roomId,
+          companyId: user.companyId,
+        },
+        select: {
+          id: true,
+        },
+      })
+
+      if (!room) {
+        return NextResponse.json({ error: 'Selected room was not found in this workspace.' }, { status: 404 })
+      }
     }
 
     let project
@@ -242,6 +270,7 @@ export async function POST(req: Request) {
             title,
             description,
             companyId: user.companyId,
+            roomId: roomId || null,
             managerId: managerId || null,
             hasCamera: Boolean(hasCamera),
             cameraType: cameraType === 'external' ? 'external' : 'device',

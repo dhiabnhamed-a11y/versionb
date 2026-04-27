@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { ClipboardList, CheckCircle2, CheckSquare, Zap, AlertTriangle, Users, Bell } from 'lucide-react'
+import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
+import { ClipboardList, CheckCircle2, CheckSquare, Zap, AlertTriangle, Users, Bell, Building2, BriefcaseBusiness } from 'lucide-react'
 
 interface Stats {
   totalTasks: number; doneTasks: number; inProgressTasks: number
   overdueTasks: number; totalEmployees: number
+  roomCount: number
+  submissionCount: number
+  companyType?: string
   performance: { name: string; done: number; total: number; score: number }[]
 }
 
@@ -47,10 +51,25 @@ export default function AdminDashboard() {
     }
   }, [])
 
-  const user = session?.user as { name?: string }
+  const user = session?.user as { name?: string; companyType?: string | null }
+  const companyType = normalizeCompanyType(stats?.companyType ?? user?.companyType)
+  const companyCopy = getCompanyTypeCopy(companyType)
 
   const statCards = stats
     ? [
+        ...(companyType === 'INDUSTRY'
+          ? [{ label: companyCopy.groupPluralLabel, value: stats.roomCount, icon: Building2, color: '#2142ff', bg: 'rgba(33,66,255,0.09)' }]
+          : companyType === 'DIGITAL_AGENCY'
+            ? [
+                {
+                  label: 'Uploaded deliverables',
+                  value: stats.submissionCount,
+                  icon: BriefcaseBusiness,
+                  color: '#7c3aed',
+                  bg: 'rgba(124,58,237,0.08)',
+                },
+              ]
+            : []),
         { label: 'Total Tasks', value: stats.totalTasks, icon: ClipboardList, color: '#0f766e', bg: 'rgba(15,118,110,0.1)' },
         { label: 'Completed', value: stats.doneTasks, icon: CheckCircle2, color: '#059669', bg: 'rgba(5,150,105,0.09)' },
         { label: 'In Progress', value: stats.inProgressTasks, icon: Zap, color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
@@ -68,7 +87,13 @@ export default function AdminDashboard() {
           <span suppressHydrationWarning>{greeting}</span>,{' '}
           <span className="gradient-text">{user?.name?.split(' ')[0]}</span>
         </h1>
-        <p className="page-sub">Here&apos;s momentum across your workspace today.</p>
+        <p className="page-sub">
+          {companyType === 'INDUSTRY'
+            ? "Here's momentum across your rooms, projects, and tasks today."
+            : companyType === 'DIGITAL_AGENCY'
+              ? "Here's how briefs, execution, and uploaded deliverables are moving today."
+              : "Here's momentum across your workspace today."}
+        </p>
       </div>
 
       {/* Stats */}
@@ -100,13 +125,13 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+      <div className="grid gap-4 xl:grid-cols-2">
         {/* Employee Performance */}
-        <div className="card">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
-            <h2 className="font-display text-base font-semibold tracking-tight">Team performance</h2>
-            <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>By completion rate</span>
-          </div>
+          <div className="card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+              <h2 className="font-display text-base font-semibold tracking-tight">Team performance</h2>
+              <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>By completion rate</span>
+            </div>
           {!stats?.performance?.length ? (
             <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)' }}>
               <Users size={28} style={{ opacity: 0.3, margin: '0 auto 8px', display: 'block' }} />
@@ -140,7 +165,9 @@ export default function AdminDashboard() {
         {/* Task breakdown + Quick actions */}
         {stats && (
           <div className="card">
-            <h2 className="font-display mb-[18px] text-base font-semibold tracking-tight">Task breakdown</h2>
+            <h2 className="font-display mb-[18px] text-base font-semibold tracking-tight">
+              {companyType === 'DIGITAL_AGENCY' ? 'Brief breakdown' : 'Task breakdown'}
+            </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {[
                 { label: 'Completed', value: stats.doneTasks, total: stats.totalTasks, color: '#059669' },
@@ -165,7 +192,7 @@ export default function AdminDashboard() {
 
             <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
               <a href="/dashboard/admin/tasks" className="btn-secondary" style={{ textAlign: 'center', textDecoration: 'none', fontSize: '12px', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-                <CheckSquare size={14} /> View Tasks
+                <CheckSquare size={14} /> View {companyCopy.taskPluralLabel}
               </a>
               <a href="/dashboard/admin/alerts" className="btn-primary" style={{ textAlign: 'center', textDecoration: 'none', fontSize: '12px', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                 <Bell size={14} /> Send Alert

@@ -14,6 +14,7 @@ type UpdateTaskBody = {
   title?: string
   description?: string | null
   priority?: string
+  deliverableType?: string
   deadline?: string | null
   assigneeId?: string | null
 }
@@ -28,7 +29,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/tasks/[id]
 
   try {
     const body = (await req.json()) as UpdateTaskBody
-    const { stage, title, description, priority, deadline, assigneeId } = body
+    const { stage, title, description, priority, deliverableType, deadline, assigneeId } = body
 
     const existing = await prisma.task.findUnique({ where: { id } })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
@@ -43,6 +44,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/tasks/[id]
       if (title) updateData.title = title
       if (description !== undefined) updateData.description = description
       if (priority) updateData.priority = priority
+      if (deliverableType) updateData.deliverableType = deliverableType.trim().toUpperCase()
       if (deadline !== undefined) updateData.deadline = deadline ? new Date(deadline) : null
       if (assigneeId !== undefined) updateData.assigneeId = assigneeId
     }
@@ -52,7 +54,18 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/tasks/[id]
       data: updateData,
       include: {
         assignee: { select: { id: true, name: true, email: true } },
-        project: { select: { id: true, title: true } },
+        project: {
+          select: {
+            id: true,
+            title: true,
+            room: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
     })
 

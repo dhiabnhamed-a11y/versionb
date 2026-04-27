@@ -4,13 +4,18 @@ import { InviteFlowError, redeemInviteSignup } from '@/lib/invites'
 
 export async function POST(req: NextRequest) {
   try {
-    const { name, email, password, role, companyName, inviteCode } = (await req.json()) as {
+    const { name, email, password, role, companyName, inviteCode, companyType, country, industry, registrationNumber } =
+      (await req.json()) as {
       name?: string
       email?: string
       password?: string
       role?: string
       companyName?: string
       inviteCode?: string
+      companyType?: string
+      country?: string
+      industry?: string
+      registrationNumber?: string
     }
 
     if (!name?.trim() || !email?.trim() || !password || !role?.trim()) {
@@ -34,9 +39,21 @@ export async function POST(req: NextRequest) {
         email,
         password,
         companyName,
+        country: country ?? '',
+        industry: industry ?? '',
+        registrationNumber: registrationNumber ?? '',
+        companyType: (companyType ?? 'OTHER').trim().toUpperCase() as 'INDUSTRY' | 'DIGITAL_AGENCY' | 'OTHER',
       })
 
-      return NextResponse.json({ success: true, userId: owner.userId, companyId: owner.companyId }, { status: 201 })
+      return NextResponse.json(
+        {
+          success: true,
+          userId: owner.userId,
+          companyId: owner.companyId,
+          message: 'Registration submitted. A Super Admin must approve your company before you can sign in.',
+        },
+        { status: 201 }
+      )
     }
 
     if (!inviteCode?.trim()) {

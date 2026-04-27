@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
+import { canAuthenticateAuthState, getRoleHomePath } from '@/lib/security'
 
 export default async function DashboardIndexPage() {
   const session = await auth()
@@ -8,6 +9,9 @@ export default async function DashboardIndexPage() {
     redirect('/login')
   }
 
-  const role = (session.user as { role?: string }).role
-  redirect(role === 'EMPLOYEE' ? '/dashboard/employee' : '/dashboard/admin')
+  if (!canAuthenticateAuthState(session.user)) {
+    redirect('/login?reason=inactive')
+  }
+
+  redirect(getRoleHomePath(session.user.role))
 }
