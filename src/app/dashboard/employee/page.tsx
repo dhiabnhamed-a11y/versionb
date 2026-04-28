@@ -136,7 +136,7 @@ export default function EmployeeDashboard() {
   ]
 
   return (
-    <div style={{ maxWidth: '860px' }}>
+    <div className="dashboard-page" style={{ maxWidth: '860px' }}>
       <div style={{ marginBottom: '24px' }}>
         <h1 className="page-heading flex items-center gap-2.5">
           <ListTodo size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> {isAgency ? 'My briefs' : 'My tasks'}
@@ -148,7 +148,7 @@ export default function EmployeeDashboard() {
         </p>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '10px', marginBottom: '24px' }}>
+      <div className="dashboard-stat-grid dashboard-stat-grid-compact">
         {statCards.map((card) => (
           <div key={card.label} className="stat-card" style={{ textAlign: 'center', padding: '14px' }}>
             <div style={{ fontSize: '24px', fontWeight: '800', color: card.color, lineHeight: 1, letterSpacing: '-0.02em' }}>{card.count}</div>
@@ -158,7 +158,19 @@ export default function EmployeeDashboard() {
       </div>
 
       {overdue.length > 0 && (
-        <div style={{ background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '10px', padding: '12px 14px', marginBottom: '16px', display: 'flex', gap: '10px', alignItems: 'center' }}>
+        <div
+          style={{
+            background: 'rgba(239,68,68,0.05)',
+            border: '1px solid rgba(239,68,68,0.15)',
+            borderRadius: '10px',
+            padding: '12px 14px',
+            marginBottom: '16px',
+            display: 'flex',
+            gap: '10px',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+          }}
+        >
           <AlertTriangle size={16} style={{ color: '#ef4444', flexShrink: 0 }} />
           <div>
             <span style={{ fontSize: '13px', fontWeight: '600', color: '#f87171' }}>
@@ -179,7 +191,7 @@ export default function EmployeeDashboard() {
           <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No {companyCopy.taskPluralLabel.toLowerCase()} assigned yet</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="dashboard-card-stack">
           {tasks.map((task, index) => {
             const isOverdue = task.stage !== 'DONE' && task.deadline && new Date(task.deadline) < new Date()
             const nextIndex = STAGES.indexOf(task.stage) + 1
@@ -187,8 +199,8 @@ export default function EmployeeDashboard() {
 
             return (
               <div key={task.id} className="card animate-fade-in" style={{ animationDelay: `${index * 40}ms`, border: isOverdue ? '1px solid rgba(239,68,68,0.2)' : undefined }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '14px', flexWrap: 'wrap' }}>
-                  <div style={{ flex: 1, minWidth: '220px' }}>
+                <div className="dashboard-item-row">
+                  <div className="dashboard-item-main">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
                       <span className={`priority-${task.priority.toLowerCase()}`}>{task.priority}</span>
                       {isAgency && (
@@ -220,7 +232,7 @@ export default function EmployeeDashboard() {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '8px', flexShrink: 0 }}>
+                  <div className="dashboard-item-side">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-elevated)', borderRadius: '6px', padding: '4px 10px', border: `1px solid ${STAGE_COLORS[task.stage]}20` }}>
                       <span style={{ fontSize: '11px', fontWeight: '600', color: STAGE_COLORS[task.stage] }}>{STAGE_LABELS[task.stage]}</span>
                     </div>
@@ -334,7 +346,7 @@ export default function EmployeeDashboard() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <div className="modal-actions">
                 <button type="button" onClick={() => setUploadTask(null)} className="btn-secondary" style={{ fontSize: '12px', padding: '8px 16px' }}>
                   Cancel
                 </button>

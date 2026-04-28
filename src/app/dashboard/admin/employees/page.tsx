@@ -114,10 +114,8 @@ export default function EmployeesPage() {
   const pendingInvites = invites.filter((invite) => !invite.usedAt && new Date(invite.expiresAt) > new Date())
 
   return (
-    <div style={{ maxWidth: '1080px' }}>
-      <div
-        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}
-      >
+    <div className="dashboard-page" style={{ maxWidth: '1080px' }}>
+      <div className="dashboard-header-row">
         <div>
           <h1 className="page-heading flex items-center gap-2.5">
             <Users size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> Team
@@ -179,55 +177,98 @@ export default function EmployeesPage() {
         {pendingInvites.length === 0 ? (
           <div style={{ color: 'var(--text-muted)', fontSize: '13px', padding: '8px 0' }}>No active invites yet.</div>
         ) : (
-          <div className="table-container">
-            <table>
-              <thead>
-                <tr>
-                  <th>Email</th>
-                  <th>Role</th>
-                  <th>Expires</th>
-                  <th>Code</th>
-                  <th>Link</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pendingInvites.map((invite) => (
-                  <tr key={invite.id}>
-                    <td>
-                      <div style={{ fontSize: '13px', fontWeight: 600 }}>{invite.invitedEmail}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{invite.companyName}</div>
-                    </td>
-                    <td>
-                      <span className={`badge ${invite.role === 'MANAGER' ? 'badge-manager' : 'badge-employee'}`}>
-                        {invite.role === 'MANAGER' ? 'ADMIN' : 'EMPLOYEE'}
-                      </span>
-                    </td>
-                    <td style={{ fontSize: '12px' }}>{new Date(invite.expiresAt).toLocaleString()}</td>
-                    <td>
+          <>
+            <div className="desktop-table">
+              <div className="table-container">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Expires</th>
+                      <th>Code</th>
+                      <th>Link</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingInvites.map((invite) => (
+                      <tr key={invite.id}>
+                        <td>
+                          <div style={{ fontSize: '13px', fontWeight: 600 }}>{invite.invitedEmail}</div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{invite.companyName}</div>
+                        </td>
+                        <td>
+                          <span className={`badge ${invite.role === 'MANAGER' ? 'badge-manager' : 'badge-employee'}`}>
+                            {invite.role === 'MANAGER' ? 'ADMIN' : 'EMPLOYEE'}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '12px' }}>{new Date(invite.expiresAt).toLocaleString()}</td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => copyText(invite.code, 'Code')}
+                            className="btn-secondary"
+                            style={{ fontSize: '11px', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <KeyRound size={13} /> Copy code
+                          </button>
+                        </td>
+                        <td>
+                          <button
+                            type="button"
+                            onClick={() => copyText(invite.inviteLink, 'Invite link')}
+                            className="btn-secondary"
+                            style={{ fontSize: '11px', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <Link2 size={13} /> Copy link
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            <div className="mobile-table-list">
+              {pendingInvites.map((invite) => (
+                <article key={invite.id} className="mobile-table-card">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-sm font-semibold text-[var(--text-primary)]">{invite.invitedEmail}</div>
+                      <div className="mt-1 text-xs text-[var(--text-muted)]">{invite.companyName}</div>
+                    </div>
+                    <span className={`badge ${invite.role === 'MANAGER' ? 'badge-manager' : 'badge-employee'}`}>
+                      {invite.role === 'MANAGER' ? 'ADMIN' : 'EMPLOYEE'}
+                    </span>
+                  </div>
+                  <div className="mobile-table-meta">
+                    <div className="mobile-table-meta-row">
+                      <span className="mobile-table-label">Expires</span>
+                      <span className="mobile-table-value">{new Date(invite.expiresAt).toLocaleString()}</span>
+                    </div>
+                    <div className="flex flex-col gap-2 pt-1">
                       <button
                         type="button"
                         onClick={() => copyText(invite.code, 'Code')}
                         className="btn-secondary"
-                        style={{ fontSize: '11px', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        style={{ fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                       >
-                        <KeyRound size={13} /> Copy code
+                        <KeyRound size={14} /> Copy code
                       </button>
-                    </td>
-                    <td>
                       <button
                         type="button"
                         onClick={() => copyText(invite.inviteLink, 'Invite link')}
                         className="btn-secondary"
-                        style={{ fontSize: '11px', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                        style={{ fontSize: '12px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                       >
-                        <Link2 size={13} /> Copy link
+                        <Link2 size={14} /> Copy link
                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          </>
         )}
       </div>
 
@@ -236,86 +277,174 @@ export default function EmployeesPage() {
           <div className="spinner" style={{ margin: '0 auto' }} />
         </div>
       ) : (
-        <div className="table-container">
-          <table>
-            <thead>
-              <tr>
-                <th>Member</th>
-                <th>Role</th>
-                <th>Tasks</th>
-                <th>Completed</th>
-                <th>Performance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {employees.length === 0 ? (
-                <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)', fontSize: '13px' }}>
-                    No members yet
-                  </td>
-                </tr>
-              ) : (
-                employees.map((emp, i) => {
-                  const total = emp.assignedTasks.length
-                  const done = emp.assignedTasks.filter((task) => task.stage === 'DONE').length
-                  const score = total ? Math.round((done / total) * 100) : 0
-                  const overdue = emp.assignedTasks.filter(
-                    (task) => task.stage !== 'DONE' && task.deadline && new Date(task.deadline) < new Date()
-                  ).length
+        <>
+          <div className="desktop-table">
+            <div className="table-container">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Member</th>
+                    <th>Role</th>
+                    <th>Tasks</th>
+                    <th>Completed</th>
+                    <th>Performance</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {employees.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                        No members yet
+                      </td>
+                    </tr>
+                  ) : (
+                    employees.map((emp, i) => {
+                      const total = emp.assignedTasks.length
+                      const done = emp.assignedTasks.filter((task) => task.stage === 'DONE').length
+                      const score = total ? Math.round((done / total) * 100) : 0
+                      const overdue = emp.assignedTasks.filter(
+                        (task) => task.stage !== 'DONE' && task.deadline && new Date(task.deadline) < new Date()
+                      ).length
 
-                  return (
-                    <tr key={emp.id} className="animate-fade-in" style={{ animationDelay: `${i * 30}ms` }}>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <div
-                            style={{
-                              width: '32px',
-                              height: '32px',
-                              borderRadius: '8px',
-                              background: 'var(--accent-gradient)',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              fontSize: '12px',
-                              fontWeight: '700',
-                              color: 'white',
-                              flexShrink: 0,
-                            }}
-                          >
-                            {emp.name.charAt(0)}
-                          </div>
-                          <div>
-                            <div style={{ fontWeight: '600', fontSize: '13px' }}>{emp.name}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{emp.email}</div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`badge badge-${emp.role.toLowerCase()}`}>{emp.role}</span>
-                      </td>
-                      <td>
-                        <span style={{ fontWeight: '600', fontSize: '13px' }}>{total}</span>
-                        {overdue > 0 && (
-                          <span
-                            style={{
-                              fontSize: '10px',
-                              color: '#ef4444',
-                              marginLeft: '6px',
-                              display: 'inline-flex',
-                              alignItems: 'center',
-                              gap: '2px',
-                            }}
-                          >
-                            <AlertTriangle size={10} /> {overdue}
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        <span style={{ fontWeight: '600', color: '#10b981', fontSize: '13px' }}>{done}</span>
-                      </td>
-                      <td>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ width: '70px' }}>
+                      return (
+                        <tr key={emp.id} className="animate-fade-in" style={{ animationDelay: `${i * 30}ms` }}>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div
+                                style={{
+                                  width: '32px',
+                                  height: '32px',
+                                  borderRadius: '8px',
+                                  background: 'var(--accent-gradient)',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '12px',
+                                  fontWeight: '700',
+                                  color: 'white',
+                                  flexShrink: 0,
+                                }}
+                              >
+                                {emp.name.charAt(0)}
+                              </div>
+                              <div>
+                                <div style={{ fontWeight: '600', fontSize: '13px' }}>{emp.name}</div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{emp.email}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td>
+                            <span className={`badge badge-${emp.role.toLowerCase()}`}>{emp.role}</span>
+                          </td>
+                          <td>
+                            <span style={{ fontWeight: '600', fontSize: '13px' }}>{total}</span>
+                            {overdue > 0 && (
+                              <span
+                                style={{
+                                  fontSize: '10px',
+                                  color: '#ef4444',
+                                  marginLeft: '6px',
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '2px',
+                                }}
+                              >
+                                <AlertTriangle size={10} /> {overdue}
+                              </span>
+                            )}
+                          </td>
+                          <td>
+                            <span style={{ fontWeight: '600', color: '#10b981', fontSize: '13px' }}>{done}</span>
+                          </td>
+                          <td>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                              <div style={{ width: '70px' }}>
+                                <div className="progress-bar">
+                                  <div
+                                    className="progress-fill"
+                                    style={{
+                                      width: `${score}%`,
+                                      background: score >= 80 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444',
+                                    }}
+                                  />
+                                </div>
+                              </div>
+                              <span
+                                style={{
+                                  fontSize: '12px',
+                                  fontWeight: '700',
+                                  color: score >= 80 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444',
+                                  minWidth: '30px',
+                                }}
+                              >
+                                {score}%
+                              </span>
+                            </div>
+                          </td>
+                        </tr>
+                      )
+                    })
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="mobile-table-list">
+            {employees.length === 0 ? (
+              <div className="mobile-table-card text-center text-sm text-[var(--text-muted)]">No members yet</div>
+            ) : (
+              employees.map((emp, i) => {
+                const total = emp.assignedTasks.length
+                const done = emp.assignedTasks.filter((task) => task.stage === 'DONE').length
+                const score = total ? Math.round((done / total) * 100) : 0
+                const overdue = emp.assignedTasks.filter(
+                  (task) => task.stage !== 'DONE' && task.deadline && new Date(task.deadline) < new Date()
+                ).length
+
+                return (
+                  <article key={emp.id} className="mobile-table-card animate-fade-in" style={{ animationDelay: `${i * 30}ms` }}>
+                    <div className="flex items-start gap-3">
+                      <div
+                        style={{
+                          width: '36px',
+                          height: '36px',
+                          borderRadius: '10px',
+                          background: 'var(--accent-gradient)',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '13px',
+                          fontWeight: '700',
+                          color: 'white',
+                          flexShrink: 0,
+                        }}
+                      >
+                        {emp.name.charAt(0)}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="text-sm font-semibold text-[var(--text-primary)]">{emp.name}</div>
+                        <div className="truncate text-xs text-[var(--text-muted)]">{emp.email}</div>
+                      </div>
+                      <span className={`badge badge-${emp.role.toLowerCase()}`}>{emp.role}</span>
+                    </div>
+                    <div className="mobile-table-meta">
+                      <div className="mobile-table-meta-row">
+                        <span className="mobile-table-label">Assigned</span>
+                        <span className="mobile-table-value">
+                          {total}
+                          {overdue > 0 ? ` · ${overdue} overdue` : ''}
+                        </span>
+                      </div>
+                      <div className="mobile-table-meta-row">
+                        <span className="mobile-table-label">Completed</span>
+                        <span className="mobile-table-value" style={{ color: '#10b981' }}>
+                          {done}
+                        </span>
+                      </div>
+                      <div className="mobile-table-meta-row !items-center">
+                        <span className="mobile-table-label">Performance</span>
+                        <div className="flex items-center gap-2">
+                          <div style={{ width: '84px' }}>
                             <div className="progress-bar">
                               <div
                                 className="progress-fill"
@@ -331,20 +460,19 @@ export default function EmployeesPage() {
                               fontSize: '12px',
                               fontWeight: '700',
                               color: score >= 80 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444',
-                              minWidth: '30px',
                             }}
                           >
                             {score}%
                           </span>
                         </div>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                      </div>
+                    </div>
+                  </article>
+                )
+              })
+            )}
+          </div>
+        </>
       )}
 
       {showModal && (
@@ -485,7 +613,7 @@ export default function EmployeesPage() {
                 </div>
               )}
 
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <div className="modal-actions">
                 <button type="button" onClick={() => setShowModal(false)} className="btn-secondary" style={{ fontSize: '12px', padding: '8px 16px' }}>
                   Close
                 </button>

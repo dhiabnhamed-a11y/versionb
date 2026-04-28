@@ -166,30 +166,48 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
       </aside>
 
       <div className="main-content flex min-h-screen min-h-dvh flex-1 flex-col">
-        <header className="dashboard-shell-header dash-header sticky top-0 z-30 flex h-[52px] items-center justify-between px-5 md:px-8">
-          <button
-            type="button"
-            onClick={() => setSidebarOpen(true)}
-            className="mobile-menu-btn -ml-1 flex items-center justify-center rounded-lg p-2"
-            style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
-          >
-            <Menu size={20} className="text-[var(--text-primary)]" />
-          </button>
-          <div className="flex items-center gap-2">
-            <span
-              className={`flex h-2 w-2 rounded-full ${realtimeEnabled ? 'animate-pulse' : ''}`}
-              style={{
-                background: realtimeEnabled ? 'var(--accent-bright)' : 'var(--accent)',
-                boxShadow: realtimeEnabled ? '0 0 10px var(--accent-bright)' : 'none',
-              }}
-            />
-            <Radio size={14} style={{ color: 'var(--accent)' }} />
-            <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-              {isSuperAdmin ? 'Approval system active' : realtimeEnabled ? 'Real-time channel active' : 'Workspace ready'}
-            </span>
+        <header className="dashboard-shell-header dash-header sticky top-0 z-30 flex items-center justify-between px-5 md:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setSidebarOpen(true)}
+              className="mobile-menu-btn -ml-1 flex items-center justify-center rounded-lg p-2"
+              style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
+            >
+              <Menu size={20} className="text-[var(--text-primary)]" />
+            </button>
+            <div className="min-w-0">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--text-muted)]">
+                {workspaceLabel}
+              </div>
+              <div className="truncate text-sm font-semibold text-[var(--text-primary)]">
+                {isEmployee ? 'My workspace' : workspaceNavLabel}
+              </div>
+            </div>
           </div>
-          <div suppressHydrationWarning className="text-xs font-medium tabular-nums" style={{ color: 'var(--text-muted)' }}>
-            {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+
+          <div className="flex items-center gap-2.5 sm:gap-3">
+            <div
+              className="hidden items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium sm:flex"
+              style={{ borderColor: 'var(--border)', background: 'rgba(255,255,255,0.76)', color: 'var(--text-muted)' }}
+            >
+              <span
+                className={`flex h-2 w-2 rounded-full ${realtimeEnabled ? 'animate-pulse' : ''}`}
+                style={{
+                  background: realtimeEnabled ? 'var(--accent-bright)' : 'var(--accent)',
+                  boxShadow: realtimeEnabled ? '0 0 10px var(--accent-bright)' : 'none',
+                }}
+              />
+              <Radio size={13} style={{ color: 'var(--accent)' }} />
+              <span>{isSuperAdmin ? 'Approval system active' : realtimeEnabled ? 'Real-time channel active' : 'Workspace ready'}</span>
+            </div>
+            <div
+              suppressHydrationWarning
+              className="rounded-full border px-2.5 py-1 text-[11px] font-medium tabular-nums"
+              style={{ borderColor: 'var(--border)', background: 'rgba(255,255,255,0.76)', color: 'var(--text-muted)' }}
+            >
+              {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+            </div>
           </div>
         </header>
 

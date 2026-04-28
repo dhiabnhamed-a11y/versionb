@@ -35,7 +35,7 @@ export default function SendAlertPage() {
   }
 
   return (
-    <div style={{ maxWidth: '560px' }}>
+    <div className="dashboard-page" style={{ maxWidth: '560px' }}>
       <div style={{ marginBottom: '28px' }}>
         <h1 className="page-heading flex items-center gap-2.5">
           <Bell size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> Send alert

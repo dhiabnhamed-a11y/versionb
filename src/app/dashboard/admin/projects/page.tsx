@@ -279,17 +279,8 @@ export default function ProjectsPage() {
   }
 
   return (
-    <div style={{ maxWidth: '1080px' }}>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: '24px',
-          flexWrap: 'wrap',
-          gap: '12px',
-        }}
-      >
+    <div className="dashboard-page" style={{ maxWidth: '1080px' }}>
+      <div className="dashboard-header-row">
         <div>
           <h1 className="page-heading flex items-center gap-2.5">
             <FolderKanban size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> {companyCopy.projectPluralLabel}
@@ -302,7 +293,7 @@ export default function ProjectsPage() {
                 : `${projects.length} active projects`}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="dashboard-header-actions">
           {isIndustry && (
             <button
               onClick={() => {
@@ -527,7 +518,7 @@ export default function ProjectsPage() {
                 )}
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <div className="modal-actions">
                 <button type="button" onClick={() => setShowProjectModal(false)} className="btn-secondary" style={{ fontSize: '12px', padding: '8px 16px' }}>
                   Cancel
                 </button>
@@ -586,7 +577,7 @@ export default function ProjectsPage() {
                 />
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <div className="modal-actions">
                 <button type="button" onClick={() => setShowRoomModal(false)} className="btn-secondary" style={{ fontSize: '12px', padding: '8px 16px' }}>
                   Cancel
                 </button>

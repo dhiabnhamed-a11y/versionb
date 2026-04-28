@@ -152,8 +152,8 @@ export default function AdminTasksPage() {
   const filtered = filterStage === 'ALL' ? tasks : tasks.filter((task) => task.stage === filterStage)
 
   return (
-    <div style={{ maxWidth: '1020px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
+    <div className="dashboard-page" style={{ maxWidth: '1020px' }}>
+      <div className="dashboard-header-row">
         <div>
           <h1 className="page-heading flex items-center gap-2.5">
             <CheckSquare size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> {companyCopy.taskPluralLabel}
@@ -193,11 +193,11 @@ export default function AdminTasksPage() {
           </button>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="dashboard-card-stack">
           {filtered.map((task, index) => (
             <div key={task.id} className="card animate-fade-in" style={{ animationDelay: `${index * 30}ms`, padding: '16px 18px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '12px', flexWrap: 'wrap' }}>
-                <div style={{ flex: 1, minWidth: '220px' }}>
+              <div className="dashboard-item-row">
+                <div className="dashboard-item-main">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
                     <span className={`priority-${task.priority.toLowerCase()}`}>{task.priority}</span>
                     {isAgency && (
@@ -232,7 +232,7 @@ export default function AdminTasksPage() {
                     )}
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+                <div className="dashboard-item-side">
                   <div style={{ textAlign: 'right' }}>
                     <div style={{ fontSize: '11px', color: STAGE_COLORS[task.stage], fontWeight: '600', marginBottom: '4px' }}>{STAGE_LABELS[task.stage]}</div>
                     <div style={{ width: '80px' }}>
@@ -363,7 +363,7 @@ export default function AdminTasksPage() {
                 </div>
               )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+              <div className="form-split">
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
                     Priority
@@ -397,7 +397,7 @@ export default function AdminTasksPage() {
                 </select>
               </div>
 
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', marginTop: '4px' }}>
+              <div className="modal-actions" style={{ marginTop: '4px' }}>
                 <button type="button" onClick={() => setShowModal(false)} className="btn-secondary" style={{ fontSize: '12px', padding: '8px 16px' }}>
                   Cancel
                 </button>

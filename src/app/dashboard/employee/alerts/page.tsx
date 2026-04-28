@@ -48,7 +48,7 @@ export default function EmployeeAlertsPage() {
   const unread = alerts.filter(a => !a.read).length
 
   return (
-    <div style={{ maxWidth: '640px' }}>
+    <div className="dashboard-page" style={{ maxWidth: '640px' }}>
       <div style={{ marginBottom: '24px' }}>
         <h1 className="page-heading flex flex-wrap items-center gap-2">
           <Bell size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> Alerts
@@ -65,7 +65,7 @@ export default function EmployeeAlertsPage() {
           <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No alerts yet - you&apos;re all clear</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="dashboard-card-stack">
           {alerts.map((alert, i) => {
             const cfg = typeConfig[alert.type] || typeConfig.URGENT_TASK
             const Icon = cfg.icon

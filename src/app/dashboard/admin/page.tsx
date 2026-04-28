@@ -81,7 +81,7 @@ export default function AdminDashboard() {
   const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening'
 
   return (
-    <div style={{ maxWidth: '1100px' }}>
+    <div className="dashboard-page" style={{ maxWidth: '1100px' }}>
       <div style={{ marginBottom: '28px' }}>
         <h1 className="page-heading">
           <span suppressHydrationWarning>{greeting}</span>,{' '}
@@ -98,7 +98,7 @@ export default function AdminDashboard() {
 
       {/* Stats */}
       {loading ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px', marginBottom: '28px' }}>
+        <div className="dashboard-stat-grid">
           {[...Array(5)].map((_, i) => (
             <div key={i} className="stat-card" style={{ height: '110px' }}>
               <div style={{ width: '36px', height: '36px', background: 'var(--bg-elevated)', borderRadius: '8px', marginBottom: '12px' }} />
@@ -107,7 +107,7 @@ export default function AdminDashboard() {
           ))}
         </div>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px', marginBottom: '28px' }}>
+        <div className="dashboard-stat-grid">
           {statCards.map((s, i) => {
             const Icon = s.icon
             return (
@@ -125,10 +125,10 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="grid gap-4 xl:grid-cols-2">
+      <div className="dashboard-two-col">
         {/* Employee Performance */}
           <div className="card">
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px' }}>
+            <div className="mb-[18px] flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-display text-base font-semibold tracking-tight">Team performance</h2>
               <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>By completion rate</span>
             </div>
@@ -190,7 +190,7 @@ export default function AdminDashboard() {
               )}
             </div>
 
-            <div style={{ marginTop: '20px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+            <div className="dashboard-action-grid" style={{ marginTop: '20px' }}>
               <a href="/dashboard/admin/tasks" className="btn-secondary" style={{ textAlign: 'center', textDecoration: 'none', fontSize: '12px', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
                 <CheckSquare size={14} /> View {companyCopy.taskPluralLabel}
               </a>

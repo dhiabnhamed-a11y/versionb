@@ -29,7 +29,7 @@ export default function EmployeeProgressPage() {
   tasks.forEach(t => { const key = t.project.title; if (!byProject[key]) byProject[key] = []; byProject[key].push(t) })
 
   return (
-    <div style={{ maxWidth: '720px' }}>
+    <div className="dashboard-page" style={{ maxWidth: '720px' }}>
       <div style={{ marginBottom: '24px' }}>
         <h1 className="page-heading flex items-center gap-2.5">
           <BarChart3 size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> My progress

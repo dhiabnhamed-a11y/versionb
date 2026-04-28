@@ -114,8 +114,8 @@ export default async function HomePage() {
               <Image src={logo} alt="TASKIT logo" width={48} height={48} className="h-12 w-12 object-contain" priority />
             </div>
             <div>
-              <div className="text-lg font-semibold tracking-[-0.04em]">TASKIT</div>
-              <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--text-muted)]">
+              <div className="text-base font-semibold text-[var(--text-primary)] sm:text-lg">TASKIT</div>
+              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)] sm:text-[11px]">
                 Team operating system
               </div>
             </div>
@@ -140,7 +140,7 @@ export default async function HomePage() {
             <Link href={secondaryHref} className="btn-secondary hidden sm:inline-flex">
               {secondaryLabel}
             </Link>
-            <Link href={primaryHref} className="btn-primary inline-flex items-center gap-2">
+            <Link href={primaryHref} className="btn-primary inline-flex items-center gap-2 px-4 sm:px-5">
               <span>{primaryLabel}</span>
               <ArrowRight size={16} strokeWidth={2.2} />
             </Link>
@@ -148,34 +148,34 @@ export default async function HomePage() {
         </nav>
       </header>
 
-      <main className="mx-auto flex w-full max-w-7xl flex-col gap-24 px-5 pb-20 pt-10 md:px-8 md:pb-24 md:pt-12">
-        <section className="grid items-center gap-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:gap-14">
+      <main className="mx-auto flex w-full max-w-7xl flex-col gap-16 px-4 pb-16 pt-8 sm:px-5 md:gap-24 md:px-8 md:pb-24 md:pt-12">
+        <section className="grid items-center gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:gap-14">
           <div className="max-w-3xl">
-            <div className="marketing-pill mb-6 inline-flex items-center gap-2">
+            <div className="marketing-pill mb-5 inline-flex items-center gap-2 text-sm leading-6">
               <Sparkles size={14} />
               <span>Choose the right workflow before signup. Free to start. No pricing wall right now.</span>
             </div>
 
-            <h1 className="max-w-4xl font-display text-[clamp(3.25rem,8vw,6.3rem)] font-semibold leading-[0.92] tracking-[-0.06em] text-[var(--text-primary)]">
+            <h1 className="max-w-4xl font-display text-[clamp(2.45rem,11vw,6.3rem)] font-semibold leading-[0.96] text-[var(--text-primary)]">
               One workspace that adapts to industry teams, digital agencies, and everyone else.
             </h1>
 
-            <p className="mt-6 max-w-2xl text-lg leading-8 text-[var(--text-secondary)] md:text-xl">
+            <p className="mt-5 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg sm:leading-8 md:text-xl">
               TASKIT now starts with a company-type choice before signup, so each team gets the right operating model:
               rooms to projects to tasks, creative briefs to deliverable uploads, or the same clean interface you already know.
             </p>
 
-            <div className="mt-8 flex flex-col gap-4 sm:flex-row">
-              <Link href={primaryHref} className="btn-primary inline-flex min-h-12 items-center justify-center gap-2 px-6 text-sm">
+            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
+              <Link href={primaryHref} className="btn-primary inline-flex min-h-12 w-full items-center justify-center gap-2 px-6 text-sm sm:w-auto">
                 <span>{primaryLabel}</span>
                 <ArrowRight size={17} strokeWidth={2.2} />
               </Link>
-              <Link href="#features" className="btn-secondary inline-flex min-h-12 items-center justify-center px-6 text-sm">
+              <Link href="#features" className="btn-secondary inline-flex min-h-12 w-full items-center justify-center px-6 text-sm sm:w-auto">
                 Explore the workspace
               </Link>
             </div>
 
-            <div className="marketing-proof-strip mt-10 grid gap-4 sm:grid-cols-3">
+            <div className="marketing-proof-strip mt-8 grid gap-3 sm:grid-cols-3 sm:gap-4">
               {[
                 { value: 'Industry mode', label: 'Rooms, projects, and tasks stay separated and easy to follow' },
                 { value: 'Agency mode', label: 'Briefs turn into uploads and handoff-ready deliverables' },
@@ -195,7 +195,7 @@ export default async function HomePage() {
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div>
                 <div className="marketing-panel-label">Signup paths</div>
-                <h2 className="mt-3 text-3xl font-semibold tracking-[-0.04em] text-[var(--text-primary)]">
+                <h2 className="mt-3 text-2xl font-semibold text-[var(--text-primary)] sm:text-3xl">
                   Pick the workflow your company needs before anyone creates the workspace
                 </h2>
               </div>
@@ -241,7 +241,7 @@ export default async function HomePage() {
                           <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">{track.title}</p>
                         </div>
                       </div>
-                      <Link href={track.href} className="btn-secondary px-4 py-2 text-xs">
+                      <Link href={track.href} className="btn-secondary w-full px-4 py-2 text-xs sm:w-auto">
                         {track.cta}
                       </Link>
                     </div>
@@ -283,7 +283,7 @@ export default async function HomePage() {
         <section id="company-types" className="marketing-section">
           <div className="marketing-section-head">
             <div className="marketing-panel-label">Company types</div>
-            <h2 className="mt-3 font-display text-5xl font-semibold tracking-[-0.05em] text-[var(--text-primary)]">
+            <h2 className="mt-3 font-display text-[clamp(2rem,8vw,3.8rem)] font-semibold text-[var(--text-primary)]">
               Signup now starts by asking what kind of company you have.
             </h2>
             <p className="mt-4 max-w-3xl text-base leading-7 text-[var(--text-secondary)]">
@@ -310,7 +310,7 @@ export default async function HomePage() {
                       </div>
                     ))}
                   </div>
-                  <Link href={track.href} className="btn-primary mt-6 inline-flex items-center gap-2 px-5 py-3 text-sm">
+                  <Link href={track.href} className="btn-primary mt-6 inline-flex w-full items-center justify-center gap-2 px-5 py-3 text-sm sm:w-auto">
                     <span>{track.cta}</span>
                     <ArrowRight size={16} strokeWidth={2.2} />
                   </Link>
@@ -323,7 +323,7 @@ export default async function HomePage() {
         <section id="features" className="marketing-section">
           <div className="marketing-section-head">
             <div className="marketing-panel-label">Core features</div>
-            <h2 className="mt-3 font-display text-5xl font-semibold tracking-[-0.05em] text-[var(--text-primary)]">
+            <h2 className="mt-3 font-display text-[clamp(2rem,8vw,3.8rem)] font-semibold text-[var(--text-primary)]">
               Everything important is visible without forcing every company into the same shape.
             </h2>
             <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--text-secondary)]">
@@ -353,7 +353,7 @@ export default async function HomePage() {
         <section id="workflow" className="marketing-section grid gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
           <div>
             <div className="marketing-panel-label">Workflow</div>
-            <h2 className="mt-3 font-display text-5xl font-semibold tracking-[-0.05em] text-[var(--text-primary)]">
+            <h2 className="mt-3 font-display text-[clamp(2rem,8vw,3.8rem)] font-semibold text-[var(--text-primary)]">
               From company choice to daily execution, the path stays easy to follow.
             </h2>
             <p className="mt-4 max-w-xl text-base leading-7 text-[var(--text-secondary)]">
@@ -378,7 +378,7 @@ export default async function HomePage() {
         <section id="trust" className="marketing-section grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
           <div className="marketing-why-card">
             <div className="marketing-panel-label">Trust layer</div>
-            <h2 className="mt-3 font-display text-5xl font-semibold tracking-[-0.05em] text-white">
+            <h2 className="mt-3 font-display text-[clamp(2rem,8vw,3.8rem)] font-semibold text-white">
               Designed to feel serious enough for real company operations and creative delivery.
             </h2>
             <p className="mt-4 max-w-xl text-base leading-7 text-cyan-50/80">
@@ -424,7 +424,7 @@ export default async function HomePage() {
         <section className="marketing-cta glass-elevated">
           <div className="max-w-3xl">
             <div className="marketing-panel-label">Start now</div>
-            <h2 className="mt-3 font-display text-5xl font-semibold tracking-[-0.05em] text-[var(--text-primary)]">
+            <h2 className="mt-3 font-display text-[clamp(2rem,8vw,3.8rem)] font-semibold text-[var(--text-primary)]">
               Pick your company type, launch TASKIT for free, and start with the right workflow from the first screen.
             </h2>
             <p className="mt-4 text-base leading-7 text-[var(--text-secondary)]">
@@ -433,12 +433,12 @@ export default async function HomePage() {
             </p>
           </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Link href={primaryHref} className="btn-primary inline-flex min-h-12 items-center justify-center gap-2 px-6 text-sm">
+          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+            <Link href={primaryHref} className="btn-primary inline-flex min-h-12 w-full items-center justify-center gap-2 px-6 text-sm sm:w-auto">
               <span>{primaryLabel}</span>
               <ArrowRight size={17} strokeWidth={2.2} />
             </Link>
-            <Link href={secondaryHref} className="btn-secondary inline-flex min-h-12 items-center justify-center px-6 text-sm">
+            <Link href={secondaryHref} className="btn-secondary inline-flex min-h-12 w-full items-center justify-center px-6 text-sm sm:w-auto">
               {secondaryLabel}
             </Link>
           </div>
