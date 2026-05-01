@@ -501,18 +501,18 @@ export default function ProjectsPage() {
                       Enable project camera
                     </div>
                     <p className="mt-1 text-xs leading-relaxed text-[var(--text-muted)]">
-                      Adds an in-browser camera workspace on the project page to capture images and short videos.
+                      Adds a camera workspace on the project page for browser capture or external IP camera streaming.
                     </p>
                   </div>
                 </label>
                 {form.hasCamera && (
                   <div className="mt-3 pl-7">
                     <label className="mb-1 block text-[11px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
-                      Camera source (for your records)
+                      Camera source
                     </label>
                     <select className="input" value={form.cameraType} onChange={(event) => setForm({ ...form, cameraType: event.target.value as 'device' | 'external' })}>
                       <option value="device">This device (browser)</option>
-                      <option value="external">External / dedicated camera (planned)</option>
+                      <option value="external">External IP camera</option>
                     </select>
                   </div>
                 )}

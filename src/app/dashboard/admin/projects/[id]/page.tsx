@@ -143,7 +143,7 @@ export default function ProjectDetailPage() {
         </div>
       </header>
 
-      {project.hasCamera && <ProjectCamera projectId={project.id} />}
+      {project.hasCamera && <ProjectCamera projectId={project.id} initialCameraType={project.cameraType} />}
 
       <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-card)] p-5">
         <h2 className="font-display mb-3 text-base font-semibold">

@@ -143,8 +143,31 @@ model Project {
   manager     User?                 @relation("ProjectManager", fields: [managerId], references: [id])
   tasks       Task[]
   cameraMedia ProjectCameraMedia[]
+  cameras     ProjectCamera[]
 
   @@index([companyId, roomId])
+}
+
+model ProjectCamera {
+  id                String    @id @default(cuid())
+  projectId         String
+  name              String
+  ipAddress         String
+  port              Int       @default(554)
+  username          String
+  encryptedPassword String
+  rtspPath          String    @default("/stream")
+  status            String    @default("OFFLINE") // OFFLINE, STARTING, ONLINE, ERROR
+  lastStartedAt     DateTime?
+  lastSeenAt        DateTime?
+  lastError         String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  project Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@unique([projectId])
+  @@index([projectId, status])
 }
 
 model ProjectCameraMedia {
