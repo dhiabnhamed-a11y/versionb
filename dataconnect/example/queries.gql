@@ -1,0 +1,61 @@
+query ListProjectsForUser @auth(level: USER, insecureReason: "This query fetches projects associated with the current user, so it's safe for all logged-in users.") {
+  projects(where: { projectManager: { id_expr: "auth.uid" } }) {
+    id
+    name
+    status
+    dueDate
+    projectManager {
+      displayName
+    }
+  }
+}
+
+mutation CreateTask($title: String!, $status: String!, $priority: String!, $dueDate: Date!, $projectId: UUID!, $description: String, $assigneeId: UUID) @auth(level: USER, insecureReason: "This mutation allows a logged-in user to create tasks within a project.") {
+  task_insert(data: {
+    title: $title,
+    status: $status,
+    priority: $priority,
+    dueDate: $dueDate,
+    projectId: $projectId,
+    description: $description,
+    assigneeId: $assigneeId,
+    createdAt_expr: "request.time"
+  })
+}
+
+query GetTaskDetails($taskId: UUID!) @auth(level: USER, insecureReason: "This query retrieves details for a specific task, which is appropriate for any logged-in user.") {
+  task(id: $taskId) {
+    id
+    title
+    description
+    status
+    priority
+    dueDate
+    createdAt
+    project {
+      id
+      name
+    }
+    assignee {
+      id
+      displayName
+    }
+    comments_on_task {
+      id
+      content
+      createdAt
+      author {
+        displayName
+      }
+    }
+  }
+}
+
+mutation AddCommentToTask($taskId: UUID!, $content: String!) @auth(level: USER, insecureReason: "This mutation enables logged-in users to add comments to tasks.") {
+  comment_insert(data: {
+    taskId: $taskId,
+    content: $content,
+    authorId_expr: "auth.uid",
+    createdAt_expr: "request.time"
+  })
+}

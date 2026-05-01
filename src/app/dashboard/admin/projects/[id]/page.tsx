@@ -45,6 +45,7 @@ export default function ProjectDetailPage() {
   const isAgency = companyType === 'DIGITAL_AGENCY'
 
   useEffect(() => {
+    console.log('[ProjectDetailPage] mounted for project route', { id })
     let cancelled = false
     ;(async () => {
       setLoading(true)
@@ -54,7 +55,13 @@ export default function ProjectDetailPage() {
         setNotFound(true)
         setProject(null)
       } else if (res.ok) {
-        setProject(await res.json())
+        const projectPayload = await res.json()
+        console.log('[ProjectDetailPage] loaded project payload', {
+          id: projectPayload.id,
+          hasCamera: projectPayload.hasCamera,
+          cameraType: projectPayload.cameraType,
+        })
+        setProject(projectPayload)
         setNotFound(false)
       }
       setLoading(false)
@@ -143,7 +150,15 @@ export default function ProjectDetailPage() {
         </div>
       </header>
 
-      {project.hasCamera && <ProjectCamera projectId={project.id} initialCameraType={project.cameraType} />}
+      <ProjectCamera
+        projectId={project.id}
+        initialEnabled={project.hasCamera}
+        initialCameraType={project.cameraType}
+        onProjectCameraChange={(settings) => {
+          console.log('[ProjectDetailPage] camera settings changed', settings)
+          setProject((current) => (current ? { ...current, ...settings } : current))
+        }}
+      />
 
       <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-card)] p-5">
         <h2 className="font-display mb-3 text-base font-semibold">

@@ -69,3 +69,45 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     cameraMedia: 'cameraMedia' in project ? project.cameraMedia : [],
   })
 }
+
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const session = await auth()
+  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const user = session.user as { id: string; role: string; companyId?: string | null }
+  if (user.role === 'EMPLOYEE') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  const { id } = await params
+  const allowed = await getProjectIfAllowed(id, user)
+  if (!allowed) return NextResponse.json({ error: 'Not found' }, { status: 404 })
+
+  const support = await getProjectCameraSupport()
+  if (!support.hasCameraColumns || !support.hasCameraTypeEnum) {
+    return NextResponse.json(
+      { error: 'Project camera settings are not ready. Apply the latest database migration first.' },
+      { status: 503 }
+    )
+  }
+
+  const body = (await req.json().catch(() => ({}))) as {
+    hasCamera?: boolean
+    cameraType?: 'device' | 'external'
+  }
+
+  const project = await prisma.project.update({
+    where: { id },
+    data: {
+      ...(typeof body.hasCamera === 'boolean' ? { hasCamera: body.hasCamera } : {}),
+      ...(body.cameraType ? { cameraType: body.cameraType === 'external' ? 'external' : 'device' } : {}),
+    },
+    select: {
+      id: true,
+      hasCamera: true,
+      cameraType: true,
+    },
+  })
+
+  return NextResponse.json(withProjectCameraDefaults(project))
+}

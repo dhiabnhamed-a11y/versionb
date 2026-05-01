@@ -1,0 +1,80 @@
+mutation CreateDemoData @transaction @auth(level: USER, insecureReason: "This operation is for seeding demo data and can be exposed to all logged in users.") {
+  user_insertMany(data: [
+    {
+      id: "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+      displayName: "Alice Smith",
+      email: "alice.smith@example.com",
+      role: "admin",
+      createdAt: "2023-01-01T10:00:00Z"
+    },
+    {
+      id: "b2c3d4e5-f6a7-8901-2345-67890abcdef0",
+      displayName: "Bob Johnson",
+      email: "bob.johnson@example.com",
+      role: "member",
+      createdAt: "2023-01-02T11:00:00Z"
+    }
+  ])
+  project_insertMany(data: [
+    {
+      id: "c3d4e5f6-a7b8-9012-3456-7890abcdef01",
+      name: "TaskIt Alpha",
+      startDate: "2023-01-15",
+      dueDate: "2023-03-15",
+      createdAt: "2023-01-10T09:00:00Z",
+      description: "Initial development phase for TaskIt.",
+      status: "In Progress",
+      projectManagerId: "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+    },
+    {
+      id: "d4e5f6a7-b8c9-0123-4567-890abcdef012",
+      name: "TaskIt Beta",
+      startDate: "2023-04-01",
+      dueDate: "2023-06-30",
+      createdAt: "2023-03-20T14:00:00Z",
+      description: "Beta testing and feature refinement.",
+      status: "Planning",
+      projectManagerId: "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+    }
+  ])
+  task_insertMany(data: [
+    {
+      id: "e5f6a7b8-c9d0-1234-5678-90abcdef0123",
+      title: "Implement User Authentication",
+      status: "Completed",
+      priority: "High",
+      dueDate: "2023-02-10",
+      createdAt: "2023-01-16T09:30:00Z",
+      description: "Set up Firebase Authentication for user login/signup.",
+      projectId: "c3d4e5f6-a7b8-9012-3456-7890abcdef01",
+      assigneeId: "b2c3d4e5-f6a7-8901-2345-67890abcdef0"
+    },
+    {
+      id: "f6a7b8c9-d0e1-2345-6789-0abcdef01234",
+      title: "Design Database Schema",
+      status: "In Progress",
+      priority: "High",
+      dueDate: "2023-02-15",
+      createdAt: "2023-01-18T10:00:00Z",
+      description: "Define tables and relationships for the application data.",
+      projectId: "c3d4e5f6-a7b8-9012-3456-7890abcdef01",
+      assigneeId: "b2c3d4e5-f6a7-8901-2345-67890abcdef0"
+    }
+  ])
+  comment_insertMany(data: [
+    {
+      id: "12345678-90ab-cdef-0123-4567890abcde",
+      content: "Great progress on the authentication module!",
+      createdAt: "2023-02-11T13:00:00Z",
+      taskId: "e5f6a7b8-c9d0-1234-5678-90abcdef0123",
+      authorId: "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+    },
+    {
+      id: "23456789-0abc-def0-1234-567890abcdef",
+      content: "Looking forward to reviewing the schema design.",
+      createdAt: "2023-01-20T10:00:00Z",
+      taskId: "f6a7b8c9-d0e1-2345-6789-0abcdef01234",
+      authorId: "a1b2c3d4-e5f6-7890-1234-567890abcdef"
+    }
+  ])
+}

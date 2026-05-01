@@ -47,7 +47,9 @@ type ExternalCamera = {
 
 type Props = {
   projectId: string
+  initialEnabled?: boolean
   initialCameraType?: 'device' | 'external'
+  onProjectCameraChange?: (settings: { hasCamera: boolean; cameraType: 'device' | 'external' }) => void
 }
 
 type CameraForm = {
@@ -124,7 +126,12 @@ function HlsPlayer({
   )
 }
 
-export function ProjectCamera({ projectId, initialCameraType = 'device' }: Props) {
+export function ProjectCamera({
+  projectId,
+  initialEnabled = false,
+  initialCameraType = 'device',
+  onProjectCameraChange,
+}: Props) {
   const {
     videoRef,
     isActive,
@@ -139,6 +146,7 @@ export function ProjectCamera({ projectId, initialCameraType = 'device' }: Props
     clearError,
   } = useCamera()
 
+  const [enabled, setEnabled] = useState(initialEnabled)
   const [source, setSource] = useState<'device' | 'external'>(initialCameraType)
   const [media, setMedia] = useState<MediaItem[]>([])
   const [externalCamera, setExternalCamera] = useState<ExternalCamera | null>(null)
@@ -158,6 +166,24 @@ export function ProjectCamera({ projectId, initialCameraType = 'device' }: Props
   const [playerReloadKey, setPlayerReloadKey] = useState(0)
   const [reconnectNotice, setReconnectNotice] = useState<string | null>(null)
   const reconnectTimerRef = useRef<number | null>(null)
+
+  useEffect(() => {
+    console.log('[ProjectCamera] mounted', {
+      projectId,
+      initialEnabled,
+      initialCameraType,
+    })
+  }, [initialCameraType, initialEnabled, projectId])
+
+  useEffect(() => {
+    console.log('[ProjectCamera] render state', {
+      projectId,
+      enabled,
+      source,
+      hasExternalCamera: Boolean(externalCamera),
+      status: externalCamera?.status || 'OFFLINE',
+    })
+  }, [enabled, externalCamera, projectId, source])
 
   const generatedRtspPreview = useMemo(() => {
     const ip = form.ipAddress || 'camera-ip'
@@ -179,6 +205,12 @@ export function ProjectCamera({ projectId, initialCameraType = 'device' }: Props
   const recordTime = new Date(recordElapsedMs).toISOString().slice(14, 19)
 
   const loadMedia = useCallback(async () => {
+    if (!enabled) {
+      setMedia([])
+      setLoadingList(false)
+      return
+    }
+
     setLoadingList(true)
     try {
       const res = await fetch(`/api/projects/${projectId}/camera`)
@@ -189,7 +221,7 @@ export function ProjectCamera({ projectId, initialCameraType = 'device' }: Props
     } finally {
       setLoadingList(false)
     }
-  }, [projectId])
+  }, [enabled, projectId])
 
   const loadExternalCamera = useCallback(async () => {
     setLoadingCamera(true)
@@ -234,6 +266,46 @@ export function ProjectCamera({ projectId, initialCameraType = 'device' }: Props
 
   const updateForm = (key: keyof CameraForm, value: string) => {
     setForm((current) => ({ ...current, [key]: value }))
+  }
+
+  const updateProjectCameraSettings = async (next: { hasCamera: boolean; cameraType: 'device' | 'external' }) => {
+    setPanelError(null)
+    setBusy('settings')
+    try {
+      console.log('[ProjectCamera] saving project camera settings', next)
+      const res = await fetch(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      })
+      const body = await readJson<{ hasCamera?: boolean; cameraType?: 'device' | 'external'; error?: string }>(res)
+      if (!res.ok) throw new Error(body.error || 'Project camera settings could not be saved.')
+
+      const saved: { hasCamera: boolean; cameraType: 'device' | 'external' } = {
+        hasCamera: Boolean(body.hasCamera),
+        cameraType: body.cameraType === 'external' ? 'external' : 'device',
+      }
+
+      setEnabled(saved.hasCamera)
+      setSource(saved.cameraType)
+      onProjectCameraChange?.(saved)
+      setReconnectNotice(saved.hasCamera ? 'Project camera enabled.' : 'Project camera disabled.')
+    } catch (e) {
+      setPanelError(e instanceof Error ? e.message : 'Project camera settings could not be saved.')
+    } finally {
+      setBusy(null)
+    }
+  }
+
+  const handleEnabledChange = (checked: boolean) => {
+    void updateProjectCameraSettings({ hasCamera: checked, cameraType: source })
+  }
+
+  const handleSourceChange = (value: 'device' | 'external') => {
+    setSource(value)
+    if (enabled) {
+      void updateProjectCameraSettings({ hasCamera: true, cameraType: value })
+    }
   }
 
   const cameraPayload = () => ({
@@ -312,6 +384,9 @@ export function ProjectCamera({ projectId, initialCameraType = 'device' }: Props
       if (!res.ok) throw new Error(body.error || 'Camera could not be saved.')
       setExternalCamera(body)
       setForm((current) => ({ ...current, password: '' }))
+      setEnabled(true)
+      setSource('external')
+      onProjectCameraChange?.({ hasCamera: true, cameraType: 'external' })
       setReconnectNotice('Camera saved.')
     } catch (e) {
       setPanelError(e instanceof Error ? e.message : 'Camera could not be saved.')
@@ -404,23 +479,44 @@ export function ProjectCamera({ projectId, initialCameraType = 'device' }: Props
           </div>
         </div>
 
-        <div className="inline-grid grid-cols-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-elevated)] p-1">
-          {(['device', 'external'] as const).map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => setSource(value)}
-              className={`rounded-md px-3 py-2 text-xs font-semibold transition ${
-                source === value
-                  ? 'bg-[var(--bg-card)] text-[var(--accent)] shadow-sm'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              {value === 'device' ? 'Browser' : 'External IP'}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <label className="inline-flex min-h-11 cursor-pointer items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-elevated)] px-3 text-xs font-semibold text-[var(--text-primary)]">
+            <input
+              type="checkbox"
+              checked={enabled}
+              disabled={busy === 'settings'}
+              onChange={(event) => handleEnabledChange(event.target.checked)}
+              className="accent-teal-600"
+            />
+            Enable Project Camera
+            {busy === 'settings' && <Loader2 className="h-3.5 w-3.5 animate-spin text-[var(--text-muted)]" />}
+          </label>
+
+          <div className="inline-grid grid-cols-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-elevated)] p-1">
+            {(['device', 'external'] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                onClick={() => handleSourceChange(value)}
+                className={`rounded-md px-3 py-2 text-xs font-semibold transition ${
+                  source === value
+                    ? 'bg-[var(--bg-card)] text-[var(--accent)] shadow-sm'
+                    : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'
+                }`}
+              >
+                {value === 'device' ? 'This device (browser)' : 'External IP camera'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
+
+      {!enabled && (
+        <div className="mb-4 rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2.5 text-sm text-[var(--text-muted)]">
+          The camera panel is visible for setup. Enable Project Camera to capture browser media or start an external
+          stream.
+        </div>
+      )}
 
       <AnimatePresence>
         {(error || panelError || reconnectNotice) && (
@@ -483,11 +579,17 @@ export function ProjectCamera({ projectId, initialCameraType = 'device' }: Props
               <div className="absolute bottom-3 left-1/2 z-20 w-[calc(100%-1.25rem)] -translate-x-1/2 md:w-[520px]">
                 <CameraControls
                   className="w-full"
-                  isActive={isActive}
-                  isStarting={isStarting}
+                  isActive={enabled && isActive}
+                  isStarting={enabled && isStarting}
                   isRecording={isRecording}
                   uploading={busy === 'capture' || busy === 'record'}
-                  onStart={startCamera}
+                  onStart={() => {
+                    if (!enabled) {
+                      setPanelError('Enable Project Camera before starting browser capture.')
+                      return
+                    }
+                    startCamera()
+                  }}
                   onStop={stopCamera}
                   onCapture={handleCapture}
                   onRecordToggle={handleRecordToggle}
@@ -516,7 +618,7 @@ export function ProjectCamera({ projectId, initialCameraType = 'device' }: Props
                     <WifiOff className="mx-auto mb-3 h-8 w-8 text-slate-400" />
                     <div className="text-sm font-semibold text-white">External camera is offline</div>
                     <div className="mt-1 text-xs text-slate-400">
-                      Save a camera, test it, then start the HLS stream.
+                      Enable the project camera, save a camera, test it, then start the HLS stream.
                     </div>
                   </div>
                 </div>
@@ -532,7 +634,7 @@ export function ProjectCamera({ projectId, initialCameraType = 'device' }: Props
                 type="button"
                 className="btn-primary gap-2 text-xs"
                 onClick={startExternalStream}
-                disabled={!externalCamera || busy === 'start' || busy === 'stop'}
+                disabled={!enabled || !externalCamera || busy === 'start' || busy === 'stop'}
               >
                 {busy === 'start' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Play className="h-4 w-4" />}
                 Start stream
@@ -541,7 +643,7 @@ export function ProjectCamera({ projectId, initialCameraType = 'device' }: Props
                 type="button"
                 className="btn-secondary gap-2 text-xs"
                 onClick={stopExternalStream}
-                disabled={!externalCamera || busy === 'stop'}
+                disabled={!enabled || !externalCamera || busy === 'stop'}
               >
                 {busy === 'stop' ? <Loader2 className="h-4 w-4 animate-spin" /> : <Square className="h-4 w-4" />}
                 Stop
@@ -550,7 +652,7 @@ export function ProjectCamera({ projectId, initialCameraType = 'device' }: Props
                 type="button"
                 className="btn-secondary gap-2 text-xs"
                 onClick={captureExternalSnapshot}
-                disabled={!externalCamera || busy === 'snapshot'}
+                disabled={!enabled || !externalCamera || busy === 'snapshot'}
               >
                 {busy === 'snapshot' ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
                 Snapshot
