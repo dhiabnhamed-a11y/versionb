@@ -6,12 +6,18 @@ import { formatDate, formatTimeAgo } from '@/lib/utils'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { getCompanyTypeCopy, getDeliverableTypeLabel, normalizeCompanyType } from '@/lib/company-types'
 import { ListTodo, Clock, FolderKanban, AlertTriangle, ArrowRight, CheckCircle2, Loader2, Link2, Upload } from 'lucide-react'
+import { MediaPlayer } from '@/components/media/MediaPlayer'
 
 interface TaskSubmission {
   id: string
   fileUrl: string
   fileName: string
   fileType: string
+  mediaType?: string | null
+  fileSize?: number | null
+  duration?: number | null
+  thumbnailUrl?: string | null
+  playbackUrl?: string | null
   note?: string | null
   createdAt: string
   user: { id: string; name: string }
@@ -295,7 +301,22 @@ export default function EmployeeDashboard() {
                 {task.submissions.length > 0 && (
                   <div style={{ marginTop: '10px', display: 'grid', gap: '8px' }}>
                     {task.submissions.map((submission) => (
-                      <div key={submission.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px', flexWrap: 'wrap', borderRadius: '8px', background: 'var(--bg-elevated)', padding: '10px 12px' }}>
+                      <div key={submission.id} style={{ display: 'grid', gridTemplateColumns: isAgency && submission.mediaType ? 'minmax(0, 220px) 1fr auto' : '1fr auto', alignItems: 'center', gap: '10px', borderRadius: '8px', background: 'var(--bg-elevated)', padding: '10px 12px' }}>
+                        {isAgency && submission.mediaType && (
+                          <MediaPlayer
+                            media={{
+                              id: submission.id,
+                              url: submission.fileUrl,
+                              playbackUrl: submission.playbackUrl,
+                              thumbnailUrl: submission.thumbnailUrl,
+                              type: submission.mediaType,
+                              mimeType: submission.fileType,
+                              fileName: submission.fileName,
+                              fileSize: submission.fileSize,
+                              duration: submission.duration,
+                            }}
+                          />
+                        )}
                         <div>
                           <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>{submission.fileName}</div>
                           <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
@@ -351,6 +372,7 @@ export default function EmployeeDashboard() {
                 <input
                   className="input"
                   type="file"
+                  accept={isAgency ? 'image/*,video/*,audio/*' : undefined}
                   onChange={(event) => setUploadFile(event.target.files?.[0] ?? null)}
                   required
                 />

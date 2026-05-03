@@ -5,6 +5,7 @@ import { getProjectIfAllowed } from '@/lib/project-access'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
 import { getProjectCameraSupport, withProjectCameraDefaults } from '@/lib/project-camera-support'
 import { normalizeCompanyType } from '@/lib/company-types'
+import { getProjectMediaSupport } from '@/lib/project-media-support'
 import {
   attachProjectAgencyFields,
   findProjectCategory,
@@ -45,6 +46,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   if (!allowed) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
   const support = await getProjectCameraSupport()
+  const mediaSupport = await getProjectMediaSupport()
+  const isAgency = normalizeCompanyType(user.companyType) === 'DIGITAL_AGENCY'
   const project = await prisma.project.findFirst({
     where: { id },
     select: {
@@ -72,6 +75,16 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
               fileUrl: true,
               fileName: true,
               fileType: true,
+              ...(mediaSupport.hasTaskSubmissionCloudinaryColumns
+                ? {
+                    mediaType: true,
+                    fileSize: true,
+                    duration: true,
+                    thumbnailUrl: true,
+                    playbackUrl: true,
+                    cloudinaryPublicId: true,
+                  }
+                : {}),
               note: true,
               createdAt: true,
               user: {
@@ -89,6 +102,32 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
             cameraMedia: { orderBy: { createdAt: 'desc' }, take: 12 },
           }
         : {}),
+      ...(isAgency && mediaSupport.hasProjectMediaTable
+        ? {
+            projectMedia: {
+              orderBy: { createdAt: 'desc' },
+              take: 24,
+              select: {
+                id: true,
+                projectId: true,
+                url: true,
+                playbackUrl: true,
+                thumbnailUrl: true,
+                cloudinaryPublicId: true,
+                type: true,
+                mimeType: true,
+                originalFilename: true,
+                size: true,
+                duration: true,
+                width: true,
+                height: true,
+                format: true,
+                createdAt: true,
+                uploadedBy: { select: { id: true, name: true } },
+              },
+            },
+          }
+        : {}),
     },
   })
 
@@ -99,6 +138,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   return NextResponse.json({
     ...projectWithAgencyFields,
     cameraMedia: 'cameraMedia' in project ? project.cameraMedia : [],
+    projectMedia: isAgency && 'projectMedia' in project ? project.projectMedia : [],
   })
 }
 

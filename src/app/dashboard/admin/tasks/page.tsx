@@ -11,12 +11,18 @@ import {
   normalizeCompanyType,
 } from '@/lib/company-types'
 import { Plus, CheckSquare, Trash2, Clock, FolderKanban, User, Loader2, ListTodo, Link2, Pencil, CheckCircle2, RotateCcw } from 'lucide-react'
+import { MediaPlayer } from '@/components/media/MediaPlayer'
 
 interface TaskSubmission {
   id: string
   fileUrl: string
   fileName: string
   fileType: string
+  mediaType?: string | null
+  fileSize?: number | null
+  duration?: number | null
+  thumbnailUrl?: string | null
+  playbackUrl?: string | null
   note?: string | null
   createdAt: string
   user: { id: string; name: string }
@@ -388,16 +394,31 @@ export default function AdminTasksPage() {
                     <div
                       key={submission.id}
                       style={{
-                        display: 'flex',
+                        display: 'grid',
+                        gridTemplateColumns: isAgency && submission.mediaType ? 'minmax(0, 220px) 1fr auto' : '1fr auto',
                         justifyContent: 'space-between',
                         alignItems: 'center',
                         gap: '10px',
-                        flexWrap: 'wrap',
                         background: 'var(--bg-elevated)',
                         borderRadius: '8px',
                         padding: '10px 12px',
                       }}
                     >
+                      {isAgency && submission.mediaType && (
+                        <MediaPlayer
+                          media={{
+                            id: submission.id,
+                            url: submission.fileUrl,
+                            playbackUrl: submission.playbackUrl,
+                            thumbnailUrl: submission.thumbnailUrl,
+                            type: submission.mediaType,
+                            mimeType: submission.fileType,
+                            fileName: submission.fileName,
+                            fileSize: submission.fileSize,
+                            duration: submission.duration,
+                          }}
+                        />
+                      )}
                       <div>
                         <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>{submission.fileName}</div>
                         <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>

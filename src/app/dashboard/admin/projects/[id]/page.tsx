@@ -7,6 +7,8 @@ import { useSession } from 'next-auth/react'
 import { getCompanyTypeCopy, getDeliverableTypeLabel, normalizeCompanyType } from '@/lib/company-types'
 import { ArrowLeft, Camera, FolderKanban, User, Building2, Link2, Tags, UsersRound } from 'lucide-react'
 import { ProjectCamera } from '@/components/camera/ProjectCamera'
+import { MediaPlayer } from '@/components/media/MediaPlayer'
+import { ProjectMediaStudio } from '@/components/media/ProjectMediaStudio'
 
 type ProjectDetail = {
   id: string
@@ -28,10 +30,34 @@ type ProjectDetail = {
       fileUrl: string
       fileName: string
       fileType: string
+      mediaType?: string | null
+      fileSize?: number | null
+      duration?: number | null
+      thumbnailUrl?: string | null
+      playbackUrl?: string | null
+      cloudinaryPublicId?: string | null
       note?: string | null
       createdAt: string
       user: { id: string; name: string }
     }[]
+  }[]
+  projectMedia?: {
+    id: string
+    projectId: string
+    url: string
+    playbackUrl?: string | null
+    thumbnailUrl?: string | null
+    cloudinaryPublicId: string
+    type: string
+    mimeType: string
+    originalFilename: string
+    size: number
+    duration?: number | null
+    width?: number | null
+    height?: number | null
+    format?: string | null
+    createdAt: string
+    uploadedBy?: { id: string; name: string }
   }[]
 }
 
@@ -174,6 +200,8 @@ export default function ProjectDetailPage() {
         }}
       />
 
+      {isAgency && <ProjectMediaStudio projectId={project.id} initialMedia={project.projectMedia ?? []} />}
+
       <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-card)] p-5">
         <h2 className="font-display mb-3 text-base font-semibold">
           {companyCopy.taskPluralLabel} in this {companyCopy.projectLabel.toLowerCase()}
@@ -198,21 +226,56 @@ export default function ProjectDetailPage() {
                 {t.submissions.length > 0 && (
                   <div className="mt-3 grid gap-2">
                     {t.submissions.map((submission) => (
-                      <div key={submission.id} className="flex flex-wrap items-center justify-between gap-2 rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] px-3 py-2">
-                        <div>
-                          <div className="text-xs font-semibold text-[var(--text-primary)]">{submission.fileName}</div>
-                          <div className="text-[11px] text-[var(--text-muted)]">{submission.user.name}</div>
-                          {submission.note && <div className="mt-1 text-[11px] text-[var(--text-secondary)]">{submission.note}</div>}
-                        </div>
-                        <a
-                          href={submission.fileUrl}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="btn-secondary inline-flex items-center gap-1 px-3 py-1.5 text-[11px]"
-                        >
-                          <Link2 className="h-3.5 w-3.5" />
-                          Open file
-                        </a>
+                      <div key={submission.id} className="rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] px-3 py-2">
+                        {isAgency && submission.mediaType ? (
+                          <div className="grid gap-3 md:grid-cols-[minmax(0,280px)_1fr]">
+                            <MediaPlayer
+                              media={{
+                                id: submission.id,
+                                url: submission.fileUrl,
+                                playbackUrl: submission.playbackUrl,
+                                thumbnailUrl: submission.thumbnailUrl,
+                                type: submission.mediaType,
+                                mimeType: submission.fileType,
+                                fileName: submission.fileName,
+                                fileSize: submission.fileSize,
+                                duration: submission.duration,
+                                user: submission.user,
+                              }}
+                            />
+                            <div className="min-w-0">
+                              <div className="text-xs font-semibold text-[var(--text-primary)]">{submission.fileName}</div>
+                              <div className="text-[11px] text-[var(--text-muted)]">{submission.user.name}</div>
+                              {submission.note && <div className="mt-1 text-[11px] text-[var(--text-secondary)]">{submission.note}</div>}
+                              <a
+                                href={submission.fileUrl}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn-secondary mt-3 inline-flex items-center gap-1 px-3 py-1.5 text-[11px]"
+                              >
+                                <Link2 className="h-3.5 w-3.5" />
+                                Open file
+                              </a>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div>
+                              <div className="text-xs font-semibold text-[var(--text-primary)]">{submission.fileName}</div>
+                              <div className="text-[11px] text-[var(--text-muted)]">{submission.user.name}</div>
+                              {submission.note && <div className="mt-1 text-[11px] text-[var(--text-secondary)]">{submission.note}</div>}
+                            </div>
+                            <a
+                              href={submission.fileUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              className="btn-secondary inline-flex items-center gap-1 px-3 py-1.5 text-[11px]"
+                            >
+                              <Link2 className="h-3.5 w-3.5" />
+                              Open file
+                            </a>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

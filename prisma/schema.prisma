@@ -34,6 +34,7 @@ model User {
   reviewedAccessRequests AccessRequest[] @relation("AccessRequestReviewedBy")
   reviewedCompanies      Company[]       @relation("CompanyReviewedBy")
   taskSubmissions        TaskSubmission[]
+  projectMediaUploads    ProjectMedia[]  @relation("ProjectMediaUploadedBy")
   calendarEvents         CalendarEvent[] @relation("CalendarEventCreatedBy")
 }
 
@@ -164,6 +165,7 @@ model Project {
   manager     User?                 @relation("ProjectManager", fields: [managerId], references: [id])
   tasks       Task[]
   cameraMedia ProjectCameraMedia[]
+  projectMedia ProjectMedia[]
   cameras     ProjectCamera[]
   calendarEvents CalendarEvent[]
 
@@ -205,6 +207,32 @@ model ProjectCameraMedia {
   @@index([projectId])
 }
 
+model ProjectMedia {
+  id                 String   @id @default(cuid())
+  projectId          String
+  uploadedById       String
+  url                String
+  playbackUrl        String?
+  thumbnailUrl       String?
+  cloudinaryPublicId String
+  type               String // image | video | audio
+  mimeType           String
+  originalFilename   String
+  size               Int
+  duration           Float?
+  width              Int?
+  height             Int?
+  format             String?
+  createdAt          DateTime @default(now())
+
+  project    Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  uploadedBy User    @relation("ProjectMediaUploadedBy", fields: [uploadedById], references: [id], onDelete: Cascade)
+
+  @@index([projectId, createdAt])
+  @@index([uploadedById, createdAt])
+  @@index([projectId, type, createdAt])
+}
+
 model Task {
   id              String   @id @default(cuid())
   title           String
@@ -233,6 +261,12 @@ model TaskSubmission {
   fileUrl    String
   fileName   String
   fileType   String
+  mediaType  String?
+  fileSize   Int?
+  duration   Float?
+  thumbnailUrl String?
+  playbackUrl  String?
+  cloudinaryPublicId String?
   note       String?
   createdAt  DateTime @default(now())
 

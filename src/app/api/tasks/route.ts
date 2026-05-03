@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
+import { getProjectMediaSupport } from '@/lib/project-media-support'
 
 type SessionUser = {
   id: string
@@ -32,6 +33,7 @@ export async function GET(req: NextRequest) {
   const projectId = searchParams.get('projectId')
 
   try {
+    const mediaSupport = await getProjectMediaSupport()
     const tasks = await prisma.task.findMany({
       where: {
         ...(user.role === 'EMPLOYEE' ? { assigneeId: user.id } : {}),
@@ -58,6 +60,16 @@ export async function GET(req: NextRequest) {
             fileUrl: true,
             fileName: true,
             fileType: true,
+            ...(mediaSupport.hasTaskSubmissionCloudinaryColumns
+              ? {
+                  mediaType: true,
+                  fileSize: true,
+                  duration: true,
+                  thumbnailUrl: true,
+                  playbackUrl: true,
+                  cloudinaryPublicId: true,
+                }
+              : {}),
             note: true,
             createdAt: true,
             user: {

@@ -6,6 +6,7 @@ export const REALTIME_EVENTS = [
   'project_created',
   'project_updated',
   'project_deleted',
+  'project_media_created',
   'room_created',
   'project_category_created',
   'employee_invited',
