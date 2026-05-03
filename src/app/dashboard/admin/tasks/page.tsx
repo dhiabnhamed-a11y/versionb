@@ -10,7 +10,7 @@ import {
   getDeliverableTypeLabel,
   normalizeCompanyType,
 } from '@/lib/company-types'
-import { Plus, CheckSquare, Trash2, Clock, FolderKanban, User, Loader2, ListTodo, Link2, Pencil } from 'lucide-react'
+import { Plus, CheckSquare, Trash2, Clock, FolderKanban, User, Loader2, ListTodo, Link2, Pencil, CheckCircle2, RotateCcw } from 'lucide-react'
 
 interface TaskSubmission {
   id: string
@@ -70,6 +70,10 @@ export default function AdminTasksPage() {
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
+  const [rejectingTask, setRejectingTask] = useState<Task | null>(null)
+  const [reviewComment, setReviewComment] = useState('')
+  const [reviewError, setReviewError] = useState('')
+  const [reviewSaving, setReviewSaving] = useState(false)
   const [filterStage, setFilterStage] = useState('ALL')
   const [form, setForm] = useState({
     title: '',
@@ -97,16 +101,20 @@ export default function AdminTasksPage() {
     }
   }
 
+  async function reloadTasksPageData() {
+    const data = await fetchTasksPageData()
+    setTasks(data.tasks)
+    setProjects(data.projects)
+    setEmployees(data.employees)
+    setLoading(false)
+  }
+
   useEffect(() => {
     let active = true
 
     const loadData = async () => {
-      const data = await fetchTasksPageData()
       if (!active) return
-      setTasks(data.tasks)
-      setProjects(data.projects)
-      setEmployees(data.employees)
-      setLoading(false)
+      await reloadTasksPageData()
     }
 
     void loadData()
@@ -118,11 +126,7 @@ export default function AdminTasksPage() {
 
   useRealtimeSubscription(TASK_REALTIME_EVENTS, () => {
     void (async () => {
-      const data = await fetchTasksPageData()
-      setTasks(data.tasks)
-      setProjects(data.projects)
-      setEmployees(data.employees)
-      setLoading(false)
+      await reloadTasksPageData()
     })()
   })
 
@@ -175,19 +179,53 @@ export default function AdminTasksPage() {
     setShowModal(false)
     setEditingTask(null)
     resetTaskForm()
-    const data = await fetchTasksPageData()
-    setTasks(data.tasks)
-    setProjects(data.projects)
-    setEmployees(data.employees)
+    await reloadTasksPageData()
   }
 
   async function handleDelete(id: string) {
     if (!confirm(`Delete this ${companyCopy.taskLabel.toLowerCase()}?`)) return
     await fetch(`/api/tasks/${id}`, { method: 'DELETE' })
-    const data = await fetchTasksPageData()
-    setTasks(data.tasks)
-    setProjects(data.projects)
-    setEmployees(data.employees)
+    await reloadTasksPageData()
+  }
+
+  async function handleAcceptReview(task: Task) {
+    setReviewSaving(true)
+    await fetch(`/api/tasks/${task.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stage: 'DONE' }),
+    })
+    setReviewSaving(false)
+    await reloadTasksPageData()
+  }
+
+  function openRejectReviewModal(task: Task) {
+    setRejectingTask(task)
+    setReviewComment('')
+    setReviewError('')
+  }
+
+  async function handleRejectReview(e: React.FormEvent) {
+    e.preventDefault()
+    if (!rejectingTask) return
+
+    const comment = reviewComment.trim()
+    if (!comment) {
+      setReviewError('Add a comment so the employee knows what to repeat.')
+      return
+    }
+
+    setReviewSaving(true)
+    setReviewError('')
+    await fetch(`/api/tasks/${rejectingTask.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ stage: 'IN_PROGRESS', reviewComment: comment }),
+    })
+    setReviewSaving(false)
+    setRejectingTask(null)
+    setReviewComment('')
+    await reloadTasksPageData()
   }
 
   const filtered = filterStage === 'ALL' ? tasks : tasks.filter((task) => task.stage === filterStage)
@@ -236,7 +274,15 @@ export default function AdminTasksPage() {
       ) : (
         <div className="dashboard-card-stack">
           {filtered.map((task, index) => (
-            <div key={task.id} className="card animate-fade-in" style={{ animationDelay: `${index * 30}ms`, padding: '16px 18px' }}>
+            <div
+              key={task.id}
+              className="card animate-fade-in"
+              style={{
+                animationDelay: `${index * 30}ms`,
+                padding: '16px 18px',
+                borderColor: task.stage === 'REVIEW' ? 'rgba(217,119,6,0.28)' : undefined,
+              }}
+            >
               <div className="dashboard-item-row">
                 <div className="dashboard-item-main">
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
@@ -282,6 +328,30 @@ export default function AdminTasksPage() {
                       </div>
                     </div>
                   </div>
+                  {task.stage === 'REVIEW' && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={() => handleAcceptReview(task)}
+                        className="btn-primary btn-sm"
+                        disabled={reviewSaving}
+                        style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <CheckCircle2 size={13} />
+                        Accept
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => openRejectReviewModal(task)}
+                        className="btn-secondary btn-sm"
+                        disabled={reviewSaving}
+                        style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      >
+                        <RotateCcw size={13} />
+                        Repeat
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={() => openEditTaskModal(task)}
                     className="btn-secondary btn-sm"
@@ -351,7 +421,18 @@ export default function AdminTasksPage() {
               )}
 
               {task.activities.length > 0 && (
-                <div style={{ marginTop: '10px', paddingTop: '10px', borderTop: '1px solid var(--border)', fontSize: '11px', color: 'var(--text-muted)', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <div
+                  style={{
+                    marginTop: '10px',
+                    paddingTop: '10px',
+                    borderTop: '1px solid var(--border)',
+                    fontSize: '11px',
+                    color: task.activities[0].action.startsWith('Review rejected:') ? '#b91c1c' : 'var(--text-muted)',
+                    display: 'flex',
+                    gap: '6px',
+                    alignItems: 'center',
+                  }}
+                >
                   <Clock size={11} />
                   <span>
                     {task.activities[0].user.name} - {task.activities[0].action}
@@ -477,6 +558,49 @@ export default function AdminTasksPage() {
                 <button type="submit" className="btn-primary" disabled={saving} style={{ fontSize: '12px', padding: '8px 16px', display: 'flex', gap: '6px', alignItems: 'center' }}>
                   {saving ? <Loader2 size={14} style={{ animation: 'spin 0.7s linear infinite' }} /> : null}
                   {editingTask ? 'Save' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {rejectingTask && (
+        <div className="modal-backdrop" onClick={(event) => event.target === event.currentTarget && setRejectingTask(null)}>
+          <div className="modal">
+            <h2 className="font-display mb-2 text-lg font-semibold tracking-tight">Send task back</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '18px' }}>
+              Add a clear note for {rejectingTask.assignee?.name ?? 'the employee'} before moving &quot;{rejectingTask.title}&quot; back to progress.
+            </p>
+
+            <form onSubmit={handleRejectReview} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                  Comment *
+                </label>
+                <textarea
+                  className="input"
+                  placeholder="Explain what needs to be fixed or repeated..."
+                  value={reviewComment}
+                  onChange={(event) => setReviewComment(event.target.value)}
+                  rows={4}
+                  required
+                />
+              </div>
+
+              {reviewError && (
+                <div style={{ borderRadius: '8px', border: '1px solid rgba(220,38,38,0.18)', background: 'rgba(220,38,38,0.05)', padding: '10px 12px', color: '#b91c1c', fontSize: '12px' }}>
+                  {reviewError}
+                </div>
+              )}
+
+              <div className="modal-actions">
+                <button type="button" onClick={() => setRejectingTask(null)} className="btn-secondary" style={{ fontSize: '12px', padding: '8px 16px' }}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={reviewSaving} style={{ fontSize: '12px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  {reviewSaving ? <Loader2 size={14} className="animate-spin" /> : <RotateCcw size={14} />}
+                  Send back to progress
                 </button>
               </div>
             </form>

@@ -31,7 +31,7 @@ interface Task {
   activities: { action: string; createdAt: string; user: { name: string } }[]
 }
 
-const STAGES = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']
+const EMPLOYEE_FLOW = ['TODO', 'IN_PROGRESS', 'REVIEW']
 const TASK_REALTIME_EVENTS = ['task_created', 'task_updated', 'task_deleted', 'task_submission_created'] as const
 const STAGE_LABELS: Record<string, string> = { TODO: 'To Do', IN_PROGRESS: 'In Progress', REVIEW: 'Review', DONE: 'Done' }
 const STAGE_COLORS: Record<string, string> = {
@@ -86,13 +86,13 @@ export default function EmployeeDashboard() {
   })
 
   async function advanceStage(task: Task) {
-    const index = STAGES.indexOf(task.stage)
-    if (index >= STAGES.length - 1) return
+    const index = EMPLOYEE_FLOW.indexOf(task.stage)
+    if (index < 0 || index >= EMPLOYEE_FLOW.length - 1) return
     setUpdating(task.id)
     await fetch(`/api/tasks/${task.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stage: STAGES[index + 1] }),
+      body: JSON.stringify({ stage: EMPLOYEE_FLOW[index + 1] }),
     })
     setUpdating(null)
     setTasks(await fetchTasks())
@@ -203,8 +203,10 @@ export default function EmployeeDashboard() {
         <div className="dashboard-card-stack">
           {tasks.map((task, index) => {
             const isOverdue = task.stage !== 'DONE' && task.deadline && new Date(task.deadline) < new Date()
-            const nextIndex = STAGES.indexOf(task.stage) + 1
-            const canAdvance = nextIndex < STAGES.length
+            const nextIndex = EMPLOYEE_FLOW.indexOf(task.stage) + 1
+            const canAdvance = task.stage !== 'REVIEW' && task.stage !== 'DONE' && nextIndex > 0 && nextIndex < EMPLOYEE_FLOW.length
+            const latestActivity = task.activities[0]
+            const latestRejected = latestActivity?.action.startsWith('Review rejected:')
 
             return (
               <div key={task.id} className="card animate-fade-in" style={{ animationDelay: `${index * 40}ms`, border: isOverdue ? '1px solid rgba(239,68,68,0.2)' : undefined }}>
@@ -248,8 +250,13 @@ export default function EmployeeDashboard() {
                     {canAdvance && (
                       <button onClick={() => advanceStage(task)} disabled={updating === task.id} className="btn-primary" style={{ fontSize: '11px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         {updating === task.id ? <Loader2 size={12} style={{ animation: 'spin 0.7s linear infinite' }} /> : <ArrowRight size={13} />}
-                        {STAGE_LABELS[STAGES[STAGES.indexOf(task.stage) + 1]]}
+                        {task.stage === 'TODO' ? 'Start progress' : 'Send to review'}
                       </button>
+                    )}
+                    {task.stage === 'REVIEW' && (
+                      <span style={{ fontSize: '11px', color: '#d97706', fontWeight: '600' }}>
+                        Waiting admin review
+                      </span>
                     )}
                     {task.stage === 'DONE' && (
                       <span style={{ fontSize: '11px', color: '#10b981', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -305,9 +312,22 @@ export default function EmployeeDashboard() {
                   </div>
                 )}
 
-                {task.activities.length > 0 && (
-                  <div style={{ marginTop: '8px', fontSize: '11px', color: 'var(--text-muted)', display: 'flex', gap: '4px', alignItems: 'center' }}>
-                    <Clock size={11} /> {task.activities[0].action} - {formatTimeAgo(task.activities[0].createdAt)}
+                {latestActivity && (
+                  <div
+                    style={{
+                      marginTop: '10px',
+                      fontSize: '11px',
+                      color: latestRejected ? '#b91c1c' : 'var(--text-muted)',
+                      background: latestRejected ? 'rgba(220,38,38,0.05)' : 'transparent',
+                      border: latestRejected ? '1px solid rgba(220,38,38,0.14)' : 'none',
+                      borderRadius: latestRejected ? '8px' : 0,
+                      padding: latestRejected ? '9px 10px' : 0,
+                      display: 'flex',
+                      gap: '6px',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <Clock size={11} /> {latestActivity.action} - {formatTimeAgo(latestActivity.createdAt)}
                   </div>
                 )}
               </div>

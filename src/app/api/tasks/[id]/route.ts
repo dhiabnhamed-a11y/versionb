@@ -20,6 +20,14 @@ type UpdateTaskBody = {
   deadline?: string | null
   assigneeId?: string | null
   projectId?: string
+  reviewComment?: string
+}
+
+const EMPLOYEE_ALLOWED_STAGE_TRANSITIONS: Record<string, string[]> = {
+  TODO: ['IN_PROGRESS'],
+  IN_PROGRESS: ['REVIEW'],
+  REVIEW: [],
+  DONE: [],
 }
 
 // PATCH update a task (stage, progress, etc.)
@@ -32,13 +40,14 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/tasks/[id]
 
   try {
     const body = (await req.json()) as UpdateTaskBody
-    const { stage, title, description, priority, deliverableType, deadline, assigneeId, projectId } = body
+    const { stage, title, description, priority, deliverableType, deadline, assigneeId, projectId, reviewComment } = body
 
     const existing = await prisma.task.findUnique({
       where: { id },
       select: {
         id: true,
         assigneeId: true,
+        stage: true,
         projectId: true,
         project: { select: { companyId: true } },
       },
@@ -54,6 +63,13 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/tasks/[id]
     // Employees can only update stage
     const updateData: Prisma.TaskUncheckedUpdateInput = {}
     if (stage) {
+      if (user.role === 'EMPLOYEE') {
+        const allowedStages = EMPLOYEE_ALLOWED_STAGE_TRANSITIONS[existing.stage] ?? []
+        if (!allowedStages.includes(stage)) {
+          return NextResponse.json({ error: 'Employees can only move tasks into progress or send them to review.' }, { status: 403 })
+        }
+      }
+
       updateData.stage = stage
       updateData.progress = getStageProgress(stage)
     }
@@ -104,7 +120,15 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/tasks/[id]
     })
 
     // Log activity
-    const action = stage ? `Stage moved to ${stage}` : 'Task updated'
+    const trimmedReviewComment = reviewComment?.trim()
+    const action =
+      user.role !== 'EMPLOYEE' && stage === 'DONE'
+        ? 'Review accepted'
+        : user.role !== 'EMPLOYEE' && stage === 'IN_PROGRESS' && trimmedReviewComment
+          ? `Review rejected: ${trimmedReviewComment}`
+          : stage
+            ? `Stage moved to ${stage}`
+            : 'Task updated'
     await prisma.activity.create({
       data: { taskId: id, userId: user.id, action },
     })
