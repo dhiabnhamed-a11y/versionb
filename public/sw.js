@@ -1,5 +1,5 @@
-const TASKIT_STATIC_CACHE = 'taskit-static-v1'
-const TASKIT_RUNTIME_CACHE = 'taskit-runtime-v1'
+const TASKIT_STATIC_CACHE = 'taskit-static-v2'
+const TASKIT_RUNTIME_CACHE = 'taskit-runtime-v2'
 const TASKIT_APP_SHELL = [
   '/',
   '/manifest.json',
@@ -17,7 +17,9 @@ try {
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(TASKIT_STATIC_CACHE).then((cache) => cache.addAll(TASKIT_APP_SHELL))
+    caches.open(TASKIT_STATIC_CACHE).then((cache) =>
+      Promise.allSettled(TASKIT_APP_SHELL.map((url) => cache.add(url)))
+    )
   )
   self.skipWaiting()
 })
@@ -44,6 +46,39 @@ function isStaticAssetRequest(request, url) {
   )
 }
 
+function canCacheResponse(response) {
+  return response && response.ok && ['basic', 'cors'].includes(response.type)
+}
+
+async function fetchAndCache(request) {
+  const response = await fetch(request)
+
+  if (canCacheResponse(response)) {
+    const copy = response.clone()
+    void caches.open(TASKIT_RUNTIME_CACHE).then((cache) => cache.put(request, copy))
+  }
+
+  return response
+}
+
+function emptyFallbackResponse(request) {
+  const headers = new Headers({ 'Cache-Control': 'no-store' })
+
+  if (request.destination === 'style') {
+    headers.set('Content-Type', 'text/css; charset=utf-8')
+  } else if (request.destination === 'script') {
+    headers.set('Content-Type', 'application/javascript; charset=utf-8')
+  } else {
+    headers.set('Content-Type', 'text/plain; charset=utf-8')
+  }
+
+  return new Response('', {
+    status: 503,
+    statusText: 'Service worker fetch failed',
+    headers,
+  })
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event
   const url = new URL(request.url)
@@ -52,22 +87,20 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  if (url.pathname.startsWith('/api/')) {
+  if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/_next/')) {
     return
   }
 
   if (request.mode === 'navigate') {
     // Keep HTML network-first so authenticated and dynamic pages stay fresh.
     event.respondWith(
-      fetch(request)
+      fetchAndCache(request)
         .then((response) => {
-          const copy = response.clone()
-          void caches.open(TASKIT_RUNTIME_CACHE).then((cache) => cache.put(request, copy))
           return response
         })
         .catch(async () => {
           const cachedPage = await caches.match(request)
-          return cachedPage || caches.match('/')
+          return cachedPage || caches.match('/') || emptyFallbackResponse(request)
         })
     )
     return
@@ -80,23 +113,15 @@ self.addEventListener('fetch', (event) => {
           return cachedResponse
         }
 
-        return fetch(request).then((response) => {
-          const copy = response.clone()
-          void caches.open(TASKIT_RUNTIME_CACHE).then((cache) => cache.put(request, copy))
-          return response
-        })
+        return fetchAndCache(request).catch(() => emptyFallbackResponse(request))
       })
     )
     return
   }
 
   event.respondWith(
-    fetch(request)
-      .then((response) => {
-        const copy = response.clone()
-        void caches.open(TASKIT_RUNTIME_CACHE).then((cache) => cache.put(request, copy))
-        return response
-      })
-      .catch(() => caches.match(request))
+    fetchAndCache(request)
+      .then((response) => response)
+      .catch(async () => (await caches.match(request)) || emptyFallbackResponse(request))
   )
 })

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { AlertTriangle, Copy, KeyRound, Link2, MailPlus, Plus, Users } from 'lucide-react'
+import { AlertTriangle, Copy, Filter, KeyRound, Link2, MailPlus, Plus, Search, Signal, Users } from 'lucide-react'
 
 interface Employee {
   id: string
@@ -10,6 +10,7 @@ interface Employee {
   email: string
   role: string
   assignedTasks: { id: string; stage: string; deadline?: string }[]
+  activities?: { id: string; action: string; createdAt: string }[]
 }
 
 interface InviteRecord {
@@ -41,6 +42,9 @@ export default function EmployeesPage() {
   const [error, setError] = useState('')
   const [createdInvite, setCreatedInvite] = useState<InviteRecord | null>(null)
   const [copyFeedback, setCopyFeedback] = useState('')
+  const [search, setSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState('ALL')
+  const [statusFilter, setStatusFilter] = useState('ALL')
 
   const canInviteAdmins = (session?.user as { role?: string } | undefined)?.role === 'OWNER'
 
@@ -112,6 +116,39 @@ export default function EmployeesPage() {
   }
 
   const pendingInvites = invites.filter((invite) => !invite.usedAt && new Date(invite.expiresAt) > new Date())
+  const filteredEmployees = employees.filter((employee) => {
+    const normalizedSearch = search.trim().toLowerCase()
+    const matchesSearch =
+      !normalizedSearch ||
+      employee.name.toLowerCase().includes(normalizedSearch) ||
+      employee.email.toLowerCase().includes(normalizedSearch)
+    const matchesRole = roleFilter === 'ALL' || employee.role === roleFilter
+    const status = getMemberStatus(employee)
+    const matchesStatus = statusFilter === 'ALL' || status.key === statusFilter
+
+    return matchesSearch && matchesRole && matchesStatus
+  })
+
+  function getMemberStatus(employee: Employee) {
+    const lastActivity = employee.activities?.[0]?.createdAt
+    if (!lastActivity) {
+      return { key: 'OFFLINE', label: 'Offline', color: '#94a3b8' }
+    }
+
+    const ageHours = (Date.now() - new Date(lastActivity).getTime()) / 36e5
+    if (ageHours <= 24) return { key: 'ONLINE', label: 'Online', color: '#059669' }
+    if (ageHours <= 24 * 7) return { key: 'RECENT', label: 'Recent', color: '#d97706' }
+    return { key: 'OFFLINE', label: 'Offline', color: '#94a3b8' }
+  }
+
+  function formatLastActivity(employee: Employee) {
+    const activity = employee.activities?.[0]
+    if (!activity) return 'No tracked activity yet'
+
+    const days = Math.floor((Date.now() - new Date(activity.createdAt).getTime()) / 86400000)
+    const when = days === 0 ? 'today' : `${days}d ago`
+    return `${activity.action} ${when}`
+  }
 
   return (
     <div className="dashboard-page" style={{ maxWidth: '1080px' }}>
@@ -161,6 +198,38 @@ export default function EmployeesPage() {
           <div style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--text-secondary)' }}>
             {canInviteAdmins ? 'Admin and employee invites' : 'Employee invites only'}
           </div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginBottom: '16px' }}>
+        <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">
+          <label className="relative block">
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+            <input
+              className="input pl-9"
+              placeholder="Search by name or email"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </label>
+          <label className="relative block">
+            <Filter size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+            <select className="input pl-9" value={roleFilter} onChange={(event) => setRoleFilter(event.target.value)}>
+              <option value="ALL">All roles</option>
+              <option value="OWNER">Owner</option>
+              <option value="MANAGER">Manager</option>
+              <option value="EMPLOYEE">Employee</option>
+            </select>
+          </label>
+          <label className="relative block">
+            <Signal size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+            <select className="input pl-9" value={statusFilter} onChange={(event) => setStatusFilter(event.target.value)}>
+              <option value="ALL">All status</option>
+              <option value="ONLINE">Online</option>
+              <option value="RECENT">Recent</option>
+              <option value="OFFLINE">Offline</option>
+            </select>
+          </label>
         </div>
       </div>
 
@@ -285,26 +354,29 @@ export default function EmployeesPage() {
                   <tr>
                     <th>Member</th>
                     <th>Role</th>
+                    <th>Status</th>
                     <th>Tasks</th>
                     <th>Completed</th>
                     <th>Performance</th>
+                    <th>Activity</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {employees.length === 0 ? (
+                  {filteredEmployees.length === 0 ? (
                     <tr>
-                      <td colSpan={5} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)', fontSize: '13px' }}>
-                        No members yet
+                      <td colSpan={7} style={{ textAlign: 'center', padding: '32px', color: 'var(--text-muted)', fontSize: '13px' }}>
+                        No members match these filters
                       </td>
                     </tr>
                   ) : (
-                    employees.map((emp, i) => {
+                    filteredEmployees.map((emp, i) => {
                       const total = emp.assignedTasks.length
                       const done = emp.assignedTasks.filter((task) => task.stage === 'DONE').length
                       const score = total ? Math.round((done / total) * 100) : 0
                       const overdue = emp.assignedTasks.filter(
                         (task) => task.stage !== 'DONE' && task.deadline && new Date(task.deadline) < new Date()
                       ).length
+                      const status = getMemberStatus(emp)
 
                       return (
                         <tr key={emp.id} className="animate-fade-in" style={{ animationDelay: `${i * 30}ms` }}>
@@ -335,6 +407,15 @@ export default function EmployeesPage() {
                           </td>
                           <td>
                             <span className={`badge badge-${emp.role.toLowerCase()}`}>{emp.role}</span>
+                          </td>
+                          <td>
+                            <span
+                              className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-bold"
+                              style={{ background: 'var(--bg-elevated)', color: status.color }}
+                            >
+                              <span className="h-2 w-2 rounded-full" style={{ background: status.color }} />
+                              {status.label}
+                            </span>
                           </td>
                           <td>
                             <span style={{ fontWeight: '600', fontSize: '13px' }}>{total}</span>
@@ -381,6 +462,7 @@ export default function EmployeesPage() {
                               </span>
                             </div>
                           </td>
+                          <td style={{ fontSize: '12px', color: 'var(--text-muted)' }}>{formatLastActivity(emp)}</td>
                         </tr>
                       )
                     })
@@ -390,16 +472,17 @@ export default function EmployeesPage() {
             </div>
           </div>
           <div className="mobile-table-list">
-            {employees.length === 0 ? (
-              <div className="mobile-table-card text-center text-sm text-[var(--text-muted)]">No members yet</div>
+            {filteredEmployees.length === 0 ? (
+              <div className="mobile-table-card text-center text-sm text-[var(--text-muted)]">No members match these filters</div>
             ) : (
-              employees.map((emp, i) => {
+              filteredEmployees.map((emp, i) => {
                 const total = emp.assignedTasks.length
                 const done = emp.assignedTasks.filter((task) => task.stage === 'DONE').length
                 const score = total ? Math.round((done / total) * 100) : 0
                 const overdue = emp.assignedTasks.filter(
                   (task) => task.stage !== 'DONE' && task.deadline && new Date(task.deadline) < new Date()
                 ).length
+                const status = getMemberStatus(emp)
 
                 return (
                   <article key={emp.id} className="mobile-table-card animate-fade-in" style={{ animationDelay: `${i * 30}ms` }}>
@@ -428,6 +511,13 @@ export default function EmployeesPage() {
                       <span className={`badge badge-${emp.role.toLowerCase()}`}>{emp.role}</span>
                     </div>
                     <div className="mobile-table-meta">
+                      <div className="mobile-table-meta-row">
+                        <span className="mobile-table-label">Status</span>
+                        <span className="mobile-table-value inline-flex items-center gap-1.5" style={{ color: status.color }}>
+                          <span className="h-2 w-2 rounded-full" style={{ background: status.color }} />
+                          {status.label}
+                        </span>
+                      </div>
                       <div className="mobile-table-meta-row">
                         <span className="mobile-table-label">Assigned</span>
                         <span className="mobile-table-value">
@@ -465,6 +555,10 @@ export default function EmployeesPage() {
                             {score}%
                           </span>
                         </div>
+                      </div>
+                      <div className="mobile-table-meta-row">
+                        <span className="mobile-table-label">Activity</span>
+                        <span className="mobile-table-value">{formatLastActivity(emp)}</span>
                       </div>
                     </div>
                   </article>

@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import AlertReceiver from '@/components/alerts/AlertReceiver'
+import NotificationDropdown from '@/components/dashboard/NotificationDropdown'
 import PushNotificationBootstrap from '@/components/pwa/PushNotificationBootstrap'
 import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
 import { isRealtimeAlertsEnabled } from '@/lib/socket-client'
@@ -18,6 +19,7 @@ import {
   Bell,
   ListTodo,
   BarChart3,
+  CalendarDays,
   LogOut,
   Radio,
   Menu,
@@ -62,6 +64,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
           icon: FolderKanban,
         },
         { href: '/dashboard/admin/tasks', label: companyCopy.taskPluralLabel, icon: CheckSquare },
+        { href: '/dashboard/admin/calendar', label: 'Calendar', icon: CalendarDays },
         { href: '/dashboard/admin/employees', label: 'Team', icon: Users },
         { href: '/dashboard/admin/alerts', label: 'Send Alert', icon: Bell },
       ]
@@ -196,6 +199,9 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
           </div>
 
           <div className="flex items-center gap-2.5 sm:gap-3">
+            {!isSuperAdmin && (
+              <NotificationDropdown alertsHref={isEmployee ? '/dashboard/employee/alerts' : '/dashboard/admin/alerts'} />
+            )}
             <div
               className="hidden items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-medium sm:flex"
               style={{ borderColor: 'var(--border)', background: 'rgba(255,255,255,0.76)', color: 'var(--text-muted)' }}

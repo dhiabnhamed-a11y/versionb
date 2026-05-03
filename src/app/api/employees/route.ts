@@ -30,6 +30,11 @@ export async function GET() {
         assignedTasks: {
           select: { id: true, stage: true, priority: true, deadline: true },
         },
+        activities: {
+          select: { id: true, action: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+        },
       },
     })
     return NextResponse.json(employees)

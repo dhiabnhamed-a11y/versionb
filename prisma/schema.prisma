@@ -34,6 +34,7 @@ model User {
   reviewedAccessRequests AccessRequest[] @relation("AccessRequestReviewedBy")
   reviewedCompanies      Company[]       @relation("CompanyReviewedBy")
   taskSubmissions        TaskSubmission[]
+  calendarEvents         CalendarEvent[] @relation("CalendarEventCreatedBy")
 }
 
 model Company {
@@ -60,6 +61,7 @@ model Company {
   projects       Project[]
   invites        Invite[]
   accessRequests AccessRequest[]
+  calendarEvents CalendarEvent[]
 
   @@index([status, createdAt])
   @@index([name, registrationNumber, status])
@@ -163,6 +165,7 @@ model Project {
   tasks       Task[]
   cameraMedia ProjectCameraMedia[]
   cameras     ProjectCamera[]
+  calendarEvents CalendarEvent[]
 
   @@index([companyId, roomId])
   @@index([companyId, categoryId])
@@ -220,6 +223,7 @@ model Task {
   project     Project          @relation(fields: [projectId], references: [id])
   activities  Activity[]
   submissions TaskSubmission[]
+  calendarEvents CalendarEvent[]
 }
 
 model TaskSubmission {
@@ -262,6 +266,31 @@ model Alert {
 
   sender    User @relation("AlertSender", fields: [senderId], references: [id])
   recipient User @relation("AlertRecipient", fields: [recipientId], references: [id])
+}
+
+model CalendarEvent {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  type        String   @default("PROJECT_EVENT") // PROJECT_EVENT, MEETING, MILESTONE, BLOCKER
+  startsAt    DateTime
+  endsAt      DateTime?
+  color       String?
+  companyId   String
+  projectId   String?
+  taskId      String?
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  task      Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  createdBy User     @relation("CalendarEventCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([companyId, startsAt])
+  @@index([projectId, startsAt])
+  @@index([taskId])
 }
 
 model PushToken {

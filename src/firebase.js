@@ -27,6 +27,29 @@ export async function registerTaskitServiceWorker() {
     return null
   }
 
+  if (process.env.NODE_ENV !== 'production') {
+    const existingRegistration = await navigator.serviceWorker.getRegistration('/')
+    if (existingRegistration) {
+      await existingRegistration.unregister()
+    }
+
+    if ('caches' in window) {
+      const cacheKeys = await caches.keys()
+      await Promise.all(
+        cacheKeys
+          .filter((key) => key.startsWith('taskit-'))
+          .map((key) => caches.delete(key))
+      )
+    }
+
+    if (navigator.serviceWorker.controller && !sessionStorage.getItem('taskit-sw-cleared')) {
+      sessionStorage.setItem('taskit-sw-cleared', '1')
+      window.location.reload()
+    }
+
+    return null
+  }
+
   if (!window.isSecureContext && window.location.hostname !== 'localhost') {
     console.warn('TASKIT PWA registration requires HTTPS outside localhost.')
     return null

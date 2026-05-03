@@ -7,6 +7,7 @@ import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
 import {
   AlertTriangle,
   ArrowRight,
+  ArrowUpRight,
   Bell,
   BriefcaseBusiness,
   Building2,
@@ -20,17 +21,59 @@ import {
   Users,
   Zap,
 } from 'lucide-react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  Line,
+  LineChart,
+  Pie,
+  PieChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
 
 interface Stats {
   totalTasks: number
   doneTasks: number
   inProgressTasks: number
+  reviewTasks: number
+  todoTasks: number
   overdueTasks: number
   totalEmployees: number
+  totalUsers: number
+  activeUsers: number
+  totalProjects: number
+  completionRate: number
   roomCount: number
   submissionCount: number
   companyType?: string
   performance: { name: string; done: number; total: number; score: number }[]
+  teamPerformance?: { name: string; done: number; total: number; score: number }[]
+  activitySeries?: { date: string; label: string; created: number; completed: number }[]
+  taskStageBreakdown?: { name: string; value: number; stage: string; color: string }[]
+  rolesDistribution?: { name: string; value: number }[]
+  recentActivity?: {
+    id: string
+    action: string
+    createdAt: string
+    user: { name: string; role?: string; avatar?: string | null }
+    task: { title: string; stage: string; project: { title: string } }
+  }[]
+  growth?: {
+    users: number
+    activeUsers: number
+    projects: number
+    tasks: number
+    completedTasks: number
+  }
+  comparison?: {
+    thisWeek: { users: number; activeUsers: number; projects: number; tasks: number; completedTasks: number }
+    lastWeek: { users: number; activeUsers: number; projects: number; tasks: number; completedTasks: number }
+  }
 }
 
 function AnimatedCounter({ value, duration = 800 }: { value: number; duration?: number }) {
@@ -53,6 +96,32 @@ function AnimatedCounter({ value, duration = 800 }: { value: number; duration?: 
   }, [value, duration])
 
   return <span className="tabular-nums">{display}</span>
+}
+
+function GrowthBadge({ value }: { value: number }) {
+  const isPositive = value >= 0
+
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black tabular-nums"
+      style={{
+        background: isPositive ? 'rgba(5,150,105,0.1)' : 'rgba(220,38,38,0.08)',
+        color: isPositive ? '#047857' : '#dc2626',
+      }}
+    >
+      <ArrowUpRight size={11} style={{ transform: isPositive ? 'none' : 'rotate(90deg)' }} />
+      {isPositive ? '+' : ''}
+      {value}%
+    </span>
+  )
+}
+
+function EmptyChartState({ label }: { label: string }) {
+  return (
+    <div className="flex h-[220px] items-center justify-center rounded-[var(--radius-md)] border border-dashed border-[var(--border)] bg-[var(--bg-elevated)] text-sm font-semibold text-[var(--text-muted)]">
+      {label}
+    </div>
+  )
 }
 
 export default function AdminDashboard() {
@@ -94,20 +163,49 @@ export default function AdminDashboard() {
                 color: '#2142ff',
                 bg: 'rgba(33,66,255,0.09)',
                 help: 'Operational spaces',
+                growth: 0,
               },
             ]
           : isAgency
             ? [
-                {
-                  label: 'Deliverables',
-                  value: stats.submissionCount,
-                  icon: UploadCloud,
-                  color: '#7c3aed',
-                  bg: 'rgba(124,58,237,0.08)',
-                  help: 'Files uploaded',
-                },
-              ]
-            : []),
+              {
+                label: 'Deliverables',
+                value: stats.submissionCount,
+                icon: UploadCloud,
+                color: '#7c3aed',
+                bg: 'rgba(124,58,237,0.08)',
+                help: 'Files uploaded',
+                growth: stats.growth?.completedTasks ?? 0,
+              },
+            ]
+          : []),
+        {
+          label: 'Users',
+          value: stats.totalUsers,
+          icon: Users,
+          color: '#0369a1',
+          bg: 'rgba(3,105,161,0.09)',
+          help: 'All members',
+          growth: stats.growth?.users ?? 0,
+        },
+        {
+          label: 'Active',
+          value: stats.activeUsers,
+          icon: Zap,
+          color: '#0f766e',
+          bg: 'rgba(15,118,110,0.1)',
+          help: 'This week',
+          growth: stats.growth?.activeUsers ?? 0,
+        },
+        {
+          label: companyCopy.projectPluralLabel,
+          value: stats.totalProjects,
+          icon: FolderKanban,
+          color: '#7c3aed',
+          bg: 'rgba(124,58,237,0.08)',
+          help: 'Total projects',
+          growth: stats.growth?.projects ?? 0,
+        },
         {
           label: companyCopy.taskPluralLabel,
           value: stats.totalTasks,
@@ -115,6 +213,7 @@ export default function AdminDashboard() {
           color: '#0f766e',
           bg: 'rgba(15,118,110,0.1)',
           help: 'Total work items',
+          growth: stats.growth?.tasks ?? 0,
         },
         {
           label: 'Completed',
@@ -123,6 +222,7 @@ export default function AdminDashboard() {
           color: '#059669',
           bg: 'rgba(5,150,105,0.09)',
           help: 'Finished work',
+          growth: stats.growth?.completedTasks ?? 0,
         },
         {
           label: 'In progress',
@@ -131,6 +231,7 @@ export default function AdminDashboard() {
           color: '#d97706',
           bg: 'rgba(217,119,6,0.1)',
           help: 'Currently active',
+          growth: 0,
         },
         {
           label: 'Overdue',
@@ -139,6 +240,7 @@ export default function AdminDashboard() {
           color: '#dc2626',
           bg: 'rgba(220,38,38,0.08)',
           help: 'Needs attention',
+          growth: 0,
         },
         {
           label: 'Team',
@@ -147,6 +249,7 @@ export default function AdminDashboard() {
           color: '#0e7490',
           bg: 'rgba(14,116,144,0.09)',
           help: 'Employees',
+          growth: stats.growth?.users ?? 0,
         },
       ]
     : []
@@ -223,12 +326,164 @@ export default function AdminDashboard() {
                 <div style={{ marginTop: '18px', fontSize: '2rem', fontWeight: 850, color: card.color, lineHeight: 1 }}>
                   <AnimatedCounter value={card.value} />
                 </div>
-                <div style={{ marginTop: '8px', color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 800 }}>{card.label}</div>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', fontWeight: 800 }}>{card.label}</div>
+                  <GrowthBadge value={card.growth} />
+                </div>
               </article>
             )
           })}
         </div>
       )}
+
+      <div className="mb-4 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.65fr)]">
+        <section className="card">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="font-display text-lg font-semibold tracking-tight">Activity over time</h2>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">Created and completed work across the last 7 days.</p>
+            </div>
+            <span className="rounded-full bg-[var(--bg-elevated)] px-3 py-1 text-[11px] font-bold text-[var(--text-muted)]">
+              This week vs last week
+            </span>
+          </div>
+          {!stats?.activitySeries?.some((item) => item.created || item.completed) ? (
+            <EmptyChartState label="No activity trend yet" />
+          ) : (
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={stats.activitySeries} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+                  <CartesianGrid stroke="rgba(100,116,139,0.18)" vertical={false} />
+                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
+                  <YAxis tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{
+                      border: '1px solid var(--border)',
+                      borderRadius: 10,
+                      boxShadow: 'var(--shadow-card)',
+                    }}
+                  />
+                  <Line type="monotone" dataKey="created" stroke="#0369a1" strokeWidth={3} dot={{ r: 3 }} name="Created" />
+                  <Line type="monotone" dataKey="completed" stroke="#059669" strokeWidth={3} dot={{ r: 3 }} name="Completed" />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </section>
+
+        <section className="card">
+          <div className="mb-5">
+            <h2 className="font-display text-lg font-semibold tracking-tight">Roles distribution</h2>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">Workspace access composition.</p>
+          </div>
+          {!stats?.rolesDistribution?.some((item) => item.value) ? (
+            <EmptyChartState label="No role data yet" />
+          ) : (
+            <div className="h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={stats.rolesDistribution}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={58}
+                    outerRadius={88}
+                    paddingAngle={3}
+                  >
+                    {stats.rolesDistribution.map((entry, index) => (
+                      <Cell key={entry.name} fill={['#0369a1', '#7c3aed', '#d97706', '#059669'][index % 4]} />
+                    ))}
+                  </Pie>
+                  <Tooltip
+                    contentStyle={{
+                      border: '1px solid var(--border)',
+                      borderRadius: 10,
+                      boxShadow: 'var(--shadow-card)',
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </section>
+      </div>
+
+      <div className="mb-4 grid gap-4 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+        <section className="card">
+          <div className="mb-5">
+            <h2 className="font-display text-lg font-semibold tracking-tight">Status mix</h2>
+            <p className="mt-1 text-sm text-[var(--text-muted)]">A stage-level breakdown of all work.</p>
+          </div>
+          {!stats?.taskStageBreakdown?.some((item) => item.value) ? (
+            <EmptyChartState label="No task data yet" />
+          ) : (
+            <div className="h-[250px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats.taskStageBreakdown} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
+                  <CartesianGrid stroke="rgba(100,116,139,0.18)" vertical={false} />
+                  <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
+                  <YAxis tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{
+                      border: '1px solid var(--border)',
+                      borderRadius: 10,
+                      boxShadow: 'var(--shadow-card)',
+                    }}
+                  />
+                  <Bar dataKey="value" radius={[8, 8, 0, 0]} name="Tasks">
+                    {stats.taskStageBreakdown.map((entry) => (
+                      <Cell key={entry.stage} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </section>
+
+        <section className="card">
+          <div className="mb-5 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h2 className="font-display text-lg font-semibold tracking-tight">Activity timeline</h2>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">Recent task and project movement, newest first.</p>
+            </div>
+            <Link href="/dashboard/admin/tasks" className="btn-secondary btn-sm">
+              View tasks
+              <ArrowRight size={14} />
+            </Link>
+          </div>
+
+          {!stats?.recentActivity?.length ? (
+            <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] bg-[var(--bg-elevated)] px-5 py-10 text-center text-sm font-semibold text-[var(--text-muted)]">
+              No activity logged yet
+            </div>
+          ) : (
+            <div className="dashboard-card-stack">
+              {stats.recentActivity.map((activity) => (
+                <div key={activity.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-3">
+                  <div className="flex items-start gap-3">
+                    <div className="icon-box h-9 w-9 text-xs font-black text-white" style={{ background: 'var(--accent-gradient)' }}>
+                      {activity.user.name.charAt(0)}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="text-sm font-black text-[var(--text-primary)]">{activity.user.name}</span>
+                        <span className="text-xs font-semibold text-[var(--text-muted)]">{activity.action}</span>
+                      </div>
+                      <div className="mt-1 text-xs text-[var(--text-muted)]">
+                        {activity.task.project.title} / {activity.task.title}
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-[11px] font-semibold text-[var(--text-muted)]">
+                      {new Date(activity.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </section>
+      </div>
 
       <div className="dashboard-two-col">
         <section className="card">
