@@ -2,10 +2,12 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { isFirebaseAdminConfigured, sendNotification } from '@/lib/firebase-admin'
+import { emitUserRealtime } from '@/lib/realtime-server'
 
 type SessionUser = {
   id: string
   role: string
+  companyId?: string | null
 }
 
 type CreateAlertBody = {
@@ -67,18 +69,15 @@ export async function POST(req: Request) {
       },
     })
 
-    // Emit real-time event via Socket.io global instance
-    if (global.io) {
-      global.io.to(`user:${recipientId}`).emit('alert', {
-        id: alert.id,
-        type: alert.type,
-        title: alert.title,
-        message: alert.message,
-        sender: alert.sender,
-        createdAt: alert.createdAt,
-      })
-      console.log(`📢 Alert emitted to user:${recipientId}`)
-    }
+    emitUserRealtime(recipientId, 'alert', {
+      id: alert.id,
+      type: alert.type,
+      title: alert.title,
+      message: alert.message,
+      read: alert.read,
+      sender: alert.sender,
+      createdAt: alert.createdAt,
+    })
 
     // Mirror alerts to FCM so users still receive notifications when TASKIT is backgrounded.
     if (isFirebaseAdminConfigured()) {
@@ -118,6 +117,7 @@ export async function PATCH(req: Request) {
       where: { id: alertId, recipientId: user.id },
       data: { read: true },
     })
+    emitUserRealtime(user.id, 'alert_read', { alertId: alert.id })
     return NextResponse.json(alert)
   } catch (err) {
     console.error(err)

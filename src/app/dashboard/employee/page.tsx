@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { formatDate, formatTimeAgo } from '@/lib/utils'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { getCompanyTypeCopy, getDeliverableTypeLabel, normalizeCompanyType } from '@/lib/company-types'
 import { ListTodo, Clock, FolderKanban, AlertTriangle, ArrowRight, CheckCircle2, Loader2, Link2, Upload } from 'lucide-react'
 
@@ -31,6 +32,7 @@ interface Task {
 }
 
 const STAGES = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']
+const TASK_REALTIME_EVENTS = ['task_created', 'task_updated', 'task_deleted', 'task_submission_created'] as const
 const STAGE_LABELS: Record<string, string> = { TODO: 'To Do', IN_PROGRESS: 'In Progress', REVIEW: 'Review', DONE: 'Done' }
 const STAGE_COLORS: Record<string, string> = {
   TODO: 'var(--text-muted)',
@@ -75,6 +77,13 @@ export default function EmployeeDashboard() {
       active = false
     }
   }, [])
+
+  useRealtimeSubscription(TASK_REALTIME_EVENTS, () => {
+    void (async () => {
+      setTasks(await fetchTasks())
+      setLoading(false)
+    })()
+  })
 
   async function advanceStage(task: Task) {
     const index = STAGES.indexOf(task.stage)

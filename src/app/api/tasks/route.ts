@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { emitCompanyRealtime } from '@/lib/realtime-server'
 
 type SessionUser = {
   id: string
@@ -98,6 +99,20 @@ export async function POST(req: NextRequest) {
   try {
     const { title, description, priority, deliverableType, deadline, assigneeId, projectId } = (await req.json()) as CreateTaskBody
 
+    const project = await prisma.project.findFirst({
+      where: { id: projectId, companyId: user.companyId },
+      select: { id: true },
+    })
+    if (!project) return NextResponse.json({ error: 'Selected project was not found in this workspace.' }, { status: 404 })
+
+    if (assigneeId) {
+      const assignee = await prisma.user.findFirst({
+        where: { id: assigneeId, companyId: user.companyId },
+        select: { id: true },
+      })
+      if (!assignee) return NextResponse.json({ error: 'Selected assignee was not found in this workspace.' }, { status: 404 })
+    }
+
     const task = await prisma.task.create({
       data: {
         title,
@@ -135,6 +150,8 @@ export async function POST(req: NextRequest) {
         action: 'Task created',
       },
     })
+
+    emitCompanyRealtime(user.companyId, 'task_created', { task })
 
     return NextResponse.json(task, { status: 201 })
   } catch (err) {

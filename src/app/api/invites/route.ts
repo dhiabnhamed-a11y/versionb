@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { auth } from '@/lib/auth'
 import { createCompanyInvite, getInviteTtlHours, InviteFlowError, listCompanyInvites } from '@/lib/invites'
+import { emitCompanyRealtime } from '@/lib/realtime-server'
 
 type SessionUser = {
   id: string
@@ -63,6 +64,8 @@ export async function POST(req: NextRequest) {
       role: body.role ?? 'EMPLOYEE',
       ttlHours: body.ttlHours ?? getInviteTtlHours(),
     })
+
+    emitCompanyRealtime(user.companyId, 'employee_invited', { invite })
 
     return NextResponse.json(invite, { status: 201 })
   } catch (error) {

@@ -3,13 +3,14 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { formatDate, formatTimeAgo } from '@/lib/utils'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import {
   DELIVERABLE_TYPE_OPTIONS,
   getCompanyTypeCopy,
   getDeliverableTypeLabel,
   normalizeCompanyType,
 } from '@/lib/company-types'
-import { Plus, CheckSquare, Trash2, Clock, FolderKanban, User, Loader2, ListTodo, Link2 } from 'lucide-react'
+import { Plus, CheckSquare, Trash2, Clock, FolderKanban, User, Loader2, ListTodo, Link2, Pencil } from 'lucide-react'
 
 interface TaskSubmission {
   id: string
@@ -48,6 +49,7 @@ interface Employee {
 }
 
 const STAGES = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']
+const TASK_REALTIME_EVENTS = ['task_created', 'task_updated', 'task_deleted', 'task_submission_created', 'project_created'] as const
 const STAGE_LABELS: Record<string, string> = { TODO: 'To Do', IN_PROGRESS: 'In Progress', REVIEW: 'Review', DONE: 'Done' }
 const STAGE_COLORS: Record<string, string> = {
   TODO: 'var(--text-muted)',
@@ -67,6 +69,7 @@ export default function AdminTasksPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
+  const [editingTask, setEditingTask] = useState<Task | null>(null)
   const [filterStage, setFilterStage] = useState('ALL')
   const [form, setForm] = useState({
     title: '',
@@ -76,6 +79,7 @@ export default function AdminTasksPage() {
     deadline: '',
     assigneeId: '',
     projectId: '',
+    stage: 'TODO',
   })
   const [saving, setSaving] = useState(false)
 
@@ -112,19 +116,17 @@ export default function AdminTasksPage() {
     }
   }, [])
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.projectId) return
-    setSaving(true)
+  useRealtimeSubscription(TASK_REALTIME_EVENTS, () => {
+    void (async () => {
+      const data = await fetchTasksPageData()
+      setTasks(data.tasks)
+      setProjects(data.projects)
+      setEmployees(data.employees)
+      setLoading(false)
+    })()
+  })
 
-    await fetch('/api/tasks', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
-    })
-
-    setSaving(false)
-    setShowModal(false)
+  function resetTaskForm() {
     setForm({
       title: '',
       description: '',
@@ -133,7 +135,46 @@ export default function AdminTasksPage() {
       deadline: '',
       assigneeId: '',
       projectId: '',
+      stage: 'TODO',
     })
+  }
+
+  function openCreateTaskModal() {
+    setEditingTask(null)
+    resetTaskForm()
+    setShowModal(true)
+  }
+
+  function openEditTaskModal(task: Task) {
+    setEditingTask(task)
+    setForm({
+      title: task.title,
+      description: task.description ?? '',
+      priority: task.priority,
+      deliverableType: task.deliverableType ?? 'GENERAL',
+      deadline: task.deadline ? task.deadline.slice(0, 10) : '',
+      assigneeId: task.assignee?.id ?? '',
+      projectId: task.project.id,
+      stage: task.stage,
+    })
+    setShowModal(true)
+  }
+
+  async function handleSave(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.projectId) return
+    setSaving(true)
+
+    await fetch(editingTask ? `/api/tasks/${editingTask.id}` : '/api/tasks', {
+      method: editingTask ? 'PATCH' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(form),
+    })
+
+    setSaving(false)
+    setShowModal(false)
+    setEditingTask(null)
+    resetTaskForm()
     const data = await fetchTasksPageData()
     setTasks(data.tasks)
     setProjects(data.projects)
@@ -162,7 +203,7 @@ export default function AdminTasksPage() {
             {isAgency ? `${tasks.length} briefs across all campaigns` : `${tasks.length} total across all projects`}
           </p>
         </div>
-        <button onClick={() => setShowModal(true)} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
+        <button onClick={openCreateTaskModal} className="btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}>
           <Plus size={15} /> New {companyCopy.taskLabel}
         </button>
       </div>
@@ -188,7 +229,7 @@ export default function AdminTasksPage() {
         <div style={{ textAlign: 'center', padding: '60px' }} className="card">
           <ListTodo size={32} style={{ color: 'var(--text-muted)', opacity: 0.35, margin: '0 auto 12px', display: 'block' }} />
           <p style={{ color: 'var(--text-muted)', marginBottom: '12px', fontSize: '13px' }}>No {companyCopy.taskPluralLabel.toLowerCase()} found</p>
-          <button onClick={() => setShowModal(true)} className="btn-primary" style={{ fontSize: '12px' }}>
+          <button onClick={openCreateTaskModal} className="btn-primary" style={{ fontSize: '12px' }}>
             Create {companyCopy.taskLabel}
           </button>
         </div>
@@ -242,12 +283,20 @@ export default function AdminTasksPage() {
                     </div>
                   </div>
                   <button
+                    onClick={() => openEditTaskModal(task)}
+                    className="btn-secondary btn-sm"
+                    style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  >
+                    <Pencil size={13} />
+                    Edit
+                  </button>
+                  <button
                     onClick={() => handleDelete(task.id)}
-                    style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '4px', borderRadius: '4px', transition: 'color 0.2s', display: 'flex' }}
-                    onMouseEnter={(event) => (event.currentTarget.style.color = '#ef4444')}
-                    onMouseLeave={(event) => (event.currentTarget.style.color = 'var(--text-muted)')}
+                    className="btn-danger btn-sm"
+                    style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                   >
                     <Trash2 size={15} />
+                    Delete
                   </button>
                 </div>
               </div>
@@ -318,8 +367,10 @@ export default function AdminTasksPage() {
       {showModal && (
         <div className="modal-backdrop" onClick={(event) => event.target === event.currentTarget && setShowModal(false)}>
           <div className="modal">
-            <h2 className="font-display mb-5 text-lg font-semibold tracking-tight">Create {companyCopy.taskLabel.toLowerCase()}</h2>
-            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <h2 className="font-display mb-5 text-lg font-semibold tracking-tight">
+              {editingTask ? `Edit ${companyCopy.taskLabel.toLowerCase()}` : `Create ${companyCopy.taskLabel.toLowerCase()}`}
+            </h2>
+            <form onSubmit={handleSave} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
                   {companyCopy.projectLabel} *
@@ -364,6 +415,20 @@ export default function AdminTasksPage() {
               )}
 
               <div className="form-split">
+                {editingTask && (
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                      Stage
+                    </label>
+                    <select className="input" value={form.stage} onChange={(event) => setForm({ ...form, stage: event.target.value })}>
+                      {STAGES.map((stage) => (
+                        <option key={stage} value={stage}>
+                          {STAGE_LABELS[stage]}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
                     Priority
@@ -398,12 +463,20 @@ export default function AdminTasksPage() {
               </div>
 
               <div className="modal-actions" style={{ marginTop: '4px' }}>
-                <button type="button" onClick={() => setShowModal(false)} className="btn-secondary" style={{ fontSize: '12px', padding: '8px 16px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowModal(false)
+                    setEditingTask(null)
+                  }}
+                  className="btn-secondary"
+                  style={{ fontSize: '12px', padding: '8px 16px' }}
+                >
                   Cancel
                 </button>
                 <button type="submit" className="btn-primary" disabled={saving} style={{ fontSize: '12px', padding: '8px 16px', display: 'flex', gap: '6px', alignItems: 'center' }}>
                   {saving ? <Loader2 size={14} style={{ animation: 'spin 0.7s linear infinite' }} /> : null}
-                  Create
+                  {editingTask ? 'Save' : 'Create'}
                 </button>
               </div>
             </form>

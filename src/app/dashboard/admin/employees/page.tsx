@@ -3,6 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { AlertTriangle, Copy, Filter, KeyRound, Link2, MailPlus, Plus, Search, Signal, Users } from 'lucide-react'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import type { RealtimeEventName } from '@/lib/realtime-events'
 
 interface Employee {
   id: string
@@ -31,6 +33,22 @@ const INVITE_TTL_OPTIONS = [
   { value: 48, label: '48 hours' },
 ]
 
+const TEAM_REALTIME_EVENTS = [
+  'presence_snapshot',
+  'user_online',
+  'user_offline',
+  'task_created',
+  'task_updated',
+  'task_deleted',
+  'employee_invited',
+] as const
+
+function getPresenceUserId(payload: unknown) {
+  if (!payload || typeof payload !== 'object' || !('userId' in payload)) return null
+  const userId = (payload as { userId?: unknown }).userId
+  return typeof userId === 'string' ? userId : null
+}
+
 export default function EmployeesPage() {
   const { data: session } = useSession()
   const [employees, setEmployees] = useState<Employee[]>([])
@@ -45,8 +63,9 @@ export default function EmployeesPage() {
   const [search, setSearch] = useState('')
   const [roleFilter, setRoleFilter] = useState('ALL')
   const [statusFilter, setStatusFilter] = useState('ALL')
+  const [onlineUserIds, setOnlineUserIds] = useState<Set<string>>(() => new Set())
 
-  const canInviteAdmins = (session?.user as { role?: string } | undefined)?.role === 'OWNER'
+  const canInviteAdmins = (session?.user as { role?: string } | undefined)?.role !== 'EMPLOYEE'
 
   async function fetchEmployees() {
     const data = await fetch('/api/employees').then((response) => response.json())
@@ -78,6 +97,39 @@ export default function EmployeesPage() {
       active = false
     }
   }, [])
+
+  useRealtimeSubscription(
+    TEAM_REALTIME_EVENTS,
+    (eventName: RealtimeEventName, payload: unknown) => {
+      if (eventName === 'presence_snapshot' && Array.isArray(payload)) {
+        setOnlineUserIds(new Set(payload.map(getPresenceUserId).filter((id): id is string => Boolean(id))))
+        return
+      }
+
+      const userId = getPresenceUserId(payload)
+      if (eventName === 'user_online' && userId) {
+        setOnlineUserIds((current) => new Set(current).add(userId))
+        return
+      }
+
+      if (eventName === 'user_offline' && userId) {
+        setOnlineUserIds((current) => {
+          const next = new Set(current)
+          next.delete(userId)
+          return next
+        })
+        return
+      }
+
+      void (async () => {
+        const [nextEmployees, nextInvites] = await Promise.all([fetchEmployees(), fetchInvites()])
+        setEmployees(nextEmployees)
+        setInvites(nextInvites)
+        setLoading(false)
+      })()
+    },
+    300
+  )
 
   async function handleInvite(e: React.FormEvent) {
     e.preventDefault()
@@ -130,6 +182,10 @@ export default function EmployeesPage() {
   })
 
   function getMemberStatus(employee: Employee) {
+    if (onlineUserIds.has(employee.id)) {
+      return { key: 'ONLINE', label: 'Online', color: '#059669' }
+    }
+
     const lastActivity = employee.activities?.[0]?.createdAt
     if (!lastActivity) {
       return { key: 'OFFLINE', label: 'Offline', color: '#94a3b8' }

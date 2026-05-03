@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { emitCompanyRealtime } from '@/lib/realtime-server'
 import { getSupabaseAdmin, TASK_DELIVERABLE_BUCKET } from '@/lib/supabase-admin'
 
 type SessionUser = {
@@ -30,6 +31,7 @@ async function getTaskForSubmission(taskId: string, user: SessionUser) {
       assigneeId: true,
       projectId: true,
       title: true,
+      project: { select: { companyId: true } },
     },
   })
 }
@@ -175,6 +177,8 @@ export async function POST(req: NextRequest, context: RouteContext<'/api/tasks/[
         action: 'Uploaded deliverable',
       },
     })
+
+    emitCompanyRealtime(task.project.companyId, 'task_submission_created', { taskId: task.id, submission })
 
     return NextResponse.json(submission, { status: 201 })
   } catch (error) {

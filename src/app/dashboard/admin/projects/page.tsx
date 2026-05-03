@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { Camera, ChevronRight, FolderKanban, Plus, Loader2, User, Building2, Tags, UsersRound } from 'lucide-react'
+import { Camera, ChevronRight, FolderKanban, Plus, Loader2, User, Building2, Tags, UsersRound, Pencil, Trash2 } from 'lucide-react'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 
 import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
 
@@ -47,6 +48,17 @@ interface ApiFailure {
   hint?: string
 }
 
+const PROJECT_REALTIME_EVENTS = [
+  'project_created',
+  'project_updated',
+  'project_deleted',
+  'room_created',
+  'project_category_created',
+  'task_created',
+  'task_updated',
+  'task_deleted',
+] as const
+
 export default function ProjectsPage() {
   const { data: session } = useSession()
   const companyType = normalizeCompanyType((session?.user as { companyType?: string | null } | undefined)?.companyType)
@@ -61,6 +73,8 @@ export default function ProjectsPage() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<ApiFailure | null>(null)
   const [showProjectModal, setShowProjectModal] = useState(false)
+  const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [deletingProjectId, setDeletingProjectId] = useState<string | null>(null)
   const [showRoomModal, setShowRoomModal] = useState(false)
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [form, setForm] = useState({
@@ -143,13 +157,53 @@ export default function ProjectsPage() {
     }
   }, [])
 
-  async function handleCreateProject(e: React.FormEvent) {
+  useRealtimeSubscription(PROJECT_REALTIME_EVENTS, () => {
+    void reload()
+  }, 350)
+
+  function resetProjectForm() {
+    setForm({
+      title: '',
+      description: '',
+      roomId: '',
+      categoryId: '',
+      clientName: '',
+      managerId: '',
+      hasCamera: false,
+      cameraType: 'device',
+    })
+  }
+
+  function openCreateProjectModal() {
+    setEditingProject(null)
+    resetProjectForm()
+    setFormError(null)
+    setShowProjectModal(true)
+  }
+
+  function openEditProjectModal(project: Project) {
+    setEditingProject(project)
+    setForm({
+      title: project.title,
+      description: project.description ?? '',
+      roomId: project.roomId ?? '',
+      categoryId: project.categoryId ?? '',
+      clientName: project.clientName ?? '',
+      managerId: project.manager?.id ?? '',
+      hasCamera: Boolean(project.hasCamera),
+      cameraType: project.cameraType ?? 'device',
+    })
+    setFormError(null)
+    setShowProjectModal(true)
+  }
+
+  async function handleSaveProject(e: React.FormEvent) {
     e.preventDefault()
     setFormError(null)
     setSaving(true)
 
-    const response = await fetch('/api/projects', {
-      method: 'POST',
+    const response = await fetch(editingProject ? `/api/projects/${editingProject.id}` : '/api/projects', {
+      method: editingProject ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         title: form.title,
@@ -172,16 +226,16 @@ export default function ProjectsPage() {
     }
 
     setShowProjectModal(false)
-    setForm({
-      title: '',
-      description: '',
-      roomId: '',
-      categoryId: '',
-      clientName: '',
-      managerId: '',
-      hasCamera: false,
-      cameraType: 'device',
-    })
+    setEditingProject(null)
+    resetProjectForm()
+    await reload()
+  }
+
+  async function handleDeleteProject(project: Project) {
+    if (!confirm(`Delete "${project.title}" and all of its ${companyCopy.taskPluralLabel.toLowerCase()}?`)) return
+    setDeletingProjectId(project.id)
+    await fetch(`/api/projects/${project.id}`, { method: 'DELETE' })
+    setDeletingProjectId(null)
     await reload()
   }
 
@@ -347,11 +401,31 @@ export default function ProjectsPage() {
           </div>
           <Link
             href={`/dashboard/admin/projects/${project.id}`}
-            className="mt-3 flex items-center justify-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border)] py-2 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
+            className="mt-4 flex items-center justify-center gap-1 rounded-[var(--radius-sm)] border border-[var(--border)] py-2.5 text-xs font-semibold text-[var(--text-secondary)] transition hover:border-[var(--accent)] hover:text-[var(--accent)]"
           >
             Open {companyCopy.projectLabel.toLowerCase()}
             <ChevronRight size={14} />
           </Link>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => openEditProjectModal(project)}
+              className="btn-secondary btn-sm"
+              style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              <Pencil size={13} /> Edit
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDeleteProject(project)}
+              className="btn-danger btn-sm"
+              disabled={deletingProjectId === project.id}
+              style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+            >
+              {deletingProjectId === project.id ? <Loader2 size={13} className="animate-spin" /> : <Trash2 size={13} />}
+              Delete
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -398,10 +472,7 @@ export default function ProjectsPage() {
             </button>
           )}
           <button
-            onClick={() => {
-              setFormError(null)
-              setShowProjectModal(true)
-            }}
+            onClick={openCreateProjectModal}
             className="btn-primary"
             disabled={(isIndustry && rooms.length === 0) || (isAgency && categories.length === 0)}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
@@ -506,7 +577,7 @@ export default function ProjectsPage() {
             No {companyCopy.projectPluralLabel.toLowerCase()} yet
           </p>
           <button
-            onClick={() => setShowProjectModal(true)}
+            onClick={openCreateProjectModal}
             className="btn-primary"
             style={{ fontSize: '12px' }}
             disabled={(isIndustry && rooms.length === 0) || (isAgency && categories.length === 0)}
@@ -598,8 +669,10 @@ export default function ProjectsPage() {
       {showProjectModal && (
         <div className="modal-backdrop" onClick={(event) => event.target === event.currentTarget && setShowProjectModal(false)}>
           <div className="modal max-h-[90vh] overflow-y-auto">
-            <h2 className="font-display mb-5 text-lg font-semibold tracking-tight">Create {companyCopy.projectLabel.toLowerCase()}</h2>
-            <form onSubmit={handleCreateProject} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <h2 className="font-display mb-5 text-lg font-semibold tracking-tight">
+              {editingProject ? `Edit ${companyCopy.projectLabel.toLowerCase()}` : `Create ${companyCopy.projectLabel.toLowerCase()}`}
+            </h2>
+            <form onSubmit={handleSaveProject} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               {isIndustry && (
                 <div>
                   <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
@@ -718,17 +791,25 @@ export default function ProjectsPage() {
               </div>
 
               <div className="modal-actions">
-                <button type="button" onClick={() => setShowProjectModal(false)} className="btn-secondary" style={{ fontSize: '12px', padding: '8px 16px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowProjectModal(false)
+                    setEditingProject(null)
+                  }}
+                  className="btn-secondary"
+                  style={{ fontSize: '12px', padding: '8px 16px' }}
+                >
                   Cancel
                 </button>
                 <button type="submit" className="btn-primary" disabled={saving} style={{ fontSize: '12px', padding: '8px 16px' }}>
                   {saving ? (
                     <span className="inline-flex items-center gap-2">
                       <Loader2 size={14} className="animate-spin" />
-                      Creating...
+                      {editingProject ? 'Saving...' : 'Creating...'}
                     </span>
                   ) : (
-                    `Create ${companyCopy.projectLabel}`
+                    editingProject ? `Save ${companyCopy.projectLabel}` : `Create ${companyCopy.projectLabel}`
                   )}
                 </button>
               </div>

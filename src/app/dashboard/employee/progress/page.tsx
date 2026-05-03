@@ -3,12 +3,15 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { BarChart3, FolderKanban, Trophy, Zap, Target } from 'lucide-react'
 
 interface Task {
   id: string; title: string; priority: string; stage: string; progress: number
   deadline?: string; project: { title: string }
 }
+
+const PROGRESS_REALTIME_EVENTS = ['task_created', 'task_updated', 'task_deleted', 'task_submission_created'] as const
 
 export default function EmployeeProgressPage() {
   const { data: session } = useSession()
@@ -20,6 +23,10 @@ export default function EmployeeProgressPage() {
   useEffect(() => {
     fetch('/api/tasks').then(r => r.json()).then(d => { setTasks(Array.isArray(d) ? d : []); setLoading(false) })
   }, [])
+
+  useRealtimeSubscription(PROGRESS_REALTIME_EVENTS, () => {
+    void fetch('/api/tasks').then(r => r.json()).then(d => { setTasks(Array.isArray(d) ? d : []); setLoading(false) })
+  })
 
   const total = tasks.length
   const done = tasks.filter(t => t.stage === 'DONE').length

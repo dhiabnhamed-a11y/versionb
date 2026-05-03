@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client'
 import { normalizeCompanyType } from '@/lib/company-types'
 import { auth } from '@/lib/auth'
 import { getDatabaseConfigHint, prisma } from '@/lib/db'
+import { emitCompanyRealtime } from '@/lib/realtime-server'
 import {
   attachProjectAgencyFields,
   findProjectCategory,
@@ -404,8 +405,11 @@ export async function POST(req: Request) {
     const normalizedProject = withProjectCameraDefaults(project) as { id: string } & Record<string, unknown>
     if (companyType === 'DIGITAL_AGENCY') {
       const [projectWithAgencyFields] = await attachProjectAgencyFields([normalizedProject], user.companyId)
+      emitCompanyRealtime(user.companyId, 'project_created', { project: projectWithAgencyFields })
       return NextResponse.json(projectWithAgencyFields, { status: 201 })
     }
+
+    emitCompanyRealtime(user.companyId, 'project_created', { project: normalizedProject })
 
     return NextResponse.json(normalizedProject, { status: 201 })
   } catch (err) {

@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { formatTimeAgo } from '@/lib/utils'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import type { RealtimeEventName } from '@/lib/realtime-events'
 import { Bell, Clock, Phone, AlertTriangle, CheckCircle2 } from 'lucide-react'
 
 interface Alert {
@@ -14,6 +16,8 @@ const typeConfig: Record<string, { icon: typeof Bell; color: string; bg: string;
   DEADLINE_WARNING: { icon: Clock, color: '#d97706', bg: 'rgba(217,119,6,0.1)', border: 'rgba(217,119,6,0.2)', label: 'Deadline' },
   MANAGER_CALL: { icon: Phone, color: '#0e7490', bg: 'rgba(14,116,144,0.09)', border: 'rgba(14,116,144,0.22)', label: 'Manager Call' },
 }
+
+const ALERT_REALTIME_EVENTS = ['alert', 'alert_read'] as const
 
 export default function EmployeeAlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([])
@@ -45,6 +49,27 @@ export default function EmployeeAlertsPage() {
       active = false
     }
   }, [])
+
+  useRealtimeSubscription(
+    ALERT_REALTIME_EVENTS,
+    (eventName: RealtimeEventName, payload: unknown) => {
+      if (eventName === 'alert' && payload && typeof payload === 'object' && 'id' in payload) {
+        const alert = payload as Alert
+        setAlerts((current) => [alert, ...current.filter((item) => item.id !== alert.id)].slice(0, 50))
+        setLoading(false)
+        return
+      }
+
+      if (eventName === 'alert_read' && payload && typeof payload === 'object' && 'alertId' in payload) {
+        const alertId = (payload as { alertId?: unknown }).alertId
+        if (typeof alertId === 'string') {
+          setAlerts((current) => current.map((alert) => (alert.id === alertId ? { ...alert, read: true } : alert)))
+        }
+      }
+    },
+    100
+  )
+
   const unread = alerts.filter(a => !a.read).length
 
   return (

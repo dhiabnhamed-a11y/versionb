@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 
 import { normalizeCompanyType } from '@/lib/company-types'
 import { auth } from '@/lib/auth'
+import { emitCompanyRealtime } from '@/lib/realtime-server'
 import {
   createProjectCategory,
   findProjectCategories,
@@ -78,14 +79,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Category name is required.' }, { status: 400 })
     }
 
-    return NextResponse.json(
-      await createProjectCategory({
+    const category = await createProjectCategory({
         companyId: user.companyId,
         name,
         description: description || null,
-      }),
-      { status: 201 }
-    )
+      })
+
+    emitCompanyRealtime(user.companyId, 'project_category_created', { category })
+
+    return NextResponse.json(category, { status: 201 })
   } catch (error) {
     console.error(error)
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {

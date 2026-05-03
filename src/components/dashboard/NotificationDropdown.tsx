@@ -4,6 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { Bell, CheckCheck } from 'lucide-react'
 import { formatTimeAgo } from '@/lib/utils'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import type { RealtimeEventName } from '@/lib/realtime-events'
 
 type AlertRecord = {
   id: string
@@ -14,6 +16,8 @@ type AlertRecord = {
   createdAt: string
   sender?: { id: string; name: string; avatar?: string | null }
 }
+
+const NOTIFICATION_REALTIME_EVENTS = ['alert', 'alert_read'] as const
 
 export default function NotificationDropdown({ alertsHref = '/dashboard/employee/alerts' }: { alertsHref?: string }) {
   const [alerts, setAlerts] = useState<AlertRecord[]>([])
@@ -31,6 +35,25 @@ export default function NotificationDropdown({ alertsHref = '/dashboard/employee
   useEffect(() => {
     void loadAlerts()
   }, [])
+
+  useRealtimeSubscription(
+    NOTIFICATION_REALTIME_EVENTS,
+    (eventName: RealtimeEventName, payload: unknown) => {
+      if (eventName === 'alert' && payload && typeof payload === 'object' && 'id' in payload) {
+        const alert = payload as AlertRecord
+        setAlerts((current) => [alert, ...current.filter((item) => item.id !== alert.id)].slice(0, 50))
+        return
+      }
+
+      if (eventName === 'alert_read' && payload && typeof payload === 'object' && 'alertId' in payload) {
+        const alertId = (payload as { alertId?: unknown }).alertId
+        if (typeof alertId === 'string') {
+          setAlerts((current) => current.map((alert) => (alert.id === alertId ? { ...alert, read: true } : alert)))
+        }
+      }
+    },
+    100
+  )
 
   useEffect(() => {
     const onPointerDown = (event: PointerEvent) => {

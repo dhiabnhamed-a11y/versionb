@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { normalizeCompanyType } from '@/lib/company-types'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { emitCompanyRealtime } from '@/lib/realtime-server'
 
 type SessionUser = {
   companyId?: string | null
@@ -109,17 +110,18 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    return NextResponse.json(
-      {
-        id: room.id,
-        name: room.name,
-        description: room.description,
-        createdAt: room.createdAt,
-        updatedAt: room.updatedAt,
-        projectCount: room._count.projects,
-      },
-      { status: 201 }
-    )
+    const responseRoom = {
+      id: room.id,
+      name: room.name,
+      description: room.description,
+      createdAt: room.createdAt,
+      updatedAt: room.updatedAt,
+      projectCount: room._count.projects,
+    }
+
+    emitCompanyRealtime(user.companyId, 'room_created', { room: responseRoom })
+
+    return NextResponse.json(responseRoom, { status: 201 })
   } catch (error) {
     console.error(error)
     return NextResponse.json({ error: 'Failed to create room.' }, { status: 500 })

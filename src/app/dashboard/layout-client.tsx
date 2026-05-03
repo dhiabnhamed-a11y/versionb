@@ -226,7 +226,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
           </div>
         </header>
 
-        <main id="main-content" className="dashboard-shell-body flex-1 px-5 py-8 md:px-8 md:py-10" tabIndex={-1}>
+        <main id="main-content" className="dashboard-shell-body flex-1 px-5 py-8 md:px-9 md:py-11 xl:px-10" tabIndex={-1}>
           {children}
         </main>
       </div>

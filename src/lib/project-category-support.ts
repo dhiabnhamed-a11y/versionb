@@ -199,7 +199,7 @@ export async function attachProjectAgencyFields<T extends { id: string }>(
 export async function updateProjectAgencyFields(input: {
   projectId: string
   companyId: string
-  categoryId: string
+  categoryId?: string | null
   clientName?: string | null
 }) {
   await prisma.$executeRaw`

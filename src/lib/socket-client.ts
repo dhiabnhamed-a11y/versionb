@@ -3,7 +3,7 @@ import { io, Socket } from 'socket.io-client'
 
 let socket: Socket | null = null
 let socketInitPromise: Promise<Socket | null> | null = null
-const realtimeEnabled = typeof window !== 'undefined' && process.env.NODE_ENV !== 'production'
+const realtimeEnabled = typeof window !== 'undefined'
 
 export async function getSocket(): Promise<Socket | null> {
   if (socket) {
@@ -19,6 +19,8 @@ export async function getSocket(): Promise<Socket | null> {
       socket = io({
         path: '/api/socketio',
         addTrailingSlash: false,
+        withCredentials: true,
+        transports: ['websocket', 'polling'],
       })
 
       return socket

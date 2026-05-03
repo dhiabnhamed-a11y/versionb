@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
 import {
   AlertTriangle,
@@ -76,6 +77,20 @@ interface Stats {
   }
 }
 
+const DASHBOARD_REALTIME_EVENTS = [
+  'task_created',
+  'task_updated',
+  'task_deleted',
+  'task_submission_created',
+  'project_created',
+  'project_updated',
+  'room_created',
+  'project_category_created',
+  'employee_invited',
+  'user_online',
+  'user_offline',
+] as const
+
 function AnimatedCounter({ value, duration = 800 }: { value: number; duration?: number }) {
   const [display, setDisplay] = useState(0)
 
@@ -145,6 +160,14 @@ export default function AdminDashboard() {
       active = false
     }
   }, [])
+
+  useRealtimeSubscription(DASHBOARD_REALTIME_EVENTS, () => {
+    void (async () => {
+      const data = (await fetch('/api/analytics').then((response) => response.json())) as Stats
+      setStats(data)
+      setLoading(false)
+    })()
+  }, 450)
 
   const user = session?.user as { name?: string; companyType?: string | null }
   const companyType = normalizeCompanyType(stats?.companyType ?? user?.companyType)

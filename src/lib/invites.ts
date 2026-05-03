@@ -168,10 +168,6 @@ export async function createCompanyInvite(input: CreateInviteInput) {
     throw new OnboardingFlowError('Only company admins can create invites.', 403)
   }
 
-  if (input.companyAdminRole !== 'OWNER' && role === 'MANAGER') {
-    throw new OnboardingFlowError('Only the company owner can invite another admin.', 403)
-  }
-
   const now = new Date()
   const [existingUser, company] = await Promise.all([
     prisma.user.findUnique({
