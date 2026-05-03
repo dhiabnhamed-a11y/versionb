@@ -7,13 +7,14 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import logo from '@/app/logo.png'
-import { Mail, Lock, ArrowRight, Loader2, Sparkles } from 'lucide-react'
+import { Mail, Lock, ArrowRight, Loader2, Sparkles, Eye, EyeOff } from 'lucide-react'
 
 function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const registrationState = searchParams.get('registered')
@@ -128,16 +129,26 @@ function LoginContent() {
               <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
                 <Lock size={13} strokeWidth={2} /> Password
               </label>
-              <input
-                id="login-password"
-                className="input"
-                type="password"
-                placeholder="Enter your password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                autoComplete="current-password"
-              />
+              <div className="relative">
+                <input
+                  id="login-password"
+                  className="input pr-11"
+                  type={showPassword ? 'text' : 'password'}
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  autoComplete="current-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             {error && (

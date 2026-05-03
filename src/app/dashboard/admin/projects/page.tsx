@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
-import { Camera, ChevronRight, FolderKanban, Plus, Loader2, User, Building2 } from 'lucide-react'
+import { Camera, ChevronRight, FolderKanban, Plus, Loader2, User, Building2, Tags, UsersRound } from 'lucide-react'
 
 import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
 
@@ -13,6 +13,9 @@ interface Project {
   description?: string
   roomId?: string | null
   room?: { id: string; name: string } | null
+  categoryId?: string | null
+  category?: { id: string; name: string; description?: string | null } | null
+  clientName?: string | null
   hasCamera?: boolean
   cameraType?: 'device' | 'external'
   manager?: { id: string; name: string }
@@ -25,6 +28,13 @@ interface Employee {
 }
 
 interface Room {
+  id: string
+  name: string
+  description?: string | null
+  projectCount: number
+}
+
+interface ProjectCategory {
   id: string
   name: string
   description?: string | null
@@ -47,14 +57,18 @@ export default function ProjectsPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
   const [rooms, setRooms] = useState<Room[]>([])
+  const [categories, setCategories] = useState<ProjectCategory[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<ApiFailure | null>(null)
   const [showProjectModal, setShowProjectModal] = useState(false)
   const [showRoomModal, setShowRoomModal] = useState(false)
+  const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [form, setForm] = useState({
     title: '',
     description: '',
     roomId: '',
+    categoryId: '',
+    clientName: '',
     managerId: '',
     hasCamera: false,
     cameraType: 'device' as 'device' | 'external',
@@ -63,22 +77,30 @@ export default function ProjectsPage() {
     name: '',
     description: '',
   })
+  const [categoryForm, setCategoryForm] = useState({
+    name: '',
+    description: '',
+  })
   const [saving, setSaving] = useState(false)
   const [savingRoom, setSavingRoom] = useState(false)
+  const [savingCategory, setSavingCategory] = useState(false)
   const [formError, setFormError] = useState<ApiFailure | null>(null)
   const [roomError, setRoomError] = useState<ApiFailure | null>(null)
+  const [categoryError, setCategoryError] = useState<ApiFailure | null>(null)
 
   async function fetchProjectsData() {
-    const [projectResponse, employeeResponse, roomResponse] = await Promise.all([
+    const [projectResponse, employeeResponse, roomResponse, categoryResponse] = await Promise.all([
       fetch('/api/projects'),
       fetch('/api/employees'),
       fetch('/api/rooms'),
+      fetch('/api/project-categories'),
     ])
 
-    const [projectBody, employeeBody, roomBody] = await Promise.all([
+    const [projectBody, employeeBody, roomBody, categoryBody] = await Promise.all([
       projectResponse.json(),
       employeeResponse.json(),
       roomResponse.json(),
+      categoryResponse.json(),
     ])
 
     return {
@@ -86,6 +108,7 @@ export default function ProjectsPage() {
       projects: Array.isArray(projectBody) ? projectBody : [],
       employees: Array.isArray(employeeBody) ? employeeBody : [],
       rooms: Array.isArray(roomBody) ? roomBody : [],
+      categories: Array.isArray(categoryBody) ? categoryBody : [],
       projectError: Array.isArray(projectBody) ? null : ((projectBody as ApiFailure) ?? null),
     }
   }
@@ -95,6 +118,7 @@ export default function ProjectsPage() {
     setProjects(data.projects)
     setEmployees(data.employees)
     setRooms(data.rooms)
+    setCategories(data.categories)
     setLoadError(data.ok ? null : data.projectError)
   }
 
@@ -107,6 +131,7 @@ export default function ProjectsPage() {
       setProjects(data.projects)
       setEmployees(data.employees)
       setRooms(data.rooms)
+      setCategories(data.categories)
       setLoadError(data.ok ? null : data.projectError)
       setLoading(false)
     }
@@ -130,6 +155,8 @@ export default function ProjectsPage() {
         title: form.title,
         description: form.description || undefined,
         roomId: isIndustry ? form.roomId || undefined : undefined,
+        categoryId: isAgency ? form.categoryId || undefined : undefined,
+        clientName: isAgency ? form.clientName || undefined : undefined,
         managerId: form.managerId || undefined,
         hasCamera: form.hasCamera,
         cameraType: form.cameraType,
@@ -149,6 +176,8 @@ export default function ProjectsPage() {
       title: '',
       description: '',
       roomId: '',
+      categoryId: '',
+      clientName: '',
       managerId: '',
       hasCamera: false,
       cameraType: 'device',
@@ -183,11 +212,43 @@ export default function ProjectsPage() {
     await reload()
   }
 
+  async function handleCreateCategory(e: React.FormEvent) {
+    e.preventDefault()
+    setCategoryError(null)
+    setSavingCategory(true)
+
+    const response = await fetch('/api/project-categories', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: categoryForm.name,
+        description: categoryForm.description || undefined,
+      }),
+    })
+
+    const body = (await response.json()) as ProjectCategory | ApiFailure
+    setSavingCategory(false)
+
+    if (!response.ok) {
+      setCategoryError(body as ApiFailure)
+      return
+    }
+
+    setShowCategoryModal(false)
+    setCategoryForm({ name: '', description: '' })
+    await reload()
+  }
+
   const groupedRooms = rooms.map((room) => ({
     ...room,
     projects: projects.filter((project) => project.roomId === room.id),
   }))
   const unassignedProjects = projects.filter((project) => !project.roomId)
+  const groupedCategories = categories.map((category) => ({
+    ...category,
+    projects: projects.filter((project) => project.categoryId === category.id),
+  }))
+  const uncategorizedProjects = projects.filter((project) => !project.categoryId)
 
   function renderProjectCard(project: Project, index: number) {
     const done = project.tasks.filter((task) => task.stage === 'DONE').length
@@ -220,6 +281,24 @@ export default function ProjectsPage() {
           >
             <Building2 size={11} />
             {project.room.name}
+          </div>
+        )}
+        {isAgency && project.category && (
+          <div
+            className="mb-2 inline-flex w-fit items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+            style={{ borderColor: 'rgba(124,58,237,0.18)', color: '#7c3aed', background: 'rgba(124,58,237,0.06)' }}
+          >
+            <Tags size={11} />
+            {project.category.name}
+          </div>
+        )}
+        {isAgency && project.clientName && (
+          <div
+            className="mb-2 inline-flex w-fit items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+            style={{ borderColor: 'rgba(19,141,136,0.18)', color: 'var(--accent)', background: 'var(--accent-subtle)' }}
+          >
+            <UsersRound size={11} />
+            {project.clientName}
           </div>
         )}
         {project.hasCamera && (
@@ -289,7 +368,7 @@ export default function ProjectsPage() {
             {isIndustry
               ? `${rooms.length} ${companyCopy.groupPluralLabel.toLowerCase()}, ${projects.length} ${companyCopy.projectPluralLabel.toLowerCase()}`
               : isAgency
-                ? `${projects.length} active campaigns ready for briefs and uploads`
+                ? `${categories.length} categories, ${projects.length} client campaigns`
                 : `${projects.length} active projects`}
           </p>
         </div>
@@ -306,13 +385,25 @@ export default function ProjectsPage() {
               <Building2 size={15} /> New {companyCopy.groupLabel}
             </button>
           )}
+          {isAgency && (
+            <button
+              onClick={() => {
+                setCategoryError(null)
+                setShowCategoryModal(true)
+              }}
+              className="btn-secondary"
+              style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
+            >
+              <Tags size={15} /> New category
+            </button>
+          )}
           <button
             onClick={() => {
               setFormError(null)
               setShowProjectModal(true)
             }}
             className="btn-primary"
-            disabled={isIndustry && rooms.length === 0}
+            disabled={(isIndustry && rooms.length === 0) || (isAgency && categories.length === 0)}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
           >
             <Plus size={15} /> New {companyCopy.projectLabel}
@@ -334,6 +425,40 @@ export default function ProjectsPage() {
           </p>
           {loadError.detail && <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginBottom: '6px' }}>{loadError.detail}</p>}
           {loadError.hint && <p style={{ color: 'var(--text-muted)', fontSize: '12px' }}>{loadError.hint}</p>}
+        </div>
+      )}
+
+      {isAgency && (
+        <div className="card" style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '14px', flexWrap: 'wrap' }}>
+            <div>
+              <h2 className="font-display text-base font-semibold tracking-tight">Client categories</h2>
+              <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '4px' }}>
+                Group each client campaign by service, market, or account type before adding briefs and deliverables.
+              </p>
+            </div>
+          </div>
+
+          {categories.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-muted)', fontSize: '13px' }}>
+              Create your first category before adding client campaigns.
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px' }}>
+              {categories.map((category) => (
+                <div key={category.id} className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)] p-4">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
+                    <Tags size={14} style={{ color: 'var(--accent)' }} />
+                    {category.name}
+                  </div>
+                  {category.description && <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '6px', lineHeight: 1.5 }}>{category.description}</p>}
+                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '10px' }}>
+                    {category.projectCount} {companyCopy.projectPluralLabel.toLowerCase()}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -380,7 +505,12 @@ export default function ProjectsPage() {
           <p style={{ color: 'var(--text-muted)', marginBottom: '12px', fontSize: '13px' }}>
             No {companyCopy.projectPluralLabel.toLowerCase()} yet
           </p>
-          <button onClick={() => setShowProjectModal(true)} className="btn-primary" style={{ fontSize: '12px' }} disabled={isIndustry && rooms.length === 0}>
+          <button
+            onClick={() => setShowProjectModal(true)}
+            className="btn-primary"
+            style={{ fontSize: '12px' }}
+            disabled={(isIndustry && rooms.length === 0) || (isAgency && categories.length === 0)}
+          >
             Create {companyCopy.projectLabel}
           </button>
         </div>
@@ -420,6 +550,45 @@ export default function ProjectsPage() {
             </section>
           )}
         </div>
+      ) : isAgency ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          {groupedCategories.map((category) => (
+            <section key={category.id}>
+              <div style={{ marginBottom: '10px' }}>
+                <div className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
+                  <Tags size={14} style={{ color: 'var(--accent)' }} />
+                  {category.name}
+                </div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                  {category.projects.length} {companyCopy.projectPluralLabel.toLowerCase()}
+                </div>
+              </div>
+              {category.projects.length === 0 ? (
+                <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] px-4 py-5 text-sm text-[var(--text-muted)]">
+                  No client campaigns in this category yet.
+                </div>
+              ) : (
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+                  {category.projects.map((project, index) => renderProjectCard(project, index))}
+                </div>
+              )}
+            </section>
+          ))}
+
+          {uncategorizedProjects.length > 0 && (
+            <section>
+              <div style={{ marginBottom: '10px' }}>
+                <div className="text-sm font-semibold text-[var(--text-primary)]">Uncategorized campaigns</div>
+                <div style={{ color: 'var(--text-muted)', fontSize: '12px' }}>
+                  {uncategorizedProjects.length} {companyCopy.projectPluralLabel.toLowerCase()}
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
+                {uncategorizedProjects.map((project, index) => renderProjectCard(project, index))}
+              </div>
+            </section>
+          )}
+        </div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '12px' }}>
           {projects.map((project, index) => renderProjectCard(project, index))}
@@ -445,6 +614,36 @@ export default function ProjectsPage() {
                     ))}
                   </select>
                 </div>
+              )}
+
+              {isAgency && (
+                <>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                      Category *
+                    </label>
+                    <select className="input" value={form.categoryId} onChange={(event) => setForm({ ...form, categoryId: event.target.value })} required>
+                      <option value="">Select a category...</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                      Client name
+                    </label>
+                    <input
+                      className="input"
+                      placeholder="e.g. Northstar Studio"
+                      value={form.clientName}
+                      onChange={(event) => setForm({ ...form, clientName: event.target.value })}
+                    />
+                  </div>
+                </>
               )}
 
               <div>
@@ -539,6 +738,65 @@ export default function ProjectsPage() {
                   <p style={{ color: '#b91c1c', fontSize: '12px', fontWeight: 700 }}>{formError.error || `${companyCopy.projectLabel} could not be created`}</p>
                   {formError.detail && <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '4px' }}>{formError.detail}</p>}
                   {formError.hint && <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '4px' }}>{formError.hint}</p>}
+                </div>
+              )}
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showCategoryModal && (
+        <div className="modal-backdrop" onClick={(event) => event.target === event.currentTarget && setShowCategoryModal(false)}>
+          <div className="modal">
+            <h2 className="font-display mb-5 text-lg font-semibold tracking-tight">Create client category</h2>
+            <form onSubmit={handleCreateCategory} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                  Name *
+                </label>
+                <input
+                  className="input"
+                  placeholder="e.g. E-commerce clients"
+                  value={categoryForm.name}
+                  onChange={(event) => setCategoryForm({ ...categoryForm, name: event.target.value })}
+                  required
+                />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                  Description
+                </label>
+                <textarea
+                  className="input"
+                  placeholder="Which clients or services belong here?"
+                  value={categoryForm.description}
+                  onChange={(event) => setCategoryForm({ ...categoryForm, description: event.target.value })}
+                  rows={3}
+                />
+              </div>
+
+              <div className="modal-actions">
+                <button type="button" onClick={() => setShowCategoryModal(false)} className="btn-secondary" style={{ fontSize: '12px', padding: '8px 16px' }}>
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={savingCategory} style={{ fontSize: '12px', padding: '8px 16px' }}>
+                  {savingCategory ? (
+                    <span className="inline-flex items-center gap-2">
+                      <Loader2 size={14} className="animate-spin" />
+                      Creating...
+                    </span>
+                  ) : (
+                    'Create category'
+                  )}
+                </button>
+              </div>
+
+              {categoryError && (
+                <div style={{ borderRadius: '8px', border: '1px solid rgba(220, 38, 38, 0.18)', background: 'rgba(220, 38, 38, 0.05)', padding: '10px 12px' }}>
+                  <p style={{ color: '#b91c1c', fontSize: '12px', fontWeight: 700 }}>{categoryError.error || 'Category could not be created'}</p>
+                  {categoryError.detail && <p style={{ color: 'var(--text-secondary)', fontSize: '12px', marginTop: '4px' }}>{categoryError.detail}</p>}
+                  {categoryError.hint && <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginTop: '4px' }}>{categoryError.hint}</p>}
                 </div>
               )}
             </form>

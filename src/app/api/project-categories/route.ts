@@ -1,0 +1,97 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { Prisma } from '@prisma/client'
+
+import { normalizeCompanyType } from '@/lib/company-types'
+import { auth } from '@/lib/auth'
+import {
+  createProjectCategory,
+  findProjectCategories,
+  getProjectCategorySupport,
+} from '@/lib/project-category-support'
+
+type SessionUser = {
+  companyId?: string | null
+  role?: string
+  companyType?: string | null
+}
+
+export async function GET() {
+  const session = await auth()
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const user = session.user as SessionUser
+  if (!user.companyId) {
+    return NextResponse.json([])
+  }
+
+  if (normalizeCompanyType(user.companyType) !== 'DIGITAL_AGENCY') {
+    return NextResponse.json([])
+  }
+
+  try {
+    return NextResponse.json(await findProjectCategories(user.companyId))
+  } catch (error) {
+    console.error(error)
+    return NextResponse.json({ error: 'Failed to load categories.' }, { status: 500 })
+  }
+}
+
+export async function POST(req: NextRequest) {
+  const session = await auth()
+  if (!session?.user) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const user = session.user as SessionUser
+  if (!user.companyId) {
+    return NextResponse.json({ error: 'No company found for this account.' }, { status: 400 })
+  }
+
+  if (user.role === 'EMPLOYEE') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+
+  if (normalizeCompanyType(user.companyType) !== 'DIGITAL_AGENCY') {
+    return NextResponse.json({ error: 'Categories are only available for digital agency workspaces.' }, { status: 403 })
+  }
+
+  const support = await getProjectCategorySupport()
+  if (!support.hasCategoryTable || !support.hasProjectCategoryColumns) {
+    return NextResponse.json(
+      { error: 'Project categories are not ready. Apply the latest database migration first.' },
+      { status: 503 }
+    )
+  }
+
+  try {
+    const body = (await req.json()) as {
+      name?: string
+      description?: string
+    }
+
+    const name = body.name?.trim()
+    const description = body.description?.trim()
+
+    if (!name) {
+      return NextResponse.json({ error: 'Category name is required.' }, { status: 400 })
+    }
+
+    return NextResponse.json(
+      await createProjectCategory({
+        companyId: user.companyId,
+        name,
+        description: description || null,
+      }),
+      { status: 201 }
+    )
+  } catch (error) {
+    console.error(error)
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+      return NextResponse.json({ error: 'A category with this name already exists.' }, { status: 409 })
+    }
+
+    return NextResponse.json({ error: 'Failed to create category.' }, { status: 500 })
+  }
+}

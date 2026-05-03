@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { getCompanyTypeCopy, getDeliverableTypeLabel, normalizeCompanyType } from '@/lib/company-types'
-import { ArrowLeft, Camera, FolderKanban, User, Building2, Link2 } from 'lucide-react'
+import { ArrowLeft, Camera, FolderKanban, User, Building2, Link2, Tags, UsersRound } from 'lucide-react'
 import { ProjectCamera } from '@/components/camera/ProjectCamera'
 
 type ProjectDetail = {
@@ -13,6 +13,8 @@ type ProjectDetail = {
   title: string
   description: string | null
   room?: { id: string; name: string } | null
+  category?: { id: string; name: string; description?: string | null } | null
+  clientName?: string | null
   hasCamera: boolean
   cameraType: 'device' | 'external'
   manager: { id: string; name: string } | null
@@ -121,6 +123,18 @@ export default function ProjectDetailPage() {
                       <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(33,66,255,0.18)] bg-[rgba(33,66,255,0.06)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#2142ff]">
                         <Building2 className="h-3 w-3" />
                         {project.room.name}
+                      </span>
+                    )}
+                    {isAgency && project.category && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(124,58,237,0.18)] bg-[rgba(124,58,237,0.06)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#7c3aed]">
+                        <Tags className="h-3 w-3" />
+                        {project.category.name}
+                      </span>
+                    )}
+                    {isAgency && project.clientName && (
+                      <span className="inline-flex items-center gap-1 rounded-full border border-[rgba(19,141,136,0.18)] bg-[var(--accent-subtle)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--accent)]">
+                        <UsersRound className="h-3 w-3" />
+                        {project.clientName}
                       </span>
                     )}
                     {project.hasCamera && (

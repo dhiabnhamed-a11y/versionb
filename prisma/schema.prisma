@@ -56,6 +56,7 @@ model Company {
   reviewedBy     User?           @relation("CompanyReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
   members        User[]          @relation("CompanyMembers")
   rooms          Room[]
+  projectCategories ProjectCategory[]
   projects       Project[]
   invites        Invite[]
   accessRequests AccessRequest[]
@@ -76,6 +77,21 @@ model Room {
   projects Project[]
 
   @@index([companyId, createdAt])
+}
+
+model ProjectCategory {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  companyId   String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projects Project[]
+
+  @@index([companyId, createdAt])
+  @@unique([companyId, name])
 }
 
 model Invite {
@@ -132,6 +148,8 @@ model Project {
   description String?
   companyId   String
   roomId      String?
+  categoryId  String?
+  clientName  String?
   managerId   String?
   hasCamera   Boolean    @default(false)
   cameraType  CameraType @default(device)
@@ -140,12 +158,14 @@ model Project {
 
   company     Company               @relation(fields: [companyId], references: [id])
   room        Room?                 @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  category    ProjectCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   manager     User?                 @relation("ProjectManager", fields: [managerId], references: [id])
   tasks       Task[]
   cameraMedia ProjectCameraMedia[]
   cameras     ProjectCamera[]
 
   @@index([companyId, roomId])
+  @@index([companyId, categoryId])
 }
 
 model ProjectCamera {

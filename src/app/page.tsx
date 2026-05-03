@@ -7,78 +7,89 @@ import logo from '@/app/logo.png'
 import {
   ArrowRight,
   BadgeCheck,
-  Building2,
+  BellRing,
   BriefcaseBusiness,
-  ChartNoAxesCombined,
+  Building2,
   CheckCircle2,
-  Eye,
+  ClipboardCheck,
+  Gauge,
   Layers3,
   LockKeyhole,
   ShieldCheck,
   Sparkles,
+  Tags,
   UsersRound,
+  Zap,
+  Target,
+  TrendingUp,
 } from 'lucide-react'
 
 const featureCards = [
   {
-    title: 'Industry structure built in',
-    description: 'Separate work by rooms, let each room hold its own projects, and keep tasks moving inside every project.',
+    title: 'Operational structure',
+    description: 'Rooms, projects, and tasks stay separated so managers can see ownership, progress, and blockers without searching.',
     icon: Building2,
   },
   {
-    title: 'Digital agency delivery flow',
-    description: 'Assign image, affiche, and video briefs to employees, then collect uploaded deliverables inside the same workspace.',
+    title: 'Creative delivery',
+    description: 'Client categories, campaigns, briefs, uploads, and handoffs live in one workspace from assignment to final review.',
     icon: BriefcaseBusiness,
   },
   {
-    title: 'Role-aware control',
-    description: 'Give owners, managers, and employees the exact permissions they need with less noise and clearer responsibility.',
+    title: 'Role-based focus',
+    description: 'Owners, managers, and employees each see the tools and context they need for their part of the work.',
     icon: ShieldCheck,
   },
   {
-    title: 'Live alerts and progress together',
-    description: 'Escalate urgent issues quickly while keeping projects, tasks, and delivery progress visible in one place.',
-    icon: ChartNoAxesCombined,
+    title: 'Live awareness',
+    description: 'Alerts, progress, and team activity surface quickly so urgent work does not disappear inside long lists.',
+    icon: BellRing,
   },
 ]
 
 const workflowSteps = [
   {
-    title: 'Choose your company type',
-    description: 'Pick industry, digital agency, or other before signup so TASKIT starts with the right structure from day one.',
+    title: 'Select the right operating model',
+    description: 'Start with industry, digital agency, or standard workspace settings before creating the company account.',
   },
   {
-    title: 'Launch the matching workspace',
-    description: 'Create your company, verify the owner domain, and let TASKIT prepare the workflow that fits how your team already works.',
+    title: 'Set up teams and responsibility',
+    description: 'Invite owners, managers, and employees into a workspace that already matches their day-to-day flow.',
   },
   {
-    title: 'Invite the team and execute',
-    description: 'Bring in managers and employees, assign work, collect updates, and keep delivery moving in real time.',
+    title: 'Run work with clear visibility',
+    description: 'Assign tasks, review deliverables, monitor progress, and respond to alerts from a single focused system.',
   },
 ]
 
 const trustPoints = [
   {
-    title: 'Type-aware onboarding',
-    description: 'Every workspace begins with the structure that matches the company that is signing up.',
-    icon: Building2,
+    title: 'Structured onboarding',
+    description: 'Every company begins with the workspace model that fits its operating style.',
+    icon: ClipboardCheck,
   },
   {
-    title: 'Permissioned by role',
-    description: 'Owners, managers, and employees each get the right operating view.',
+    title: 'Controlled access',
+    description: 'Role-aware views keep sensitive controls with the right people.',
     icon: LockKeyhole,
   },
   {
-    title: 'One platform, multiple workflows',
-    description: 'Industry teams, agencies, and standard project teams can all run on the same TASKIT foundation.',
+    title: 'Scalable foundation',
+    description: 'One product supports operational teams, agencies, and flexible project teams.',
     icon: BadgeCheck,
   },
 ]
 
-const customerAccessRules = [
-  'Industry workspaces split work into rooms, then projects, then tasks.',
-  'Digital agencies send creative briefs, collect uploads, and review finished work.',
-  'Other companies keep the current TASKIT interface with no extra complexity.',
+const workspaceHighlights = [
+  'Industry teams organize work by room, project, and task.',
+  'Digital agencies group clients by category, then track campaigns and deliverables.',
+  'Standard teams keep a clean project workspace with less setup.',
+]
+
+const cockpitRows = [
+  { label: 'Assembly room', value: '12 active tasks', tone: 'strong' },
+  { label: 'Retail client category', value: '4 campaigns ready', tone: 'warm' },
+  { label: 'Client rollout', value: '86% complete', tone: 'cool' },
 ]
 
 const companyTracks = COMPANY_TYPE_OPTIONS.map((option, index) => ({
@@ -90,7 +101,7 @@ const companyTracks = COMPANY_TYPE_OPTIONS.map((option, index) => ({
       ? 'Start industry setup'
       : option.value === 'DIGITAL_AGENCY'
         ? 'Start agency setup'
-        : 'Use standard setup',
+        : 'Start standard setup',
 }))
 
 export default async function HomePage() {
@@ -98,45 +109,32 @@ export default async function HomePage() {
   const role = (session?.user as { role?: string } | undefined)?.role
   const dashboardHref = getRoleHomePath(role)
   const primaryHref = session ? dashboardHref : '#company-types'
-  const primaryLabel = session ? 'Open workspace' : 'Choose company type'
+  const primaryLabel = session ? 'Open workspace' : 'Choose workspace type'
   const secondaryHref = session ? dashboardHref : '/login'
   const secondaryLabel = session ? 'Go to dashboard' : 'Sign in'
 
   return (
     <div className="marketing-shell">
-      <div className="marketing-orb marketing-orb-left" />
-      <div className="marketing-orb marketing-orb-right" />
-
       <header className="marketing-nav-wrap">
-        <nav className="marketing-nav glass">
-          <Link href="/" className="flex items-center gap-3 text-[var(--text-primary)] no-underline">
-            <div className="brand-chip">
-              <Image src={logo} alt="TASKIT logo" width={48} height={48} className="h-12 w-12 object-contain" priority />
-            </div>
-            <div>
-              <div className="text-base font-semibold text-[var(--text-primary)] sm:text-lg">TASKIT</div>
-              <div className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)] sm:text-[11px]">
-                Team operating system
-              </div>
-            </div>
+        <nav className="marketing-nav">
+          <Link href="/" className="marketing-brand" aria-label="TASKIT home">
+            <span className="brand-chip">
+              <Image src={logo} alt="" width={48} height={48} className="h-11 w-11 object-contain" priority />
+            </span>
+            <span>
+              <span className="marketing-brand-name">TASKIT</span>
+              <span className="marketing-brand-line">Team operating workspace</span>
+            </span>
           </Link>
 
-          <div className="hidden items-center gap-8 text-sm font-medium text-[var(--text-secondary)] lg:flex">
-            <a href="#company-types" className="transition-colors hover:text-[var(--text-primary)]">
-              Company types
-            </a>
-            <a href="#features" className="transition-colors hover:text-[var(--text-primary)]">
-              Features
-            </a>
-            <a href="#workflow" className="transition-colors hover:text-[var(--text-primary)]">
-              Workflow
-            </a>
-            <a href="#trust" className="transition-colors hover:text-[var(--text-primary)]">
-              Trust
-            </a>
+          <div className="marketing-nav-links">
+            <a href="#company-types">Workspace types</a>
+            <a href="#features">Capabilities</a>
+            <a href="#workflow">Workflow</a>
+            <a href="#trust">Security</a>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="marketing-nav-actions">
             <Link href={secondaryHref} className="btn-secondary hidden sm:inline-flex">
               {secondaryLabel}
             </Link>
@@ -148,169 +146,167 @@ export default async function HomePage() {
         </nav>
       </header>
 
-      <main className="mx-auto flex w-full max-w-7xl flex-col gap-16 px-4 pb-16 pt-8 sm:px-5 md:gap-24 md:px-8 md:pb-24 md:pt-12">
-        <section className="grid items-center gap-8 lg:grid-cols-[minmax(0,1.05fr)_minmax(360px,0.95fr)] lg:gap-14">
-          <div className="max-w-3xl">
-            <div className="marketing-pill mb-5 inline-flex items-center gap-2 text-sm leading-6">
-              <Sparkles size={14} />
-              <span>Choose the right workflow before signup. Free to start. No pricing wall right now.</span>
-            </div>
-
-            <h1 className="max-w-4xl font-display text-[clamp(2.45rem,11vw,6.3rem)] font-semibold leading-[0.96] text-[var(--text-primary)]">
-              One workspace that adapts to industry teams, digital agencies, and everyone else.
-            </h1>
-
-            <p className="mt-5 max-w-2xl text-base leading-7 text-[var(--text-secondary)] sm:text-lg sm:leading-8 md:text-xl">
-              TASKIT now starts with a company-type choice before signup, so each team gets the right operating model:
-              rooms to projects to tasks, creative briefs to deliverable uploads, or the same clean interface you already know.
-            </p>
-
-            <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-              <Link href={primaryHref} className="btn-primary inline-flex min-h-12 w-full items-center justify-center gap-2 px-6 text-sm sm:w-auto">
-                <span>{primaryLabel}</span>
-                <ArrowRight size={17} strokeWidth={2.2} />
-              </Link>
-              <Link href="#features" className="btn-secondary inline-flex min-h-12 w-full items-center justify-center px-6 text-sm sm:w-auto">
-                Explore the workspace
-              </Link>
-            </div>
-
-            <div className="marketing-proof-strip mt-8 grid gap-3 sm:grid-cols-3 sm:gap-4">
-              {[
-                { value: 'Industry mode', label: 'Rooms, projects, and tasks stay separated and easy to follow' },
-                { value: 'Agency mode', label: 'Briefs turn into uploads and handoff-ready deliverables' },
-                { value: 'Standard mode', label: 'Keep the current TASKIT interface when that is all you need' },
-              ].map((item) => (
-                <div key={item.value} className="marketing-stat">
-                  <div className="text-sm font-semibold text-[var(--text-primary)]">{item.value}</div>
-                  <div className="mt-1 text-sm leading-6 text-[var(--text-muted)]">{item.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="marketing-hero-card glass-elevated">
-            <div className="marketing-hero-glow" />
-
-            <div className="flex flex-wrap items-start justify-between gap-4">
-              <div>
-                <div className="marketing-panel-label">Signup paths</div>
-                <h2 className="mt-3 text-2xl font-semibold text-[var(--text-primary)] sm:text-3xl">
-                  Pick the workflow your company needs before anyone creates the workspace
-                </h2>
+      <main>
+        <section className="marketing-hero">
+          <div className="marketing-hero-inner">
+            <div className="marketing-hero-copy">
+              <div className="marketing-pill">
+                <Sparkles size={15} />
+                <span>The professional workspace for teams that demand operational excellence</span>
               </div>
-              <div className="brand-chip brand-chip-lg">
-                <Image src={logo} alt="TASKIT logo" width={96} height={96} className="h-20 w-20 object-contain md:h-24 md:w-24" />
-              </div>
-            </div>
 
-            <div className="marketing-audience-card mt-8">
-              <div className="marketing-audience-head">
-                <div className="marketing-mini-icon">
-                  <UsersRound size={18} />
-                </div>
-                <div>
-                  <div className="marketing-panel-label">Three workspace modes</div>
-                  <h3 className="mt-2 text-xl font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
-                    Choose the system that matches how your company already operates
-                  </h3>
-                </div>
+              <h1>
+                <span className="gradient-text">TASKIT</span> delivers the workspace discipline teams need to execute at their best.
+              </h1>
+
+              <p className="marketing-hero-lede">
+                Choose the workspace model that fits your company, then manage clients, categories, projects, tasks,
+                creative deliverables, alerts, and team access from one unified, professional system.
+              </p>
+
+              <div className="marketing-hero-actions">
+                <Link href={primaryHref} className="btn-primary">
+                  <span>{primaryLabel}</span>
+                  <ArrowRight size={17} strokeWidth={2.2} />
+                </Link>
+                <Link href="#features" className="btn-secondary">
+                  Explore capabilities
+                </Link>
               </div>
-              <div className="mt-4 grid gap-3">
-                {customerAccessRules.map((rule) => (
-                  <div key={rule} className="marketing-audience-rule">
-                    <CheckCircle2 size={17} className="text-[var(--accent)]" />
-                    <span>{rule}</span>
+
+              <div className="marketing-proof-strip" aria-label="TASKIT workspace highlights">
+                {[
+                  { value: '3', label: 'workspace models' },
+                  { value: 'Role-based', label: 'views and permissions' },
+                  { value: 'Live', label: 'alerts and progress' },
+                ].map((item) => (
+                  <div key={item.value} className="marketing-stat">
+                    <strong>{item.value}</strong>
+                    <span>{item.label}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="mt-6 grid gap-4">
-              {companyTracks.map((track) => {
-                const Icon = track.icon
-                return (
-                  <div key={track.value} className="marketing-panel-card">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-3">
-                        <div className="marketing-mini-icon">
-                          <Icon size={18} />
-                        </div>
-                        <div>
-                          <div className="text-base font-semibold text-[var(--text-primary)]">{track.label}</div>
-                          <p className="mt-1 text-sm leading-6 text-[var(--text-muted)]">{track.title}</p>
-                        </div>
-                      </div>
-                      <Link href={track.href} className="btn-secondary w-full px-4 py-2 text-xs sm:w-auto">
-                        {track.cta}
-                      </Link>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            <div className="mt-5 grid gap-4">
-              {[
-                'A clearer first decision before signup so teams enter the right workflow immediately',
-                'Sharper typography and stronger section hierarchy for a more premium first impression',
-                'Type-aware framing that explains industry, agency, and standard use cases at a glance',
-              ].map((item) => (
-                <div key={item} className="marketing-trust-row">
-                  <CheckCircle2 size={18} className="text-[var(--accent)]" />
-                  <span className="text-sm font-medium text-[var(--text-secondary)]">{item}</span>
+            <div className="marketing-product-frame" aria-label="TASKIT workspace preview">
+              <div className="marketing-product-toolbar">
+                <div>
+                  <span className="marketing-panel-label">Workspace command</span>
+                  <h2>Operations overview</h2>
                 </div>
-              ))}
+                <div className="marketing-live-badge">
+                  <span />
+                  Live
+                </div>
+              </div>
+
+              <div className="marketing-product-grid">
+                <div className="marketing-product-main">
+                  <div className="marketing-product-row-head">
+                    <div>
+                      <span>Priority work</span>
+                      <strong>Today</strong>
+                    </div>
+                    <Gauge size={22} />
+                  </div>
+
+                  <div className="marketing-progress-card">
+                    <div className="marketing-progress-meta">
+                      <span>Delivery health</span>
+                      <strong>86%</strong>
+                    </div>
+                    <div className="marketing-progress-track">
+                      <span style={{ width: '86%' }} />
+                    </div>
+                    <p>12 tasks complete, 4 waiting for review, 2 urgent alerts.</p>
+                  </div>
+
+                  <div className="marketing-cockpit-list">
+                    {cockpitRows.map((row) => (
+                      <div key={row.label} className={`marketing-cockpit-row marketing-cockpit-row-${row.tone}`}>
+                        <div>
+                          <strong>{row.label}</strong>
+                          <span>{row.value}</span>
+                        </div>
+                        <CheckCircle2 size={18} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="marketing-product-side">
+                  <div className="marketing-mini-panel">
+                    <UsersRound size={20} />
+                    <strong>Team access</strong>
+                    <span>Owner, manager, employee</span>
+                  </div>
+                  <div className="marketing-mini-panel marketing-mini-panel-dark">
+                    <Tags size={20} />
+                    <strong>Client categories</strong>
+                    <span>Agency work grouped by account type</span>
+                  </div>
+                  <div className="marketing-mini-panel">
+                    <BellRing size={20} />
+                    <strong>Urgent alerts</strong>
+                    <span>Escalations stay visible</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </section>
 
         <section className="marketing-trust-band">
-          {trustPoints.map((point) => {
-            const Icon = point.icon
-            return (
-              <article key={point.title} className="marketing-trust-card">
-                <div className="marketing-mini-icon">
-                  <Icon size={18} />
-                </div>
-                <h3 className="mt-4 text-lg font-semibold tracking-[-0.03em] text-[var(--text-primary)]">{point.title}</h3>
-                <p className="mt-2 text-sm leading-7 text-[var(--text-muted)]">{point.description}</p>
-              </article>
-            )
-          })}
+          <div className="marketing-band-inner">
+            {trustPoints.map((point) => {
+              const Icon = point.icon
+              return (
+                <article key={point.title} className="marketing-trust-card">
+                  <div className="marketing-mini-icon">
+                    <Icon size={18} />
+                  </div>
+                  <div>
+                    <h3>{point.title}</h3>
+                    <p>{point.description}</p>
+                  </div>
+                </article>
+              )
+            })}
+          </div>
         </section>
 
         <section id="company-types" className="marketing-section">
           <div className="marketing-section-head">
-            <div className="marketing-panel-label">Company types</div>
-            <h2 className="mt-3 font-display text-[clamp(2rem,8vw,3.8rem)] font-semibold text-[var(--text-primary)]">
-              Signup now starts by asking what kind of company you have.
-            </h2>
-            <p className="mt-4 max-w-3xl text-base leading-7 text-[var(--text-secondary)]">
-              That first choice changes the workspace you create. Industry companies get rooms, digital agencies get
-              creative brief delivery, and other teams keep the current TASKIT interface.
+            <span className="marketing-panel-label">Workspace types</span>
+            <h2>Start with the structure your company actually needs.</h2>
+            <p>
+              TASKIT adapts at signup, so each company enters the product with the right labels, hierarchy, and workflow
+              from the first session. Agencies can structure clients by category before campaigns become briefs and tasks.
             </p>
           </div>
 
-          <div className="mt-10 grid gap-5 lg:grid-cols-3">
+          <div className="marketing-track-grid">
             {companyTracks.map((track) => {
               const Icon = track.icon
               return (
                 <article key={track.value} className="marketing-feature-card">
-                  <div className="marketing-mini-icon">
-                    <Icon size={18} />
+                  <div className="marketing-card-topline">
+                    <div className="marketing-mini-icon">
+                      <Icon size={18} />
+                    </div>
+                    <span>{track.workspaceLabel}</span>
                   </div>
-                  <h3 className="mt-5 text-2xl font-semibold tracking-[-0.03em] text-[var(--text-primary)]">{track.label}</h3>
-                  <p className="mt-3 text-sm leading-7 text-[var(--text-muted)]">{track.description}</p>
-                  <div className="mt-4 grid gap-2">
+                  <h3>{track.label}</h3>
+                  <p>{track.description}</p>
+                  <div className="marketing-card-list">
                     {track.bullets.map((bullet) => (
-                      <div key={bullet} className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                        <CheckCircle2 size={15} className="text-[var(--accent)]" />
+                      <div key={bullet}>
+                        <CheckCircle2 size={15} />
                         <span>{bullet}</span>
                       </div>
                     ))}
                   </div>
-                  <Link href={track.href} className="btn-primary mt-6 inline-flex w-full items-center justify-center gap-2 px-5 py-3 text-sm sm:w-auto">
+                  <Link href={track.href} className="btn-primary">
                     <span>{track.cta}</span>
                     <ArrowRight size={16} strokeWidth={2.2} />
                   </Link>
@@ -320,19 +316,17 @@ export default async function HomePage() {
           </div>
         </section>
 
-        <section id="features" className="marketing-section">
+        <section id="features" className="marketing-section marketing-section-split">
           <div className="marketing-section-head">
-            <div className="marketing-panel-label">Core features</div>
-            <h2 className="mt-3 font-display text-[clamp(2rem,8vw,3.8rem)] font-semibold text-[var(--text-primary)]">
-              Everything important is visible without forcing every company into the same shape.
-            </h2>
-            <p className="mt-4 max-w-2xl text-base leading-7 text-[var(--text-secondary)]">
-              TASKIT combines clearer typography, stronger grouping, and workflow-specific structure so teams can trust
-              what they are looking at immediately.
+            <span className="marketing-panel-label">Capabilities</span>
+            <h2>Professional task control without forcing every team into the same workflow.</h2>
+            <p>
+              Keep the product simple for employees while giving owners and managers enough structure to control real
+              work across departments, clients, and projects.
             </p>
           </div>
 
-          <div className="mt-10 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+          <div className="marketing-feature-grid">
             {featureCards.map((feature) => {
               const Icon = feature.icon
               return (
@@ -340,105 +334,64 @@ export default async function HomePage() {
                   <div className="marketing-mini-icon">
                     <Icon size={18} />
                   </div>
-                  <h3 className="mt-5 text-xl font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
-                    {feature.title}
-                  </h3>
-                  <p className="mt-3 text-sm leading-7 text-[var(--text-muted)]">{feature.description}</p>
+                  <h3>{feature.title}</h3>
+                  <p>{feature.description}</p>
                 </article>
               )
             })}
           </div>
         </section>
 
-        <section id="workflow" className="marketing-section grid gap-8 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
-          <div>
-            <div className="marketing-panel-label">Workflow</div>
-            <h2 className="mt-3 font-display text-[clamp(2rem,8vw,3.8rem)] font-semibold text-[var(--text-primary)]">
-              From company choice to daily execution, the path stays easy to follow.
-            </h2>
-            <p className="mt-4 max-w-xl text-base leading-7 text-[var(--text-secondary)]">
-              The landing page now explains how teams begin, how access is controlled, and how work moves from setup to
-              daily delivery inside each workspace type.
-            </p>
+        <section id="workflow" className="marketing-section marketing-workflow">
+          <div className="marketing-section-head">
+            <span className="marketing-panel-label">Workflow</span>
+            <h2>From signup to daily execution, every step has a clear purpose.</h2>
           </div>
 
-          <div className="grid gap-4">
+          <div className="marketing-step-grid">
             {workflowSteps.map((step, index) => (
               <article key={step.title} className="marketing-step-card">
-                <div className="marketing-step-number">0{index + 1}</div>
-                <div>
-                  <h3 className="text-xl font-semibold tracking-[-0.03em] text-[var(--text-primary)]">{step.title}</h3>
-                  <p className="mt-2 text-sm leading-7 text-[var(--text-muted)]">{step.description}</p>
-                </div>
+                <span className="marketing-step-number">0{index + 1}</span>
+                <h3>{step.title}</h3>
+                <p>{step.description}</p>
               </article>
             ))}
           </div>
         </section>
 
-        <section id="trust" className="marketing-section grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.9fr)]">
-          <div className="marketing-why-card">
-            <div className="marketing-panel-label">Trust layer</div>
-            <h2 className="mt-3 font-display text-[clamp(2rem,8vw,3.8rem)] font-semibold text-white">
-              Designed to feel serious enough for real company operations and creative delivery.
-            </h2>
-            <p className="mt-4 max-w-xl text-base leading-7 text-cyan-50/80">
-              From the first screen, the product now communicates role structure, workflow clarity, and a cleaner
-              operating standard that teams can trust.
+        <section id="trust" className="marketing-section marketing-dark-section">
+          <div className="marketing-dark-copy">
+            <span className="marketing-panel-label">Security and clarity</span>
+            <h2>Enterprise-grade governance. Everyday team simplicity.</h2>
+            <p>
+              TASKIT keeps accountability transparent, enforces role-based access control, and provides teams a reliable
+              system for tracking work from assignment through completion.
             </p>
           </div>
 
-          <div className="grid gap-4">
-            {[
-              {
-                title: 'Clear company-type framing',
-                description: 'The homepage now shows exactly how industry teams, agencies, and standard workspaces fit the product.',
-                icon: Eye,
-              },
-              {
-                title: 'Sharper brand presentation',
-                description: 'Typography, spacing, and visual contrast now feel more premium and more credible at a glance.',
-                icon: Sparkles,
-              },
-              {
-                title: 'Confident product trust cues',
-                description: 'The page highlights role-aware visibility, workflow choice, and live response without sounding vague.',
-                icon: ShieldCheck,
-              },
-            ].map((item) => {
-              const Icon = item.icon
-              return (
-                <article key={item.title} className="marketing-feature-card">
-                  <div className="marketing-mini-icon">
-                    <Icon size={18} />
-                  </div>
-                  <h3 className="mt-5 text-xl font-semibold tracking-[-0.03em] text-[var(--text-primary)]">
-                    {item.title}
-                  </h3>
-                  <p className="mt-3 text-sm leading-7 text-[var(--text-muted)]">{item.description}</p>
-                </article>
-              )
-            })}
+          <div className="marketing-highlight-list">
+            {workspaceHighlights.map((item) => (
+              <div key={item} className="marketing-highlight-row">
+                <ShieldCheck size={18} />
+                <span>{item}</span>
+              </div>
+            ))}
           </div>
         </section>
 
-        <section className="marketing-cta glass-elevated">
-          <div className="max-w-3xl">
-            <div className="marketing-panel-label">Start now</div>
-            <h2 className="mt-3 font-display text-[clamp(2rem,8vw,3.8rem)] font-semibold text-[var(--text-primary)]">
-              Pick your company type, launch TASKIT for free, and start with the right workflow from the first screen.
-            </h2>
-            <p className="mt-4 text-base leading-7 text-[var(--text-secondary)]">
-              No pricing wall, no confusing setup, and no generic one-size-fits-all onboarding. Just choose the mode and
-              start organizing the work that matters.
-            </p>
+        <section className="marketing-cta">
+          <div>
+            <span className="marketing-panel-label">Start now</span>
+            <h2>Choose your workspace type and launch TASKIT with the right structure.</h2>
+            <p>Configure your company, invite your team, and begin executing work with professional operational discipline.</p>
           </div>
 
-          <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
-            <Link href={primaryHref} className="btn-primary inline-flex min-h-12 w-full items-center justify-center gap-2 px-6 text-sm sm:w-auto">
+          <div className="marketing-cta-actions">
+            <Link href={primaryHref} className="btn-primary">
               <span>{primaryLabel}</span>
               <ArrowRight size={17} strokeWidth={2.2} />
             </Link>
-            <Link href={secondaryHref} className="btn-secondary inline-flex min-h-12 w-full items-center justify-center px-6 text-sm sm:w-auto">
+            <Link href={secondaryHref} className="btn-secondary">
               {secondaryLabel}
             </Link>
           </div>

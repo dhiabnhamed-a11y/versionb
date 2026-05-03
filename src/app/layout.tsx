@@ -43,9 +43,21 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" data-scroll-behavior="smooth" className={`${fraunces.variable} ${plusJakartaSans.variable}`}>
-      <body>
+    <html
+      lang="en"
+      data-scroll-behavior="smooth"
+      className={`${fraunces.variable} ${plusJakartaSans.variable}`}
+      suppressHydrationWarning
+    >
+      <body suppressHydrationWarning>
         <PWARegistration />
+        {/* Skip to main content link for accessibility */}
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-50 focus:px-4 focus:py-2 focus:bg-white focus:text-[var(--text-primary)] focus:rounded-lg focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-[var(--accent)]"
+        >
+          Skip to main content
+        </a>
         {children}
       </body>
     </html>

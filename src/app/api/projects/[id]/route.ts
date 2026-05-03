@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { getProjectIfAllowed } from '@/lib/project-access'
 import { getProjectCameraSupport, withProjectCameraDefaults } from '@/lib/project-camera-support'
+import { attachProjectAgencyFields } from '@/lib/project-category-support'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
@@ -64,8 +65,10 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  const [projectWithAgencyFields] = await attachProjectAgencyFields([withProjectCameraDefaults(project)], user.companyId!)
+
   return NextResponse.json({
-    ...withProjectCameraDefaults(project),
+    ...projectWithAgencyFields,
     cameraMedia: 'cameraMedia' in project ? project.cameraMedia : [],
   })
 }

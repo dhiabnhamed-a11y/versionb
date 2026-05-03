@@ -5,6 +5,12 @@ import { normalizeCompanyType } from '@/lib/company-types'
 import { auth } from '@/lib/auth'
 import { getDatabaseConfigHint, prisma } from '@/lib/db'
 import {
+  attachProjectAgencyFields,
+  findProjectCategory,
+  getProjectCategorySupport,
+  updateProjectAgencyFields,
+} from '@/lib/project-category-support'
+import {
   getProjectCameraSupport,
   isProjectCameraEnumCompatibilityError,
   withProjectCameraDefaults,
@@ -45,9 +51,11 @@ type RawProjectRow = {
   id: string
   title: string
   description: string | null
+  roomId: string | null
   managerId: string | null
   createdAt: Date
   updatedAt: Date
+  roomName: string | null
   managerUserId: string | null
   managerName: string | null
 }
@@ -65,12 +73,15 @@ async function findProjectsWithoutCameraFields(companyId: string) {
       p."id",
       p."title",
       p."description",
+      p."roomId",
       p."managerId",
       p."createdAt",
       p."updatedAt",
+      r."name" AS "roomName",
       u."id" AS "managerUserId",
       u."name" AS "managerName"
     FROM "Project" p
+    LEFT JOIN "Room" r ON r."id" = p."roomId"
     LEFT JOIN "User" u ON u."id" = p."managerId"
     WHERE p."companyId" = ${companyId}
     ORDER BY p."createdAt" DESC
@@ -102,11 +113,11 @@ async function findProjectsWithoutCameraFields(companyId: string) {
       id: project.id,
       title: project.title,
       description: project.description ?? undefined,
-      roomId: undefined,
+      roomId: project.roomId ?? undefined,
       managerId: project.managerId ?? undefined,
       createdAt: project.createdAt,
       updatedAt: project.updatedAt,
-      room: null,
+      room: project.roomId && project.roomName ? { id: project.roomId, name: project.roomName } : null,
       manager: project.managerUserId && project.managerName ? { id: project.managerUserId, name: project.managerName } : undefined,
       tasks: tasksByProjectId.get(project.id) ?? [],
     })
@@ -117,52 +128,108 @@ async function createProjectWithoutCameraFields(input: {
   title: string
   description?: string
   companyId: string
+  roomId?: string
   managerId?: string
+  categoryId?: string
+  clientName?: string
+  hasProjectCategoryColumns?: boolean
 }) {
   const now = new Date()
   const id = randomUUID()
-  const rows = await prisma.$queryRaw<
-    Array<{
-      id: string
-      title: string
-      description: string | null
-      managerId: string | null
-      companyId: string
-      createdAt: Date
-      updatedAt: Date
-    }>
-  >`
-    INSERT INTO "Project" (
-      "id",
-      "title",
-      "description",
-      "companyId",
-      "managerId",
-      "createdAt",
-      "updatedAt"
-    )
-    VALUES (
-      ${id},
-      ${input.title},
-      ${input.description ?? null},
-      ${input.companyId},
-      ${input.managerId ?? null},
-      ${now},
-      ${now}
-    )
-    RETURNING
-      "id",
-      "title",
-      "description",
-      "managerId",
-      "companyId",
-      "createdAt",
-      "updatedAt"
-  `
+  const rows = input.hasProjectCategoryColumns
+    ? await prisma.$queryRaw<
+        Array<{
+          id: string
+          title: string
+          description: string | null
+          roomId: string | null
+          managerId: string | null
+          companyId: string
+          createdAt: Date
+          updatedAt: Date
+        }>
+      >`
+        INSERT INTO "Project" (
+          "id",
+          "title",
+          "description",
+          "companyId",
+          "roomId",
+          "categoryId",
+          "clientName",
+          "managerId",
+          "createdAt",
+          "updatedAt"
+        )
+        VALUES (
+          ${id},
+          ${input.title},
+          ${input.description ?? null},
+          ${input.companyId},
+          ${input.roomId ?? null},
+          ${input.categoryId ?? null},
+          ${input.clientName ?? null},
+          ${input.managerId ?? null},
+          ${now},
+          ${now}
+        )
+        RETURNING
+          "id",
+          "title",
+          "description",
+          "roomId",
+          "managerId",
+          "companyId",
+          "createdAt",
+          "updatedAt"
+      `
+    : await prisma.$queryRaw<
+        Array<{
+          id: string
+          title: string
+          description: string | null
+          roomId: string | null
+          managerId: string | null
+          companyId: string
+          createdAt: Date
+          updatedAt: Date
+        }>
+      >`
+        INSERT INTO "Project" (
+          "id",
+          "title",
+          "description",
+          "companyId",
+          "roomId",
+          "managerId",
+          "createdAt",
+          "updatedAt"
+        )
+        VALUES (
+          ${id},
+          ${input.title},
+          ${input.description ?? null},
+          ${input.companyId},
+          ${input.roomId ?? null},
+          ${input.managerId ?? null},
+          ${now},
+          ${now}
+        )
+        RETURNING
+          "id",
+          "title",
+          "description",
+          "roomId",
+          "managerId",
+          "companyId",
+          "createdAt",
+          "updatedAt"
+      `
 
   return withProjectCameraDefaults({
     ...rows[0],
     description: rows[0]?.description ?? undefined,
+    roomId: rows[0]?.roomId ?? undefined,
     managerId: rows[0]?.managerId ?? undefined,
   })
 }
@@ -172,7 +239,7 @@ export async function GET() {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const user = session.user as { companyId?: string | null }
+  const user = session.user as { companyId?: string | null; companyType?: string | null }
   if (!user.companyId) {
     return NextResponse.json([])
   }
@@ -198,7 +265,12 @@ export async function GET() {
       }
     }
 
-    return NextResponse.json(projects.map(withProjectCameraDefaults))
+    const normalizedProjects = projects.map(withProjectCameraDefaults) as unknown as Array<{ id: string } & Record<string, unknown>>
+    if (normalizeCompanyType(user.companyType) === 'DIGITAL_AGENCY') {
+      return NextResponse.json(await attachProjectAgencyFields(normalizedProjects, user.companyId))
+    }
+
+    return NextResponse.json(normalizedProjects)
   } catch (err) {
     console.error(err)
     return NextResponse.json(
@@ -225,18 +297,40 @@ export async function POST(req: Request) {
 
   try {
     const support = await getProjectCameraSupport()
+    const categorySupport = await getProjectCategorySupport()
     const body = await req.json()
-    const { title, description, managerId, roomId, hasCamera, cameraType } = body as {
+    const { title, description, managerId, roomId, categoryId, clientName, hasCamera, cameraType } = body as {
       title: string
       description?: string
       managerId?: string
       roomId?: string
+      categoryId?: string
+      clientName?: string
       hasCamera?: boolean
       cameraType?: 'device' | 'external'
     }
+    const companyType = normalizeCompanyType(user.companyType)
 
-    if (normalizeCompanyType(user.companyType) === 'INDUSTRY' && !roomId?.trim()) {
+    if (companyType === 'INDUSTRY' && !roomId?.trim()) {
       return NextResponse.json({ error: 'Projects in industry workspaces must belong to a room.' }, { status: 400 })
+    }
+
+    if (companyType === 'DIGITAL_AGENCY') {
+      if (!categorySupport.hasCategoryTable || !categorySupport.hasProjectCategoryColumns) {
+        return NextResponse.json(
+          { error: 'Project categories are not ready. Apply the latest database migration first.' },
+          { status: 503 }
+        )
+      }
+
+      if (!categoryId?.trim()) {
+        return NextResponse.json({ error: 'Digital agency campaigns must belong to a category.' }, { status: 400 })
+      }
+
+      const category = await findProjectCategory(user.companyId, categoryId)
+      if (!category) {
+        return NextResponse.json({ error: 'Selected category was not found in this workspace.' }, { status: 404 })
+      }
     }
 
     if (roomId?.trim()) {
@@ -261,7 +355,11 @@ export async function POST(req: Request) {
         title,
         description,
         companyId: user.companyId,
+        roomId: roomId || undefined,
         managerId,
+        categoryId: companyType === 'DIGITAL_AGENCY' ? categoryId : undefined,
+        clientName: companyType === 'DIGITAL_AGENCY' ? clientName?.trim() || undefined : undefined,
+        hasProjectCategoryColumns: categorySupport.hasProjectCategoryColumns,
       })
     } else {
       try {
@@ -277,6 +375,14 @@ export async function POST(req: Request) {
           },
           select: getProjectCreateSelect(true),
         })
+        if (companyType === 'DIGITAL_AGENCY' && categoryId) {
+          await updateProjectAgencyFields({
+            projectId: project.id,
+            companyId: user.companyId,
+            categoryId,
+            clientName: clientName?.trim() || null,
+          })
+        }
       } catch (error) {
         if (!isProjectCameraEnumCompatibilityError(error)) {
           throw error
@@ -286,12 +392,22 @@ export async function POST(req: Request) {
           title,
           description,
           companyId: user.companyId,
+          roomId: roomId || undefined,
           managerId,
+          categoryId: companyType === 'DIGITAL_AGENCY' ? categoryId : undefined,
+          clientName: companyType === 'DIGITAL_AGENCY' ? clientName?.trim() || undefined : undefined,
+          hasProjectCategoryColumns: categorySupport.hasProjectCategoryColumns,
         })
       }
     }
 
-    return NextResponse.json(withProjectCameraDefaults(project), { status: 201 })
+    const normalizedProject = withProjectCameraDefaults(project) as { id: string } & Record<string, unknown>
+    if (companyType === 'DIGITAL_AGENCY') {
+      const [projectWithAgencyFields] = await attachProjectAgencyFields([normalizedProject], user.companyId)
+      return NextResponse.json(projectWithAgencyFields, { status: 201 })
+    }
+
+    return NextResponse.json(normalizedProject, { status: 201 })
   } catch (err) {
     console.error(err)
     return NextResponse.json(

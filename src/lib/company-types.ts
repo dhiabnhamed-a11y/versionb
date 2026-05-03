@@ -48,20 +48,20 @@ export const COMPANY_TYPE_CONFIG = {
     slug: 'digital-agency',
     title: 'Assign creative work and collect uploads in one place.',
     description:
-      'For agencies, studios, and creative teams that hand out design, video, and content work to employees.',
-    bullets: ['Send creative tasks to employees', 'Upload images, posters, and videos', 'Hand finished work back to the boss'],
+      'For agencies, studios, and creative teams that organize clients by category, then deliver design, video, and content work.',
+    bullets: ['Create client categories', 'Assign campaigns to each client', 'Collect images, posters, and videos'],
     signupTitle: 'Run an agency studio where briefs turn into uploaded deliverables.',
     signupDescription:
-      'Create campaigns, assign image, affiche, and video work, then let employees upload their finished files directly inside TASKIT.',
-    overviewTitle: 'Creative briefs, production work, and final uploads stay in the same studio.',
+      'Create client categories, assign campaigns, add image, affiche, and video briefs, then let employees upload finished files directly inside TASKIT.',
+    overviewTitle: 'Client categories, creative briefs, production work, and final uploads stay in the same studio.',
     overviewDescription:
       'Designed for agencies that need a clean handoff from brief to deliverable without leaving the workspace.',
     projectLabel: 'Campaign',
     projectPluralLabel: 'Campaigns',
     taskLabel: 'Brief',
     taskPluralLabel: 'Briefs',
-    groupLabel: 'Client lane',
-    groupPluralLabel: 'Client lanes',
+    groupLabel: 'Category',
+    groupPluralLabel: 'Categories',
     workspaceLabel: 'Agency studio',
   },
   OTHER: {
