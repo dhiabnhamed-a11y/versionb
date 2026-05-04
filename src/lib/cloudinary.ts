@@ -108,15 +108,23 @@ function uploadOptions(input: {
   return {
     ...base,
     resource_type: 'video',
-    eager_async: false,
+    media_metadata: true,
+    eager_async: input.type === 'video',
     eager: input.type === 'video'
       ? [
           { streaming_profile: 'auto', format: 'm3u8' },
-          { width: 1280, crop: 'limit', quality: 'auto', fetch_format: 'auto' },
           { width: 640, height: 360, crop: 'fill', gravity: 'auto', format: 'jpg' },
         ]
-      : [{ quality: 'auto', fetch_format: 'mp3' }],
+      : undefined,
   }
+}
+
+function uploadError(error: unknown, fallback: string) {
+  if (error instanceof Error) return error
+  if (typeof error === 'object' && error && 'message' in error && typeof error.message === 'string') {
+    return new Error(error.message)
+  }
+  return new Error(fallback)
 }
 
 export async function uploadAgencyMediaBuffer(input: {
@@ -131,8 +139,9 @@ export async function uploadAgencyMediaBuffer(input: {
   return new Promise<UploadApiResponse>((resolve, reject) => {
     const stream = cloudinary.uploader.upload_stream(
       uploadOptions(input),
-      (error, result) => (error || !result ? reject(error ?? new Error('Cloudinary upload failed.')) : resolve(result))
+      (error, result) => (error || !result ? reject(uploadError(error, 'Cloudinary upload failed.')) : resolve(result))
     )
+    stream.on('error', (error) => reject(uploadError(error, 'Cloudinary upload stream failed.')))
     stream.end(input.buffer)
   })
 }
@@ -147,9 +156,22 @@ export async function uploadAgencyMediaFile(input: {
   configureCloudinary()
 
   return new Promise<UploadApiResponse>((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      uploadOptions(input),
-      (error, result) => (error || !result ? reject(error ?? new Error('Cloudinary upload failed.')) : resolve(result))
+    const options: UploadApiOptions = {
+      ...uploadOptions(input),
+      chunk_size: input.type === 'video' ? 20 * 1024 * 1024 : undefined,
+    }
+    const stream = input.type === 'video'
+      ? cloudinary.uploader.upload_chunked_stream(options, (error, result) => {
+          if (error) reject(uploadError(error, 'Cloudinary chunked video upload failed.'))
+          else if (result && result.done !== false) resolve(result)
+        })
+      : cloudinary.uploader.upload_stream(options, (error, result) => {
+          if (error || !result) reject(uploadError(error, 'Cloudinary upload failed.'))
+          else resolve(result)
+        })
+
+    stream.on('error', (error) =>
+      reject(uploadError(error, input.type === 'video' ? 'Cloudinary chunked video upload failed.' : 'Cloudinary upload stream failed.'))
     )
     createReadStream(input.filePath).pipe(stream)
   })
@@ -182,12 +204,7 @@ export function getCloudinaryDeliveryUrls(result: UploadApiResponse, type: Agenc
         format: 'jpg',
         transformation: [{ width: 640, height: 360, crop: 'fill', gravity: 'auto', quality: 'auto' }],
       }),
-      playbackUrl: cloudinary.url(publicId, {
-        secure: true,
-        resource_type: 'video',
-        format: 'm3u8',
-        streaming_profile: 'auto',
-      }),
+      playbackUrl: result.secure_url,
     }
   }
 
@@ -197,4 +214,3 @@ export function getCloudinaryDeliveryUrls(result: UploadApiResponse, type: Agenc
     playbackUrl: result.secure_url,
   }
 }
-

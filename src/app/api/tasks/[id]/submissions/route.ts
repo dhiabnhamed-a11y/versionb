@@ -272,7 +272,17 @@ export async function POST(req: NextRequest, context: RouteContext<'/api/tasks/[
 
     return NextResponse.json(submission, { status: 201 })
   } catch (error) {
-    console.error(error)
-    return NextResponse.json({ error: 'Failed to upload deliverable.' }, { status: 500 })
+    console.error('[task-submission-upload]', {
+      taskId: task.id,
+      projectId: task.projectId,
+      userId: user.id,
+      contentType,
+      size: buffer.length,
+      error,
+    })
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to upload deliverable.' },
+      { status: 500 }
+    )
   }
 }
