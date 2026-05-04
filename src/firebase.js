@@ -1,6 +1,10 @@
 import { getApp, getApps, initializeApp } from 'firebase/app'
 import { getMessaging, getToken, isSupported, onMessage } from 'firebase/messaging'
 
+const TASKIT_SW_PATH = '/sw.js'
+const TASKIT_SW_SCOPE = '/'
+const TOKEN_REFRESH_INTERVAL_MS = 1000 * 60 * 60 * 12
+
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
@@ -12,6 +16,10 @@ const firebaseConfig = {
 
 function hasFirebaseConfig() {
   return Object.values(firebaseConfig).every(Boolean)
+}
+
+function isLocalhost() {
+  return typeof window !== 'undefined' && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
 }
 
 export function getFirebaseApp() {
@@ -27,40 +35,18 @@ export async function registerTaskitServiceWorker() {
     return null
   }
 
-  if (process.env.NODE_ENV !== 'production') {
-    const existingRegistration = await navigator.serviceWorker.getRegistration('/')
-    if (existingRegistration) {
-      await existingRegistration.unregister()
-    }
-
-    if ('caches' in window) {
-      const cacheKeys = await caches.keys()
-      await Promise.all(
-        cacheKeys
-          .filter((key) => key.startsWith('taskit-'))
-          .map((key) => caches.delete(key))
-      )
-    }
-
-    if (navigator.serviceWorker.controller && !sessionStorage.getItem('taskit-sw-cleared')) {
-      sessionStorage.setItem('taskit-sw-cleared', '1')
-      window.location.reload()
-    }
-
-    return null
-  }
-
-  if (!window.isSecureContext && window.location.hostname !== 'localhost') {
+  if (!window.isSecureContext && !isLocalhost()) {
     console.warn('TASKIT PWA registration requires HTTPS outside localhost.')
     return null
   }
 
-  const existingRegistration = await navigator.serviceWorker.getRegistration('/')
-  if (existingRegistration?.active?.scriptURL?.endsWith('/sw.js')) {
+  const existingRegistration = await navigator.serviceWorker.getRegistration(TASKIT_SW_SCOPE)
+  if (existingRegistration?.active?.scriptURL?.endsWith(TASKIT_SW_PATH)) {
+    void existingRegistration.update().catch(() => undefined)
     return existingRegistration
   }
 
-  return navigator.serviceWorker.register('/sw.js', { scope: '/' })
+  return navigator.serviceWorker.register(TASKIT_SW_PATH, { scope: TASKIT_SW_SCOPE })
 }
 
 export async function requestNotificationPermission() {
@@ -109,10 +95,12 @@ export async function getFcmToken() {
     return null
   }
 
-  return getToken(messaging, {
+  const token = await getToken(messaging, {
     vapidKey,
     serviceWorkerRegistration,
   })
+
+  return token || null
 }
 
 export async function enablePushNotifications() {
@@ -130,7 +118,7 @@ export async function enablePushNotifications() {
     return { success: false, reason: 'missing-token' }
   }
 
-  await fetch('/api/push/token', {
+  const response = await fetch('/api/push/token', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -138,8 +126,40 @@ export async function enablePushNotifications() {
     body: JSON.stringify({ token }),
   })
 
-  console.log('TASKIT FCM token registered', token)
+  if (!response.ok) {
+    return { success: false, reason: 'token-register-failed' }
+  }
+
+  localStorage.setItem('taskit-fcm-token', token)
+  localStorage.setItem('taskit-fcm-token-synced-at', String(Date.now()))
   return { success: true, token }
+}
+
+export async function refreshPushTokenIfNeeded() {
+  if (typeof window === 'undefined') {
+    return { success: false, reason: 'server' }
+  }
+
+  const syncedAt = Number(localStorage.getItem('taskit-fcm-token-synced-at') || 0)
+  if (Date.now() - syncedAt < TOKEN_REFRESH_INTERVAL_MS) {
+    return { success: true, reason: 'fresh' }
+  }
+
+  return enablePushNotifications()
+}
+
+export function extractTaskitNotification(payload) {
+  const data = payload?.data ?? {}
+  const notification = payload?.notification ?? {}
+
+  return {
+    title: data.title || notification.title || 'TASKIT',
+    body: data.body || notification.body || 'You have a new notification.',
+    icon: data.icon || notification.icon || '/icons/taskit-192.png',
+    badge: data.badge || '/favicon.ico',
+    url: data.url || notification.click_action || '/dashboard',
+    tag: data.tag || data.alertId || 'taskit-alert',
+  }
 }
 
 export async function subscribeToForegroundMessages(handler) {

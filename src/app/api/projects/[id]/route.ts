@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { NO_STORE_HEADERS } from '@/lib/http'
 import { getProjectIfAllowed } from '@/lib/project-access'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
 import { getProjectCameraSupport, withProjectCameraDefaults } from '@/lib/project-camera-support'
@@ -135,11 +136,14 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const [projectWithAgencyFields] = await attachProjectAgencyFields([withProjectCameraDefaults(project)], user.companyId!)
 
-  return NextResponse.json({
-    ...projectWithAgencyFields,
-    cameraMedia: 'cameraMedia' in project ? project.cameraMedia : [],
-    projectMedia: isAgency && 'projectMedia' in project ? project.projectMedia : [],
-  })
+  return NextResponse.json(
+    {
+      ...projectWithAgencyFields,
+      cameraMedia: 'cameraMedia' in project ? project.cameraMedia : [],
+      projectMedia: isAgency && 'projectMedia' in project ? project.projectMedia : [],
+    },
+    { headers: NO_STORE_HEADERS }
+  )
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

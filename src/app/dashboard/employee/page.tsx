@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { formatDate, formatTimeAgo } from '@/lib/utils'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
@@ -62,33 +62,33 @@ export default function EmployeeDashboard() {
   const [uploadFile, setUploadFile] = useState<File | null>(null)
   const [uploadError, setUploadError] = useState('')
 
-  async function fetchTasks() {
-    const data = await fetch('/api/tasks').then((response) => response.json())
+  const fetchTasks = useCallback(async () => {
+    const data = await fetch('/api/tasks', { cache: 'no-store' }).then((response) => response.json())
     return Array.isArray(data) ? data : []
-  }
+  }, [])
+
+  const reloadTasks = useCallback(async () => {
+    setTasks(await fetchTasks())
+    setLoading(false)
+  }, [fetchTasks])
 
   useEffect(() => {
     let active = true
 
-    const loadTasks = async () => {
+    void (async () => {
       const nextTasks = await fetchTasks()
       if (!active) return
       setTasks(nextTasks)
       setLoading(false)
-    }
-
-    void loadTasks()
+    })()
 
     return () => {
       active = false
     }
-  }, [])
+  }, [fetchTasks])
 
   useRealtimeSubscription(TASK_REALTIME_EVENTS, () => {
-    void (async () => {
-      setTasks(await fetchTasks())
-      setLoading(false)
-    })()
+    void reloadTasks()
   })
 
   async function advanceStage(task: Task) {
@@ -101,7 +101,7 @@ export default function EmployeeDashboard() {
       body: JSON.stringify({ stage: EMPLOYEE_FLOW[index + 1] }),
     })
     setUpdating(null)
-    setTasks(await fetchTasks())
+    await reloadTasks()
   }
 
   async function handleUpload(e: React.FormEvent) {
@@ -134,7 +134,7 @@ export default function EmployeeDashboard() {
     setUploadTask(null)
     setUploadFile(null)
     setUploadNote('')
-    setTasks(await fetchTasks())
+    await reloadTasks()
   }
 
   const todo = tasks.filter((task) => task.stage === 'TODO')

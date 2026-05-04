@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { formatDate, formatTimeAgo } from '@/lib/utils'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
@@ -93,11 +93,11 @@ export default function AdminTasksPage() {
   })
   const [saving, setSaving] = useState(false)
 
-  async function fetchTasksPageData() {
+  const fetchTasksPageData = useCallback(async () => {
     const [tasksResponse, projectsResponse, employeesResponse] = await Promise.all([
-      fetch('/api/tasks').then((response) => response.json()),
-      fetch('/api/projects').then((response) => response.json()),
-      fetch('/api/employees').then((response) => response.json()),
+      fetch('/api/tasks', { cache: 'no-store' }).then((response) => response.json()),
+      fetch('/api/projects', { cache: 'no-store' }).then((response) => response.json()),
+      fetch('/api/employees', { cache: 'no-store' }).then((response) => response.json()),
     ])
 
     return {
@@ -105,15 +105,15 @@ export default function AdminTasksPage() {
       projects: Array.isArray(projectsResponse) ? projectsResponse : [],
       employees: Array.isArray(employeesResponse) ? employeesResponse : [],
     }
-  }
+  }, [])
 
-  async function reloadTasksPageData() {
+  const reloadTasksPageData = useCallback(async () => {
     const data = await fetchTasksPageData()
     setTasks(data.tasks)
     setProjects(data.projects)
     setEmployees(data.employees)
     setLoading(false)
-  }
+  }, [fetchTasksPageData])
 
   useEffect(() => {
     let active = true
@@ -128,7 +128,7 @@ export default function AdminTasksPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [reloadTasksPageData])
 
   useRealtimeSubscription(TASK_REALTIME_EVENTS, () => {
     void (async () => {

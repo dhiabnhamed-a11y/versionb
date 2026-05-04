@@ -1,11 +1,13 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import { FileAudio, Loader2, UploadCloud, WandSparkles } from 'lucide-react'
 import { MediaPlayer, type AgencyMediaItem } from '@/components/media/MediaPlayer'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 
 const STANDARD_UPLOAD_LIMIT = 25 * 1024 * 1024
 const CHUNK_SIZE = 8 * 1024 * 1024
+const PROJECT_MEDIA_REALTIME_EVENTS = ['project_media_created'] as const
 const MAX_BY_KIND = {
   image: 25 * 1024 * 1024,
   audio: 75 * 1024 * 1024,
@@ -60,6 +62,24 @@ function makeUploadId() {
   return `${Date.now()}${Math.random().toString(16).slice(2)}`.slice(0, 32)
 }
 
+function mergeMedia(current: AgencyMediaItem[], next: AgencyMediaItem) {
+  const existingIndex = current.findIndex((item) => item.id === next.id)
+  if (existingIndex === -1) return [next, ...current]
+
+  const merged = [...current]
+  merged[existingIndex] = next
+  return merged
+}
+
+function isProjectMediaPayload(payload: unknown): payload is { projectId: string; media?: AgencyMediaItem } {
+  return Boolean(
+    payload &&
+      typeof payload === 'object' &&
+      'projectId' in payload &&
+      typeof (payload as { projectId?: unknown }).projectId === 'string'
+  )
+}
+
 async function uploadStandard(projectId: string, file: File, onProgress: (progress: number) => void) {
   const form = new FormData()
   form.set('file', file)
@@ -112,12 +132,24 @@ export function ProjectMediaStudio({
   const [uploads, setUploads] = useState<UploadState[]>([])
   const [error, setError] = useState('')
 
-  async function refresh() {
-    const response = await fetch(`/api/projects/${projectId}/media`)
+  const refresh = useCallback(async () => {
+    const response = await fetch(`/api/projects/${projectId}/media`, { cache: 'no-store' })
     if (!response.ok) return
     const body = await response.json()
     if (Array.isArray(body)) setMedia(body)
-  }
+  }, [projectId])
+
+  useRealtimeSubscription(PROJECT_MEDIA_REALTIME_EVENTS, (eventName, payload) => {
+    if (isProjectMediaPayload(payload)) {
+      if (payload.projectId !== projectId) return
+      if (payload.media) {
+        setMedia((current) => mergeMedia(current, payload.media!))
+        return
+      }
+    }
+
+    if (eventName === 'workspace_event') void refresh()
+  }, 150)
 
   async function uploadFiles(fileList: FileList | File[]) {
     const files = Array.from(fileList)
@@ -146,7 +178,7 @@ export function ProjectMediaStudio({
               })
 
         setUploads((current) => current.map((item) => (item.name === file.name ? { ...item, progress: 100, status: 'done' } : item)))
-        setMedia((current) => [uploaded, ...current])
+        setMedia((current) => mergeMedia(current, uploaded))
       } catch (uploadError) {
         setUploads((current) =>
           current.map((item) =>

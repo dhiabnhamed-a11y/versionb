@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
-import { isFirebaseAdminConfigured, sendNotification } from '@/lib/firebase-admin'
+import { NO_STORE_HEADERS } from '@/lib/http'
+import { isFirebaseAdminConfigured, isInvalidFirebaseTokenError, sendNotification } from '@/lib/firebase-admin'
 import { emitUserRealtime } from '@/lib/realtime-server'
 
 type SessionUser = {
@@ -37,7 +38,7 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
       take: 50,
     })
-    return NextResponse.json(alerts)
+    return NextResponse.json(alerts, { headers: NO_STORE_HEADERS })
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
@@ -86,7 +87,7 @@ export async function POST(req: Request) {
         select: { token: true },
       })
 
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         recipientTokens.map(({ token }) =>
           sendNotification(token, `TASKIT: ${alert.title}`, alert.message, {
             url: '/dashboard/employee/alerts',
@@ -95,6 +96,19 @@ export async function POST(req: Request) {
           })
         )
       )
+
+      const invalidTokens = results
+        .map((result, index) => (result.status === 'rejected' && isInvalidFirebaseTokenError(result.reason) ? recipientTokens[index]?.token : null))
+        .filter((token): token is string => Boolean(token))
+
+      if (invalidTokens.length > 0) {
+        await prisma.pushToken.deleteMany({
+          where: {
+            userId: recipientId,
+            token: { in: invalidTokens },
+          },
+        })
+      }
     }
 
     return NextResponse.json(alert, { status: 201 })

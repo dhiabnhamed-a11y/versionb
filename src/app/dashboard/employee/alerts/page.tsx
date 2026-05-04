@@ -24,7 +24,7 @@ export default function EmployeeAlertsPage() {
   const [loading, setLoading] = useState(true)
 
   async function fetchAlerts() {
-    const data = await fetch('/api/alerts').then((response) => response.json())
+    const data = await fetch('/api/alerts', { cache: 'no-store' }).then((response) => response.json())
     return Array.isArray(data) ? data : []
   }
 
@@ -65,6 +65,14 @@ export default function EmployeeAlertsPage() {
         if (typeof alertId === 'string') {
           setAlerts((current) => current.map((alert) => (alert.id === alertId ? { ...alert, read: true } : alert)))
         }
+        return
+      }
+
+      if (eventName === 'workspace_event') {
+        void fetchAlerts().then((nextAlerts) => {
+          setAlerts(nextAlerts)
+          setLoading(false)
+        })
       }
     },
     100

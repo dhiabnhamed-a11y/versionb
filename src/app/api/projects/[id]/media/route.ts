@@ -12,6 +12,7 @@ import { prisma } from '@/lib/db'
 import { getProjectIfAllowed } from '@/lib/project-access'
 import { getProjectMediaSupport } from '@/lib/project-media-support'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
+import { NO_STORE_HEADERS } from '@/lib/http'
 
 type SessionUser = {
   id: string
@@ -75,7 +76,7 @@ export async function GET(_req: NextRequest, context: RouteContext<'/api/project
     orderBy: { createdAt: 'desc' },
   })
 
-  return NextResponse.json(media)
+  return NextResponse.json(media, { headers: NO_STORE_HEADERS })
 }
 
 export async function POST(req: NextRequest, context: RouteContext<'/api/projects/[id]/media'>) {
@@ -151,4 +152,3 @@ export async function POST(req: NextRequest, context: RouteContext<'/api/project
     )
   }
 }
-

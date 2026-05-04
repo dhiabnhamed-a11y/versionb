@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { NO_STORE_HEADERS } from '@/lib/http'
 import { COMMENT_TIME_TOLERANCE_SECONDS, commentSelect, getAllowedCommentFile } from '@/lib/media-comments'
 import type { SessionUser } from '@/lib/project-access'
 
@@ -20,5 +21,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
     orderBy: [{ timestamp: 'asc' }, { createdAt: 'asc' }],
   })
 
-  return NextResponse.json({ comments, toleranceSeconds: COMMENT_TIME_TOLERANCE_SECONDS })
+  return NextResponse.json(
+    { comments, toleranceSeconds: COMMENT_TIME_TOLERANCE_SECONDS },
+    { headers: NO_STORE_HEADERS }
+  )
 }

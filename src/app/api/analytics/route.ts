@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { NO_STORE_HEADERS } from '@/lib/http'
 
 type SessionUser = {
   companyId?: string | null
@@ -27,30 +28,33 @@ export async function GET() {
 
   const user = session.user as SessionUser
   if (!user.companyId) {
-    return NextResponse.json({
-      totalTasks: 0,
-      doneTasks: 0,
-      inProgressTasks: 0,
-      overdueTasks: 0,
-      totalEmployees: 0,
-      totalUsers: 0,
-      activeUsers: 0,
-      totalProjects: 0,
-      completionRate: 0,
-      performance: [],
-      teamPerformance: [],
-      activitySeries: [],
-      taskStageBreakdown: [],
-      rolesDistribution: [],
-      recentActivity: [],
-      growth: {
-        users: 0,
+    return NextResponse.json(
+      {
+        totalTasks: 0,
+        doneTasks: 0,
+        inProgressTasks: 0,
+        overdueTasks: 0,
+        totalEmployees: 0,
+        totalUsers: 0,
         activeUsers: 0,
-        projects: 0,
-        tasks: 0,
-        completedTasks: 0,
+        totalProjects: 0,
+        completionRate: 0,
+        performance: [],
+        teamPerformance: [],
+        activitySeries: [],
+        taskStageBreakdown: [],
+        rolesDistribution: [],
+        recentActivity: [],
+        growth: {
+          users: 0,
+          activeUsers: 0,
+          projects: 0,
+          tasks: 0,
+          completedTasks: 0,
+        },
       },
-    })
+      { headers: NO_STORE_HEADERS }
+    )
   }
 
   try {
@@ -223,73 +227,76 @@ export async function GET() {
     }))
     const completionRate = totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0
 
-    return NextResponse.json({
-      companyType: company?.companyType ?? 'OTHER',
-      totalTasks,
-      doneTasks,
-      inProgressTasks,
-      reviewTasks,
-      todoTasks,
-      overdueTasks,
-      totalEmployees,
-      totalUsers,
-      activeUsers,
-      totalProjects,
-      roomCount,
-      submissionCount,
-      completionRate,
-      performance,
-      teamPerformance: performance,
-      taskStageBreakdown: [
-        { name: 'To Do', value: todoTasks, stage: 'TODO', color: '#64748b' },
-        { name: 'In Progress', value: inProgressTasks, stage: 'IN_PROGRESS', color: '#0f766e' },
-        { name: 'Review', value: reviewTasks, stage: 'REVIEW', color: '#d97706' },
-        { name: 'Done', value: doneTasks, stage: 'DONE', color: '#059669' },
-      ],
-      rolesDistribution: roles.map((role) => ({
-        name: role.role.replace('_', ' '),
-        value: role._count.role,
-      })),
-      activitySeries: rangeDays.map((day) => {
-        const key = startOfDay(day).toISOString()
-        return {
-          date: key,
-          label: day.toLocaleDateString('en-US', { weekday: 'short' }),
-          created: createdByDay.get(key) ?? 0,
-          completed: completedByDay.get(key) ?? 0,
-        }
-      }),
-      recentActivity: recentActivities.map((activity) => ({
-        id: activity.id,
-        action: activity.action,
-        createdAt: activity.createdAt,
-        user: activity.user,
-        task: activity.task,
-      })),
-      growth: {
-        users: percentChange(usersThisWeek, usersLastWeek),
-        activeUsers: percentChange(activeUsers, activeUsersLastWeek),
-        projects: percentChange(projectsThisWeek, projectsLastWeek),
-        tasks: percentChange(tasksThisWeek, tasksLastWeek),
-        completedTasks: percentChange(completedThisWeek, completedLastWeek),
-      },
-      comparison: {
-        thisWeek: {
-          users: usersThisWeek,
-          activeUsers,
-          projects: projectsThisWeek,
-          tasks: tasksThisWeek,
-          completedTasks: completedThisWeek,
+    return NextResponse.json(
+      {
+        companyType: company?.companyType ?? 'OTHER',
+        totalTasks,
+        doneTasks,
+        inProgressTasks,
+        reviewTasks,
+        todoTasks,
+        overdueTasks,
+        totalEmployees,
+        totalUsers,
+        activeUsers,
+        totalProjects,
+        roomCount,
+        submissionCount,
+        completionRate,
+        performance,
+        teamPerformance: performance,
+        taskStageBreakdown: [
+          { name: 'To Do', value: todoTasks, stage: 'TODO', color: '#64748b' },
+          { name: 'In Progress', value: inProgressTasks, stage: 'IN_PROGRESS', color: '#0f766e' },
+          { name: 'Review', value: reviewTasks, stage: 'REVIEW', color: '#d97706' },
+          { name: 'Done', value: doneTasks, stage: 'DONE', color: '#059669' },
+        ],
+        rolesDistribution: roles.map((role) => ({
+          name: role.role.replace('_', ' '),
+          value: role._count.role,
+        })),
+        activitySeries: rangeDays.map((day) => {
+          const key = startOfDay(day).toISOString()
+          return {
+            date: key,
+            label: day.toLocaleDateString('en-US', { weekday: 'short' }),
+            created: createdByDay.get(key) ?? 0,
+            completed: completedByDay.get(key) ?? 0,
+          }
+        }),
+        recentActivity: recentActivities.map((activity) => ({
+          id: activity.id,
+          action: activity.action,
+          createdAt: activity.createdAt,
+          user: activity.user,
+          task: activity.task,
+        })),
+        growth: {
+          users: percentChange(usersThisWeek, usersLastWeek),
+          activeUsers: percentChange(activeUsers, activeUsersLastWeek),
+          projects: percentChange(projectsThisWeek, projectsLastWeek),
+          tasks: percentChange(tasksThisWeek, tasksLastWeek),
+          completedTasks: percentChange(completedThisWeek, completedLastWeek),
         },
-        lastWeek: {
-          users: usersLastWeek,
-          activeUsers: activeUsersLastWeek,
-          projects: projectsLastWeek,
-          tasks: tasksLastWeek,
-          completedTasks: completedLastWeek,
+        comparison: {
+          thisWeek: {
+            users: usersThisWeek,
+            activeUsers,
+            projects: projectsThisWeek,
+            tasks: tasksThisWeek,
+            completedTasks: completedThisWeek,
+          },
+          lastWeek: {
+            users: usersLastWeek,
+            activeUsers: activeUsersLastWeek,
+            projects: projectsLastWeek,
+            tasks: tasksLastWeek,
+            completedTasks: completedLastWeek,
+          },
         },
       },
-    })
+      { headers: NO_STORE_HEADERS }
+    )
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

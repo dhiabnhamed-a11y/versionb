@@ -133,7 +133,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/tasks/[id]
       data: { taskId: id, userId: user.id, action },
     })
 
-    emitCompanyRealtime(existing.project.companyId, 'task_updated', { task: updated, action })
+    emitCompanyRealtime(existing.project.companyId, 'task_updated', { projectId: updated.project.id, task: updated, action })
 
     return NextResponse.json(updated)
   } catch (err) {
@@ -155,7 +155,7 @@ export async function DELETE(req: NextRequest, ctx: RouteContext<'/api/tasks/[id
   try {
     const existing = await prisma.task.findUnique({
       where: { id },
-      select: { id: true, project: { select: { companyId: true } } },
+      select: { id: true, projectId: true, project: { select: { companyId: true } } },
     })
     if (!existing) return NextResponse.json({ error: 'Not found' }, { status: 404 })
     if (user.companyId && existing.project.companyId !== user.companyId) {
@@ -164,7 +164,7 @@ export async function DELETE(req: NextRequest, ctx: RouteContext<'/api/tasks/[id
 
     await prisma.activity.deleteMany({ where: { taskId: id } })
     await prisma.task.delete({ where: { id } })
-    emitCompanyRealtime(existing.project.companyId, 'task_deleted', { taskId: id })
+    emitCompanyRealtime(existing.project.companyId, 'task_deleted', { projectId: existing.projectId, taskId: id })
     return NextResponse.json({ success: true })
   } catch (err) {
     console.error(err)

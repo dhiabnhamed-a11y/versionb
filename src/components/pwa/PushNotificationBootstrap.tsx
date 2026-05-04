@@ -1,7 +1,12 @@
 'use client'
 
 import { useEffect } from 'react'
-import { enablePushNotifications, subscribeToForegroundMessages } from '@/firebase'
+import {
+  enablePushNotifications,
+  extractTaskitNotification,
+  refreshPushTokenIfNeeded,
+  subscribeToForegroundMessages,
+} from '@/firebase'
 
 export default function PushNotificationBootstrap({ userId }: { userId?: string }) {
   useEffect(() => {
@@ -9,8 +14,13 @@ export default function PushNotificationBootstrap({ userId }: { userId?: string 
       return
     }
 
-    // Ask authenticated users for notification permission and register their FCM token.
     void enablePushNotifications()
+
+    const refreshTimer = window.setInterval(() => {
+      void refreshPushTokenIfNeeded()
+    }, 1000 * 60 * 60)
+
+    return () => window.clearInterval(refreshTimer)
   }, [userId])
 
   useEffect(() => {
@@ -18,8 +28,24 @@ export default function PushNotificationBootstrap({ userId }: { userId?: string 
 
     void (async () => {
       unsubscribe = await subscribeToForegroundMessages((payload: unknown) => {
-        // Socket alerts still handle the active-tab UX. Foreground FCM is kept for debugging/extension.
-        console.log('TASKIT foreground FCM message', payload)
+        const notification = extractTaskitNotification(payload)
+
+        window.dispatchEvent(new CustomEvent('taskit:fcm-message', { detail: payload }))
+
+        if ('Notification' in window && Notification.permission === 'granted') {
+          const shown = new Notification(notification.title, {
+            body: notification.body,
+            icon: notification.icon,
+            badge: notification.badge,
+            tag: notification.tag,
+          })
+
+          shown.onclick = () => {
+            window.focus()
+            window.location.assign(notification.url)
+            shown.close()
+          }
+        }
       })
     })()
 

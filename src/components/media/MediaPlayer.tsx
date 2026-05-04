@@ -4,6 +4,7 @@
 
 import {
   forwardRef,
+  useCallback,
   useEffect,
   useImperativeHandle,
   useMemo,
@@ -33,8 +34,10 @@ import {
 import videojs from 'video.js'
 import type Player from 'video.js/dist/types/player'
 import 'video.js/dist/video-js.css'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 
 const COMMENT_TOLERANCE_SECONDS = 0.5
+const COMMENT_REALTIME_EVENTS = ['comment_created', 'comment_updated'] as const
 
 export type AgencyMediaItem = {
   id: string
@@ -112,6 +115,24 @@ function uploaderName(media: AgencyMediaItem) {
 
 function sortComments(comments: MediaComment[]) {
   return [...comments].sort((a, b) => a.timestamp - b.timestamp || Date.parse(a.createdAt) - Date.parse(b.createdAt))
+}
+
+function mergeComment(current: MediaComment[], next: MediaComment) {
+  const existingIndex = current.findIndex((comment) => comment.id === next.id)
+  if (existingIndex === -1) return sortComments([...current, next])
+
+  const merged = [...current]
+  merged[existingIndex] = next
+  return sortComments(merged)
+}
+
+function isCommentRealtimePayload(payload: unknown): payload is { fileId: string; comment?: MediaComment } {
+  return Boolean(
+    payload &&
+      typeof payload === 'object' &&
+      'fileId' in payload &&
+      typeof (payload as { fileId?: unknown }).fileId === 'string'
+  )
 }
 
 function getActiveCommentId(comments: MediaComment[], currentTime: number) {
@@ -674,26 +695,60 @@ function DeliverableCard({ media }: { media: AgencyMediaItem }) {
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(media.duration ?? 0)
   const [justAddedId, setJustAddedId] = useState<string | null>(null)
+  const justAddedTimerRef = useRef<number | null>(null)
+
+  const fetchComments = useCallback(async (signal?: AbortSignal) => {
+    try {
+      const response = await fetch(`/api/files/${media.id}/comments`, { cache: 'no-store', signal })
+      if (!response.ok) {
+        if (response.status !== 404) setError('Could not load comments.')
+        return null
+      }
+      const body = await response.json()
+      return Array.isArray(body.comments) ? sortComments(body.comments) : null
+    } catch (loadError) {
+      if (!(loadError instanceof DOMException && loadError.name === 'AbortError')) {
+        setError('Could not load comments.')
+      }
+      return null
+    }
+  }, [media.id])
+
+  const loadComments = useCallback(async (signal?: AbortSignal) => {
+    const nextComments = await fetchComments(signal)
+    if (nextComments) setComments(nextComments)
+  }, [fetchComments])
 
   useEffect(() => {
     const controller = new AbortController()
 
     ;(async () => {
-      const response = await fetch(`/api/files/${media.id}/comments`, { signal: controller.signal })
-      if (!response.ok) {
-        if (response.status !== 404) setError('Could not load comments.')
-        return
-      }
-      const body = await response.json()
-      if (Array.isArray(body.comments)) setComments(sortComments(body.comments))
-    })().catch((loadError) => {
-      if (!(loadError instanceof DOMException && loadError.name === 'AbortError')) {
-        setError('Could not load comments.')
-      }
-    })
+      const nextComments = await fetchComments(controller.signal)
+      if (!controller.signal.aborted && nextComments) setComments(nextComments)
+    })()
 
     return () => controller.abort()
-  }, [media.id])
+  }, [fetchComments])
+
+  useEffect(() => {
+    return () => {
+      if (justAddedTimerRef.current) window.clearTimeout(justAddedTimerRef.current)
+    }
+  }, [])
+
+  useRealtimeSubscription(COMMENT_REALTIME_EVENTS, (eventName, payload) => {
+    if (isCommentRealtimePayload(payload)) {
+      if (payload.fileId !== media.id) return
+      if (payload.comment) {
+        setComments((current) => mergeComment(current, payload.comment!))
+        return
+      }
+    }
+
+    if (eventName === 'workspace_event') {
+      void loadComments()
+    }
+  }, 120)
 
   const topLevelComments = useMemo(() => sortComments(comments.filter((comment) => !comment.parentId)), [comments])
   const repliesByParent = useMemo(() => {
@@ -741,10 +796,14 @@ function DeliverableCard({ media }: { media: AgencyMediaItem }) {
       return
     }
 
-    const created = await response.json()
-    setComments((current) => sortComments([...current, created]))
+    const created = (await response.json()) as MediaComment
+    setComments((current) => mergeComment(current, created))
     setJustAddedId(created.id)
-    window.setTimeout(() => setJustAddedId(null), 900)
+    if (justAddedTimerRef.current) window.clearTimeout(justAddedTimerRef.current)
+    justAddedTimerRef.current = window.setTimeout(() => {
+      setJustAddedId(null)
+      justAddedTimerRef.current = null
+    }, 900)
     if (parentId) {
       setReplyingTo(null)
       setReplyDraft('')
@@ -765,7 +824,11 @@ function DeliverableCard({ media }: { media: AgencyMediaItem }) {
     if (!response.ok) {
       setComments((current) => current.map((comment) => (comment.id === commentId ? { ...comment, resolved: !resolved } : comment)))
       setError('Could not update resolved state.')
+      return
     }
+
+    const updated = (await response.json()) as MediaComment
+    setComments((current) => mergeComment(current, updated))
   }
 
   return (

@@ -10,6 +10,7 @@ import {
 } from '@/lib/cloudinary'
 import { normalizeCompanyType } from '@/lib/company-types'
 import { prisma } from '@/lib/db'
+import { NO_STORE_HEADERS } from '@/lib/http'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
 import { getProjectMediaSupport } from '@/lib/project-media-support'
 import { getSupabaseAdmin, TASK_DELIVERABLE_BUCKET } from '@/lib/supabase-admin'
@@ -90,7 +91,7 @@ export async function GET(_req: NextRequest, context: RouteContext<'/api/tasks/[
     orderBy: [{ createdAt: 'desc' }],
   })
 
-  return NextResponse.json(submissions)
+  return NextResponse.json(submissions, { headers: NO_STORE_HEADERS })
 }
 
 export async function POST(req: NextRequest, context: RouteContext<'/api/tasks/[id]/submissions'>) {
@@ -208,7 +209,7 @@ export async function POST(req: NextRequest, context: RouteContext<'/api/tasks/[
         },
       })
 
-      emitCompanyRealtime(task.project.companyId, 'task_submission_created', { taskId: task.id, submission })
+      emitCompanyRealtime(task.project.companyId, 'task_submission_created', { projectId: task.projectId, taskId: task.id, submission })
       return NextResponse.json(submission, { status: 201 })
     }
 
@@ -267,7 +268,7 @@ export async function POST(req: NextRequest, context: RouteContext<'/api/tasks/[
       },
     })
 
-    emitCompanyRealtime(task.project.companyId, 'task_submission_created', { taskId: task.id, submission })
+    emitCompanyRealtime(task.project.companyId, 'task_submission_created', { projectId: task.projectId, taskId: task.id, submission })
 
     return NextResponse.json(submission, { status: 201 })
   } catch (error) {

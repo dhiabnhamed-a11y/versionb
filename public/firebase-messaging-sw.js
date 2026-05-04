@@ -1,6 +1,13 @@
 const TASKIT_DEFAULT_ICON = '/icons/taskit-192.png'
 const TASKIT_DEFAULT_BADGE = '/favicon.ico'
 
+try {
+  importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js')
+  importScripts('https://www.gstatic.com/firebasejs/10.13.2/firebase-messaging-compat.js')
+} catch {
+  // FCM compat scripts are optional here; raw PushEvent handling below still displays data messages.
+}
+
 function parseTaskitPushPayload(event) {
   if (!event.data) {
     return null
@@ -8,15 +15,17 @@ function parseTaskitPushPayload(event) {
 
   try {
     const payload = event.data.json()
-    const data = payload?.data ?? payload?.notification ?? payload ?? {}
+    const data = payload?.data ?? {}
+    const notification = payload?.notification ?? {}
+    const fcmOptions = payload?.fcmOptions ?? payload?.webpush?.fcm_options ?? {}
 
     return {
-      title: data.title || 'TASKIT',
-      body: data.body || 'You have a new notification.',
-      icon: data.icon || TASKIT_DEFAULT_ICON,
+      title: data.title || notification.title || 'TASKIT',
+      body: data.body || notification.body || 'You have a new notification.',
+      icon: data.icon || notification.icon || TASKIT_DEFAULT_ICON,
       badge: data.badge || TASKIT_DEFAULT_BADGE,
-      url: data.url || '/dashboard',
-      tag: data.tag || 'taskit-alert',
+      url: data.url || fcmOptions.link || '/dashboard',
+      tag: data.tag || data.alertId || 'taskit-alert',
     }
   } catch {
     return {
@@ -53,18 +62,17 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
 
-  const targetUrl = event.notification.data?.url || '/dashboard'
+  const targetUrl = new URL(event.notification.data?.url || '/dashboard', self.location.origin).href
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
       for (const client of clients) {
-        if ('focus' in client) {
-          return client.focus().then(() => {
-            if ('navigate' in client) {
-              return client.navigate(targetUrl)
-            }
-            return undefined
-          })
+        if ('focus' in client && new URL(client.url).origin === self.location.origin) {
+          if ('navigate' in client) {
+            return client.navigate(targetUrl).then((focusedClient) => focusedClient.focus())
+          }
+
+          return client.focus()
         }
       }
 

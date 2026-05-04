@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { commentSelect, getAllowedCommentFile } from '@/lib/media-comments'
+import { emitCompanyRealtime } from '@/lib/realtime-server'
 import type { SessionUser } from '@/lib/project-access'
 
 type UpdateCommentBody = {
@@ -34,6 +35,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     data: { resolved: body.resolved },
     select: commentSelect,
   })
+
+  emitCompanyRealtime(user.companyId, 'comment_updated', { fileId: file.id, projectId: file.projectId, comment })
 
   return NextResponse.json(comment)
 }

@@ -53,12 +53,23 @@ export async function sendNotification(
       icon: data.icon ?? '/icons/taskit-192.png',
       badge: data.badge ?? '/favicon.ico',
       url: data.url ?? '/dashboard/employee/alerts',
+      tag: data.tag ?? data.alertId ?? 'taskit-alert',
       ...data,
     },
     webpush: {
       headers: {
         Urgency: 'high',
+        TTL: '86400',
+      },
+      fcmOptions: {
+        link: data.url ?? '/dashboard/employee/alerts',
       },
     },
   })
+}
+
+export function isInvalidFirebaseTokenError(error: unknown) {
+  if (!error || typeof error !== 'object') return false
+  const code = 'code' in error ? String((error as { code?: unknown }).code) : ''
+  return code === 'messaging/registration-token-not-registered' || code === 'messaging/invalid-registration-token'
 }

@@ -39,6 +39,7 @@ export default function AlertReceiver({ userId }: { userId: string }) {
 
   useEffect(() => {
     let isMounted = true
+    let cleanupHandlers: (() => void) | null = null
 
     void (async () => {
       const socket = await getSocket()
@@ -46,25 +47,32 @@ export default function AlertReceiver({ userId }: { userId: string }) {
 
       socketRef.current = socket
 
-      socket.on('connect', () => {
+      const handleConnect = () => {
         socket.emit('join', userId)
-      })
-      socket.on('alert', (data: AlertData) => {
+      }
+      const handleAlert = (data: AlertData) => {
         setAlert(data)
         playAlertSound()
         if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400])
         if ('Notification' in window && Notification.permission === 'granted') {
           new Notification(`TASKIT: ${data.title}`, { body: data.message, icon: '/icons/taskit-192.png' })
         }
-      })
+      }
+
+      socket.on('connect', handleConnect)
+      socket.on('alert', handleAlert)
 
       if (socket.connected) socket.emit('join', userId)
+
+      cleanupHandlers = () => {
+        socket.off('alert', handleAlert)
+        socket.off('connect', handleConnect)
+      }
     })()
 
     return () => {
       isMounted = false
-      socketRef.current?.off('alert')
-      socketRef.current?.off('connect')
+      cleanupHandlers?.()
     }
   }, [userId])
 

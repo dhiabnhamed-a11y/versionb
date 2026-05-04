@@ -68,12 +68,12 @@ export default function EmployeesPage() {
   const canInviteAdmins = (session?.user as { role?: string } | undefined)?.role !== 'EMPLOYEE'
 
   async function fetchEmployees() {
-    const data = await fetch('/api/employees').then((response) => response.json())
+    const data = await fetch('/api/employees', { cache: 'no-store' }).then((response) => response.json())
     return Array.isArray(data) ? data : []
   }
 
   async function fetchInvites() {
-    const data = await fetch('/api/invites').then((response) => response.json())
+    const data = await fetch('/api/invites', { cache: 'no-store' }).then((response) => response.json())
     return Array.isArray(data) ? data : []
   }
 

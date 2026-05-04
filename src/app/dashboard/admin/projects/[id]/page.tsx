@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -9,6 +9,9 @@ import { ArrowLeft, Camera, FolderKanban, User, Building2, Link2, Tags, UsersRou
 import { ProjectCamera } from '@/components/camera/ProjectCamera'
 import { MediaPlayer } from '@/components/media/MediaPlayer'
 import { ProjectMediaStudio } from '@/components/media/ProjectMediaStudio'
+import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+
+const PROJECT_DETAIL_REALTIME_EVENTS = ['project_updated', 'task_created', 'task_updated', 'task_deleted', 'task_submission_created', 'project_media_created'] as const
 
 type ProjectDetail = {
   id: string
@@ -72,32 +75,46 @@ export default function ProjectDetailPage() {
   const companyCopy = getCompanyTypeCopy(companyType)
   const isAgency = companyType === 'DIGITAL_AGENCY'
 
+  const loadProject = useCallback(async (signal?: AbortSignal) => {
+    setLoading(true)
+    const res = await fetch(`/api/projects/${id}`, { cache: 'no-store', signal })
+    if (res.status === 404) {
+      setNotFound(true)
+      setProject(null)
+    } else if (res.ok) {
+      setProject(await res.json())
+      setNotFound(false)
+    }
+    setLoading(false)
+  }, [id])
+
   useEffect(() => {
-    console.log('[ProjectDetailPage] mounted for project route', { id })
     let cancelled = false
+    const controller = new AbortController()
     ;(async () => {
-      setLoading(true)
-      const res = await fetch(`/api/projects/${id}`)
-      if (cancelled) return
-      if (res.status === 404) {
-        setNotFound(true)
-        setProject(null)
-      } else if (res.ok) {
-        const projectPayload = await res.json()
-        console.log('[ProjectDetailPage] loaded project payload', {
-          id: projectPayload.id,
-          hasCamera: projectPayload.hasCamera,
-          cameraType: projectPayload.cameraType,
-        })
-        setProject(projectPayload)
-        setNotFound(false)
+      try {
+        await loadProject(controller.signal)
+      } catch (error) {
+        if (!cancelled && !(error instanceof DOMException && error.name === 'AbortError')) {
+          setLoading(false)
+        }
       }
-      setLoading(false)
     })()
     return () => {
       cancelled = true
+      controller.abort()
     }
-  }, [id])
+  }, [loadProject])
+
+  useRealtimeSubscription(PROJECT_DETAIL_REALTIME_EVENTS, (eventName, payload) => {
+    if (payload && typeof payload === 'object' && 'projectId' in payload && (payload as { projectId?: unknown }).projectId !== id) {
+      return
+    }
+
+    if (eventName === 'project_media_created' || eventName === 'task_submission_created' || eventName === 'task_updated' || eventName === 'workspace_event') {
+      void loadProject()
+    }
+  }, 250)
 
   if (loading) {
     return (
@@ -195,7 +212,6 @@ export default function ProjectDetailPage() {
         initialEnabled={project.hasCamera}
         initialCameraType={project.cameraType}
         onProjectCameraChange={(settings) => {
-          console.log('[ProjectDetailPage] camera settings changed', settings)
           setProject((current) => (current ? { ...current, ...settings } : current))
         }}
       />

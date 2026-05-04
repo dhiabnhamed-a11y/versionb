@@ -9,6 +9,7 @@ import {
   normalizeTimestamp,
   timestampFitsDuration,
 } from '@/lib/media-comments'
+import { emitCompanyRealtime } from '@/lib/realtime-server'
 import type { SessionUser } from '@/lib/project-access'
 
 type CreateCommentBody = {
@@ -62,6 +63,8 @@ export async function POST(req: NextRequest) {
     },
     select: commentSelect,
   })
+
+  emitCompanyRealtime(user.companyId, 'comment_created', { fileId: file.id, projectId: file.projectId, comment })
 
   return NextResponse.json(comment, { status: 201 })
 }

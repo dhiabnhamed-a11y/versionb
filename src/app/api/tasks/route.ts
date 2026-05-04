@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { NO_STORE_HEADERS } from '@/lib/http'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
 import { getProjectMediaSupport } from '@/lib/project-media-support'
 
@@ -27,7 +28,7 @@ export async function GET(req: NextRequest) {
 
   const user = session.user as SessionUser
   if (!user.companyId) {
-    return NextResponse.json([])
+    return NextResponse.json([], { headers: NO_STORE_HEADERS })
   }
   const { searchParams } = new URL(req.url)
   const projectId = searchParams.get('projectId')
@@ -90,7 +91,7 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { createdAt: 'desc' },
     })
-    return NextResponse.json(tasks)
+    return NextResponse.json(tasks, { headers: NO_STORE_HEADERS })
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
@@ -163,7 +164,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    emitCompanyRealtime(user.companyId, 'task_created', { task })
+    emitCompanyRealtime(user.companyId, 'task_created', { projectId: task.project.id, task })
 
     return NextResponse.json(task, { status: 201 })
   } catch (err) {

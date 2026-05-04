@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client'
 import { normalizeCompanyType } from '@/lib/company-types'
 import { auth } from '@/lib/auth'
 import { getDatabaseConfigHint, prisma } from '@/lib/db'
+import { NO_STORE_HEADERS } from '@/lib/http'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
 import {
   attachProjectAgencyFields,
@@ -242,7 +243,7 @@ export async function GET() {
 
   const user = session.user as { companyId?: string | null; companyType?: string | null }
   if (!user.companyId) {
-    return NextResponse.json([])
+    return NextResponse.json([], { headers: NO_STORE_HEADERS })
   }
 
   try {
@@ -268,10 +269,10 @@ export async function GET() {
 
     const normalizedProjects = projects.map(withProjectCameraDefaults) as unknown as Array<{ id: string } & Record<string, unknown>>
     if (normalizeCompanyType(user.companyType) === 'DIGITAL_AGENCY') {
-      return NextResponse.json(await attachProjectAgencyFields(normalizedProjects, user.companyId))
+      return NextResponse.json(await attachProjectAgencyFields(normalizedProjects, user.companyId), { headers: NO_STORE_HEADERS })
     }
 
-    return NextResponse.json(normalizedProjects)
+    return NextResponse.json(normalizedProjects, { headers: NO_STORE_HEADERS })
   } catch (err) {
     console.error(err)
     return NextResponse.json(

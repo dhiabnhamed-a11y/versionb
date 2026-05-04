@@ -3,6 +3,8 @@ export const REALTIME_EVENTS = [
   'task_updated',
   'task_deleted',
   'task_submission_created',
+  'comment_created',
+  'comment_updated',
   'project_created',
   'project_updated',
   'project_deleted',

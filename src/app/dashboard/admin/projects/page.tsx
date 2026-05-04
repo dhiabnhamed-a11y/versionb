@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import { Camera, ChevronRight, FolderKanban, Plus, Loader2, User, Building2, Tags, UsersRound, Pencil, Trash2 } from 'lucide-react'
@@ -102,12 +102,12 @@ export default function ProjectsPage() {
   const [roomError, setRoomError] = useState<ApiFailure | null>(null)
   const [categoryError, setCategoryError] = useState<ApiFailure | null>(null)
 
-  async function fetchProjectsData() {
+  const fetchProjectsData = useCallback(async () => {
     const [projectResponse, employeeResponse, roomResponse, categoryResponse] = await Promise.all([
-      fetch('/api/projects'),
-      fetch('/api/employees'),
-      fetch('/api/rooms'),
-      fetch('/api/project-categories'),
+      fetch('/api/projects', { cache: 'no-store' }),
+      fetch('/api/employees', { cache: 'no-store' }),
+      fetch('/api/rooms', { cache: 'no-store' }),
+      fetch('/api/project-categories', { cache: 'no-store' }),
     ])
 
     const [projectBody, employeeBody, roomBody, categoryBody] = await Promise.all([
@@ -125,16 +125,16 @@ export default function ProjectsPage() {
       categories: Array.isArray(categoryBody) ? categoryBody : [],
       projectError: Array.isArray(projectBody) ? null : ((projectBody as ApiFailure) ?? null),
     }
-  }
+  }, [])
 
-  async function reload() {
+  const reload = useCallback(async () => {
     const data = await fetchProjectsData()
     setProjects(data.projects)
     setEmployees(data.employees)
     setRooms(data.rooms)
     setCategories(data.categories)
     setLoadError(data.ok ? null : data.projectError)
-  }
+  }, [fetchProjectsData])
 
   useEffect(() => {
     let active = true
@@ -155,7 +155,7 @@ export default function ProjectsPage() {
     return () => {
       active = false
     }
-  }, [])
+  }, [fetchProjectsData])
 
   useRealtimeSubscription(PROJECT_REALTIME_EVENTS, () => {
     void reload()

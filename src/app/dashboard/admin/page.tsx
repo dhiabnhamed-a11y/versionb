@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSession } from 'next-auth/react'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
@@ -144,17 +144,21 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
 
+  const loadStats = useCallback(async () => {
+    const data = (await fetch('/api/analytics', { cache: 'no-store' }).then((response) => response.json())) as Stats
+    setStats(data)
+    setLoading(false)
+  }, [])
+
   useEffect(() => {
     let active = true
 
-    const loadStats = async () => {
-      const data = (await fetch('/api/analytics').then((response) => response.json())) as Stats
+    void (async () => {
+      const data = (await fetch('/api/analytics', { cache: 'no-store' }).then((response) => response.json())) as Stats
       if (!active) return
       setStats(data)
       setLoading(false)
-    }
-
-    void loadStats()
+    })()
 
     return () => {
       active = false
@@ -162,11 +166,7 @@ export default function AdminDashboard() {
   }, [])
 
   useRealtimeSubscription(DASHBOARD_REALTIME_EVENTS, () => {
-    void (async () => {
-      const data = (await fetch('/api/analytics').then((response) => response.json())) as Stats
-      setStats(data)
-      setLoading(false)
-    })()
+    void loadStats()
   }, 450)
 
   const user = session?.user as { name?: string; companyType?: string | null }

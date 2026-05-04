@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
@@ -20,12 +20,29 @@ export default function EmployeeProgressPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
 
+  const reloadTasks = useCallback(async () => {
+    const data = await fetch('/api/tasks', { cache: 'no-store' }).then((response) => response.json())
+    setTasks(Array.isArray(data) ? data : [])
+    setLoading(false)
+  }, [])
+
   useEffect(() => {
-    fetch('/api/tasks').then(r => r.json()).then(d => { setTasks(Array.isArray(d) ? d : []); setLoading(false) })
+    let active = true
+    void fetch('/api/tasks', { cache: 'no-store' })
+      .then((response) => response.json())
+      .then((data) => {
+        if (!active) return
+        setTasks(Array.isArray(data) ? data : [])
+        setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
   }, [])
 
   useRealtimeSubscription(PROGRESS_REALTIME_EVENTS, () => {
-    void fetch('/api/tasks').then(r => r.json()).then(d => { setTasks(Array.isArray(d) ? d : []); setLoading(false) })
+    void reloadTasks()
   })
 
   const total = tasks.length

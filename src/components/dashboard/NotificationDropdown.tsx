@@ -32,7 +32,7 @@ export default function NotificationDropdown({ alertsHref = '/dashboard/employee
       void (async () => {
         setLoading(true)
         try {
-          const body = await fetch('/api/alerts').then((response) => response.json())
+          const body = await fetch('/api/alerts', { cache: 'no-store' }).then((response) => response.json())
           if (!cancelled) {
             setAlerts(Array.isArray(body) ? body : [])
           }
@@ -64,6 +64,13 @@ export default function NotificationDropdown({ alertsHref = '/dashboard/employee
         if (typeof alertId === 'string') {
           setAlerts((current) => current.map((alert) => (alert.id === alertId ? { ...alert, read: true } : alert)))
         }
+        return
+      }
+
+      if (eventName === 'workspace_event') {
+        void fetch('/api/alerts', { cache: 'no-store' })
+          .then((response) => response.json())
+          .then((body) => setAlerts(Array.isArray(body) ? body : []))
       }
     },
     100
