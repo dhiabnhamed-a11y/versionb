@@ -301,7 +301,7 @@ export default function AdminTasksPage() {
                         {getDeliverableTypeLabel(task.deliverableType)}
                       </span>
                     )}
-                    <h3 style={{ fontSize: '14px', fontWeight: '600' }}>{task.title}</h3>
+                    <h3 style={{ minWidth: 0, overflowWrap: 'anywhere', fontSize: '14px', fontWeight: '600' }}>{task.title}</h3>
                   </div>
                   {task.description && <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', lineHeight: '1.5' }}>{task.description}</p>}
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -395,47 +395,84 @@ export default function AdminTasksPage() {
                       key={submission.id}
                       style={{
                         display: 'grid',
-                        gridTemplateColumns: isAgency && submission.mediaType ? 'minmax(0, 220px) 1fr auto' : '1fr auto',
+                        gridTemplateColumns: 'minmax(0, 1fr)',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        gap: '10px',
+                        gap: '12px',
                         background: 'var(--bg-elevated)',
                         borderRadius: '8px',
                         padding: '10px 12px',
+                        minWidth: 0,
                       }}
                     >
                       {isAgency && submission.mediaType && (
-                        <MediaPlayer
-                          media={{
-                            id: submission.id,
-                            url: submission.fileUrl,
-                            playbackUrl: submission.playbackUrl,
-                            thumbnailUrl: submission.thumbnailUrl,
-                            type: submission.mediaType,
-                            mimeType: submission.fileType,
-                            fileName: submission.fileName,
-                            fileSize: submission.fileSize,
-                            duration: submission.duration,
-                          }}
-                        />
-                      )}
-                      <div>
-                        <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>{submission.fileName}</div>
-                        <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                          {submission.user.name} - {formatTimeAgo(submission.createdAt)}
+                        <div style={{ minWidth: 0, width: '100%' }}>
+                          <MediaPlayer
+                            media={{
+                              id: submission.id,
+                              url: submission.fileUrl,
+                              playbackUrl: submission.playbackUrl,
+                              thumbnailUrl: submission.thumbnailUrl,
+                              type: submission.mediaType,
+                              mimeType: submission.fileType,
+                              fileName: submission.fileName,
+                              fileSize: submission.fileSize,
+                              duration: submission.duration,
+                            }}
+                          />
                         </div>
-                        {submission.note && <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>{submission.note}</div>}
-                      </div>
-                      <a
-                        href={submission.fileUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="btn-secondary"
-                        style={{ textDecoration: 'none', fontSize: '11px', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                      )}
+                      <div
+                        style={{
+                          display: 'flex',
+                          minWidth: 0,
+                          width: '100%',
+                          flexWrap: 'wrap',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '10px',
+                        }}
                       >
-                        <Link2 size={13} />
-                        Open file
-                      </a>
+                        <div style={{ minWidth: 0, flex: '1 1 240px' }}>
+                          <div
+                            style={{
+                              overflowWrap: 'anywhere',
+                              fontSize: '12px',
+                              fontWeight: 600,
+                              color: 'var(--text-primary)',
+                            }}
+                          >
+                            {submission.fileName}
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                            {submission.user.name} - {formatTimeAgo(submission.createdAt)}
+                          </div>
+                          {submission.note && (
+                            <div style={{ overflowWrap: 'anywhere', fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                              {submission.note}
+                            </div>
+                          )}
+                        </div>
+                        <a
+                          href={submission.fileUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-secondary"
+                          style={{
+                            flex: '0 0 auto',
+                            textDecoration: 'none',
+                            fontSize: '11px',
+                            padding: '6px 10px',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '6px',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          <Link2 size={13} />
+                          Open file
+                        </a>
+                      </div>
                     </div>
                   ))}
                 </div>

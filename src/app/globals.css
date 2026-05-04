@@ -843,7 +843,7 @@ textarea:focus-visible {
   flex-wrap: wrap;
 }
 .dashboard-item-main { flex: 1 1 22rem; min-width: 0; }
-.dashboard-item-side { display: flex; flex-shrink: 0; align-items: flex-end; gap: 0.65rem; }
+.dashboard-item-side { display: flex; flex-shrink: 0; flex-wrap: wrap; align-items: flex-end; justify-content: flex-end; gap: 0.65rem; }
  
 .dashboard-action-grid {
   display: grid;
