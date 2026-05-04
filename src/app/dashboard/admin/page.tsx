@@ -143,6 +143,7 @@ export default function AdminDashboard() {
   const { data: session } = useSession()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
+  const [additionalInsightsOpen, setAdditionalInsightsOpen] = useState(false)
 
   const loadStats = useCallback(async () => {
     const data = (await fetch('/api/analytics', { cache: 'no-store' }).then((response) => response.json())) as Stats
@@ -379,7 +380,7 @@ export default function AdminDashboard() {
           {!stats?.activitySeries?.some((item) => item.created || item.completed) ? (
             <EmptyChartState label="No activity trend yet" />
           ) : (
-            <div className="h-[260px]">
+            <div className="h-[260px] min-h-[260px] min-w-0">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={stats.activitySeries} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
                   <CartesianGrid stroke="rgba(100,116,139,0.18)" vertical={false} />
@@ -588,9 +589,10 @@ export default function AdminDashboard() {
         </section>
       )}
 
-      <details className="dashboard-disclosure">
+      <details className="dashboard-disclosure" onToggle={(event) => setAdditionalInsightsOpen(event.currentTarget.open)}>
         <summary>Additional insights</summary>
         <div className="dashboard-disclosure-body">
+          {additionalInsightsOpen && (
           <div className="dashboard-section-grid mt-0">
             <section className="card">
               <div className="panel-header">
@@ -602,7 +604,7 @@ export default function AdminDashboard() {
               {!stats?.taskStageBreakdown?.some((item) => item.value) ? (
                 <EmptyChartState label="No task data yet" />
               ) : (
-                <div className="h-[250px]">
+                <div className="h-[250px] min-h-[250px] min-w-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={stats.taskStageBreakdown} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
                       <CartesianGrid stroke="rgba(100,116,139,0.18)" vertical={false} />
@@ -636,7 +638,7 @@ export default function AdminDashboard() {
               {!stats?.rolesDistribution?.some((item) => item.value) ? (
                 <EmptyChartState label="No role data yet" />
               ) : (
-                <div className="h-[250px]">
+                <div className="h-[250px] min-h-[250px] min-w-0">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
@@ -664,6 +666,7 @@ export default function AdminDashboard() {
               )}
             </section>
           </div>
+          )}
         </div>
       </details>
 

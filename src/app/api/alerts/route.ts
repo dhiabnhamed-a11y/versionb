@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import { isFirebaseAdminConfigured, isInvalidFirebaseTokenError, sendNotification } from '@/lib/firebase-admin'
+import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'
 import { emitUserRealtime } from '@/lib/realtime-server'
 
 type SessionUser = {
@@ -24,12 +25,12 @@ type MarkAlertReadBody = {
 
 // GET alerts for the current user
 export async function GET() {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
-
   try {
+    const session = await auth()
+    if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const user = session.user as SessionUser
+
     const alerts = await prisma.alert.findMany({
       where: { recipientId: user.id },
       include: {
@@ -41,6 +42,10 @@ export async function GET() {
     return NextResponse.json(alerts, { headers: NO_STORE_HEADERS })
   } catch (err) {
     console.error(err)
+    if (isMissingDatabaseObjectError(err)) {
+      return NextResponse.json([], { headers: NO_STORE_HEADERS })
+    }
+
     return NextResponse.json({ error: 'Server error' }, { status: 500 })
   }
 }
@@ -82,10 +87,19 @@ export async function POST(req: Request) {
 
     // Mirror alerts to FCM so users still receive notifications when TASKIT is backgrounded.
     if (isFirebaseAdminConfigured()) {
-      const recipientTokens = await prisma.pushToken.findMany({
-        where: { userId: recipientId },
-        select: { token: true },
-      })
+      let recipientTokens: { token: string }[] = []
+      try {
+        recipientTokens = await prisma.pushToken.findMany({
+          where: { userId: recipientId },
+          select: { token: true },
+        })
+      } catch (err) {
+        if (!isMissingDatabaseObjectError(err)) {
+          throw err
+        }
+
+        console.warn('[alerts] PushToken storage is not available; skipping FCM mirror.')
+      }
 
       const results = await Promise.allSettled(
         recipientTokens.map(({ token }) =>

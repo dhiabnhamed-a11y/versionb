@@ -126,8 +126,9 @@ export async function enablePushNotifications() {
     body: JSON.stringify({ token }),
   })
 
-  if (!response.ok) {
-    return { success: false, reason: 'token-register-failed' }
+  const body = await response.json().catch(() => null)
+  if (!response.ok || body?.ok === false) {
+    return { success: false, reason: body?.reason || 'token-register-failed' }
   }
 
   localStorage.setItem('taskit-fcm-token', token)
