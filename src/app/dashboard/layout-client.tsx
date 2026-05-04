@@ -80,7 +80,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   const workspaceLabel = isSuperAdmin ? 'Super Admin Console' : companyCopy.workspaceLabel
 
   return (
-    <div className="flex min-h-screen min-h-dvh">
+    <div className="dashboard-app-shell">
       {!isSuperAdmin && <PushNotificationBootstrap userId={user?.id} />}
 
       {sidebarOpen && (

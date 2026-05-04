@@ -226,9 +226,9 @@ export default function ProjectDetailPage() {
                 {t.submissions.length > 0 && (
                   <div className="mt-3 grid gap-2">
                     {t.submissions.map((submission) => (
-                      <div key={submission.id} className="rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] px-3 py-2">
+                      <div key={submission.id} className="w-full max-w-full overflow-hidden rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] px-3 py-2">
                         {isAgency && submission.mediaType ? (
-                          <div className="grid gap-3 md:grid-cols-[minmax(0,280px)_1fr]">
+                          <div className="grid min-w-0 gap-4">
                             <MediaPlayer
                               media={{
                                 id: submission.id,
@@ -243,17 +243,17 @@ export default function ProjectDetailPage() {
                                 user: submission.user,
                               }}
                             />
-                            <div className="min-w-0">
-                              <div className="text-xs font-semibold text-[var(--text-primary)]">{submission.fileName}</div>
+                            <div className="min-w-0 rounded-2xl bg-white px-4 py-3 ring-1 ring-[var(--border)]">
+                              <div className="truncate text-xs font-semibold text-[var(--text-primary)]" title={submission.fileName}>{submission.fileName}</div>
                               <div className="text-[11px] text-[var(--text-muted)]">{submission.user.name}</div>
-                              {submission.note && <div className="mt-1 text-[11px] text-[var(--text-secondary)]">{submission.note}</div>}
+                              {submission.note && <div className="mt-1 break-words text-[11px] text-[var(--text-secondary)]">{submission.note}</div>}
                               <a
                                 href={submission.fileUrl}
                                 target="_blank"
                                 rel="noreferrer"
-                                className="btn-secondary mt-3 inline-flex items-center gap-1 px-3 py-1.5 text-[11px]"
+                                className="btn-secondary mt-3 inline-flex shrink-0 items-center gap-1 whitespace-nowrap px-3 py-1.5 text-[11px]"
                               >
-                                <Link2 className="h-3.5 w-3.5" />
+                                <Link2 className="h-3.5 w-3.5 shrink-0" />
                                 Open file
                               </a>
                             </div>

@@ -162,9 +162,9 @@ export function ProjectMediaStudio({
   }
 
   return (
-    <section className="media-studio-shell">
-      <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
-        <div className="max-w-2xl">
+    <section className="media-studio-shell w-full max-w-full">
+      <div className="mb-8 flex min-w-0 flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="min-w-0 max-w-2xl">
           <div className="inline-flex h-8 items-center gap-2 rounded-full bg-blue-50 px-3 text-[12px] font-semibold text-blue-700 ring-1 ring-blue-200/70">
             <WandSparkles className="h-3.5 w-3.5" />
             Premium review room
@@ -179,8 +179,8 @@ export function ProjectMediaStudio({
             <span className="rounded-full bg-white px-3 py-1.5 ring-1 ring-slate-200/70">Timestamp comments</span>
           </div>
         </div>
-        <button type="button" onClick={() => inputRef.current?.click()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 text-[15px] font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,.18)] transition hover:-translate-y-0.5 hover:bg-slate-800 active:scale-[.98]">
-          <UploadCloud className="h-4 w-4" />
+        <button type="button" onClick={() => inputRef.current?.click()} className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-2xl bg-slate-950 px-5 py-2 text-[15px] font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,.18)] transition hover:-translate-y-0.5 hover:bg-slate-800 active:scale-[.98]">
+          <UploadCloud className="h-4 w-4 shrink-0" />
           Upload deliverable
         </button>
       </div>
@@ -208,7 +208,7 @@ export function ProjectMediaStudio({
           setDragging(false)
           void uploadFiles(event.dataTransfer.files)
         }}
-        className={`mb-8 flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-[24px] border border-dashed px-6 py-8 text-center shadow-sm transition duration-200 ease-out ${
+        className={`mb-8 flex min-h-40 w-full max-w-full cursor-pointer flex-col items-center justify-center rounded-[24px] border border-dashed px-6 py-8 text-center shadow-sm transition duration-200 ease-out ${
           dragging ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-slate-300/70 bg-white/70 text-slate-600 hover:border-blue-300 hover:bg-white'
         }`}
         onClick={() => inputRef.current?.click()}
@@ -217,7 +217,7 @@ export function ProjectMediaStudio({
           <UploadCloud className="h-5 w-5" />
         </div>
         <div className="mt-4 text-[15px] font-semibold text-slate-950">Drop images, videos, or audio</div>
-        <div className="mt-1 text-[13px] text-slate-500">Large video and audio deliverables upload in resilient chunks automatically.</div>
+        <div className="mt-1 max-w-full break-words text-[13px] text-slate-500">Large video and audio deliverables upload in resilient chunks automatically.</div>
       </div>
 
       {error && (
@@ -254,9 +254,9 @@ export function ProjectMediaStudio({
           <p className="mx-auto mt-2 max-w-md text-[15px] leading-7 text-slate-500">Upload a first deliverable to unlock premium playback, timestamped comments, and approval-ready review history.</p>
         </div>
       ) : (
-        <div className="grid gap-8">
+        <div className="grid min-w-0 gap-8">
           {media.map((item) => (
-            <div key={item.id} className="relative">
+            <div key={item.id} className="relative min-w-0">
               <MediaPlayer media={item} />
               {uploads.some((upload) => upload.name === (item.originalFilename || item.fileName) && upload.status === 'uploading') && (
                 <div className="absolute right-5 top-5 grid h-10 w-10 place-items-center rounded-full bg-white/90 text-blue-600 shadow-lg ring-1 ring-blue-200/70 backdrop-blur">

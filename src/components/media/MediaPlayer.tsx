@@ -155,7 +155,7 @@ function StatusBadge({ status }: { status: ReviewStatus }) {
   }[status]
 
   return (
-    <span className={`inline-flex h-7 items-center rounded-full px-3 text-[12px] font-semibold ring-1 ${copy.className}`}>
+    <span className={`inline-flex h-7 shrink-0 items-center whitespace-nowrap rounded-full px-3 text-[12px] font-semibold ring-1 ${copy.className}`}>
       {copy.label}
     </span>
   )
@@ -286,7 +286,7 @@ const AudioPlayer = forwardRef<PlayerHandle, {
   }
 
   return (
-    <section className="relative overflow-hidden rounded-[20px] bg-[linear-gradient(145deg,#0f172a,#111827_46%,#0b1220)] p-5 text-white shadow-[0_24px_60px_rgba(15,23,42,.20)]">
+    <section className="relative w-full max-w-full overflow-hidden rounded-[20px] bg-[linear-gradient(145deg,#0f172a,#111827_46%,#0b1220)] p-4 text-white shadow-[0_24px_60px_rgba(15,23,42,.20)] sm:p-5">
       <div className="pointer-events-none absolute inset-x-8 top-0 h-24 rounded-full bg-blue-400/20 blur-3xl" />
       <audio
         ref={audioRef}
@@ -299,10 +299,10 @@ const AudioPlayer = forwardRef<PlayerHandle, {
         onTimeUpdate={(event) => onTimeChange(event.currentTarget.currentTime)}
       />
 
-      <div className="relative flex items-center justify-between gap-4">
-        <div>
+      <div className="relative flex min-w-0 items-center justify-between gap-4">
+        <div className="min-w-0 flex-1">
           <p className="text-[12px] font-semibold uppercase tracking-[.16em] text-blue-200/70">Studio playback</p>
-          <h3 className="mt-2 max-w-[26rem] truncate text-[18px] font-semibold tracking-[-.01em] text-white">{mediaTitle(media)}</h3>
+          <h3 className="mt-2 max-w-full truncate text-[18px] font-semibold tracking-[-.01em] text-white" title={mediaTitle(media)}>{mediaTitle(media)}</h3>
         </div>
         <button
           type="button"
@@ -350,9 +350,9 @@ const AudioPlayer = forwardRef<PlayerHandle, {
         <span>{formatTime(duration)}</span>
       </div>
 
-      <div className="relative mt-6 grid gap-3 rounded-2xl bg-white/[.07] p-3 ring-1 ring-white/10 sm:grid-cols-[1fr_auto_auto]">
-        <label className="flex min-h-11 items-center gap-3 text-[13px] font-medium text-slate-200">
-          <Volume2 className="h-4 w-4 text-blue-200" />
+      <div className="relative mt-6 grid min-w-0 grid-cols-1 gap-3 rounded-2xl bg-white/[.07] p-3 ring-1 ring-white/10 sm:grid-cols-[minmax(0,1fr)_auto_auto]">
+        <label className="flex min-h-11 min-w-0 items-center gap-3 text-[13px] font-medium text-slate-200">
+          <Volume2 className="h-4 w-4 shrink-0 text-blue-200" />
           <input
             type="range"
             min={0}
@@ -360,14 +360,14 @@ const AudioPlayer = forwardRef<PlayerHandle, {
             step={0.01}
             value={volume}
             onChange={(event) => updateVolume(Number(event.target.value))}
-            className="w-full accent-blue-300"
+            className="min-w-0 flex-1 accent-blue-300"
             aria-label="Volume"
           />
         </label>
         <select
           value={speed}
           onChange={(event) => updateSpeed(Number(event.target.value))}
-          className="h-11 rounded-xl border-0 bg-white/10 px-3 text-[13px] font-semibold text-white outline-none ring-1 ring-white/10 transition focus:ring-2 focus:ring-blue-300 [&_option]:text-slate-950"
+          className="h-11 shrink-0 rounded-xl border-0 bg-white/10 px-3 text-[13px] font-semibold text-white outline-none ring-1 ring-white/10 transition focus:ring-2 focus:ring-blue-300 [&_option]:text-slate-950"
           aria-label="Playback speed"
         >
           {[0.75, 1, 1.25, 1.5, 2].map((value) => (
@@ -379,9 +379,9 @@ const AudioPlayer = forwardRef<PlayerHandle, {
         <a
           href={media.url}
           download
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-white px-4 text-[13px] font-semibold text-slate-950 shadow-sm transition hover:bg-blue-50 active:scale-[.98]"
+          className="inline-flex h-11 shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl bg-white px-4 py-2 text-[13px] font-semibold text-slate-950 shadow-sm transition hover:bg-blue-50 active:scale-[.98]"
         >
-          <Download className="h-4 w-4" />
+          <Download className="h-4 w-4 shrink-0" />
           Download
         </a>
       </div>
@@ -465,13 +465,13 @@ function CommentsPanel({
   onSeek: (seconds: number) => void
 }) {
   return (
-    <aside className="sticky top-24 rounded-[20px] bg-white/92 p-5 shadow-[0_24px_70px_rgba(15,23,42,.08)] ring-1 ring-slate-200/80 backdrop-blur-xl">
-      <div className="flex items-start justify-between gap-4">
-        <div>
+    <aside className="w-full max-w-full min-w-0 rounded-[20px] bg-white/95 p-4 shadow-[0_24px_70px_rgba(15,23,42,.08)] ring-1 ring-slate-200/80 backdrop-blur-xl sm:p-5 xl:min-w-[420px]">
+      <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-[12px] font-semibold uppercase tracking-[.16em] text-blue-600">Review thread</p>
           <h3 className="mt-1 text-[18px] font-semibold tracking-[-.01em] text-slate-950">{comments.length} comments</h3>
         </div>
-        <span className="inline-flex h-8 items-center gap-2 rounded-full bg-slate-50 px-3 text-[13px] font-medium tabular-nums text-slate-500">
+        <span className="inline-flex h-8 shrink-0 items-center gap-2 rounded-full bg-slate-50 px-3 text-[13px] font-medium tabular-nums text-slate-500">
           <Sparkles className="h-3.5 w-3.5 text-blue-600" />
           {formatTime(currentTime)}
         </span>
@@ -483,7 +483,7 @@ function CommentsPanel({
 
       <div className="mt-5 rounded-[18px] bg-slate-50 p-2 ring-1 ring-slate-200/70">
         <textarea
-          className="min-h-24 w-full resize-y rounded-2xl border-0 bg-white px-4 py-3 text-[15px] font-medium leading-6 text-slate-900 shadow-sm outline-none ring-1 ring-slate-200/80 transition placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500"
+          className="min-h-24 w-full max-w-full resize-y rounded-2xl border-0 bg-white px-4 py-3 text-[15px] font-medium leading-6 text-slate-900 shadow-sm outline-none ring-1 ring-slate-200/80 transition placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500"
           value={draft}
           onChange={(event) => onDraftChange(event.target.value)}
           placeholder={`Comment at ${formatTime(currentTime)}`}
@@ -491,18 +491,18 @@ function CommentsPanel({
         />
         <button
           type="button"
-          className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 text-[15px] font-semibold text-white shadow-[0_16px_34px_rgba(37,99,235,.24)] transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-blue-500 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50"
+          className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-center text-[15px] font-semibold leading-5 text-white shadow-[0_16px_34px_rgba(37,99,235,.24)] transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-blue-500 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50"
           disabled={posting || !draft.trim()}
           onClick={() => onCreateComment(draft)}
         >
-          <Send className="h-4 w-4" />
-          Add comment at current time
+          <Send className="h-4 w-4 shrink-0" />
+          <span className="min-w-0">Add comment at current time</span>
         </button>
       </div>
 
       {error && <div className="mt-4 rounded-2xl bg-red-50 px-4 py-3 text-[13px] font-semibold text-red-700 ring-1 ring-red-200/80">{error}</div>}
 
-      <div className="mt-5 grid max-h-[32rem] gap-3 overflow-y-auto pr-1">
+      <div className="mt-5 grid max-h-[32rem] min-w-0 gap-3 overflow-y-auto pr-1">
         {comments.length === 0 ? (
           <div className="rounded-[18px] bg-slate-50 px-5 py-10 text-center ring-1 ring-slate-200/80">
             <MessageSquare className="mx-auto h-8 w-8 text-slate-300" />
@@ -575,7 +575,7 @@ function CommentItem({
 
   return (
     <article
-      className={`group rounded-[18px] p-4 transition duration-200 ease-out ${
+      className={`group w-full max-w-full overflow-hidden rounded-[18px] p-4 transition duration-200 ease-out ${
         selected
           ? 'bg-white shadow-[0_0_0_2px_rgba(37,99,235,.5),0_18px_44px_rgba(37,99,235,.12)]'
           : comment.resolved
@@ -585,12 +585,12 @@ function CommentItem({
               : 'bg-white ring-1 ring-slate-200/80 hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(15,23,42,.08)]'
       } ${justAdded ? 'animate-comment-pop' : ''}`}
     >
-      <div className="flex items-start gap-3">
+      <div className="flex min-w-0 items-start gap-3">
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-950 text-[12px] font-semibold text-white shadow-sm">
           {initials || '?'}
         </div>
         <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start justify-between gap-3">
             <button type="button" className="min-w-0 text-left" onClick={() => onSeek(comment.timestamp)}>
               <span className="block truncate text-[14px] font-semibold text-slate-950">{comment.user.name}</span>
               <span className="mt-1 inline-flex h-6 items-center rounded-full bg-slate-100 px-2.5 font-mono text-[12px] font-semibold tabular-nums text-blue-700">
@@ -609,7 +609,7 @@ function CommentItem({
               {comment.resolved ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
             </button>
           </div>
-          <p className="mt-3 whitespace-pre-wrap text-[15px] font-medium leading-6 text-slate-700">{comment.content}</p>
+          <p className="mt-3 break-words whitespace-pre-wrap text-[15px] font-medium leading-6 text-slate-700">{comment.content}</p>
 
           <div className="mt-3 flex items-center gap-3">
             <button type="button" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-blue-600 transition hover:text-blue-500" onClick={onReply}>
@@ -620,14 +620,14 @@ function CommentItem({
           </div>
 
           {replies.length > 0 && (
-            <div className="mt-4 grid gap-3 border-l border-slate-200 pl-4">
+            <div className="mt-4 grid min-w-0 gap-3 border-l border-slate-200 pl-4">
               {replies.map((reply) => (
-                <div key={reply.id} className="rounded-2xl bg-slate-50 px-3 py-2.5">
-                  <div className="flex items-center gap-2 text-[13px] font-semibold text-slate-950">
-                    <CornerDownRight className="h-3.5 w-3.5 text-slate-400" />
-                    {reply.user.name}
+                <div key={reply.id} className="min-w-0 rounded-2xl bg-slate-50 px-3 py-2.5">
+                  <div className="flex min-w-0 items-center gap-2 text-[13px] font-semibold text-slate-950">
+                    <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                    <span className="min-w-0 truncate">{reply.user.name}</span>
                   </div>
-                  <p className="mt-1 whitespace-pre-wrap text-[13px] leading-5 text-slate-600">{reply.content}</p>
+                  <p className="mt-1 break-words whitespace-pre-wrap text-[13px] leading-5 text-slate-600">{reply.content}</p>
                 </div>
               ))}
             </div>
@@ -642,16 +642,16 @@ function CommentItem({
                 placeholder="Reply with context"
                 maxLength={2000}
               />
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
-                  className="inline-flex min-h-9 items-center justify-center rounded-xl bg-slate-950 px-4 text-[13px] font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
+                  className="inline-flex min-h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl bg-slate-950 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
                   disabled={posting || !replyDraft.trim()}
                   onClick={onSubmitReply}
                 >
                   Reply
                 </button>
-                <button type="button" className="inline-flex min-h-9 items-center justify-center rounded-xl bg-white px-4 text-[13px] font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-50" onClick={onCancelReply}>
+                <button type="button" className="inline-flex min-h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl bg-white px-4 py-2 text-[13px] font-semibold text-slate-600 ring-1 ring-slate-200 transition hover:bg-slate-50" onClick={onCancelReply}>
                   Cancel
                 </button>
               </div>
@@ -769,16 +769,16 @@ function DeliverableCard({ media }: { media: AgencyMediaItem }) {
   }
 
   return (
-    <article className="group relative overflow-hidden rounded-[24px] bg-white p-4 shadow-[0_30px_90px_rgba(15,23,42,.08),0_1px_0_rgba(15,23,42,.04)] ring-1 ring-slate-200/70 transition duration-200 ease-out hover:-translate-y-1 hover:shadow-[0_34px_100px_rgba(15,23,42,.12),0_1px_0_rgba(15,23,42,.04)] sm:p-6">
+    <article className="group relative w-full max-w-full overflow-hidden rounded-[24px] bg-white p-4 shadow-[0_30px_90px_rgba(15,23,42,.08),0_1px_0_rgba(15,23,42,.04)] ring-1 ring-slate-200/70 transition duration-200 ease-out hover:-translate-y-1 hover:shadow-[0_34px_100px_rgba(15,23,42,.12),0_1px_0_rgba(15,23,42,.04)] sm:p-6">
       <div className="pointer-events-none absolute inset-x-10 -top-24 h-48 rounded-full bg-blue-500/[.06] blur-3xl" />
-      <header className="relative flex flex-col gap-5 border-b border-slate-100 pb-5 lg:flex-row lg:items-start lg:justify-between">
-        <div className="flex min-w-0 items-start gap-4">
+      <header className="relative flex min-w-0 flex-col gap-5 border-b border-slate-100 pb-5 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex min-w-0 flex-1 items-start gap-4">
           <div className="grid h-14 w-14 shrink-0 place-items-center rounded-[18px] bg-[linear-gradient(145deg,#2563eb,#0f172a)] text-white shadow-[0_18px_36px_rgba(37,99,235,.24)]">
             {media.type === 'video' ? <Video className="h-6 w-6" /> : media.type === 'image' ? <ImageIcon className="h-6 w-6" /> : <FileAudio2 className="h-6 w-6" />}
           </div>
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2">
-              <h2 className="max-w-[48rem] truncate text-[18px] font-semibold tracking-[-.01em] text-slate-950">{mediaTitle(media)}</h2>
+          <div className="min-w-0 flex-1">
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <h2 className="min-w-0 max-w-full flex-1 truncate text-[18px] font-semibold tracking-[-.01em] text-slate-950" title={mediaTitle(media)}>{mediaTitle(media)}</h2>
               <StatusBadge status={status} />
             </div>
             <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] text-slate-500">
@@ -792,13 +792,13 @@ function DeliverableCard({ media }: { media: AgencyMediaItem }) {
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="inline-flex h-10 items-center gap-2 rounded-full bg-slate-50 px-4 text-[13px] font-semibold text-slate-600 ring-1 ring-slate-200/70">
-            <MessageSquare className="h-4 w-4 text-blue-600" />
+        <div className="flex shrink-0 flex-wrap items-center gap-2 lg:justify-end">
+          <span className="inline-flex h-10 shrink-0 items-center gap-2 whitespace-nowrap rounded-full bg-slate-50 px-4 text-[13px] font-semibold text-slate-600 ring-1 ring-slate-200/70">
+            <MessageSquare className="h-4 w-4 shrink-0 text-blue-600" />
             {topLevelComments.length} comments
           </span>
           {unresolvedCount > 0 && (
-            <span className="inline-flex h-10 items-center rounded-full bg-blue-50 px-4 text-[13px] font-semibold text-blue-700 ring-1 ring-blue-200/70">
+            <span className="inline-flex h-10 shrink-0 items-center whitespace-nowrap rounded-full bg-blue-50 px-4 text-[13px] font-semibold text-blue-700 ring-1 ring-blue-200/70">
               {unresolvedCount} open
             </span>
           )}
@@ -806,19 +806,19 @@ function DeliverableCard({ media }: { media: AgencyMediaItem }) {
             href={media.url}
             target="_blank"
             rel="noreferrer"
-            className="grid h-10 w-10 place-items-center rounded-full bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:text-blue-600 hover:shadow-md"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-slate-600 shadow-sm ring-1 ring-slate-200 transition hover:text-blue-600 hover:shadow-md"
             aria-label="Open file"
           >
             <Link2 className="h-4 w-4" />
           </a>
-          <button type="button" className="grid h-10 w-10 place-items-center rounded-full bg-white text-slate-500 shadow-sm ring-1 ring-slate-200 transition hover:text-slate-950 hover:shadow-md" aria-label="More actions">
+          <button type="button" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-slate-500 shadow-sm ring-1 ring-slate-200 transition hover:text-slate-950 hover:shadow-md" aria-label="More actions">
             <MoreHorizontal className="h-4 w-4" />
           </button>
         </div>
       </header>
 
-      <div className="relative mt-6 grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,430px)]">
-        <div className="min-w-0">
+      <div className="relative mt-6 grid min-w-0 grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(420px,0.6fr)]">
+        <div className="min-w-0 max-w-full">
           {media.type === 'video' ? (
             <VideoPlayer ref={playerRef} media={media} onTimeChange={setCurrentTime} onDurationChange={setDuration} />
           ) : (
@@ -838,9 +838,9 @@ function DeliverableCard({ media }: { media: AgencyMediaItem }) {
               ['Review time', formatTime(currentTime)],
               ['Resolution', status === 'approved' ? 'Approved' : status === 'needs_changes' ? 'Open feedback' : 'Awaiting notes'],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-[18px] bg-slate-50 px-4 py-3 ring-1 ring-slate-200/70">
+              <div key={label} className="min-w-0 rounded-[18px] bg-slate-50 px-4 py-3 ring-1 ring-slate-200/70">
                 <div className="text-[12px] font-semibold uppercase tracking-[.14em] text-slate-400">{label}</div>
-                <div className="mt-1 text-[15px] font-semibold text-slate-950">{value}</div>
+                <div className="mt-1 truncate text-[15px] font-semibold text-slate-950" title={value}>{value}</div>
               </div>
             ))}
           </div>
@@ -875,7 +875,7 @@ function ImageReview({ media }: { media: AgencyMediaItem }) {
 
   return (
     <>
-      <article className="group overflow-hidden rounded-[24px] bg-white p-4 shadow-[0_30px_90px_rgba(15,23,42,.08)] ring-1 ring-slate-200/70 transition duration-200 hover:-translate-y-1 hover:shadow-[0_34px_100px_rgba(15,23,42,.12)]">
+      <article className="group w-full max-w-full overflow-hidden rounded-[24px] bg-white p-4 shadow-[0_30px_90px_rgba(15,23,42,.08)] ring-1 ring-slate-200/70 transition duration-200 hover:-translate-y-1 hover:shadow-[0_34px_100px_rgba(15,23,42,.12)]">
         <button
           type="button"
           onClick={() => setPreviewOpen(true)}
@@ -892,13 +892,13 @@ function ImageReview({ media }: { media: AgencyMediaItem }) {
             <Maximize2 className="h-4 w-4" />
           </span>
         </button>
-        <div className="mt-4 flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <h2 className="truncate text-[18px] font-semibold text-slate-950">{mediaTitle(media)}</h2>
+        <div className="mt-4 flex min-w-0 flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate text-[18px] font-semibold text-slate-950" title={mediaTitle(media)}>{mediaTitle(media)}</h2>
             <p className="mt-1 text-[13px] text-slate-500">{uploaderName(media)} · {formatRelativeTime(media.createdAt)}</p>
           </div>
-          <a href={media.url} target="_blank" rel="noreferrer" className="btn-secondary btn-sm">
-            <Link2 className="h-4 w-4" />
+          <a href={media.url} target="_blank" rel="noreferrer" className="btn-secondary btn-sm shrink-0 whitespace-nowrap">
+            <Link2 className="h-4 w-4 shrink-0" />
             Open
           </a>
         </div>
