@@ -9,20 +9,20 @@ const dev = process.env.NODE_ENV !== 'production'
 const hostname = 'localhost'
 const port = parseInt(process.env.PORT || '3000', 10)
 
-let handle: ReturnType<ReturnType<typeof next>['getRequestHandler']> | undefined
+const handleRef: { current?: ReturnType<ReturnType<typeof next>['getRequestHandler']> } = {}
 
 const httpServer = createServer((req, res) => {
-  if (!handle) {
+  if (!handleRef.current) {
     res.statusCode = 503
     res.end('Server is starting')
     return
   }
 
-  void handle(req, res)
+  void handleRef.current(req, res)
 })
 
 const app = next({ dev, httpServer, webpack: dev })
-handle = app.getRequestHandler()
+handleRef.current = app.getRequestHandler()
 
 type RealtimeSocketUser = {
   id: string

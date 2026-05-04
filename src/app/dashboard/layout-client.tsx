@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState, useSyncExternalStore } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -30,11 +30,11 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   const { data: session } = useSession()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [realtimeEnabled, setRealtimeEnabled] = useState(false)
-
-  useEffect(() => {
-    setRealtimeEnabled(isRealtimeAlertsEnabled())
-  }, [])
+  const realtimeEnabled = useSyncExternalStore(
+    () => () => undefined,
+    () => isRealtimeAlertsEnabled(),
+    () => false
+  )
 
   const user = session?.user as { id?: string; name?: string; role?: string; companyType?: string | null }
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
@@ -90,30 +90,30 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
         />
       )}
 
-      <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
-          <div className="border-b px-4 py-5" style={{ borderColor: 'var(--sidebar-border)' }}>
+        <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
+          <div className="border-b px-4 py-4" style={{ borderColor: 'var(--sidebar-border)' }}>
             <div className="flex items-center gap-3">
               <div
-                className="icon-box flex h-14 w-14 shrink-0 items-center justify-center rounded-[18px] border transition-transform duration-300 hover:scale-105"
+                className="icon-box flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border transition-transform duration-200 hover:scale-105"
                 style={{
-                  background: 'linear-gradient(180deg, rgba(255,255,255,0.18), rgba(255,255,255,0.05))',
-                  borderColor: 'rgba(255,255,255,0.12)',
-                  boxShadow: '0 20px 40px rgba(2, 15, 24, 0.3), inset 0 1px 0 rgba(255,255,255,0.1)',
+                  background: 'var(--bg-elevated)',
+                  borderColor: 'var(--border)',
+                  boxShadow: 'var(--shadow-sm)',
                 }}
               >
-                <Image src={logo} alt="TASKIT logo" width={36} height={36} className="h-9 w-9 object-contain" />
+                <Image src={logo} alt="TASKIT logo" width={30} height={30} className="h-7 w-7 object-contain" />
               </div>
               <div className="min-w-0">
-                <div className="font-display text-xl font-semibold tracking-tight text-slate-100">TASKIT</div>
-                <div className="text-[10px] font-semibold uppercase tracking-[0.14em]" style={{ color: '#64748b' }}>
+                <div className="text-base font-bold text-[var(--text-primary)]">TASKIT</div>
+                <div className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--text-muted)' }}>
                   {workspaceLabel}
                 </div>
               </div>
             </div>
           </div>
 
-        <nav className="flex flex-1 flex-col gap-0.5 px-3 py-4">
-          <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: '#475569' }}>
+        <nav className="flex flex-1 flex-col gap-1 px-3 py-4">
+          <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--text-light)' }}>
             {isEmployee ? 'Your workspace' : workspaceNavLabel}
           </div>
           {links.map((link) => {
@@ -147,18 +147,17 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
         </nav>
 
         <div className="border-t px-3 py-4" style={{ borderColor: 'var(--sidebar-border)' }}>
-          <div className="mb-3 flex items-center gap-3 rounded-xl px-2 py-2.5" style={{ background: 'var(--sidebar-surface)', border: '1px solid rgba(255,255,255,0.06)' }}>
+          <div className="mb-3 flex items-center gap-3 rounded-xl px-2 py-2.5" style={{ background: 'var(--sidebar-surface)', border: '1px solid var(--sidebar-border)' }}>
             <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-xs font-bold text-white shadow-lg"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-xs font-bold text-white"
               style={{ 
-                background: 'var(--accent-gradient)',
-                boxShadow: '0 4px 12px rgba(3, 105, 161, 0.3)'
+                background: 'var(--accent)',
               }}
             >
               {user?.name?.charAt(0)?.toUpperCase() || '?'}
             </div>
             <div className="min-w-0 flex-1">
-              <div className="truncate text-xs font-semibold" style={{ color: '#e2e8f0' }}>
+              <div className="truncate text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                 {user?.name || '...'}
               </div>
               <span className={`badge ${badgeClass} mt-1 !px-2 !py-0 !text-[9px]`}>{roleLabel}</span>
@@ -167,7 +166,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: '/login' })}
-            className="btn-secondary w-full !border-white/10 !bg-white/5 !text-slate-300 hover:!border-cyan-400/40 hover:!bg-cyan-500/10 hover:!text-cyan-200 transition-all duration-200"
+            className="btn-secondary w-full transition-all duration-200"
             style={{ fontSize: '12px', padding: '8px 12px' }}
           >
             <span className="flex items-center justify-center gap-2">

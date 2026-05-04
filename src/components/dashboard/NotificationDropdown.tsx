@@ -25,15 +25,29 @@ export default function NotificationDropdown({ alertsHref = '/dashboard/employee
   const [loading, setLoading] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  async function loadAlerts() {
-    setLoading(true)
-    const body = await fetch('/api/alerts').then((response) => response.json())
-    setAlerts(Array.isArray(body) ? body : [])
-    setLoading(false)
-  }
-
   useEffect(() => {
-    void loadAlerts()
+    let cancelled = false
+
+    const timer = window.setTimeout(() => {
+      void (async () => {
+        setLoading(true)
+        try {
+          const body = await fetch('/api/alerts').then((response) => response.json())
+          if (!cancelled) {
+            setAlerts(Array.isArray(body) ? body : [])
+          }
+        } finally {
+          if (!cancelled) {
+            setLoading(false)
+          }
+        }
+      })()
+    }, 0)
+
+    return () => {
+      cancelled = true
+      window.clearTimeout(timer)
+    }
   }, [])
 
   useRealtimeSubscription(
