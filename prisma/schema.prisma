@@ -35,6 +35,7 @@ model User {
   reviewedCompanies      Company[]       @relation("CompanyReviewedBy")
   taskSubmissions        TaskSubmission[]
   projectMediaUploads    ProjectMedia[]  @relation("ProjectMediaUploadedBy")
+  comments               Comment[]
   calendarEvents         CalendarEvent[] @relation("CalendarEventCreatedBy")
 }
 
@@ -231,6 +232,25 @@ model ProjectMedia {
   @@index([projectId, createdAt])
   @@index([uploadedById, createdAt])
   @@index([projectId, type, createdAt])
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  fileId    String
+  userId    String
+  content   String
+  timestamp Float
+  parentId  String?
+  resolved  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies Comment[] @relation("CommentReplies")
+
+  @@index([fileId, timestamp])
+  @@index([fileId, parentId, createdAt])
+  @@index([userId, createdAt])
 }
 
 model Task {
