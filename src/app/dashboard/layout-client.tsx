@@ -24,6 +24,8 @@ import {
   Radio,
   Menu,
   ShieldCheck,
+  Search,
+  Plus,
 } from 'lucide-react'
 
 export default function DashboardLayoutClient({ children }: { children: React.ReactNode }) {
@@ -197,7 +199,22 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
             </div>
           </div>
 
+          <label className="mx-4 hidden h-11 min-w-0 flex-1 max-w-xl items-center gap-3 rounded-2xl bg-white/80 px-4 text-[14px] text-[var(--text-muted)] shadow-sm ring-1 ring-[var(--border)] backdrop-blur transition focus-within:ring-2 focus-within:ring-[var(--accent)] lg:flex">
+            <Search size={16} />
+            <input
+              type="search"
+              placeholder="Search briefs, deliverables, comments..."
+              className="min-w-0 flex-1 border-0 bg-transparent text-[14px] font-medium text-[var(--text-primary)] outline-none placeholder:text-[var(--text-muted)]"
+            />
+          </label>
+
           <div className="flex items-center gap-2.5 sm:gap-3">
+            {!isSuperAdmin && !isEmployee && (
+              <Link href="/dashboard/admin/tasks" className="hidden h-10 items-center gap-2 rounded-2xl bg-[var(--accent)] px-4 text-[13px] font-semibold text-white shadow-sm transition hover:bg-[var(--accent-hover)] active:scale-[.98] sm:inline-flex">
+                <Plus size={15} />
+                New brief
+              </Link>
+            )}
             {!isSuperAdmin && (
               <NotificationDropdown alertsHref={isEmployee ? '/dashboard/employee/alerts' : '/dashboard/admin/alerts'} />
             )}

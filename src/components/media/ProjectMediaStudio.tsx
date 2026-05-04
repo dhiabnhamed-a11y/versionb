@@ -1,7 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
-import { FileAudio, ImageIcon, Loader2, UploadCloud, Video } from 'lucide-react'
+import { FileAudio, Loader2, UploadCloud, WandSparkles } from 'lucide-react'
 import { MediaPlayer, type AgencyMediaItem } from '@/components/media/MediaPlayer'
 
 const STANDARD_UPLOAD_LIMIT = 25 * 1024 * 1024
@@ -24,12 +24,6 @@ function mediaKind(file: File) {
   if (file.type.startsWith('video/')) return 'video'
   if (file.type.startsWith('audio/')) return 'audio'
   return null
-}
-
-function formatBytes(bytes?: number | null) {
-  if (!bytes) return ''
-  if (bytes < 1024 * 1024) return `${Math.ceil(bytes / 1024)}KB`
-  return `${Math.ceil(bytes / 1024 / 1024)}MB`
 }
 
 function xhrForm(url: string, formData: FormData, onProgress: (progress: number) => void) {
@@ -105,12 +99,6 @@ async function uploadChunked(projectId: string, file: File, onProgress: (progres
   return finalMedia
 }
 
-function iconFor(type: string) {
-  if (type === 'video') return <Video className="h-4 w-4" />
-  if (type === 'audio') return <FileAudio className="h-4 w-4" />
-  return <ImageIcon className="h-4 w-4" />
-}
-
 export function ProjectMediaStudio({
   projectId,
   initialMedia,
@@ -174,15 +162,26 @@ export function ProjectMediaStudio({
   }
 
   return (
-    <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-card)] p-5">
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="font-display text-base font-semibold">Media library</h2>
-          <p className="mt-1 text-xs text-[var(--text-muted)]">{media.length} Cloudinary assets</p>
+    <section className="media-studio-shell">
+      <div className="mb-8 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="max-w-2xl">
+          <div className="inline-flex h-8 items-center gap-2 rounded-full bg-blue-50 px-3 text-[12px] font-semibold text-blue-700 ring-1 ring-blue-200/70">
+            <WandSparkles className="h-3.5 w-3.5" />
+            Premium review room
+          </div>
+          <h2 className="mt-4 text-[26px] font-semibold tracking-[-.02em] text-slate-950">Uploaded deliverables</h2>
+          <p className="mt-2 text-[15px] leading-7 text-slate-500">
+            Review audio, pin timestamped feedback, resolve revisions, and keep every creative decision attached to the file.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2 text-[13px] font-medium text-slate-500">
+            <span className="rounded-full bg-white px-3 py-1.5 ring-1 ring-slate-200/70">{media.length} assets</span>
+            <span className="rounded-full bg-white px-3 py-1.5 ring-1 ring-slate-200/70">Cloudinary backed</span>
+            <span className="rounded-full bg-white px-3 py-1.5 ring-1 ring-slate-200/70">Timestamp comments</span>
+          </div>
         </div>
-        <button type="button" onClick={() => inputRef.current?.click()} className="btn-primary btn-sm">
+        <button type="button" onClick={() => inputRef.current?.click()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-5 text-[15px] font-semibold text-white shadow-[0_18px_40px_rgba(15,23,42,.18)] transition hover:-translate-y-0.5 hover:bg-slate-800 active:scale-[.98]">
           <UploadCloud className="h-4 w-4" />
-          Upload
+          Upload deliverable
         </button>
       </div>
 
@@ -209,29 +208,31 @@ export function ProjectMediaStudio({
           setDragging(false)
           void uploadFiles(event.dataTransfer.files)
         }}
-        className={`mb-4 flex min-h-32 cursor-pointer flex-col items-center justify-center rounded-[var(--radius-sm)] border border-dashed px-4 py-7 text-center transition ${
-          dragging ? 'border-[var(--accent)] bg-[var(--accent-subtle)]' : 'border-[var(--border)] bg-[var(--bg-elevated)]'
+        className={`mb-8 flex min-h-40 cursor-pointer flex-col items-center justify-center rounded-[24px] border border-dashed px-6 py-8 text-center shadow-sm transition duration-200 ease-out ${
+          dragging ? 'border-blue-400 bg-blue-50 text-blue-700' : 'border-slate-300/70 bg-white/70 text-slate-600 hover:border-blue-300 hover:bg-white'
         }`}
         onClick={() => inputRef.current?.click()}
       >
-        <UploadCloud className="mb-2 h-7 w-7 text-[var(--accent)]" />
-        <div className="text-sm font-semibold text-[var(--text-primary)]">Drop images, videos, or audio</div>
-        <div className="mt-1 text-xs text-[var(--text-muted)]">Videos up to 250MB use chunk upload automatically</div>
+        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-blue-50 text-blue-600 ring-1 ring-blue-200/70">
+          <UploadCloud className="h-5 w-5" />
+        </div>
+        <div className="mt-4 text-[15px] font-semibold text-slate-950">Drop images, videos, or audio</div>
+        <div className="mt-1 text-[13px] text-slate-500">Large video and audio deliverables upload in resilient chunks automatically.</div>
       </div>
 
       {error && (
-        <div className="mb-4 rounded-[var(--radius-sm)] border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">
+        <div className="mb-5 rounded-2xl bg-red-50 px-4 py-3 text-[13px] font-semibold text-red-700 ring-1 ring-red-200/80">
           {error}
         </div>
       )}
 
       {uploads.length > 0 && (
-        <div className="mb-5 grid gap-2">
+        <div className="mb-8 grid gap-3">
           {uploads.slice(0, 4).map((upload) => (
-            <div key={upload.name} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-2">
-              <div className="flex items-center justify-between gap-3 text-xs">
-                <span className="truncate font-semibold text-[var(--text-primary)]">{upload.name}</span>
-                <span className="shrink-0 tabular-nums text-[var(--text-muted)]">
+            <div key={upload.name} className="rounded-[20px] bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/80">
+              <div className="flex items-center justify-between gap-3 text-[13px]">
+                <span className="truncate font-semibold text-slate-950">{upload.name}</span>
+                <span className="shrink-0 tabular-nums text-slate-500">
                   {upload.status === 'error' ? 'Failed' : `${upload.progress}%`}
                 </span>
               </div>
@@ -245,36 +246,27 @@ export function ProjectMediaStudio({
       )}
 
       {media.length === 0 ? (
-        <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-elevated)] p-6 text-center text-sm text-[var(--text-muted)]">
-          No media uploaded yet.
+        <div className="rounded-[24px] bg-white px-6 py-16 text-center shadow-[0_30px_90px_rgba(15,23,42,.08)] ring-1 ring-slate-200/80">
+          <div className="mx-auto grid h-14 w-14 place-items-center rounded-2xl bg-slate-50 text-slate-400 ring-1 ring-slate-200/80">
+            <FileAudio className="h-6 w-6" />
+          </div>
+          <p className="mt-4 text-[18px] font-semibold text-slate-950">No media uploaded yet</p>
+          <p className="mx-auto mt-2 max-w-md text-[15px] leading-7 text-slate-500">Upload a first deliverable to unlock premium playback, timestamped comments, and approval-ready review history.</p>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-8">
           {media.map((item) => (
-            <article key={item.id} className="overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-white">
+            <div key={item.id} className="relative">
               <MediaPlayer media={item} />
-              <div className="flex items-start justify-between gap-3 p-3">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[var(--accent)]">
-                    {iconFor(item.type)}
-                    {item.type}
-                  </div>
-                  <div className="mt-1 truncate text-sm font-semibold text-[var(--text-primary)]">
-                    {item.originalFilename || item.fileName || 'Media'}
-                  </div>
-                  <div className="mt-1 text-[11px] text-[var(--text-muted)]">
-                    {formatBytes(item.size ?? item.fileSize)} {item.uploadedBy?.name ? `- ${item.uploadedBy.name}` : ''}
-                  </div>
+              {uploads.some((upload) => upload.name === (item.originalFilename || item.fileName) && upload.status === 'uploading') && (
+                <div className="absolute right-5 top-5 grid h-10 w-10 place-items-center rounded-full bg-white/90 text-blue-600 shadow-lg ring-1 ring-blue-200/70 backdrop-blur">
+                  <Loader2 className="h-4 w-4 animate-spin" />
                 </div>
-                {(uploads.some((upload) => upload.name === (item.originalFilename || item.fileName) && upload.status === 'uploading')) && (
-                  <Loader2 className="h-4 w-4 animate-spin text-[var(--accent)]" />
-                )}
-              </div>
-            </article>
+              )}
+            </div>
           ))}
         </div>
       )}
     </section>
   )
 }
-

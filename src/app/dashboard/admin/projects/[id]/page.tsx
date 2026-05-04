@@ -101,7 +101,7 @@ export default function ProjectDetailPage() {
 
   if (loading) {
     return (
-      <div className="flex max-w-4xl items-center justify-center py-24">
+      <div className="flex max-w-[1280px] items-center justify-center py-24">
         <div className="spinner" />
       </div>
     )
@@ -122,7 +122,7 @@ export default function ProjectDetailPage() {
   const pct = project.tasks.length ? Math.round((done / project.tasks.length) * 100) : 0
 
   return (
-    <div className="max-w-4xl space-y-8">
+    <div className="mx-auto max-w-[1280px] space-y-8">
       <Link
         href="/dashboard/admin/projects"
         className="inline-flex items-center gap-2 text-sm font-semibold text-[var(--accent)] hover:underline"
