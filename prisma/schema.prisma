@@ -37,6 +37,8 @@ model User {
   projectMediaUploads    ProjectMedia[]  @relation("ProjectMediaUploadedBy")
   comments               Comment[]
   calendarEvents         CalendarEvent[] @relation("CalendarEventCreatedBy")
+  adminActions           AdminActionLog[] @relation("AdminActionActor")
+  targetedAdminActions   AdminActionLog[] @relation("AdminActionTarget")
 }
 
 model Company {
@@ -64,9 +66,43 @@ model Company {
   invites        Invite[]
   accessRequests AccessRequest[]
   calendarEvents CalendarEvent[]
+  settings       CompanySettings?
+  adminActionLogs AdminActionLog[]
 
   @@index([status, createdAt])
   @@index([name, registrationNumber, status])
+}
+
+model CompanySettings {
+  id              String   @id @default(cuid())
+  companyId       String   @unique
+  primaryColor    String   @default("#0369a1")
+  backgroundColor String   @default("#f7f8fa")
+  sidebarColor    String   @default("#ffffff")
+  themeMode       String   @default("light") // light, dark
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+}
+
+model AdminActionLog {
+  id           String   @id @default(cuid())
+  companyId    String
+  actorId      String
+  targetUserId String?
+  action       String
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actor      User    @relation("AdminActionActor", fields: [actorId], references: [id], onDelete: Cascade)
+  targetUser User?   @relation("AdminActionTarget", fields: [targetUserId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([action, createdAt])
 }
 
 model Room {

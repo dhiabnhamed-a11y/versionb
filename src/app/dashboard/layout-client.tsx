@@ -1,15 +1,17 @@
 'use client'
 
-import { useState, useSyncExternalStore } from 'react'
+import { useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import AlertReceiver from '@/components/alerts/AlertReceiver'
 import NotificationDropdown from '@/components/dashboard/NotificationDropdown'
+import WorkspaceThemeProvider from '@/components/dashboard/WorkspaceThemeProvider'
 import PushNotificationBootstrap from '@/components/pwa/PushNotificationBootstrap'
 import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
 import { isRealtimeAlertsEnabled } from '@/lib/socket-client'
+import type { WorkspaceThemeSettings } from '@/lib/settings'
 import logo from '@/app/logo.png'
 import {
   LayoutDashboard,
@@ -26,9 +28,16 @@ import {
   ShieldCheck,
   Search,
   Plus,
+  Settings,
 } from 'lucide-react'
 
-export default function DashboardLayoutClient({ children }: { children: React.ReactNode }) {
+export default function DashboardLayoutClient({
+  children,
+  initialThemeSettings,
+}: {
+  children: React.ReactNode
+  initialThemeSettings: WorkspaceThemeSettings
+}) {
   const { data: session } = useSession()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -41,6 +50,7 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   const user = session?.user as { id?: string; name?: string; role?: string; companyType?: string | null }
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
   const isEmployee = user?.role === 'EMPLOYEE'
+  const canOpenSettings = user?.role === 'OWNER' || user?.role === 'MANAGER'
   const companyType = normalizeCompanyType(user?.companyType)
   const companyCopy = getCompanyTypeCopy(companyType)
   const links = isSuperAdmin
@@ -78,9 +88,18 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
   const roleLabel = isSuperAdmin ? 'Super Admin' : user?.role === 'OWNER' ? 'Owner' : user?.role === 'MANAGER' ? 'Manager' : 'Employee'
   const badgeClass = isSuperAdmin ? 'badge-owner' : user?.role === 'OWNER' ? 'badge-owner' : user?.role === 'MANAGER' ? 'badge-manager' : 'badge-employee'
   const workspaceLabel = isSuperAdmin ? 'Super Admin Console' : companyCopy.workspaceLabel
+  const initialThemeStyle = {
+    '--accent': initialThemeSettings.primaryColor,
+    '--primary': initialThemeSettings.primaryColor,
+    '--bg-primary': initialThemeSettings.backgroundColor,
+    '--bg': initialThemeSettings.backgroundColor,
+    '--sidebar-bg': initialThemeSettings.sidebarColor,
+    '--sidebar': initialThemeSettings.sidebarColor,
+  } as CSSProperties
 
   return (
-    <div className="dashboard-app-shell">
+    <div className="dashboard-app-shell" style={initialThemeStyle}>
+      <WorkspaceThemeProvider settings={initialThemeSettings} />
       {!isSuperAdmin && <PushNotificationBootstrap userId={user?.id} />}
 
       {sidebarOpen && (
@@ -213,6 +232,16 @@ export default function DashboardLayoutClient({ children }: { children: React.Re
               <Link href="/dashboard/admin/tasks" className="hidden h-10 items-center gap-2 rounded-2xl bg-[var(--accent)] px-4 text-[13px] font-semibold text-white shadow-sm transition hover:bg-[var(--accent-hover)] active:scale-[.98] sm:inline-flex">
                 <Plus size={15} />
                 New brief
+              </Link>
+            )}
+            {canOpenSettings && (
+              <Link
+                href="/dashboard/settings"
+                className="inline-flex h-10 items-center gap-2 rounded-2xl border border-[var(--border)] bg-white/80 px-3 text-[13px] font-semibold text-[var(--text-primary)] shadow-sm transition hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-[.98] md:px-3.5"
+                aria-label="Settings"
+              >
+                <Settings size={15} />
+                <span className="hidden md:inline">Settings</span>
               </Link>
             )}
             {!isSuperAdmin && (
