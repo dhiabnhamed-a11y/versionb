@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { deleteTasksById } from '@/lib/delete-graph'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
 import { getStageProgress } from '@/lib/utils'
 import {
@@ -243,8 +244,7 @@ export async function DELETE(req: NextRequest, ctx: RouteContext<'/api/tasks/[id
       return NextResponse.json({ error: 'Not found' }, { status: 404 })
     }
 
-    await prisma.activity.deleteMany({ where: { taskId: id } })
-    await prisma.task.delete({ where: { id } })
+    await prisma.$transaction((tx) => deleteTasksById(tx, [id]))
     emitCompanyRealtime(existing.project.companyId, 'task_deleted', { projectId: existing.projectId, taskId: id })
     return NextResponse.json({ success: true })
   } catch (err) {

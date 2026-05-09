@@ -4,6 +4,7 @@ type CameraTypeValue = 'device' | 'external'
 
 type ProjectCameraSupport = {
   hasCameraColumns: boolean
+  hasCameraTable: boolean
   hasCameraMediaTable: boolean
   hasCameraTypeEnum: boolean
 }
@@ -34,7 +35,7 @@ export async function getProjectCameraSupport(): Promise<ProjectCameraSupport> {
             SELECT table_name
             FROM information_schema.tables
             WHERE table_schema = current_schema()
-              AND table_name = 'ProjectCameraMedia'
+              AND table_name IN ('ProjectCamera', 'ProjectCameraMedia')
           `,
           prisma.$queryRaw<Array<{ typname: string }>>`
             SELECT t.typname
@@ -50,6 +51,7 @@ export async function getProjectCameraSupport(): Promise<ProjectCameraSupport> {
 
         return {
           hasCameraColumns: columnNames.has('hasCamera') && columnNames.has('cameraType') && hasCameraTypeEnum,
+          hasCameraTable: tables.some((table) => table.table_name === 'ProjectCamera'),
           hasCameraMediaTable: tables.some((table) => table.table_name === 'ProjectCameraMedia'),
           hasCameraTypeEnum,
         }
@@ -57,6 +59,7 @@ export async function getProjectCameraSupport(): Promise<ProjectCameraSupport> {
         console.warn('[project-camera-support] Falling back to camera-disabled compatibility mode.', error)
         return {
           hasCameraColumns: false,
+          hasCameraTable: false,
           hasCameraMediaTable: false,
           hasCameraTypeEnum: false,
         }

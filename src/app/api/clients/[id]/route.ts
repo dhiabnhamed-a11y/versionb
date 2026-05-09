@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { deleteClientGraph } from '@/lib/delete-graph'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
 import { serializeInvoice } from '@/lib/invoices'
@@ -229,7 +230,16 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ id:
   const existing = await authorizeClient(user, id)
   if (!existing) return NextResponse.json({ error: 'Client not found.' }, { status: 404 })
 
-  await prisma.client.delete({ where: { id } })
+  try {
+    await prisma.$transaction((tx) => deleteClientGraph(tx, id))
+  } catch (error) {
+    console.error('[client-delete]', error)
+    return NextResponse.json(
+      { error: 'Client could not be deleted.', detail: error instanceof Error ? error.message : undefined },
+      { status: 500 }
+    )
+  }
+
   emitCompanyRealtime(user.companyId, 'client_deleted', { clientId: id })
   return NextResponse.json({ ok: true })
 }

@@ -234,8 +234,14 @@ export default function AdminCalendarPage() {
   async function handleDelete() {
     if (!form.id || !confirm('Delete this calendar event?')) return
     setSaving(true)
-    await fetch(`/api/calendar-events/${form.id}`, { method: 'DELETE' })
+    setError('')
+    const response = await fetch(`/api/calendar-events/${form.id}`, { method: 'DELETE' })
     setSaving(false)
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as { error?: string }
+      setError(body.error || 'Event could not be deleted.')
+      return
+    }
     setShowModal(false)
     await loadCalendarData()
   }

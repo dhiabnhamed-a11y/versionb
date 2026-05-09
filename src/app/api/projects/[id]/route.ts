@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
+import { deleteProjectGraph } from '@/lib/delete-graph'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import { getProjectIfAllowed } from '@/lib/project-access'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
@@ -281,33 +282,27 @@ export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params
   const project = await prisma.project.findFirst({
     where: { id, companyId: user.companyId },
-    select: {
-      id: true,
-      tasks: { select: { id: true } },
-    },
+    select: { id: true },
   })
   if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
-  const taskIds = project.tasks.map((task) => task.id)
+  const [cameraSupport, mediaSupport] = await Promise.all([getProjectCameraSupport(), getProjectMediaSupport()])
 
-  await prisma.$transaction(async (tx) => {
-    if (taskIds.length > 0) {
-      await tx.activity.deleteMany({ where: { taskId: { in: taskIds } } })
-      await tx.taskSubmission.deleteMany({ where: { taskId: { in: taskIds } } })
-      await tx.calendarEvent.deleteMany({
-        where: {
-          OR: [{ taskId: { in: taskIds } }, { projectId: id }],
-        },
+  try {
+    await prisma.$transaction((tx) =>
+      deleteProjectGraph(tx, id, {
+        hasCameraMediaTable: cameraSupport.hasCameraMediaTable,
+        hasCameraTable: cameraSupport.hasCameraTable,
+        hasProjectMediaTable: mediaSupport.hasProjectMediaTable,
       })
-      await tx.task.deleteMany({ where: { id: { in: taskIds } } })
-    } else {
-      await tx.calendarEvent.deleteMany({ where: { projectId: id } })
-    }
-
-    await tx.projectCamera.deleteMany({ where: { projectId: id } })
-    await tx.projectCameraMedia.deleteMany({ where: { projectId: id } })
-    await tx.project.delete({ where: { id } })
-  })
+    )
+  } catch (error) {
+    console.error('[project-delete]', error)
+    return NextResponse.json(
+      { error: `${normalizeCompanyType(user.companyType) === 'DIGITAL_AGENCY' ? 'Campaign' : 'Project'} could not be deleted.`, detail: error instanceof Error ? error.message : undefined },
+      { status: 500 }
+    )
+  }
 
   emitCompanyRealtime(user.companyId, 'project_deleted', { projectId: id })
 

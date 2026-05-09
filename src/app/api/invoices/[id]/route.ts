@@ -228,7 +228,19 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ id:
   if (!existing) return NextResponse.json({ error: 'Invoice not found.' }, { status: 404 })
   if (existing.status === 'paid') return NextResponse.json({ error: 'Paid invoices cannot be deleted.' }, { status: 409 })
 
-  await prisma.invoice.delete({ where: { id } })
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.invoiceItem.deleteMany({ where: { invoiceId: id } })
+      await tx.invoice.delete({ where: { id } })
+    })
+  } catch (error) {
+    console.error('[invoice-delete]', error)
+    return NextResponse.json(
+      { error: 'Invoice could not be deleted.', detail: error instanceof Error ? error.message : undefined },
+      { status: 500 }
+    )
+  }
+
   await logClientActivity({
     companyId: user.companyId,
     clientId: existing.clientId,

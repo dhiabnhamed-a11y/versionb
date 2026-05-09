@@ -79,6 +79,7 @@ export default function AdminTasksPage() {
   const [rejectingTask, setRejectingTask] = useState<Task | null>(null)
   const [reviewComment, setReviewComment] = useState('')
   const [reviewError, setReviewError] = useState('')
+  const [actionError, setActionError] = useState('')
   const [reviewSaving, setReviewSaving] = useState(false)
   const [filterStage, setFilterStage] = useState('ALL')
   const [form, setForm] = useState({
@@ -190,7 +191,13 @@ export default function AdminTasksPage() {
 
   async function handleDelete(id: string) {
     if (!confirm(`Delete this ${companyCopy.taskLabel.toLowerCase()}?`)) return
-    await fetch(`/api/tasks/${id}`, { method: 'DELETE' })
+    setActionError('')
+    const response = await fetch(`/api/tasks/${id}`, { method: 'DELETE' })
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as { error?: string; detail?: string }
+      setActionError(body.error || `${companyCopy.taskLabel} could not be deleted.`)
+      return
+    }
     await reloadTasksPageData()
   }
 
@@ -264,6 +271,12 @@ export default function AdminTasksPage() {
           </button>
         ))}
       </div>
+
+      {actionError && (
+        <div className="mb-4 rounded-[var(--radius-sm)] border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          {actionError}
+        </div>
+      )}
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '60px' }}>

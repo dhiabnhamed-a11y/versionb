@@ -234,7 +234,14 @@ export default function ProjectsPage() {
   async function handleDeleteProject(project: Project) {
     if (!confirm(`Delete "${project.title}" and all of its ${companyCopy.taskPluralLabel.toLowerCase()}?`)) return
     setDeletingProjectId(project.id)
-    await fetch(`/api/projects/${project.id}`, { method: 'DELETE' })
+    setLoadError(null)
+    const response = await fetch(`/api/projects/${project.id}`, { method: 'DELETE' })
+    if (!response.ok) {
+      const body = (await response.json().catch(() => ({}))) as ApiFailure
+      setLoadError(body?.error ? body : { error: `${companyCopy.projectLabel} could not be deleted.` })
+      setDeletingProjectId(null)
+      return
+    }
     setDeletingProjectId(null)
     await reload()
   }

@@ -382,7 +382,13 @@ function InvoicesPageContent() {
 
   async function deleteInvoice(invoice: Invoice) {
     if (!confirm(`Delete ${invoice.invoiceNumber}?`)) return
-    await fetch(`/api/invoices/${invoice.id}`, { method: 'DELETE' })
+    setError(null)
+    const response = await fetch(`/api/invoices/${invoice.id}`, { method: 'DELETE' })
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}))
+      setError(body?.error || 'Invoice could not be deleted.')
+      return
+    }
     await loadInvoices()
   }
 
