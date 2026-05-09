@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
-import { prisma } from '@/lib/db'
+import { getDatabaseConfigHint, prisma } from '@/lib/db'
 import { generateInvoicePdf, normalizePdfInvoice, validateInvoiceForPdf, type PdfInvoice } from '@/lib/invoice-pdf'
 import { serializeInvoice } from '@/lib/invoices'
 
@@ -17,10 +17,24 @@ type RouteCtx = {
   params: Promise<{ id?: string }>
 }
 
-const JSON_HEADERS = {
-  'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
-  Pragma: 'no-cache',
-  Expires: '0',
+function jsonHeaders(reqId: string) {
+  return {
+    'Content-Type': 'application/json',
+    'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+    Pragma: 'no-cache',
+    Expires: '0',
+    'X-Request-Id': reqId,
+    'Access-Control-Expose-Headers': 'X-Request-Id',
+  }
+}
+
+const PDF_SIGNATURE = '%PDF-'
+
+function assertPdf(pdf: Uint8Array) {
+  const signature = Buffer.from(pdf.slice(0, 5)).toString('ascii')
+  if (pdf.byteLength < 5 || signature !== PDF_SIGNATURE) {
+    throw new Error(`PDF renderer returned invalid output. byteLength=${pdf.byteLength} signature=${signature}`)
+  }
 }
 
 function requestId() {
@@ -36,6 +50,7 @@ function errorDetails(error: unknown) {
     return {
       name: error.name,
       message: error.message,
+      code: 'code' in error ? error.code : undefined,
       stack: process.env.NODE_ENV === 'production' ? undefined : error.stack,
     }
   }
@@ -58,7 +73,7 @@ function jsonError(message: string, status: number, reqId: string) {
     },
     {
       status,
-      headers: JSON_HEADERS,
+      headers: jsonHeaders(reqId),
     }
   )
 }
@@ -94,6 +109,7 @@ function pdfHeaders(invoiceNumber: string, byteLength: number) {
 }
 
 function pdfResponse(pdf: Uint8Array, invoiceNumber: string, reqId: string) {
+  assertPdf(pdf)
   const body = new ArrayBuffer(pdf.byteLength)
   new Uint8Array(body).set(pdf)
 
@@ -133,6 +149,7 @@ export async function GET(req: NextRequest, context: RouteCtx) {
   const reqId = requestId()
   const startedAt = Date.now()
   let invoiceId = ''
+  let phase = 'route-params'
 
   try {
     invoiceId = await routeParams(context)
@@ -144,6 +161,7 @@ export async function GET(req: NextRequest, context: RouteCtx) {
       accept: req.headers.get('accept'),
     })
 
+    phase = 'auth'
     const session = await auth()
     if (!session) return jsonError('Unauthorized', 401, reqId)
 
@@ -152,9 +170,11 @@ export async function GET(req: NextRequest, context: RouteCtx) {
     if (!canManageInvoices(user)) return jsonError('Forbidden', 403, reqId)
     if (req.signal.aborted) return jsonError('PDF request was cancelled.', 499, reqId)
 
+    phase = 'load-invoice'
     const invoice = await loadInvoice(invoiceId, user.companyId)
     if (!invoice) return jsonError('Invoice not found.', 404, reqId)
 
+    phase = 'normalize-invoice'
     const serializedInvoice = serializeInvoice(invoice)
     const pdfInvoice = normalizePdfInvoice(serializedInvoice as unknown as PdfInvoice)
     const invoiceNumber = pdfInvoice.invoiceNumber || invoice.invoiceNumber || 'invoice'
@@ -169,6 +189,7 @@ export async function GET(req: NextRequest, context: RouteCtx) {
       })
     }
 
+    phase = 'generate-pdf'
     const pdf = await generateInvoicePdf(pdfInvoice)
 
     log('info', 'Invoice PDF request completed.', {
@@ -184,8 +205,10 @@ export async function GET(req: NextRequest, context: RouteCtx) {
     log('error', 'Invoice PDF request failed.', {
       requestId: reqId,
       invoiceId,
+      phase,
       durationMs: Date.now() - startedAt,
       error: errorDetails(error),
+      databaseHint: phase === 'load-invoice' ? getDatabaseConfigHint() : undefined,
     })
 
     return jsonError('Invoice PDF could not be generated right now. Please try again in a moment.', 503, reqId)

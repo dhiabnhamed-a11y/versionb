@@ -16,7 +16,7 @@ import {
   X,
 } from 'lucide-react'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
-import { downloadBlobResponse, getResponseErrorMessage } from '@/lib/download-response'
+import { downloadPdfFromApi } from '@/lib/download-response'
 import { formatInvoiceMoney, getInvoiceStatusLabel, INVOICE_STATUSES, type InvoiceStatus } from '@/lib/invoices'
 
 type Locale = 'en' | 'ar'
@@ -397,34 +397,12 @@ function InvoicesPageContent() {
     setError(null)
 
     try {
-      const controller = new AbortController()
-      const timeout = window.setTimeout(() => controller.abort(), 45000)
-      const response = await (async () => {
-        try {
-          return await fetch(`/api/invoices/${invoice.id}/pdf`, {
-            method: 'GET',
-            cache: 'no-store',
-            credentials: 'same-origin',
-            signal: controller.signal,
-            headers: {
-              Accept: 'application/pdf',
-              'Cache-Control': 'no-store',
-              Pragma: 'no-cache',
-            },
-          })
-        } finally {
-          window.clearTimeout(timeout)
-        }
-      })()
-      const contentType = response.headers.get('content-type') ?? ''
-
-      if (!response.ok || !contentType.includes('application/pdf')) {
-        throw new Error(await getResponseErrorMessage(response, 'Invoice PDF could not be downloaded.'))
-      }
-
-      await downloadBlobResponse(response, invoice.invoiceNumber)
+      await downloadPdfFromApi(`/api/invoices/${invoice.id}/pdf`, invoice.invoiceNumber, {
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+      })
     } catch (reason) {
-      setError(reason instanceof DOMException && reason.name === 'AbortError' ? 'Invoice PDF generation timed out. Please try again.' : reason instanceof Error ? reason.message : 'Invoice PDF could not be downloaded.')
+      setError(reason instanceof Error ? reason.message : 'Invoice PDF could not be downloaded.')
     } finally {
       setDownloadingInvoiceId(null)
     }

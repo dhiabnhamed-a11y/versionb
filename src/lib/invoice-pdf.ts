@@ -35,6 +35,9 @@ export type PdfInvoice = {
 type RawPdfInvoice = Partial<PdfInvoice> & Record<string, unknown>
 type PdfBrowser = Awaited<ReturnType<typeof launchPdfBrowser>>
 
+const PDF_RENDERER = process.env.INVOICE_PDF_RENDERER === 'chromium' ? 'chromium' : 'pdfkit'
+const MAX_PDF_ITEMS = 250
+
 let chromiumExecutablePathPromise: Promise<string> | null = null
 let arabicFontCssPromise: Promise<string> | null = null
 
@@ -444,15 +447,20 @@ function pdfKitSafeText(value: unknown, allowUnicode: boolean) {
   return text.replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF]/g, '?')
 }
 
-function diagnosticMessage(reason: unknown) {
-  if (!reason) return ''
-  const message = reason instanceof Error ? reason.message : String(reason)
-  return message.replace(/[^\x20-\x7E]/g, '?').slice(0, 320)
+function pdfErrorDetails(error: unknown) {
+  return error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : { message: String(error) }
 }
 
-async function generatePdfKitInvoicePdf(rawInvoice: PdfInvoice, reason: unknown, requestedLocale: string) {
+function assertPdfBuffer(pdf: Uint8Array, renderer: string) {
+  const signature = Buffer.from(pdf.slice(0, 5)).toString('ascii')
+  if (pdf.byteLength < 5 || signature !== '%PDF-') {
+    throw new Error(`Invoice PDF renderer ${renderer} returned an invalid PDF buffer.`)
+  }
+}
+
+async function generatePdfKitInvoicePdf(rawInvoice: PdfInvoice, requestedLocale?: string) {
   const PDFDocument = (await import('pdfkit')).default
-  const invoice = normalizePdfInvoice({ ...rawInvoice, locale: requestedLocale })
+  const invoice = normalizePdfInvoice({ ...rawInvoice, locale: requestedLocale ?? rawInvoice.locale })
   const locale = invoiceLocale(invoice.locale) === 'ar' ? 'en' : invoiceLocale(invoice.locale)
   const copy = invoiceCopy(locale)
   const doc = new PDFDocument({ size: 'A4', margin: 42, autoFirstPage: true, bufferPages: false })
@@ -460,6 +468,13 @@ async function generatePdfKitInvoicePdf(rawInvoice: PdfInvoice, reason: unknown,
   const regularFont = 'Helvetica'
   const boldFont = 'Helvetica-Bold'
   const text = (value: unknown) => pdfKitSafeText(value, false)
+  const money = (value: number) => text(formatInvoiceMoney(value, invoice.currency, locale))
+  const pageBottom = doc.page.height - doc.page.margins.bottom
+
+  function ensureSpace(height: number) {
+    if (doc.y + height <= pageBottom) return
+    doc.addPage()
+  }
 
   doc.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
   const done = new Promise<Buffer>((resolve, reject) => {
@@ -490,26 +505,40 @@ async function generatePdfKitInvoicePdf(rawInvoice: PdfInvoice, reason: unknown,
   doc.font(regularFont).text(text(getInvoiceStatusLabel(invoice.status, locale)))
   doc.moveDown()
 
-  const headerY = doc.y
-  doc.font(boldFont).fontSize(9).fillColor('#102033')
-  doc.text(text(copy.description), 42, headerY, { width: 245 })
-  doc.text(text(copy.quantity), 292, headerY, { width: 58, align: 'right' })
-  doc.text(text(copy.unitPrice), 360, headerY, { width: 82, align: 'right' })
-  doc.text(text(copy.amount), 455, headerY, { width: 90, align: 'right' })
-  doc.moveTo(42, headerY + 18).lineTo(553, headerY + 18).strokeColor('#dbe3ed').stroke()
-  doc.y = headerY + 28
+  function drawTableHeader() {
+    ensureSpace(48)
+    const headerY = doc.y
+    doc.font(boldFont).fontSize(9).fillColor('#102033')
+    doc.text(text(copy.description), 42, headerY, { width: 245 })
+    doc.text(text(copy.quantity), 292, headerY, { width: 58, align: 'right' })
+    doc.text(text(copy.unitPrice), 360, headerY, { width: 82, align: 'right' })
+    doc.text(text(copy.amount), 455, headerY, { width: 90, align: 'right' })
+    doc.moveTo(42, headerY + 18).lineTo(553, headerY + 18).strokeColor('#dbe3ed').stroke()
+    doc.y = headerY + 28
+  }
 
-  const rows = invoice.items.length ? invoice.items : [{ description: copy.noItems, quantity: 0, unitPrice: 0, lineTotal: 0 }]
+  drawTableHeader()
+
+  const normalizedRows = invoice.items.slice(0, MAX_PDF_ITEMS)
+  const rows = normalizedRows.length ? normalizedRows : [{ description: copy.noItems, quantity: 0, unitPrice: 0, lineTotal: 0 }]
   for (const item of rows) {
+    ensureSpace(34)
+    if (doc.y < 70) drawTableHeader()
     const y = doc.y
     doc.font(regularFont).fontSize(9).fillColor('#102033')
     doc.text(text(item.description), 42, y, { width: 245 })
     doc.text(text(toFiniteNumber(item.quantity).toFixed(2)), 292, y, { width: 58, align: 'right' })
-    doc.text(text(formatInvoiceMoney(item.unitPrice, invoice.currency, locale)), 360, y, { width: 82, align: 'right' })
-    doc.text(text(formatInvoiceMoney(item.lineTotal, invoice.currency, locale)), 455, y, { width: 90, align: 'right' })
+    doc.text(money(item.unitPrice), 360, y, { width: 82, align: 'right' })
+    doc.text(money(item.lineTotal), 455, y, { width: 90, align: 'right' })
     doc.y = y + 24
   }
 
+  if (invoice.items.length > MAX_PDF_ITEMS) {
+    ensureSpace(24)
+    doc.font(regularFont).fontSize(8).fillColor('#64748b').text(text(`${invoice.items.length - MAX_PDF_ITEMS} additional line items were omitted from this PDF. Export a detailed report for the full list.`))
+  }
+
+  ensureSpace(120)
   doc.moveDown()
   doc.font(boldFont).fontSize(11)
   doc.text(text(`${copy.subtotal}: ${formatInvoiceMoney(invoice.subtotal, invoice.currency, locale)}`), { align: 'right' })
@@ -517,27 +546,54 @@ async function generatePdfKitInvoicePdf(rawInvoice: PdfInvoice, reason: unknown,
   doc.fontSize(15).text(text(`${copy.total}: ${formatInvoiceMoney(invoice.total, invoice.currency, locale)}`), { align: 'right' })
   doc.moveDown()
 
-  doc.font(regularFont).fontSize(9).fillColor('#64748b').text(text(copy.fallbackNote))
-  const diagnostic = diagnosticMessage(reason)
-  if (diagnostic) {
-    doc.fontSize(7).fillColor('#94a3b8').text(`Diagnostic: ${diagnostic}`)
-  }
+  doc.font(regularFont).fontSize(9).fillColor('#64748b').text(text(invoice.notes || copy.thankYou))
 
   doc.end()
-  return done
+  const pdf = await done
+  assertPdfBuffer(pdf, 'pdfkit')
+  return pdf
 }
 
 export async function generateFallbackInvoicePdf(invoice: PdfInvoice, reason?: unknown) {
   const locale = invoiceLocale(invoice.locale)
 
   try {
-    return await generatePdfKitInvoicePdf(invoice, reason, locale)
+    console.warn('Invoice Chromium PDF generation failed; using PDFKit fallback.', {
+      invoiceNumber: safeInvoiceNumber(invoice.invoiceNumber),
+      reason: reason ? pdfErrorDetails(reason) : undefined,
+    })
+    return await generatePdfKitInvoicePdf(invoice, locale)
   } catch (error) {
     console.error('Invoice fallback PDFKit generation failed; retrying with ASCII-safe PDF.', {
       invoiceNumber: safeInvoiceNumber(invoice.invoiceNumber),
-      error: error instanceof Error ? { name: error.name, message: error.message } : error,
+      error: pdfErrorDetails(error),
     })
-    return generatePdfKitInvoicePdf(invoice, reason, 'en')
+    return generatePdfKitInvoicePdf(invoice, 'en')
+  }
+}
+
+async function generateChromiumInvoicePdf(invoice: PdfInvoice) {
+  let browser: PdfBrowser | null = null
+
+  try {
+    browser = await launchPdfBrowser()
+    const page = await browser.newPage()
+    page.setDefaultTimeout(15000)
+    page.setDefaultNavigationTimeout(15000)
+    await page.setContent(await renderInvoiceHtml(invoice), { waitUntil: 'domcontentloaded', timeout: 15000 })
+    await page.evaluate(() => document.fonts.ready)
+    await page.emulateMediaType('print')
+
+    const pdf = await page.pdf({
+      format: 'A4',
+      printBackground: true,
+      preferCSSPageSize: true,
+      timeout: 20000,
+    })
+    assertPdfBuffer(pdf, 'chromium')
+    return pdf
+  } finally {
+    if (browser) await closeBrowserSafely(browser)
   }
 }
 
@@ -552,30 +608,26 @@ export async function generateInvoicePdf(rawInvoice: PdfInvoice) {
     })
   }
 
-  let browser: PdfBrowser | null = null
+  if (PDF_RENDERER !== 'chromium') {
+    try {
+      return await generatePdfKitInvoicePdf(invoice)
+    } catch (error) {
+      console.error('Invoice PDFKit generation failed; retrying with Chromium renderer.', {
+        invoiceNumber: safeInvoiceNumber(invoice.invoiceNumber),
+        error: pdfErrorDetails(error),
+      })
+
+      return generateChromiumInvoicePdf(invoice)
+    }
+  }
 
   try {
-    browser = await launchPdfBrowser()
-    const page = await browser.newPage()
-    page.setDefaultTimeout(15000)
-    page.setDefaultNavigationTimeout(15000)
-    await page.setContent(await renderInvoiceHtml(invoice), { waitUntil: 'domcontentloaded', timeout: 15000 })
-    await page.evaluate(() => document.fonts.ready)
-    await page.emulateMediaType('print')
-
-    return await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      preferCSSPageSize: true,
-      timeout: 20000,
-    })
+    return await generateChromiumInvoicePdf(invoice)
   } catch (error) {
-    console.error('Chromium invoice PDF generation failed; using fallback PDF.', {
+    console.error('Chromium invoice PDF generation failed.', {
       invoiceNumber: safeInvoiceNumber(invoice.invoiceNumber),
-      error: error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : error,
+      error: pdfErrorDetails(error),
     })
     return generateFallbackInvoicePdf(invoice, error)
-  } finally {
-    if (browser) await closeBrowserSafely(browser)
   }
 }

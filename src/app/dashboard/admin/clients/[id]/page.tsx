@@ -18,7 +18,7 @@ import {
   ReceiptText,
   Upload,
 } from 'lucide-react'
-import { downloadBlobResponse, getResponseErrorMessage } from '@/lib/download-response'
+import { downloadPdfFromApi } from '@/lib/download-response'
 import { formatInvoiceMoney, getInvoiceStatusLabel } from '@/lib/invoices'
 
 type ProfileResponse = {
@@ -108,33 +108,13 @@ export default function ClientProfilePage() {
     setDownloadError(null)
 
     try {
-      const controller = new AbortController()
-      const timeout = window.setTimeout(() => controller.abort(), 45000)
-      const response = await (async () => {
-        try {
-          return await fetch(`/api/invoices/${invoice.id}/pdf`, {
-            method: 'GET',
-            cache: 'no-store',
-            credentials: 'same-origin',
-            signal: controller.signal,
-            headers: {
-              Accept: 'application/pdf',
-              'Cache-Control': 'no-store',
-              Pragma: 'no-cache',
-            },
-          })
-        } finally {
-          window.clearTimeout(timeout)
-        }
-      })()
-      const contentType = response.headers.get('content-type') ?? ''
-      if (!response.ok || !contentType.includes('application/pdf')) {
-        throw new Error(await getResponseErrorMessage(response, 'Invoice PDF could not be downloaded.'))
-      }
-
-      await downloadBlobResponse(response, invoice.invoiceNumber)
+      await downloadPdfFromApi(`/api/invoices/${invoice.id}/pdf`, invoice.invoiceNumber, {
+        invoiceId: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        source: 'client-profile',
+      })
     } catch (reason) {
-      setDownloadError(reason instanceof DOMException && reason.name === 'AbortError' ? 'Invoice PDF generation timed out. Please try again.' : reason instanceof Error ? reason.message : 'Invoice PDF could not be downloaded.')
+      setDownloadError(reason instanceof Error ? reason.message : 'Invoice PDF could not be downloaded.')
     } finally {
       setDownloadingInvoiceId(null)
     }
