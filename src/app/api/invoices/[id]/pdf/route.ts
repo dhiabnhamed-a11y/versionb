@@ -5,6 +5,8 @@ import { generateInvoicePdf } from '@/lib/invoice-pdf'
 import { serializeInvoice } from '@/lib/invoices'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 type SessionUser = {
   role?: string | null
@@ -38,13 +40,18 @@ export async function GET(_req: NextRequest, context: { params: Promise<{ id: st
 
   if (!invoice) return NextResponse.json({ error: 'Invoice not found.' }, { status: 404 })
 
-  const serializedInvoice = serializeInvoice(invoice) as unknown as Parameters<typeof generateInvoicePdf>[0]
-  const pdf = await generateInvoicePdf(serializedInvoice)
-  return new Response(pdf as BodyInit, {
-    headers: {
-      'Content-Type': 'application/pdf',
-      'Content-Disposition': `attachment; filename="${invoice.invoiceNumber}.pdf"`,
-      'Cache-Control': 'no-store, max-age=0',
-    },
-  })
+  try {
+    const serializedInvoice = serializeInvoice(invoice) as unknown as Parameters<typeof generateInvoicePdf>[0]
+    const pdf = await generateInvoicePdf(serializedInvoice)
+    return new Response(pdf as BodyInit, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="${invoice.invoiceNumber}.pdf"`,
+        'Cache-Control': 'no-store, max-age=0',
+      },
+    })
+  } catch (error) {
+    console.error('Invoice PDF generation failed:', error)
+    return NextResponse.json({ error: 'Invoice PDF could not be generated. Please try again.' }, { status: 500 })
+  }
 }

@@ -1,4 +1,3 @@
-import puppeteer from 'puppeteer'
 import { formatInvoiceMoney, getInvoiceStatusLabel } from '@/lib/invoices'
 
 type PdfInvoice = {
@@ -197,11 +196,30 @@ function renderInvoiceHtml(invoice: PdfInvoice) {
   </html>`
 }
 
-export async function generateInvoicePdf(invoice: PdfInvoice) {
-  const browser = await puppeteer.launch({
+async function launchPdfBrowser() {
+  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME)
+
+  if (isServerless) {
+    const [{ default: chromium }, puppeteer] = await Promise.all([import('@sparticuz/chromium'), import('puppeteer-core')])
+    const executablePath = await chromium.executablePath()
+
+    return puppeteer.default.launch({
+      args: [...chromium.args, '--disable-dev-shm-usage', '--disable-gpu'],
+      defaultViewport: { width: 1240, height: 1754 },
+      executablePath,
+      headless: true,
+    })
+  }
+
+  const puppeteer = await import('puppeteer')
+  return puppeteer.default.launch({
     headless: true,
     args: ['--no-sandbox', '--disable-setuid-sandbox'],
   })
+}
+
+export async function generateInvoicePdf(invoice: PdfInvoice) {
+  const browser = await launchPdfBrowser()
 
   try {
     const page = await browser.newPage()
