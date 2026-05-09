@@ -1,13 +1,7 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ['@sparticuz/chromium', 'puppeteer-core', 'bufferutil', 'utf-8-validate'],
-  outputFileTracingIncludes: {
-    '/api/invoices/[id]/pdf': [
-      './node_modules/@sparticuz/chromium/bin/**/*',
-      './node_modules/@fontsource/noto-naskh-arabic/files/*.woff2',
-    ],
-  },
+  serverExternalPackages: ['@react-pdf/renderer', 'bufferutil', 'utf-8-validate'],
   experimental: {
     staleTimes: {
       dynamic: 0,
