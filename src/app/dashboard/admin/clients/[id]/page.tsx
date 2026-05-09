@@ -18,6 +18,7 @@ import {
   ReceiptText,
   Upload,
 } from 'lucide-react'
+import { downloadBlobResponse, getResponseErrorMessage } from '@/lib/download-response'
 import { formatInvoiceMoney, getInvoiceStatusLabel } from '@/lib/invoices'
 
 type ProfileResponse = {
@@ -102,38 +103,38 @@ export default function ClientProfilePage() {
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
 
-  function getDownloadFilename(disposition: string | null, fallback: string) {
-    const match = disposition?.match(/filename="?([^";]+)"?/i)
-    return match?.[1] || `${fallback.replace(/[^a-zA-Z0-9._-]/g, '_') || 'invoice'}.pdf`
-  }
-
   async function downloadInvoicePdf(invoice: ProfileResponse['client']['invoices'][number]) {
     setDownloadingInvoiceId(invoice.id)
     setDownloadError(null)
 
     try {
-      const response = await fetch(`/api/invoices/${invoice.id}/pdf`, {
-        method: 'GET',
-        cache: 'no-store',
-        headers: { Accept: 'application/pdf' },
-      })
+      const controller = new AbortController()
+      const timeout = window.setTimeout(() => controller.abort(), 45000)
+      const response = await (async () => {
+        try {
+          return await fetch(`/api/invoices/${invoice.id}/pdf`, {
+            method: 'GET',
+            cache: 'no-store',
+            credentials: 'same-origin',
+            signal: controller.signal,
+            headers: {
+              Accept: 'application/pdf',
+              'Cache-Control': 'no-store',
+              Pragma: 'no-cache',
+            },
+          })
+        } finally {
+          window.clearTimeout(timeout)
+        }
+      })()
       const contentType = response.headers.get('content-type') ?? ''
       if (!response.ok || !contentType.includes('application/pdf')) {
-        const body = contentType.includes('application/json') ? await response.json().catch(() => null) : null
-        throw new Error(body?.error || 'Invoice PDF could not be downloaded.')
+        throw new Error(await getResponseErrorMessage(response, 'Invoice PDF could not be downloaded.'))
       }
 
-      const blob = await response.blob()
-      const url = window.URL.createObjectURL(blob)
-      const anchor = document.createElement('a')
-      anchor.href = url
-      anchor.download = getDownloadFilename(response.headers.get('content-disposition'), invoice.invoiceNumber)
-      document.body.appendChild(anchor)
-      anchor.click()
-      anchor.remove()
-      window.URL.revokeObjectURL(url)
+      await downloadBlobResponse(response, invoice.invoiceNumber)
     } catch (reason) {
-      setDownloadError(reason instanceof Error ? reason.message : 'Invoice PDF could not be downloaded.')
+      setDownloadError(reason instanceof DOMException && reason.name === 'AbortError' ? 'Invoice PDF generation timed out. Please try again.' : reason instanceof Error ? reason.message : 'Invoice PDF could not be downloaded.')
     } finally {
       setDownloadingInvoiceId(null)
     }
