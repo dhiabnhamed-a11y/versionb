@@ -3,6 +3,7 @@
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import useSWR from 'swr'
+import { useState } from 'react'
 import {
   ArrowLeft,
   Building2,
@@ -10,6 +11,7 @@ import {
   Clock3,
   Download,
   FolderKanban,
+  Loader2,
   Mail,
   Phone,
   Plus,
@@ -97,6 +99,45 @@ function projectProgress(project: ProfileResponse['client']['projects'][number])
 export default function ClientProfilePage() {
   const params = useParams<{ id: string }>()
   const { data, isLoading, error } = useSWR<ProfileResponse>(params?.id ? `/api/clients/${params.id}` : null, fetcher)
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null)
+  const [downloadError, setDownloadError] = useState<string | null>(null)
+
+  function getDownloadFilename(disposition: string | null, fallback: string) {
+    const match = disposition?.match(/filename="?([^";]+)"?/i)
+    return match?.[1] || `${fallback.replace(/[^a-zA-Z0-9._-]/g, '_') || 'invoice'}.pdf`
+  }
+
+  async function downloadInvoicePdf(invoice: ProfileResponse['client']['invoices'][number]) {
+    setDownloadingInvoiceId(invoice.id)
+    setDownloadError(null)
+
+    try {
+      const response = await fetch(`/api/invoices/${invoice.id}/pdf`, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { Accept: 'application/pdf' },
+      })
+      const contentType = response.headers.get('content-type') ?? ''
+      if (!response.ok || !contentType.includes('application/pdf')) {
+        const body = contentType.includes('application/json') ? await response.json().catch(() => null) : null
+        throw new Error(body?.error || 'Invoice PDF could not be downloaded.')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = getDownloadFilename(response.headers.get('content-disposition'), invoice.invoiceNumber)
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (reason) {
+      setDownloadError(reason instanceof Error ? reason.message : 'Invoice PDF could not be downloaded.')
+    } finally {
+      setDownloadingInvoiceId(null)
+    }
+  }
 
   if (isLoading) {
     return (
@@ -237,6 +278,7 @@ export default function ClientProfilePage() {
                 <p className="panel-meta">Recent billing records for this client.</p>
               </div>
             </div>
+            {downloadError && <div className="mb-3 rounded-[var(--radius-sm)] border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{downloadError}</div>}
             <div className="grid gap-3">
               {client.invoices.length === 0 ? (
                 <div className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] px-4 py-8 text-center text-sm text-[var(--text-muted)]">No invoices yet.</div>
@@ -254,9 +296,9 @@ export default function ClientProfilePage() {
                       </div>
                       <div className="flex items-center gap-2">
                         <strong className="text-sm">{formatInvoiceMoney(Number(invoice.total), invoice.currency)}</strong>
-                        <a href={`/api/invoices/${invoice.id}/pdf`} className="btn-secondary btn-sm" aria-label="Download invoice PDF">
-                          <Download size={14} />
-                        </a>
+                        <button type="button" onClick={() => downloadInvoicePdf(invoice)} disabled={downloadingInvoiceId === invoice.id} className="btn-secondary btn-sm" aria-label="Download invoice PDF">
+                          {downloadingInvoiceId === invoice.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                        </button>
                       </div>
                     </div>
                   </div>

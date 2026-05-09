@@ -212,6 +212,7 @@ function InvoicesPageContent() {
   const [clients, setClients] = useState<ClientOption[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingInvoice, setEditingInvoice] = useState<Invoice | null>(null)
@@ -384,6 +385,44 @@ function InvoicesPageContent() {
     await loadInvoices()
   }
 
+  function getDownloadFilename(disposition: string | null, fallback: string) {
+    const match = disposition?.match(/filename="?([^";]+)"?/i)
+    return match?.[1] || `${fallback.replace(/[^a-zA-Z0-9._-]/g, '_') || 'invoice'}.pdf`
+  }
+
+  async function downloadInvoicePdf(invoice: Invoice) {
+    setDownloadingInvoiceId(invoice.id)
+    setError(null)
+
+    try {
+      const response = await fetch(`/api/invoices/${invoice.id}/pdf`, {
+        method: 'GET',
+        cache: 'no-store',
+        headers: { Accept: 'application/pdf' },
+      })
+      const contentType = response.headers.get('content-type') ?? ''
+
+      if (!response.ok || !contentType.includes('application/pdf')) {
+        const body = contentType.includes('application/json') ? await response.json().catch(() => null) : null
+        throw new Error(body?.error || 'Invoice PDF could not be downloaded.')
+      }
+
+      const blob = await response.blob()
+      const url = window.URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = getDownloadFilename(response.headers.get('content-disposition'), invoice.invoiceNumber)
+      document.body.appendChild(anchor)
+      anchor.click()
+      anchor.remove()
+      window.URL.revokeObjectURL(url)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Invoice PDF could not be downloaded.')
+    } finally {
+      setDownloadingInvoiceId(null)
+    }
+  }
+
   return (
     <div className="dashboard-page" dir={locale === 'ar' ? 'rtl' : 'ltr'} style={{ maxWidth: '1180px' }}>
       <div className="dashboard-header-row">
@@ -494,10 +533,10 @@ function InvoicesPageContent() {
                       {t.markPaid}
                     </button>
                   )}
-                  <a href={`/api/invoices/${invoice.id}/pdf`} className="btn-secondary btn-sm">
-                    <Download size={14} />
+                  <button type="button" onClick={() => downloadInvoicePdf(invoice)} disabled={downloadingInvoiceId === invoice.id} className="btn-secondary btn-sm">
+                    {downloadingInvoiceId === invoice.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
                     {t.download}
-                  </a>
+                  </button>
                   <button type="button" onClick={() => openEditModal(invoice)} className="btn-secondary btn-sm">
                     <Pencil size={14} />
                     {t.edit}
