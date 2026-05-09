@@ -40,6 +40,7 @@ async function getTaskForSubmission(taskId: string, user: SessionUser) {
       id: true,
       assigneeId: true,
       projectId: true,
+      deliverableId: true,
       title: true,
       project: { select: { companyId: true } },
     },
@@ -164,49 +165,93 @@ export async function POST(req: NextRequest, context: RouteContext<'/api/tasks/[
       })
       const urls = getCloudinaryDeliveryUrls(result, validation.type)
 
-      const submission = await prisma.taskSubmission.create({
-        data: {
-          taskId: task.id,
-          userId: user.id,
-          fileUrl: urls.url,
-          fileName: safeName,
-          fileType: contentType,
-          mediaType: validation.type,
-          fileSize: result.bytes ?? buffer.length,
-          duration: typeof result.duration === 'number' ? result.duration : null,
-          thumbnailUrl: urls.thumbnailUrl,
-          playbackUrl: urls.playbackUrl,
-          cloudinaryPublicId: result.public_id,
-          note: typeof note === 'string' && note.trim() ? note.trim() : null,
-        },
-        select: {
-          id: true,
-          fileUrl: true,
-          fileName: true,
-          fileType: true,
-          mediaType: true,
-          fileSize: true,
-          duration: true,
-          thumbnailUrl: true,
-          playbackUrl: true,
-          cloudinaryPublicId: true,
-          note: true,
-          createdAt: true,
-          user: {
-            select: {
-              id: true,
-              name: true,
+      const submission = await prisma.$transaction(async (tx) => {
+        const versionNumber = (await tx.deliverableFile.count({ where: { deliverableId: task.deliverableId } })) + 1
+        const created = await tx.taskSubmission.create({
+          data: {
+            taskId: task.id,
+            userId: user.id,
+            fileUrl: urls.url,
+            fileName: safeName,
+            fileType: contentType,
+            mediaType: validation.type,
+            fileSize: result.bytes ?? buffer.length,
+            duration: typeof result.duration === 'number' ? result.duration : null,
+            thumbnailUrl: urls.thumbnailUrl,
+            playbackUrl: urls.playbackUrl,
+            cloudinaryPublicId: result.public_id,
+            note: typeof note === 'string' && note.trim() ? note.trim() : null,
+          },
+          select: {
+            id: true,
+            fileUrl: true,
+            fileName: true,
+            fileType: true,
+            mediaType: true,
+            fileSize: true,
+            duration: true,
+            thumbnailUrl: true,
+            playbackUrl: true,
+            cloudinaryPublicId: true,
+            note: true,
+            createdAt: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+              },
             },
           },
-        },
-      })
+        })
 
-      await prisma.activity.create({
-        data: {
-          taskId: task.id,
-          userId: user.id,
-          action: 'Uploaded Cloudinary deliverable',
-        },
+        await tx.deliverableFile.create({
+          data: {
+            deliverableId: task.deliverableId,
+            uploadedById: user.id,
+            url: urls.url,
+            playbackUrl: urls.playbackUrl,
+            thumbnailUrl: urls.thumbnailUrl,
+            cloudinaryPublicId: result.public_id,
+            type: validation.type,
+            mimeType: contentType,
+            originalFilename: safeName,
+            size: result.bytes ?? buffer.length,
+            duration: typeof result.duration === 'number' ? result.duration : null,
+            width: typeof result.width === 'number' ? result.width : null,
+            height: typeof result.height === 'number' ? result.height : null,
+            format: typeof result.format === 'string' ? result.format : null,
+            versionNumber,
+          },
+        })
+
+        await tx.deliverableRevision.upsert({
+          where: { deliverableId_versionNumber: { deliverableId: task.deliverableId, versionNumber } },
+          create: {
+            deliverableId: task.deliverableId,
+            versionNumber,
+            status: 'CLIENT_REVIEW',
+            changeNote: typeof note === 'string' && note.trim() ? note.trim() : 'Uploaded deliverable file',
+          },
+          update: {
+            status: 'CLIENT_REVIEW',
+            changeNote: typeof note === 'string' && note.trim() ? note.trim() : 'Uploaded deliverable file',
+          },
+        })
+
+        await tx.deliverable.update({
+          where: { id: task.deliverableId },
+          data: { status: 'CLIENT_REVIEW', approvalState: 'PENDING', revisionCount: { increment: 1 } },
+        })
+
+        await tx.activity.create({
+          data: {
+            taskId: task.id,
+            userId: user.id,
+            action: 'Uploaded Cloudinary deliverable',
+          },
+        })
+
+        return created
       })
 
       emitCompanyRealtime(task.project.companyId, 'task_submission_created', { projectId: task.projectId, taskId: task.id, submission })
@@ -235,37 +280,74 @@ export async function POST(req: NextRequest, context: RouteContext<'/api/tasks/[
       data: { publicUrl },
     } = supabase.storage.from(TASK_DELIVERABLE_BUCKET).getPublicUrl(storagePath)
 
-    const submission = await prisma.taskSubmission.create({
-      data: {
-        taskId: task.id,
-        userId: user.id,
-        fileUrl: publicUrl,
-        fileName: safeName,
-        fileType: contentType,
-        note: typeof note === 'string' && note.trim() ? note.trim() : null,
-      },
-      select: {
-        id: true,
-        fileUrl: true,
-        fileName: true,
-        fileType: true,
-        note: true,
-        createdAt: true,
-        user: {
-          select: {
-            id: true,
-            name: true,
+    const submission = await prisma.$transaction(async (tx) => {
+      const versionNumber = (await tx.deliverableFile.count({ where: { deliverableId: task.deliverableId } })) + 1
+      const created = await tx.taskSubmission.create({
+        data: {
+          taskId: task.id,
+          userId: user.id,
+          fileUrl: publicUrl,
+          fileName: safeName,
+          fileType: contentType,
+          note: typeof note === 'string' && note.trim() ? note.trim() : null,
+        },
+        select: {
+          id: true,
+          fileUrl: true,
+          fileName: true,
+          fileType: true,
+          note: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              name: true,
+            },
           },
         },
-      },
-    })
+      })
 
-    await prisma.activity.create({
-      data: {
-        taskId: task.id,
-        userId: user.id,
-        action: 'Uploaded deliverable',
-      },
+      await tx.deliverableFile.create({
+        data: {
+          deliverableId: task.deliverableId,
+          uploadedById: user.id,
+          url: publicUrl,
+          type: contentType.startsWith('video/') ? 'video' : contentType.startsWith('audio/') ? 'audio' : contentType.startsWith('image/') ? 'image' : 'file',
+          mimeType: contentType,
+          originalFilename: safeName,
+          size: buffer.length,
+          versionNumber,
+        },
+      })
+
+      await tx.deliverableRevision.upsert({
+        where: { deliverableId_versionNumber: { deliverableId: task.deliverableId, versionNumber } },
+        create: {
+          deliverableId: task.deliverableId,
+          versionNumber,
+          status: 'CLIENT_REVIEW',
+          changeNote: typeof note === 'string' && note.trim() ? note.trim() : 'Uploaded deliverable file',
+        },
+        update: {
+          status: 'CLIENT_REVIEW',
+          changeNote: typeof note === 'string' && note.trim() ? note.trim() : 'Uploaded deliverable file',
+        },
+      })
+
+      await tx.deliverable.update({
+        where: { id: task.deliverableId },
+        data: { status: 'CLIENT_REVIEW', approvalState: 'PENDING', revisionCount: { increment: 1 } },
+      })
+
+      await tx.activity.create({
+        data: {
+          taskId: task.id,
+          userId: user.id,
+          action: 'Uploaded deliverable',
+        },
+      })
+
+      return created
     })
 
     emitCompanyRealtime(task.project.companyId, 'task_submission_created', { projectId: task.projectId, taskId: task.id, submission })

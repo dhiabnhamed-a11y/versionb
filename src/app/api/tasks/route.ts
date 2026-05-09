@@ -4,6 +4,11 @@ import { prisma } from '@/lib/db'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
 import { getProjectMediaSupport } from '@/lib/project-media-support'
+import {
+  assertDeliverableInCompany,
+  createDeliverableForTask,
+  replaceTaskDependencies,
+} from '@/lib/creative-workflow'
 
 type SessionUser = {
   id: string
@@ -16,9 +21,11 @@ type CreateTaskBody = {
   description?: string
   priority?: string
   deliverableType?: string
+  deliverableId?: string
+  dependencyIds?: string[]
   deadline?: string
   assigneeId?: string
-  projectId: string
+  projectId?: string
 }
 
 // GET all tasks for user's company
@@ -53,6 +60,22 @@ export async function GET(req: NextRequest) {
                 name: true,
               },
             },
+          },
+        },
+        deliverable: {
+          select: {
+            id: true,
+            title: true,
+            type: true,
+            status: true,
+            approvalState: true,
+            revisionCount: true,
+            brief: { select: { id: true, title: true, status: true } },
+          },
+        },
+        dependencies: {
+          select: {
+            dependsOnTask: { select: { id: true, title: true, stage: true } },
           },
         },
         submissions: {
@@ -110,13 +133,38 @@ export async function POST(req: NextRequest) {
   if (user.role === 'EMPLOYEE') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   try {
-    const { title, description, priority, deliverableType, deadline, assigneeId, projectId } = (await req.json()) as CreateTaskBody
+    const {
+      title,
+      description,
+      priority,
+      deliverableType,
+      deliverableId,
+      dependencyIds = [],
+      deadline,
+      assigneeId,
+      projectId,
+    } = (await req.json()) as CreateTaskBody
 
-    const project = await prisma.project.findFirst({
-      where: { id: projectId, companyId: user.companyId },
-      select: { id: true },
-    })
-    if (!project) return NextResponse.json({ error: 'Selected project was not found in this workspace.' }, { status: 404 })
+    if (!title?.trim()) return NextResponse.json({ error: 'Task title is required.' }, { status: 400 })
+
+    let deliverable = deliverableId ? await assertDeliverableInCompany(deliverableId, user.companyId) : null
+    if (!deliverable && projectId) {
+      deliverable = await createDeliverableForTask({
+        companyId: user.companyId,
+        campaignId: projectId,
+        title: title.trim(),
+        description,
+        type: deliverableType,
+        dueAt: deadline ? new Date(deadline) : null,
+        createdById: user.id,
+      })
+    }
+    if (!deliverable) {
+      return NextResponse.json(
+        { error: 'A task must belong to a deliverable. Send deliverableId, or send projectId during the migration window.' },
+        { status: 400 }
+      )
+    }
 
     if (assigneeId) {
       const assignee = await prisma.user.findFirst({
@@ -126,42 +174,59 @@ export async function POST(req: NextRequest) {
       if (!assignee) return NextResponse.json({ error: 'Selected assignee was not found in this workspace.' }, { status: 404 })
     }
 
-    const task = await prisma.task.create({
-      data: {
-        title,
-        description,
-        priority: priority || 'MEDIUM',
-        deliverableType: deliverableType?.trim().toUpperCase() || 'GENERAL',
-        deadline: deadline ? new Date(deadline) : null,
-        assigneeId,
-        projectId,
-        stage: 'TODO',
-        progress: 0,
-      },
-      include: {
-        assignee: { select: { id: true, name: true, email: true } },
-        project: {
-          select: {
-            id: true,
-            title: true,
-            room: {
-              select: {
-                id: true,
-                name: true,
+    const task = await prisma.$transaction(async (tx) => {
+      const created = await tx.task.create({
+        data: {
+          title: title.trim(),
+          description,
+          priority: priority || 'MEDIUM',
+          deliverableType: deliverableType?.trim().toUpperCase() || 'GENERAL',
+          deliverableId: deliverable.id,
+          deadline: deadline ? new Date(deadline) : null,
+          assigneeId,
+          projectId: deliverable.campaignId,
+          stage: 'TODO',
+          progress: 0,
+        },
+        include: {
+          assignee: { select: { id: true, name: true, email: true } },
+          project: {
+            select: {
+              id: true,
+              title: true,
+              room: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
             },
           },
+          deliverable: {
+            select: {
+              id: true,
+              title: true,
+              type: true,
+              status: true,
+              approvalState: true,
+              revisionCount: true,
+              brief: { select: { id: true, title: true, status: true } },
+            },
+          },
         },
-      },
-    })
+      })
 
-    // Log activity
-    await prisma.activity.create({
-      data: {
-        taskId: task.id,
-        userId: user.id,
-        action: 'Task created',
-      },
+      await replaceTaskDependencies(tx, created.id, dependencyIds)
+
+      await tx.activity.create({
+        data: {
+          taskId: created.id,
+          userId: user.id,
+          action: 'Task created',
+        },
+      })
+
+      return created
     })
 
     emitCompanyRealtime(user.companyId, 'task_created', { projectId: task.project.id, task })

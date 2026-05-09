@@ -142,6 +142,36 @@ async function main() {
     },
   })
 
+  const brief1 = await prisma.brief.upsert({
+    where: { id: 'brief-proj-1' },
+    update: {},
+    create: {
+      id: 'brief-proj-1',
+      companyId: company.id,
+      campaignId: p1.id,
+      createdById: manager.id,
+      title: 'Website Redesign brief',
+      description: 'Imported planning brief for the website redesign campaign.',
+      status: 'APPROVED',
+      approvedAt: new Date(),
+    },
+  })
+
+  const brief2 = await prisma.brief.upsert({
+    where: { id: 'brief-proj-2' },
+    update: {},
+    create: {
+      id: 'brief-proj-2',
+      companyId: company.id,
+      campaignId: p2.id,
+      createdById: manager.id,
+      title: 'Mobile App Launch brief',
+      description: 'Imported planning brief for the mobile app launch campaign.',
+      status: 'APPROVED',
+      approvedAt: new Date(),
+    },
+  })
+
   const taskDefs = [
     {
       id: 't-1',
@@ -151,6 +181,7 @@ async function main() {
       progress: 40,
       assigneeId: emp1.id,
       projectId: p1.id,
+      briefId: brief1.id,
       deadline: new Date(Date.now() + 86400000 * 3),
     },
     {
@@ -161,6 +192,7 @@ async function main() {
       progress: 0,
       assigneeId: emp1.id,
       projectId: p1.id,
+      briefId: brief1.id,
       deadline: new Date(Date.now() + 86400000),
     },
     {
@@ -171,6 +203,7 @@ async function main() {
       progress: 75,
       assigneeId: emp2.id,
       projectId: p2.id,
+      briefId: brief2.id,
       deadline: new Date(Date.now() + 86400000 * 7),
     },
     {
@@ -181,6 +214,7 @@ async function main() {
       progress: 100,
       assigneeId: emp2.id,
       projectId: p2.id,
+      briefId: brief2.id,
       deadline: new Date(Date.now() - 86400000 * 2),
     },
     {
@@ -191,15 +225,46 @@ async function main() {
       progress: 0,
       assigneeId: emp1.id,
       projectId: p2.id,
+      briefId: brief2.id,
       deadline: new Date(Date.now() + 86400000 * 14),
     },
   ]
 
   for (const task of taskDefs) {
+    const deliverable = await prisma.deliverable.upsert({
+      where: { id: `deliverable-${task.id}` },
+      update: {},
+      create: {
+        id: `deliverable-${task.id}`,
+        companyId: company.id,
+        campaignId: task.projectId,
+        briefId: task.briefId,
+        title: task.title,
+        description: `${task.title} deliverable scope`,
+        type: task.id === 't-3' ? 'COPY' : 'GENERAL',
+        status: task.stage === 'DONE' ? 'APPROVED' : task.stage === 'REVIEW' ? 'INTERNAL_REVIEW' : 'INTERNAL_REVIEW',
+        approvalState: task.stage === 'DONE' ? 'APPROVED' : 'PENDING',
+        revisionCount: task.stage === 'DONE' ? 1 : 0,
+        dueAt: task.deadline,
+        deliveredAt: task.stage === 'DONE' ? new Date() : null,
+      },
+    })
+
     await prisma.task.upsert({
       where: { id: task.id },
       update: {},
-      create: { ...task, description: `${task.title} - detailed implementation task` },
+      create: {
+        id: task.id,
+        title: task.title,
+        priority: task.priority,
+        stage: task.stage,
+        progress: task.progress,
+        assigneeId: task.assigneeId,
+        projectId: task.projectId,
+        deliverableId: deliverable.id,
+        deadline: task.deadline,
+        description: `${task.title} - detailed implementation task`,
+      },
     })
     await prisma.activity.create({
       data: {

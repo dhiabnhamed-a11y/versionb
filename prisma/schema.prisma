@@ -21,26 +21,31 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  company                Company?        @relation("CompanyMembers", fields: [companyId], references: [id])
-  ownedCompany           Company?        @relation("CompanyOwner")
-  managedProjects        Project[]       @relation("ProjectManager")
-  assignedTasks          Task[]          @relation("TaskAssignee")
-  activities             Activity[]
-  sentAlerts             Alert[]         @relation("AlertSender")
-  receivedAlerts         Alert[]         @relation("AlertRecipient")
-  pushTokens             PushToken[]
-  createdInvites         Invite[]        @relation("InviteCreatedBy")
-  redeemedInvites        Invite[]        @relation("InviteUsedBy")
-  reviewedAccessRequests AccessRequest[] @relation("AccessRequestReviewedBy")
-  reviewedCompanies      Company[]       @relation("CompanyReviewedBy")
-  taskSubmissions        TaskSubmission[]
-  projectMediaUploads    ProjectMedia[]  @relation("ProjectMediaUploadedBy")
-  comments               Comment[]
-  calendarEvents         CalendarEvent[] @relation("CalendarEventCreatedBy")
-  adminActions           AdminActionLog[] @relation("AdminActionActor")
-  targetedAdminActions   AdminActionLog[] @relation("AdminActionTarget")
-  createdInvoices        Invoice[]        @relation("InvoiceCreatedBy")
-  clientActivities       ClientActivity[] @relation("ClientActivityActor")
+  company                  Company?              @relation("CompanyMembers", fields: [companyId], references: [id])
+  ownedCompany             Company?              @relation("CompanyOwner")
+  managedProjects          Project[]             @relation("ProjectManager")
+  assignedTasks            Task[]                @relation("TaskAssignee")
+  activities               Activity[]
+  sentAlerts               Alert[]               @relation("AlertSender")
+  receivedAlerts           Alert[]               @relation("AlertRecipient")
+  pushTokens               PushToken[]
+  createdInvites           Invite[]              @relation("InviteCreatedBy")
+  redeemedInvites          Invite[]              @relation("InviteUsedBy")
+  reviewedAccessRequests   AccessRequest[]       @relation("AccessRequestReviewedBy")
+  reviewedCompanies        Company[]             @relation("CompanyReviewedBy")
+  taskSubmissions          TaskSubmission[]
+  projectMediaUploads      ProjectMedia[]        @relation("ProjectMediaUploadedBy")
+  comments                 Comment[]
+  calendarEvents           CalendarEvent[]       @relation("CalendarEventCreatedBy")
+  adminActions             AdminActionLog[]      @relation("AdminActionActor")
+  targetedAdminActions     AdminActionLog[]      @relation("AdminActionTarget")
+  createdInvoices          Invoice[]             @relation("InvoiceCreatedBy")
+  clientActivities         ClientActivity[]      @relation("ClientActivityActor")
+  createdBriefs            Brief[]               @relation("BriefCreatedBy")
+  uploadedDeliverableFiles DeliverableFile[]     @relation("DeliverableFileUploadedBy")
+  approvalDecisions        ApprovalDecision[]    @relation("ApprovalDecisionDecidedBy")
+  deliverableActivities    DeliverableActivity[] @relation("DeliverableActivityActor")
+  assignedSubtasks         Subtask[]             @relation("SubtaskAssignee")
 }
 
 model Company {
@@ -59,20 +64,25 @@ model Company {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  owner          User            @relation("CompanyOwner", fields: [ownerId], references: [id])
-  reviewedBy     User?           @relation("CompanyReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  members        User[]          @relation("CompanyMembers")
-  rooms          Room[]
-  projectCategories ProjectCategory[]
-  projects       Project[]
-  invites        Invite[]
-  accessRequests AccessRequest[]
-  calendarEvents CalendarEvent[]
-  settings       CompanySettings?
-  adminActionLogs AdminActionLog[]
-  clients       Client[]
-  clientActivities ClientActivity[]
-  invoices       Invoice[]
+  owner               User                  @relation("CompanyOwner", fields: [ownerId], references: [id])
+  reviewedBy          User?                 @relation("CompanyReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  members             User[]                @relation("CompanyMembers")
+  rooms               Room[]
+  projectCategories   ProjectCategory[]
+  projects            Project[]
+  invites             Invite[]
+  accessRequests      AccessRequest[]
+  calendarEvents      CalendarEvent[]
+  settings            CompanySettings?
+  adminActionLogs     AdminActionLog[]
+  clients             Client[]
+  clientActivities    ClientActivity[]
+  invoices            Invoice[]
+  briefs              Brief[]
+  deliverables        Deliverable[]
+  workflowTemplates   WorkflowTemplate[]
+  ApprovalDecision    ApprovalDecision[]
+  DeliverableActivity DeliverableActivity[]
 
   @@index([status, createdAt])
   @@index([name, registrationNumber, status])
@@ -93,10 +103,12 @@ model Client {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company    Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
   projects   Project[]
   invoices   Invoice[]
   activities ClientActivity[]
+  briefs     Brief[]
+  approvals  ApprovalDecision[]
 
   @@index([companyId, status, createdAt])
   @@index([companyId, companyName])
@@ -167,18 +179,21 @@ model Invoice {
 }
 
 model InvoiceItem {
-  id          String   @id @default(cuid())
-  invoiceId   String
-  description String
-  quantity    Decimal  @default(1) @db.Decimal(10, 2)
-  unitPrice   Decimal  @default(0) @db.Decimal(12, 2)
-  lineTotal   Decimal  @default(0) @db.Decimal(12, 2)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  invoiceId     String
+  deliverableId String?
+  description   String
+  quantity      Decimal  @default(1) @db.Decimal(10, 2)
+  unitPrice     Decimal  @default(0) @db.Decimal(12, 2)
+  lineTotal     Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
-  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  invoice     Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  deliverable Deliverable? @relation(fields: [deliverableId], references: [id], onDelete: SetNull)
 
   @@index([invoiceId])
+  @@index([deliverableId])
 }
 
 model CompanySettings {
@@ -214,12 +229,12 @@ model AdminActionLog {
 }
 
 model Room {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   name        String
   description String?
   companyId   String
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   projects Project[]
@@ -238,8 +253,8 @@ model ProjectCategory {
   company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   projects Project[]
 
-  @@index([companyId, createdAt])
   @@unique([companyId, name])
+  @@index([companyId, createdAt])
 }
 
 model Invite {
@@ -265,17 +280,17 @@ model Invite {
 }
 
 model AccessRequest {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   companyId    String
   email        String
   name         String
   role         String
-  status       String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  status       String    @default("PENDING") // PENDING, APPROVED, REJECTED
   reviewedAt   DateTime?
   reviewedById String?
-  inviteId     String?  @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  inviteId     String?   @unique
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   company    Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   reviewedBy User?   @relation("AccessRequestReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
@@ -305,16 +320,18 @@ model Project {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  company     Company               @relation(fields: [companyId], references: [id])
-  room        Room?                 @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  category    ProjectCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  client      Client?               @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  manager     User?                 @relation("ProjectManager", fields: [managerId], references: [id])
-  tasks       Task[]
-  invoices    Invoice[]             @relation("InvoiceCampaign")
-  cameraMedia ProjectCameraMedia[]
-  projectMedia ProjectMedia[]
-  cameras     ProjectCamera[]
+  company        Company              @relation(fields: [companyId], references: [id])
+  room           Room?                @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  category       ProjectCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  client         Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  manager        User?                @relation("ProjectManager", fields: [managerId], references: [id])
+  tasks          Task[]
+  invoices       Invoice[]            @relation("InvoiceCampaign")
+  briefs         Brief[]
+  deliverables   Deliverable[]
+  cameraMedia    ProjectCameraMedia[]
+  projectMedia   ProjectMedia[]
+  cameras        ProjectCamera[]
   calendarEvents CalendarEvent[]
 
   @@index([companyId, roomId])
@@ -383,61 +400,284 @@ model ProjectMedia {
 }
 
 model Comment {
-  id        String   @id @default(cuid())
-  fileId    String
-  userId    String
-  content   String
-  timestamp Float
-  parentId  String?
-  resolved  Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id                String    @id @default(cuid())
+  fileId            String
+  deliverableFileId String?
+  userId            String
+  content           String
+  timestamp         Float
+  timestampStart    Float?
+  timestampEnd      Float?
+  frame             Int?
+  x                 Float?
+  y                 Float?
+  width             Float?
+  height            Float?
+  parentId          String?
+  resolved          Boolean   @default(false)
+  resolvedAt        DateTime?
+  resolvedById      String?
+  createdAt         DateTime  @default(now())
 
-  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent  Comment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies Comment[] @relation("CommentReplies")
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deliverableFile DeliverableFile? @relation(fields: [deliverableFileId], references: [id], onDelete: Cascade)
+  parent          Comment?         @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies         Comment[]        @relation("CommentReplies")
 
   @@index([fileId, timestamp])
+  @@index([deliverableFileId, timestampStart, createdAt])
   @@index([fileId, parentId, createdAt])
   @@index([userId, createdAt])
 }
 
-model Task {
+model Brief {
+  id          String    @id @default(cuid())
+  companyId   String
+  campaignId  String
+  clientId    String?
+  createdById String?
+  title       String
+  description String?
+  objectives  Json?
+  status      String    @default("DRAFT") // DRAFT, APPROVED, ARCHIVED
+  approvedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company      Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaign     Project               @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  client       Client?               @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  createdBy    User?                 @relation("BriefCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  deliverables Deliverable[]
+  activities   DeliverableActivity[]
+
+  @@index([companyId, campaignId, status, createdAt])
+  @@index([companyId, clientId, createdAt])
+}
+
+model Deliverable {
+  id                   String    @id @default(cuid())
+  companyId            String
+  campaignId           String
+  briefId              String
+  title                String
+  description          String?
+  type                 String    @default("GENERAL") // VIDEO, AUDIO, DESIGN, COPY, GENERAL
+  status               String    @default("INTERNAL_REVIEW") // INTERNAL_REVIEW, CLIENT_REVIEW, APPROVED, DELIVERED
+  revisionCount        Int       @default(0)
+  approvalState        String    @default("PENDING") // PENDING, CHANGES_REQUESTED, APPROVED
+  outputSpecifications Json?
+  dueAt                DateTime?
+  deliveredAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  company      Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaign     Project               @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  brief        Brief                 @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  tasks        Task[]
+  files        DeliverableFile[]
+  revisions    DeliverableRevision[]
+  approvals    ApprovalDecision[]
+  activities   DeliverableActivity[]
+  invoiceItems InvoiceItem[]
+
+  @@index([companyId, campaignId, status, createdAt])
+  @@index([briefId, status, createdAt])
+  @@index([approvalState, updatedAt])
+}
+
+model DeliverableFile {
+  id                 String   @id @default(cuid())
+  deliverableId      String
+  uploadedById       String
+  url                String
+  playbackUrl        String?
+  thumbnailUrl       String?
+  cloudinaryPublicId String?
+  type               String
+  mimeType           String
+  originalFilename   String
+  size               Int
+  duration           Float?
+  width              Int?
+  height             Int?
+  format             String?
+  versionNumber      Int      @default(1)
+  createdAt          DateTime @default(now())
+
+  deliverable Deliverable @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  uploadedBy  User        @relation("DeliverableFileUploadedBy", fields: [uploadedById], references: [id], onDelete: Cascade)
+  comments    Comment[]
+
+  @@index([deliverableId, createdAt])
+  @@index([uploadedById, createdAt])
+  @@index([deliverableId, versionNumber])
+}
+
+model DeliverableRevision {
+  id            String   @id @default(cuid())
+  deliverableId String
+  versionNumber Int
+  status        String   @default("INTERNAL_REVIEW")
+  changeNote    String?
+  createdAt     DateTime @default(now())
+
+  deliverable Deliverable @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+
+  @@unique([deliverableId, versionNumber])
+  @@index([deliverableId, createdAt])
+}
+
+model ApprovalDecision {
+  id            String   @id @default(cuid())
+  companyId     String
+  deliverableId String
+  clientId      String?
+  decidedById   String?
+  status        String
+  note          String?
+  createdAt     DateTime @default(now())
+
+  company     Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  deliverable Deliverable @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  client      Client?     @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  decidedBy   User?       @relation("ApprovalDecisionDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([deliverableId, createdAt])
+  @@index([status, createdAt])
+}
+
+model DeliverableActivity {
+  id            String   @id @default(cuid())
+  companyId     String
+  briefId       String?
+  deliverableId String?
+  actorId       String?
+  type          String
+  title         String
+  body          String?
+  metadata      Json?
+  createdAt     DateTime @default(now())
+
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  brief       Brief?       @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  deliverable Deliverable? @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  actor       User?        @relation("DeliverableActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([briefId, createdAt])
+  @@index([deliverableId, createdAt])
+  @@index([type, createdAt])
+}
+
+model WorkflowTemplate {
   id              String   @id @default(cuid())
-  title           String
+  companyId       String
+  name            String
   description     String?
-  priority        String   @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
   deliverableType String   @default("GENERAL")
-  deadline        DateTime?
-  assigneeId      String?
-  projectId       String
-  stage           String   @default("TODO") // TODO, IN_PROGRESS, REVIEW, DONE
-  progress        Int      @default(0)
+  isDefault       Boolean  @default(false)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  assignee    User?            @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  project     Project          @relation(fields: [projectId], references: [id])
-  activities  Activity[]
-  submissions TaskSubmission[]
+  company Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  steps   WorkflowTemplateStep[]
+
+  @@unique([companyId, name])
+  @@index([companyId, deliverableType])
+}
+
+model WorkflowTemplateStep {
+  id              String  @id @default(cuid())
+  templateId      String
+  title           String
+  description     String?
+  sortOrder       Int
+  defaultPriority String  @default("MEDIUM")
+
+  template WorkflowTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@index([templateId, sortOrder])
+}
+
+model Task {
+  id              String    @id @default(cuid())
+  title           String
+  description     String?
+  priority        String    @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  deliverableType String    @default("GENERAL")
+  deliverableId   String
+  deadline        DateTime?
+  assigneeId      String?
+  projectId       String
+  stage           String    @default("TODO") // TODO, IN_PROGRESS, REVIEW, DONE
+  progress        Int       @default(0)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  assignee       User?            @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  project        Project          @relation(fields: [projectId], references: [id])
+  deliverable    Deliverable      @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  activities     Activity[]
+  submissions    TaskSubmission[]
   calendarEvents CalendarEvent[]
-  invoices    Invoice[]        @relation("InvoiceBrief")
+  invoices       Invoice[]        @relation("InvoiceBrief")
+  subtasks       Subtask[]
+  dependencies   TaskDependency[] @relation("TaskDependencyTask")
+  dependents     TaskDependency[] @relation("TaskDependencyDependsOn")
+
+  @@index([deliverableId, stage, createdAt])
+  @@index([projectId, stage, createdAt])
+}
+
+model Subtask {
+  id          String   @id @default(cuid())
+  taskId      String
+  title       String
+  description String?
+  status      String   @default("TODO")
+  assigneeId  String?
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  task     Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  assignee User? @relation("SubtaskAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+
+  @@index([taskId, sortOrder])
+  @@index([assigneeId, status])
+}
+
+model TaskDependency {
+  id              String   @id @default(cuid())
+  taskId          String
+  dependsOnTaskId String
+  createdAt       DateTime @default(now())
+
+  task          Task @relation("TaskDependencyTask", fields: [taskId], references: [id], onDelete: Cascade)
+  dependsOnTask Task @relation("TaskDependencyDependsOn", fields: [dependsOnTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, dependsOnTaskId])
+  @@index([dependsOnTaskId])
 }
 
 model TaskSubmission {
-  id        String   @id @default(cuid())
-  taskId     String
-  userId     String
-  fileUrl    String
-  fileName   String
-  fileType   String
-  mediaType  String?
-  fileSize   Int?
-  duration   Float?
-  thumbnailUrl String?
-  playbackUrl  String?
+  id                 String   @id @default(cuid())
+  taskId             String
+  userId             String
+  fileUrl            String
+  fileName           String
+  fileType           String
+  mediaType          String?
+  fileSize           Int?
+  duration           Float?
+  thumbnailUrl       String?
+  playbackUrl        String?
   cloudinaryPublicId String?
-  note       String?
-  createdAt  DateTime @default(now())
+  note               String?
+  createdAt          DateTime @default(now())
 
   task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -459,7 +699,7 @@ model Activity {
 
 model Alert {
   id          String   @id @default(cuid())
-  type        String   // URGENT_TASK, DEADLINE_WARNING, MANAGER_CALL
+  type        String // URGENT_TASK, DEADLINE_WARNING, MANAGER_CALL
   title       String
   message     String
   senderId    String
@@ -472,10 +712,10 @@ model Alert {
 }
 
 model CalendarEvent {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   title       String
   description String?
-  type        String   @default("PROJECT_EVENT") // PROJECT_EVENT, MEETING, MILESTONE, BLOCKER
+  type        String    @default("PROJECT_EVENT") // PROJECT_EVENT, MEETING, MILESTONE, BLOCKER
   startsAt    DateTime
   endsAt      DateTime?
   color       String?
@@ -483,8 +723,8 @@ model CalendarEvent {
   projectId   String?
   taskId      String?
   createdById String
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)

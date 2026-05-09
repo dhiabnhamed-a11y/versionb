@@ -17,6 +17,7 @@ import {
   isProjectCameraEnumCompatibilityError,
   withProjectCameraDefaults,
 } from '@/lib/project-camera-support'
+import { ensureImportedBriefForCampaign } from '@/lib/creative-workflow'
 
 function getProjectListSelect(includeCameraFields: boolean) {
   return {
@@ -342,7 +343,7 @@ export async function POST(req: Request) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const user = session.user as { role?: string; companyId?: string | null; companyType?: string | null }
+  const user = session.user as { id?: string; role?: string; companyId?: string | null; companyType?: string | null }
   if (!user.companyId) {
     return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
   }
@@ -471,6 +472,14 @@ export async function POST(req: Request) {
     }
 
     const normalizedProject = withProjectCameraDefaults(project) as { id: string } & Record<string, unknown>
+    await ensureImportedBriefForCampaign({
+      companyId: user.companyId,
+      campaignId: normalizedProject.id,
+      clientId: typeof normalizedProject.clientId === 'string' ? normalizedProject.clientId : selectedClient?.id ?? null,
+      campaignTitle: typeof normalizedProject.title === 'string' ? normalizedProject.title : title,
+      campaignDescription: typeof normalizedProject.description === 'string' ? normalizedProject.description : description,
+      createdById: typeof user === 'object' && 'id' in user && typeof user.id === 'string' ? user.id : null,
+    })
     if (companyType === 'DIGITAL_AGENCY') {
       const [projectWithAgencyFields] = await attachProjectAgencyFields([normalizedProject], user.companyId)
       emitCompanyRealtime(user.companyId, 'project_created', { project: projectWithAgencyFields })
