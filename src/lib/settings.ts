@@ -345,6 +345,12 @@ function taskCompletionRate(done: number, total: number) {
   return total ? Math.round((done / total) * 100) : 0
 }
 
+function decimalToNumber(value: Prisma.Decimal | number | string | null | undefined) {
+  if (value == null) return 0
+  const amount = typeof value === 'number' ? value : Number(value.toString())
+  return Number.isFinite(amount) ? amount : 0
+}
+
 export async function buildWorkspaceStatsExport(companyId: string) {
   const [
     company,
@@ -359,6 +365,12 @@ export async function buildWorkspaceStatsExport(companyId: string) {
     reviewTasks,
     todoTasks,
     overdueTasks,
+    invoiceCurrencyGroups,
+    paidInvoiceCurrencyGroups,
+    outstandingInvoiceCurrencyGroups,
+    invoiceStatusGroups,
+    projectInvoiceGroups,
+    recentInvoices,
   ] = await Promise.all([
     prisma.company.findUnique({
       where: { id: companyId },
@@ -455,6 +467,52 @@ export async function buildWorkspaceStatsExport(companyId: string) {
         deadline: { lt: new Date() },
       },
     }),
+    prisma.invoice.groupBy({
+      by: ['currency'],
+      where: { companyId },
+      _count: { _all: true },
+      _sum: { subtotal: true, taxTotal: true, total: true },
+    }),
+    prisma.invoice.groupBy({
+      by: ['currency'],
+      where: { companyId, status: 'paid' },
+      _count: { _all: true },
+      _sum: { total: true },
+    }),
+    prisma.invoice.groupBy({
+      by: ['currency'],
+      where: { companyId, status: { in: ['sent', 'overdue'] } },
+      _count: { _all: true },
+      _sum: { total: true },
+    }),
+    prisma.invoice.groupBy({
+      by: ['status'],
+      where: { companyId },
+      _count: { _all: true },
+      _sum: { total: true },
+    }),
+    prisma.invoice.groupBy({
+      by: ['campaignId', 'currency'],
+      where: { companyId, campaignId: { not: null } },
+      _count: { _all: true },
+      _sum: { total: true },
+    }),
+    prisma.invoice.findMany({
+      where: { companyId },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        status: true,
+        currency: true,
+        total: true,
+        clientName: true,
+        campaignId: true,
+        issueDate: true,
+        dueDate: true,
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 20,
+    }),
   ])
 
   const teamPerformance = team.map((member) => {
@@ -476,6 +534,27 @@ export async function buildWorkspaceStatsExport(companyId: string) {
       activityCount: member.activities.length,
     }
   })
+  const projectRevenue = new Map<string, Array<{ currency: string; invoiceCount: number; total: number }>>()
+  for (const group of projectInvoiceGroups) {
+    if (!group.campaignId) continue
+    const rows = projectRevenue.get(group.campaignId) ?? []
+    rows.push({
+      currency: group.currency,
+      invoiceCount: group._count._all,
+      total: decimalToNumber(group._sum.total),
+    })
+    projectRevenue.set(group.campaignId, rows)
+  }
+
+  const moneyByCurrency = invoiceCurrencyGroups.map((group) => ({
+    currency: group.currency,
+    invoiceCount: group._count._all,
+    subtotal: decimalToNumber(group._sum.subtotal),
+    taxTotal: decimalToNumber(group._sum.taxTotal),
+    total: decimalToNumber(group._sum.total),
+    paidTotal: decimalToNumber(paidInvoiceCurrencyGroups.find((paid) => paid.currency === group.currency)?._sum.total),
+    outstandingTotal: decimalToNumber(outstandingInvoiceCurrencyGroups.find((open) => open.currency === group.currency)?._sum.total),
+  }))
 
   return {
     exportedAt: new Date().toISOString(),
@@ -490,6 +569,28 @@ export async function buildWorkspaceStatsExport(companyId: string) {
       overdueTasks,
       completionRate: taskCompletionRate(completedTasks, totalTasks),
     },
+    billing: {
+      invoiceCount: invoiceCurrencyGroups.reduce((sum, group) => sum + group._count._all, 0),
+      paidInvoiceCount: paidInvoiceCurrencyGroups.reduce((sum, group) => sum + group._count._all, 0),
+      outstandingInvoiceCount: outstandingInvoiceCurrencyGroups.reduce((sum, group) => sum + group._count._all, 0),
+      byCurrency: moneyByCurrency,
+      byStatus: invoiceStatusGroups.map((group) => ({
+        status: group.status,
+        invoiceCount: group._count._all,
+        total: decimalToNumber(group._sum.total),
+      })),
+      recentInvoices: recentInvoices.map((invoice) => ({
+        id: invoice.id,
+        invoiceNumber: invoice.invoiceNumber,
+        status: invoice.status,
+        currency: invoice.currency,
+        total: decimalToNumber(invoice.total),
+        clientName: invoice.clientName,
+        campaignId: invoice.campaignId,
+        issueDate: invoice.issueDate.toISOString(),
+        dueDate: invoice.dueDate?.toISOString() ?? null,
+      })),
+    },
     projects: projects.map((project) => ({
       id: project.id,
       title: project.title,
@@ -497,6 +598,7 @@ export async function buildWorkspaceStatsExport(companyId: string) {
       clientName: project.clientName,
       manager: project.manager,
       taskCount: project._count.tasks,
+      revenueByCurrency: projectRevenue.get(project.id) ?? [],
       createdAt: project.createdAt.toISOString(),
       updatedAt: project.updatedAt.toISOString(),
     })),
@@ -567,7 +669,7 @@ export function buildStatsCsv(exportData: Awaited<ReturnType<typeof buildWorkspa
   const sections = [
     '# Summary',
     csvRows(
-      ['Total projects', 'Total tasks', 'Completed tasks', 'In progress', 'Review', 'To do', 'Overdue', 'Completion rate'],
+      ['Total projects', 'Total tasks', 'Completed tasks', 'In progress', 'Review', 'To do', 'Overdue', 'Completion rate', 'Invoices', 'Paid invoices', 'Outstanding invoices'],
       [
         [
           exportData.summary.totalProjects,
@@ -578,18 +680,35 @@ export function buildStatsCsv(exportData: Awaited<ReturnType<typeof buildWorkspa
           exportData.summary.todoTasks,
           exportData.summary.overdueTasks,
           `${exportData.summary.completionRate}%`,
+          exportData.billing.invoiceCount,
+          exportData.billing.paidInvoiceCount,
+          exportData.billing.outstandingInvoiceCount,
         ],
       ]
     ),
+    '# Billing',
+    csvRows(
+      ['Currency', 'Invoices', 'Subtotal', 'Tax total', 'Total', 'Paid total', 'Outstanding total'],
+      exportData.billing.byCurrency.map((money) => [
+        money.currency,
+        money.invoiceCount,
+        money.subtotal,
+        money.taxTotal,
+        money.total,
+        money.paidTotal,
+        money.outstandingTotal,
+      ])
+    ),
     '# Projects',
     csvRows(
-      ['ID', 'Title', 'Client', 'Manager', 'Task count', 'Created at', 'Updated at'],
+      ['ID', 'Title', 'Client', 'Manager', 'Task count', 'Revenue', 'Created at', 'Updated at'],
       exportData.projects.map((project) => [
         project.id,
         project.title,
         project.clientName,
         project.manager?.name ?? '',
         project.taskCount,
+        project.revenueByCurrency.map((money) => `${money.currency} ${money.total}`).join('; '),
         project.createdAt,
         project.updatedAt,
       ])
@@ -652,3 +771,5 @@ export function buildStatsCsv(exportData: Awaited<ReturnType<typeof buildWorkspa
 
   return `${sections.join('\n\n')}\n`
 }
+
+export type WorkspaceStatsExport = Awaited<ReturnType<typeof buildWorkspaceStatsExport>>

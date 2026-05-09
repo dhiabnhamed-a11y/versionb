@@ -83,7 +83,7 @@ export default function SettingsClient({
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [savingAppearance, setSavingAppearance] = useState(false)
   const [changingUserId, setChangingUserId] = useState<string | null>(null)
-  const [exportFormat, setExportFormat] = useState<'json' | 'csv'>('json')
+  const [exportFormat, setExportFormat] = useState<'json' | 'csv' | 'pdf'>('pdf')
   const [exporting, setExporting] = useState(false)
 
   const counts = useMemo(
@@ -172,7 +172,12 @@ export default function SettingsClient({
     setExporting(true)
     setFeedback(null)
 
-    const response = await fetch(`/api/export/stats?format=${exportFormat}`, { cache: 'no-store' })
+    const response = await fetch(`/api/export/stats?format=${exportFormat}`, {
+      cache: 'no-store',
+      headers: {
+        Accept: exportFormat === 'pdf' ? 'application/pdf' : exportFormat === 'csv' ? 'text/csv' : 'application/json',
+      },
+    })
     setExporting(false)
 
     if (!response.ok) {
@@ -182,6 +187,19 @@ export default function SettingsClient({
     }
 
     const blob = await response.blob()
+    if (blob.size === 0) {
+      showFeedback('error', 'Statistics export was empty.')
+      return
+    }
+
+    if (exportFormat === 'pdf') {
+      const signature = new TextDecoder('ascii').decode(await blob.slice(0, 5).arrayBuffer())
+      if (signature !== '%PDF-') {
+        showFeedback('error', 'Statistics PDF export was not valid.')
+        return
+      }
+    }
+
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
@@ -442,13 +460,15 @@ export default function SettingsClient({
                 <span>Completion rates</span>
                 <span>Team performance</span>
                 <span>Task and admin activity logs</span>
+                <span>PDF charts, project counts, and money totals</span>
               </div>
             </div>
 
             <div className="grid gap-3">
               <label>
                 <span className="mb-2 block text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-muted)]">Format</span>
-                <select className="input" value={exportFormat} onChange={(event) => setExportFormat(event.target.value as 'json' | 'csv')}>
+                <select className="input" value={exportFormat} onChange={(event) => setExportFormat(event.target.value as 'json' | 'csv' | 'pdf')}>
+                  <option value="pdf">PDF report</option>
                   <option value="json">JSON</option>
                   <option value="csv">CSV</option>
                 </select>
