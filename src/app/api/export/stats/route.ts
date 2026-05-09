@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import type { Prisma } from '@prisma/client'
 
 import { auth } from '@/lib/auth'
 import { NO_STORE_HEADERS } from '@/lib/http'
@@ -14,15 +15,26 @@ import { generateStatsPdf } from '@/lib/stats-pdf'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+export const maxDuration = 60
 
 type ExportFormat = 'json' | 'csv' | 'pdf'
 
 function buildDownloadHeaders(filename: string, contentType: string) {
+  const safeFilename = filename.replace(/[^a-zA-Z0-9._-]/g, '_')
   return {
     ...NO_STORE_HEADERS,
     'Content-Type': contentType,
-    'Content-Disposition': `attachment; filename="${filename}"`,
+    'Content-Disposition': `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodeURIComponent(safeFilename)}`,
     'X-Content-Type-Options': 'nosniff',
+  }
+}
+
+function buildJsonHeaders(reqId: string) {
+  return {
+    ...NO_STORE_HEADERS,
+    'Content-Type': 'application/json; charset=utf-8',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Request-Id': reqId,
   }
 }
 
@@ -48,43 +60,96 @@ function errorDetails(error: unknown) {
   return { message: String(error) }
 }
 
+function jsonError(message: string, status: number, reqId: string) {
+  return NextResponse.json({ error: message, requestId: reqId }, { status, headers: buildJsonHeaders(reqId) })
+}
+
+function logStatsExport(level: 'info' | 'warn' | 'error', payload: Record<string, unknown>) {
+  const logPayload = {
+    scope: 'stats-export',
+    ...payload,
+  }
+
+  if (level === 'error') console.error('[stats-export]', logPayload)
+  else if (level === 'warn') console.warn('[stats-export]', logPayload)
+  else console.info('[stats-export]', logPayload)
+}
+
+async function logExportAuditSafely(input: {
+  companyId: string
+  actorId: string
+  format: ExportFormat
+  totals: Prisma.InputJsonValue
+  requestId: string
+}) {
+  try {
+    await logAdminAction(prisma, {
+      companyId: input.companyId,
+      actorId: input.actorId,
+      action: 'STATS_EXPORTED',
+      metadata: {
+        format: input.format,
+        totals: input.totals,
+        requestId: input.requestId,
+      },
+    })
+  } catch (error) {
+    logStatsExport('warn', {
+      requestId: input.requestId,
+      companyId: input.companyId,
+      format: input.format,
+      event: 'audit-log-failed',
+      error: errorDetails(error),
+    })
+  }
+}
+
 export async function GET(req: NextRequest) {
   const reqId = requestId()
   const startedAt = Date.now()
-  const session = await auth()
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized', requestId: reqId }, { status: 401, headers: { 'X-Request-Id': reqId } })
-  }
-
-  const user = session.user as SettingsSessionUser
-  if (!user.id) return NextResponse.json({ error: 'Unauthorized', requestId: reqId }, { status: 401, headers: { 'X-Request-Id': reqId } })
-  if (!user.companyId) return NextResponse.json({ error: 'No company found for this account.', requestId: reqId }, { status: 400, headers: { 'X-Request-Id': reqId } })
-  if (!canManageSettings(user.role)) return NextResponse.json({ error: 'Forbidden', requestId: reqId }, { status: 403, headers: { 'X-Request-Id': reqId } })
-
   const format = getFormat(req.nextUrl.searchParams.get('format')?.toLowerCase() ?? null)
+  let companyId: string | undefined
 
   try {
-    console.info('[stats-export]', {
+    const session = await auth()
+    if (!session?.user) return jsonError('Unauthorized', 401, reqId)
+
+    const user = session.user as SettingsSessionUser
+    if (!user.id) return jsonError('Unauthorized', 401, reqId)
+    if (!user.companyId) return jsonError('No company found for this account.', 400, reqId)
+    if (!canManageSettings(user.role)) return jsonError('Forbidden', 403, reqId)
+    companyId = user.companyId
+
+    logStatsExport('info', {
       requestId: reqId,
       companyId: user.companyId,
       format,
       event: 'export-started',
     })
-    const exportData = await buildWorkspaceStatsExport(user.companyId)
 
-    await logAdminAction(prisma, {
-      companyId: user.companyId,
-      actorId: user.id,
-      action: 'STATS_EXPORTED',
-      metadata: {
-        format,
-        totals: exportData.summary,
-      },
-    })
+    const exportData = await buildWorkspaceStatsExport(user.companyId)
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     if (format === 'csv') {
-      return new NextResponse(buildStatsCsv(exportData), {
+      const csv = buildStatsCsv(exportData)
+      await logExportAuditSafely({
+        companyId: user.companyId,
+        actorId: user.id,
+        format,
+        totals: exportData.summary,
+        requestId: reqId,
+      })
+
+      logStatsExport('info', {
+        requestId: reqId,
+        companyId: user.companyId,
+        format,
+        event: 'export-completed',
+        byteLength: Buffer.byteLength(csv),
+        durationMs: Date.now() - startedAt,
+      })
+
+      return new NextResponse(csv, {
         headers: {
           ...buildDownloadHeaders(`taskit-stats-${timestamp}.csv`, 'text/csv; charset=utf-8'),
           'X-Request-Id': reqId,
@@ -98,10 +163,17 @@ export async function GET(req: NextRequest) {
         companyId: user.companyId,
         startedAt,
       })
-      const body = new ArrayBuffer(pdf.byteLength)
-      new Uint8Array(body).set(pdf)
+      const body = new Uint8Array(pdf)
 
-      console.info('[stats-export]', {
+      await logExportAuditSafely({
+        companyId: user.companyId,
+        actorId: user.id,
+        format,
+        totals: exportData.summary,
+        requestId: reqId,
+      })
+
+      logStatsExport('info', {
         requestId: reqId,
         companyId: user.companyId,
         format,
@@ -119,29 +191,39 @@ export async function GET(req: NextRequest) {
       })
     }
 
-    console.info('[stats-export]', {
+    const json = JSON.stringify(exportData, null, 2)
+    await logExportAuditSafely({
+      companyId: user.companyId,
+      actorId: user.id,
+      format,
+      totals: exportData.summary,
+      requestId: reqId,
+    })
+
+    logStatsExport('info', {
       requestId: reqId,
       companyId: user.companyId,
       format,
       event: 'export-completed',
+      byteLength: Buffer.byteLength(json),
       durationMs: Date.now() - startedAt,
     })
 
-    return new NextResponse(JSON.stringify(exportData, null, 2), {
+    return new NextResponse(json, {
       headers: {
         ...buildDownloadHeaders(`taskit-stats-${timestamp}.json`, 'application/json; charset=utf-8'),
         'X-Request-Id': reqId,
       },
     })
   } catch (error) {
-    console.error('[stats-export]', {
+    logStatsExport('error', {
       requestId: reqId,
-      companyId: user.companyId,
+      companyId,
       format,
       event: 'export-failed',
       durationMs: Date.now() - startedAt,
       error: errorDetails(error),
     })
-    return NextResponse.json({ error: 'Failed to export statistics.', requestId: reqId }, { status: 500, headers: { 'X-Request-Id': reqId } })
+    return jsonError('Failed to export statistics.', 500, reqId)
   }
 }

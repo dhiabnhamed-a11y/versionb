@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react'
 import { CheckCircle2, Download, Palette, ShieldCheck, Users, Database, AlertTriangle } from 'lucide-react'
 
+import { downloadBlobResponse, getResponseErrorMessage } from '@/lib/download-response'
 import type { PublicWorkspaceRole, WorkspaceThemeSettings } from '@/lib/settings'
 import { applyWorkspaceTheme } from '@/lib/theme-client'
 
@@ -62,10 +63,59 @@ function canChangeRole(currentUser: CurrentUser, target: TeamUser, nextRole: Pub
   return (target.role === 'WORKER' && nextRole === 'MANAGER') || (target.role === 'MANAGER' && nextRole === 'WORKER')
 }
 
-function getDownloadFilename(response: Response, fallback: string) {
-  const disposition = response.headers.get('content-disposition') ?? ''
-  const match = disposition.match(/filename="([^"]+)"/)
-  return match?.[1] ?? fallback
+const RETRYABLE_EXPORT_STATUSES = new Set([408, 429, 500, 502, 503, 504])
+
+function getStatsExportAcceptHeader(format: 'json' | 'csv' | 'pdf') {
+  if (format === 'pdf') return 'application/pdf'
+  if (format === 'csv') return 'text/csv'
+  return 'application/json'
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms))
+}
+
+async function fetchStatsExportWithRetry(format: 'json' | 'csv' | 'pdf') {
+  const maxAttempts = 2
+  let lastError: unknown
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    const controller = new AbortController()
+    const timeout = window.setTimeout(() => controller.abort(), 60000)
+
+    try {
+      const response = await fetch(`/api/export/stats?format=${format}`, {
+        method: 'GET',
+        cache: 'no-store',
+        credentials: 'same-origin',
+        signal: controller.signal,
+        headers: {
+          Accept: getStatsExportAcceptHeader(format),
+          'Cache-Control': 'no-store',
+          Pragma: 'no-cache',
+        },
+      })
+
+      if (attempt < maxAttempts && RETRYABLE_EXPORT_STATUSES.has(response.status)) {
+        await wait(450 * attempt)
+        continue
+      }
+
+      return response
+    } catch (error) {
+      lastError = error
+      if (attempt >= maxAttempts) break
+      await wait(450 * attempt)
+    } finally {
+      window.clearTimeout(timeout)
+    }
+  }
+
+  if (lastError instanceof DOMException && lastError.name === 'AbortError') {
+    throw new Error('Statistics export timed out. Please try again.')
+  }
+
+  throw lastError instanceof Error ? lastError : new Error('Failed to export statistics.')
 }
 
 export default function SettingsClient({
@@ -172,43 +222,27 @@ export default function SettingsClient({
     setExporting(true)
     setFeedback(null)
 
-    const response = await fetch(`/api/export/stats?format=${exportFormat}`, {
-      cache: 'no-store',
-      headers: {
-        Accept: exportFormat === 'pdf' ? 'application/pdf' : exportFormat === 'csv' ? 'text/csv' : 'application/json',
-      },
-    })
-    setExporting(false)
+    try {
+      const response = await fetchStatsExportWithRetry(exportFormat)
+      const contentType = response.headers.get('content-type') ?? ''
 
-    if (!response.ok) {
-      const data = (await response.json().catch(() => ({}))) as { error?: string }
-      showFeedback('error', getErrorMessage(data, 'Failed to export statistics.'))
-      return
-    }
-
-    const blob = await response.blob()
-    if (blob.size === 0) {
-      showFeedback('error', 'Statistics export was empty.')
-      return
-    }
-
-    if (exportFormat === 'pdf') {
-      const signature = new TextDecoder('ascii').decode(await blob.slice(0, 5).arrayBuffer())
-      if (signature !== '%PDF-') {
-        showFeedback('error', 'Statistics PDF export was not valid.')
+      if (!response.ok) {
+        showFeedback('error', await getResponseErrorMessage(response, 'Failed to export statistics.'))
         return
       }
-    }
 
-    const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = getDownloadFilename(response, `taskit-stats.${exportFormat}`)
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    URL.revokeObjectURL(url)
-    showFeedback('success', 'Statistics export started.')
+      if (exportFormat === 'pdf' && !contentType.includes('application/pdf')) {
+        showFeedback('error', await getResponseErrorMessage(response, 'Statistics PDF could not be downloaded.'))
+        return
+      }
+
+      await downloadBlobResponse(response, 'taskit-stats', exportFormat)
+      showFeedback('success', 'Statistics export started.')
+    } catch (error) {
+      showFeedback('error', error instanceof Error ? error.message : 'Failed to export statistics.')
+    } finally {
+      setExporting(false)
+    }
   }
 
   return (

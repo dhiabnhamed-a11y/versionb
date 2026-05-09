@@ -303,7 +303,7 @@ Phase 3:
 
 ## 17. Production Details
 
-- Use `puppeteer-core` and `@sparticuz/chromium` for Vercel-compatible invoice PDFs.
+- Use pure JavaScript PDF rendering such as `@react-pdf/renderer` for Vercel-compatible PDFs; avoid browser binaries in serverless routes.
 - Keep Socket.IO custom server for local/realtime use, but isolate serverless-incompatible code.
 - Protect all route handlers with auth and workspace policy helpers.
 - Add audit logs for role, invoice, approval, and portal access changes.

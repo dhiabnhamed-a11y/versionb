@@ -1,9 +1,12 @@
+import 'server-only'
+
 import { renderToBuffer } from '@react-pdf/renderer'
 import { createElement } from 'react'
 import { StatsReportDocument } from '@/lib/StatsReportDocument'
 import type { WorkspaceStatsExport } from '@/lib/settings'
 
 const PDF_SIGNATURE = '%PDF-'
+const MAX_PDF_BYTES = 15 * 1024 * 1024
 
 type StatsPdfContext = {
   requestId?: string
@@ -44,6 +47,10 @@ function assertPdfBuffer(pdf: Uint8Array) {
   const signature = Buffer.from(pdf.slice(0, 5)).toString('ascii')
   if (pdf.byteLength < 5 || signature !== PDF_SIGNATURE) {
     throw new Error(`Stats PDF renderer returned invalid output. byteLength=${pdf.byteLength} signature=${signature}`)
+  }
+
+  if (pdf.byteLength > MAX_PDF_BYTES) {
+    throw new Error(`Stats PDF exceeded the serverless response budget. byteLength=${pdf.byteLength}`)
   }
 }
 
