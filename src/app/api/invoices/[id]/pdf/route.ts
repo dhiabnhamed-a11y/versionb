@@ -51,7 +51,7 @@ function errorDetails(error: unknown) {
       name: error.name,
       message: error.message,
       code: 'code' in error ? error.code : undefined,
-      stack: process.env.NODE_ENV === 'production' ? undefined : error.stack,
+      stack: error.stack,
     }
   }
 
@@ -59,7 +59,7 @@ function errorDetails(error: unknown) {
 }
 
 function log(level: 'info' | 'warn' | 'error', message: string, meta: Record<string, unknown>) {
-  const payload = { scope: 'invoice-pdf', ...meta }
+  const payload = { scope: 'invoice-pdf-route', ...meta }
   if (level === 'error') console.error(message, payload)
   else if (level === 'warn') console.warn(message, payload)
   else console.info(message, payload)
@@ -76,6 +76,16 @@ function jsonError(message: string, status: number, reqId: string) {
       headers: jsonHeaders(reqId),
     }
   )
+}
+
+function logAndReturnJsonError(message: string, status: number, reqId: string, meta: Record<string, unknown>) {
+  log(status >= 500 ? 'error' : 'warn', 'Invoice PDF request returned JSON error.', {
+    requestId: reqId,
+    status,
+    ...meta,
+  })
+
+  return jsonError(message, status, reqId)
 }
 
 function asciiFilename(value: string) {
@@ -153,7 +163,12 @@ export async function GET(req: NextRequest, context: RouteCtx) {
 
   try {
     invoiceId = await routeParams(context)
-    if (!invoiceId) return jsonError('Invoice id is required.', 400, reqId)
+    if (!invoiceId) {
+      return logAndReturnJsonError('Invoice id is required.', 400, reqId, {
+        phase,
+        durationMs: Date.now() - startedAt,
+      })
+    }
 
     log('info', 'Invoice PDF request started.', {
       requestId: reqId,
@@ -163,16 +178,50 @@ export async function GET(req: NextRequest, context: RouteCtx) {
 
     phase = 'auth'
     const session = await auth()
-    if (!session) return jsonError('Unauthorized', 401, reqId)
+    if (!session) {
+      return logAndReturnJsonError('Unauthorized', 401, reqId, {
+        phase,
+        invoiceId,
+        durationMs: Date.now() - startedAt,
+      })
+    }
 
     const user = session.user as SessionUser
-    if (!user.companyId) return jsonError('No company found for this account.', 400, reqId)
-    if (!canManageInvoices(user)) return jsonError('Forbidden', 403, reqId)
-    if (req.signal.aborted) return jsonError('PDF request was cancelled.', 499, reqId)
+    if (!user.companyId) {
+      return logAndReturnJsonError('No company found for this account.', 400, reqId, {
+        phase,
+        invoiceId,
+        durationMs: Date.now() - startedAt,
+      })
+    }
+    if (!canManageInvoices(user)) {
+      return logAndReturnJsonError('Forbidden', 403, reqId, {
+        phase,
+        invoiceId,
+        companyId: user.companyId,
+        role: user.role,
+        durationMs: Date.now() - startedAt,
+      })
+    }
+    if (req.signal.aborted) {
+      return logAndReturnJsonError('PDF request was cancelled.', 499, reqId, {
+        phase,
+        invoiceId,
+        companyId: user.companyId,
+        durationMs: Date.now() - startedAt,
+      })
+    }
 
     phase = 'load-invoice'
     const invoice = await loadInvoice(invoiceId, user.companyId)
-    if (!invoice) return jsonError('Invoice not found.', 404, reqId)
+    if (!invoice) {
+      return logAndReturnJsonError('Invoice not found.', 404, reqId, {
+        phase,
+        invoiceId,
+        companyId: user.companyId,
+        durationMs: Date.now() - startedAt,
+      })
+    }
 
     phase = 'normalize-invoice'
     const serializedInvoice = serializeInvoice(invoice)
@@ -190,7 +239,12 @@ export async function GET(req: NextRequest, context: RouteCtx) {
     }
 
     phase = 'generate-pdf'
-    const pdf = await generateInvoicePdf(pdfInvoice)
+    const pdf = await generateInvoicePdf(pdfInvoice, {
+      requestId: reqId,
+      invoiceId,
+      invoiceNumber,
+      startedAt,
+    })
 
     log('info', 'Invoice PDF request completed.', {
       requestId: reqId,

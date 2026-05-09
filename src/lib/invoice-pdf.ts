@@ -32,11 +32,25 @@ export type PdfInvoice = {
   }>
 }
 
-type RawPdfInvoice = Partial<PdfInvoice> & Record<string, unknown>
-type PdfBrowser = Awaited<ReturnType<typeof launchPdfBrowser>>
+export type InvoicePdfLogContext = {
+  requestId?: string
+  invoiceId?: string
+  invoiceNumber?: string
+  startedAt?: number
+}
 
-const PDF_RENDERER = process.env.INVOICE_PDF_RENDERER === 'chromium' ? 'chromium' : 'pdfkit'
-const MAX_PDF_ITEMS = 250
+type RawPdfInvoice = Partial<PdfInvoice> & Record<string, unknown>
+type Browser = Awaited<ReturnType<typeof launchPdfBrowser>>
+type LogLevel = 'info' | 'warn' | 'error'
+
+const PDF_SIGNATURE = '%PDF-'
+const PDF_TIMEOUT_MS = 45_000
+const CHROME_TIMEOUT_MS = 25_000
+const VIEWPORT = {
+  width: 1240,
+  height: 1754,
+  deviceScaleFactor: 1,
+} as const
 
 let chromiumExecutablePathPromise: Promise<string> | null = null
 let arabicFontCssPromise: Promise<string> | null = null
@@ -94,7 +108,6 @@ function invoiceCopy(locale: string) {
         notSet: 'غير محدد',
         noItems: 'لا توجد عناصر',
         thankYou: 'شكرا لتعاملكم معنا.',
-        fallbackNote: 'تم إنشاء هذه النسخة المبسطة لأن خدمة PDF المتقدمة غير متاحة مؤقتا.',
       }
     : {
         invoice: 'Invoice',
@@ -115,7 +128,6 @@ function invoiceCopy(locale: string) {
         notSet: 'Not set',
         noItems: 'No invoice items',
         thankYou: 'Thank you for your business.',
-        fallbackNote: 'This simplified PDF was generated because the advanced PDF service is temporarily unavailable.',
       }
 }
 
@@ -158,6 +170,58 @@ function normalizeItems(value: unknown): PdfInvoice['items'] {
       unitPrice,
       lineTotal,
     }
+  })
+}
+
+function errorDetails(error: unknown) {
+  if (error instanceof Error) {
+    return {
+      name: error.name,
+      message: error.message,
+      code: 'code' in error ? error.code : undefined,
+      stack: error.stack,
+    }
+  }
+
+  return { message: String(error) }
+}
+
+function logPdfEvent(level: LogLevel, event: string, context: InvoicePdfLogContext, meta: Record<string, unknown> = {}) {
+  const payload = {
+    scope: 'invoice-pdf-renderer',
+    event,
+    requestId: context.requestId,
+    invoiceId: context.invoiceId,
+    invoiceNumber: context.invoiceNumber,
+    durationMs: context.startedAt ? Date.now() - context.startedAt : undefined,
+    ...meta,
+  }
+
+  if (level === 'error') console.error('[invoice-pdf-renderer]', payload)
+  else if (level === 'warn') console.warn('[invoice-pdf-renderer]', payload)
+  else console.info('[invoice-pdf-renderer]', payload)
+}
+
+function isServerlessRuntime() {
+  return Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME || process.env.AWS_EXECUTION_ENV)
+}
+
+function assertPdfBuffer(pdf: Uint8Array) {
+  const signature = Buffer.from(pdf.slice(0, 5)).toString('ascii')
+  if (pdf.byteLength < 5 || signature !== PDF_SIGNATURE) {
+    throw new Error(`Chromium returned an invalid PDF buffer. byteLength=${pdf.byteLength} signature=${signature}`)
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, timeoutMs: number, phase: string) {
+  let timeout: ReturnType<typeof setTimeout> | undefined
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => reject(new Error(`Invoice PDF ${phase} timed out after ${timeoutMs}ms.`)), timeoutMs)
+  })
+
+  return Promise.race([promise, timeoutPromise]).finally(() => {
+    if (timeout) clearTimeout(timeout)
   })
 }
 
@@ -239,7 +303,7 @@ async function getArabicFontCss() {
   return arabicFontCssPromise
 }
 
-async function renderInvoiceHtml(rawInvoice: PdfInvoice) {
+export async function renderInvoiceHtml(rawInvoice: PdfInvoice) {
   const invoice = normalizePdfInvoice(rawInvoice)
   const locale = invoiceLocale(invoice.locale)
   const isArabic = locale === 'ar'
@@ -251,10 +315,12 @@ async function renderInvoiceHtml(rawInvoice: PdfInvoice) {
         .map(
           (item) => `
             <tr>
-              <td>${escapeHtml(item.description)}</td>
-              <td class="numeric">${toFiniteNumber(item.quantity).toFixed(2)}</td>
+              <td class="description">${escapeHtml(item.description)}</td>
+              <td class="numeric">${toFiniteNumber(item.quantity).toLocaleString(isArabic ? 'ar-TN' : 'en-US', {
+                maximumFractionDigits: 2,
+              })}</td>
               <td class="numeric">${escapeHtml(formatInvoiceMoney(item.unitPrice, invoice.currency, locale))}</td>
-              <td class="numeric">${escapeHtml(formatInvoiceMoney(item.lineTotal, invoice.currency, locale))}</td>
+              <td class="numeric strong">${escapeHtml(formatInvoiceMoney(item.lineTotal, invoice.currency, locale))}</td>
             </tr>
           `
         )
@@ -265,43 +331,189 @@ async function renderInvoiceHtml(rawInvoice: PdfInvoice) {
   <html lang="${isArabic ? 'ar' : 'en'}" dir="${dir}">
     <head>
       <meta charset="utf-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1" />
+      <title>${escapeHtml(invoice.invoiceNumber)}</title>
       <style>
         ${arabicFontCss}
         * { box-sizing: border-box; }
         html, body { min-height: 100%; }
         body {
           margin: 0;
-          padding: 36px;
-          color: #102033;
-          font-family: ${isArabic ? '"TaskitArabic", ' : ''}Arial, "Helvetica Neue", sans-serif;
-          background: #f7f8fa;
+          color: #172033;
+          font-family: ${isArabic ? '"TaskitArabic", ' : ''}Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+          background: #ffffff;
           -webkit-print-color-adjust: exact;
           print-color-adjust: exact;
         }
-        .paper { min-height: 100%; background: white; border: 1px solid #e2e7ee; padding: 40px; }
-        .top { display: flex; justify-content: space-between; gap: 28px; align-items: flex-start; border-bottom: 1px solid #e2e7ee; padding-bottom: 26px; }
-        .brand { font-size: 12px; color: #64748b; text-transform: uppercase; font-weight: 700; }
-        h1 { margin: 8px 0 0; font-size: 40px; line-height: 1.1; }
-        .number { margin-top: 8px; color: #64748b; font-size: 14px; font-weight: 700; }
-        .badge { display: inline-flex; padding: 7px 12px; background: #edf7fb; color: #0369a1; font-size: 12px; font-weight: 800; text-transform: uppercase; }
-        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 28px; }
-        .box { border: 1px solid #e2e7ee; padding: 16px; background: #fbfcfd; break-inside: avoid; }
-        .label { color: #64748b; font-size: 11px; font-weight: 800; text-transform: uppercase; margin-bottom: 8px; }
-        .name { font-size: 17px; font-weight: 800; overflow-wrap: anywhere; }
-        .muted { color: #64748b; font-size: 13px; line-height: 1.55; margin-top: 4px; white-space: pre-line; overflow-wrap: anywhere; }
-        .meta { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px; }
-        table { width: 100%; border-collapse: collapse; margin-top: 30px; page-break-inside: auto; }
+        .paper {
+          min-height: 297mm;
+          padding: 44px 48px;
+          background:
+            linear-gradient(90deg, #172033 0, #172033 7px, transparent 7px),
+            #ffffff;
+        }
+        .top {
+          display: flex;
+          align-items: flex-start;
+          justify-content: space-between;
+          gap: 32px;
+          padding-bottom: 30px;
+          border-bottom: 1px solid #dbe3ed;
+        }
+        .brand {
+          margin-bottom: 18px;
+          color: #637083;
+          font-size: 11px;
+          font-weight: 800;
+          letter-spacing: 0;
+          text-transform: uppercase;
+        }
+        h1 {
+          margin: 0;
+          color: #111827;
+          font-size: 44px;
+          line-height: 1.05;
+          font-weight: 900;
+        }
+        .invoice-number {
+          margin-top: 10px;
+          color: #64748b;
+          font-size: 14px;
+          font-weight: 800;
+        }
+        .status {
+          min-width: 132px;
+          padding: 10px 14px;
+          border: 1px solid #bfdbfe;
+          color: #075985;
+          background: #eff6ff;
+          font-size: 12px;
+          font-weight: 900;
+          text-align: center;
+          text-transform: uppercase;
+        }
+        .party-grid {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+          margin-top: 28px;
+        }
+        .panel {
+          padding: 18px;
+          border: 1px solid #e2e8f0;
+          background: #f8fafc;
+          break-inside: avoid;
+        }
+        .label {
+          margin-bottom: 9px;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 900;
+          text-transform: uppercase;
+        }
+        .name {
+          color: #172033;
+          font-size: 17px;
+          font-weight: 900;
+          overflow-wrap: anywhere;
+        }
+        .muted {
+          margin-top: 5px;
+          color: #64748b;
+          font-size: 13px;
+          line-height: 1.55;
+          white-space: pre-line;
+          overflow-wrap: anywhere;
+        }
+        .meta {
+          display: grid;
+          grid-template-columns: repeat(3, 1fr);
+          gap: 12px;
+          margin-top: 18px;
+        }
+        .meta .name {
+          font-size: 14px;
+        }
+        table {
+          width: 100%;
+          margin-top: 32px;
+          border-collapse: collapse;
+          page-break-inside: auto;
+        }
         thead { display: table-header-group; }
         tr { page-break-inside: avoid; }
-        th { text-align: start; color: #64748b; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #dbe3ed; padding: 11px 9px; }
-        td { border-bottom: 1px solid #edf1f5; padding: 13px 9px; font-size: 13px; vertical-align: top; overflow-wrap: anywhere; }
-        .numeric { text-align: end; white-space: nowrap; }
-        .empty { color: #64748b; text-align: center; }
-        .totals { width: 320px; margin-inline-start: auto; margin-top: 26px; }
-        .total-row { display: flex; justify-content: space-between; gap: 16px; padding: 9px 0; font-size: 14px; color: #2e4060; }
-        .grand { margin-top: 8px; border-top: 2px solid #102033; padding-top: 15px; color: #102033; font-size: 21px; font-weight: 900; }
-        .footer { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-top: 34px; }
-        @page { size: A4; margin: 0; }
+        th {
+          padding: 12px 10px;
+          border-bottom: 1px solid #cbd5e1;
+          color: #64748b;
+          font-size: 11px;
+          font-weight: 900;
+          text-align: start;
+          text-transform: uppercase;
+        }
+        td {
+          padding: 15px 10px;
+          border-bottom: 1px solid #e2e8f0;
+          color: #243044;
+          font-size: 13px;
+          vertical-align: top;
+        }
+        .description {
+          width: 52%;
+          overflow-wrap: anywhere;
+        }
+        .numeric {
+          text-align: end;
+          white-space: nowrap;
+        }
+        .strong {
+          color: #111827;
+          font-weight: 800;
+        }
+        .empty {
+          padding: 28px 10px;
+          color: #64748b;
+          text-align: center;
+        }
+        .totals {
+          width: 340px;
+          margin-top: 28px;
+          margin-inline-start: auto;
+          break-inside: avoid;
+        }
+        .total-row {
+          display: flex;
+          justify-content: space-between;
+          gap: 18px;
+          padding: 9px 0;
+          color: #475569;
+          font-size: 14px;
+        }
+        .total-row strong {
+          color: #172033;
+        }
+        .grand {
+          margin-top: 8px;
+          padding: 17px 0 0;
+          border-top: 2px solid #172033;
+          color: #111827;
+          font-size: 22px;
+          font-weight: 900;
+        }
+        .footer {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px;
+          margin-top: 36px;
+        }
+        @page {
+          size: A4;
+          margin: 0;
+        }
+        @media print {
+          body { background: #ffffff; }
+          .paper { min-height: 297mm; }
+        }
       </style>
     </head>
     <body>
@@ -310,28 +522,28 @@ async function renderInvoiceHtml(rawInvoice: PdfInvoice) {
           <div>
             <div class="brand">TASKIT</div>
             <h1>${copy.invoice}</h1>
-            <div class="number">${escapeHtml(invoice.invoiceNumber)}</div>
+            <div class="invoice-number">${escapeHtml(invoice.invoiceNumber)}</div>
           </div>
-          <div class="badge">${escapeHtml(getInvoiceStatusLabel(invoice.status, locale))}</div>
+          <div class="status">${escapeHtml(getInvoiceStatusLabel(invoice.status, locale))}</div>
         </section>
 
-        <section class="grid">
-          <div class="box">
+        <section class="party-grid">
+          <div class="panel">
             <div class="label">${copy.from}</div>
             <div class="name">${escapeHtml(invoice.company.name)}</div>
-            <div class="muted">${escapeHtml(invoice.company.country ?? '')}${invoice.company.registrationNumber ? `<br/>${escapeHtml(invoice.company.registrationNumber)}` : ''}</div>
+            <div class="muted">${escapeHtml(invoice.company.country ?? '')}${invoice.company.registrationNumber ? `<br>${escapeHtml(invoice.company.registrationNumber)}` : ''}</div>
           </div>
-          <div class="box">
+          <div class="panel">
             <div class="label">${copy.billTo}</div>
             <div class="name">${escapeHtml(invoice.clientName)}</div>
-            <div class="muted">${escapeHtml(invoice.clientEmail ?? '')}${invoice.clientAddress ? `<br/>${escapeHtml(invoice.clientAddress)}` : ''}</div>
+            <div class="muted">${escapeHtml(invoice.clientEmail ?? '')}${invoice.clientAddress ? `<br>${escapeHtml(invoice.clientAddress)}` : ''}</div>
           </div>
         </section>
 
         <section class="meta">
-          <div class="box"><div class="label">${copy.issueDate}</div><div class="name">${escapeHtml(formatDate(invoice.issueDate, locale))}</div></div>
-          <div class="box"><div class="label">${copy.dueDate}</div><div class="name">${escapeHtml(formatDate(invoice.dueDate, locale))}</div></div>
-          <div class="box"><div class="label">${copy.status}</div><div class="name">${escapeHtml(getInvoiceStatusLabel(invoice.status, locale))}</div></div>
+          <div class="panel"><div class="label">${copy.issueDate}</div><div class="name">${escapeHtml(formatDate(invoice.issueDate, locale))}</div></div>
+          <div class="panel"><div class="label">${copy.dueDate}</div><div class="name">${escapeHtml(formatDate(invoice.dueDate, locale))}</div></div>
+          <div class="panel"><div class="label">${copy.status}</div><div class="name">${escapeHtml(getInvoiceStatusLabel(invoice.status, locale))}</div></div>
         </section>
 
         <table>
@@ -353,11 +565,11 @@ async function renderInvoiceHtml(rawInvoice: PdfInvoice) {
         </section>
 
         <section class="footer">
-          <div class="box">
+          <div class="panel">
             <div class="label">${copy.notes}</div>
             <div class="muted">${escapeHtml(invoice.notes || copy.thankYou)}</div>
           </div>
-          <div class="box">
+          <div class="panel">
             <div class="label">${copy.preparedBy}</div>
             <div class="name">${escapeHtml(invoice.createdBy.name)}</div>
             <div class="muted">${escapeHtml(invoice.createdBy.email)}</div>
@@ -368,39 +580,18 @@ async function renderInvoiceHtml(rawInvoice: PdfInvoice) {
   </html>`
 }
 
-async function launchPdfBrowser() {
-  const isServerless = Boolean(process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME)
-  const puppeteer = await import('puppeteer-core')
+async function resolveServerlessChromiumPath(context: InvoicePdfLogContext) {
+  const { default: chromium } = await import('@sparticuz/chromium')
+  chromium.setGraphicsMode = false
+  chromiumExecutablePathPromise ??= chromium.executablePath()
+  const executablePath = await chromiumExecutablePathPromise
 
-  if (isServerless) {
-    const { default: chromium } = await import('@sparticuz/chromium')
-    chromium.setGraphicsMode = false
-    chromiumExecutablePathPromise ??= chromium.executablePath()
-    const headless = 'shell' as const
-
-    return puppeteer.default.launch({
-      args: puppeteer.default.defaultArgs({
-        args: [...chromium.args, '--disable-dev-shm-usage', '--disable-gpu', '--font-render-hinting=none'],
-        headless,
-      }),
-      defaultViewport: {
-        width: 1240,
-        height: 1754,
-        deviceScaleFactor: 1,
-      },
-      executablePath: await chromiumExecutablePathPromise,
-      headless,
-      protocolTimeout: 25000,
-    })
-  }
-
-  const executablePath = await resolveLocalChromeExecutablePath()
-  return puppeteer.default.launch({
-    headless: true,
+  logPdfEvent('info', 'chromium-executable-resolved', context, {
     executablePath,
-    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--font-render-hinting=none'],
-    protocolTimeout: 25000,
+    runtime: 'serverless',
   })
+
+  return { chromium, executablePath }
 }
 
 async function resolveLocalChromeExecutablePath() {
@@ -419,215 +610,110 @@ async function resolveLocalChromeExecutablePath() {
 
   const executablePath = candidates.find((candidate) => existsSync(candidate))
   if (!executablePath) {
-    throw new Error('No local Chrome executable found. Set CHROME_EXECUTABLE_PATH for local PDF generation.')
+    throw new Error('No local Chrome executable found. Set CHROME_EXECUTABLE_PATH or PUPPETEER_EXECUTABLE_PATH for local PDF generation.')
   }
 
   return executablePath
 }
 
-async function closeBrowserSafely(browser: PdfBrowser) {
-  try {
-    for (const page of await browser.pages()) {
-      await page.close().catch(() => undefined)
-    }
-    await Promise.race([
-      browser.close(),
-      new Promise((resolve) => {
-        setTimeout(resolve, 2500)
+async function launchPdfBrowser(context: InvoicePdfLogContext) {
+  const puppeteer = await import('puppeteer-core')
+
+  if (isServerlessRuntime()) {
+    const { chromium, executablePath } = await resolveServerlessChromiumPath(context)
+    const headless = 'shell' as const
+
+    return puppeteer.default.launch({
+      args: puppeteer.default.defaultArgs({
+        args: [...chromium.args, '--disable-dev-shm-usage', '--disable-gpu', '--font-render-hinting=none'],
+        headless,
       }),
-    ])
-  } catch {
-    // Cleanup must not turn a successful PDF into a failed response.
-  }
-}
-
-function pdfKitSafeText(value: unknown, allowUnicode: boolean) {
-  const text = String(value ?? '')
-  if (allowUnicode) return text
-  return text.replace(/[^\x09\x0A\x0D\x20-\x7E\xA0-\xFF]/g, '?')
-}
-
-function pdfErrorDetails(error: unknown) {
-  return error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : { message: String(error) }
-}
-
-function assertPdfBuffer(pdf: Uint8Array, renderer: string) {
-  const signature = Buffer.from(pdf.slice(0, 5)).toString('ascii')
-  if (pdf.byteLength < 5 || signature !== '%PDF-') {
-    throw new Error(`Invoice PDF renderer ${renderer} returned an invalid PDF buffer.`)
-  }
-}
-
-async function generatePdfKitInvoicePdf(rawInvoice: PdfInvoice, requestedLocale?: string) {
-  const PDFDocument = (await import('pdfkit')).default
-  const invoice = normalizePdfInvoice({ ...rawInvoice, locale: requestedLocale ?? rawInvoice.locale })
-  const locale = invoiceLocale(invoice.locale) === 'ar' ? 'en' : invoiceLocale(invoice.locale)
-  const copy = invoiceCopy(locale)
-  const doc = new PDFDocument({ size: 'A4', margin: 42, autoFirstPage: true, bufferPages: false })
-  const chunks: Buffer[] = []
-  const regularFont = 'Helvetica'
-  const boldFont = 'Helvetica-Bold'
-  const text = (value: unknown) => pdfKitSafeText(value, false)
-  const money = (value: number) => text(formatInvoiceMoney(value, invoice.currency, locale))
-  const pageBottom = doc.page.height - doc.page.margins.bottom
-
-  function ensureSpace(height: number) {
-    if (doc.y + height <= pageBottom) return
-    doc.addPage()
+      defaultViewport: VIEWPORT,
+      executablePath,
+      headless,
+      protocolTimeout: CHROME_TIMEOUT_MS,
+    })
   }
 
-  doc.on('data', (chunk) => chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk)))
-  const done = new Promise<Buffer>((resolve, reject) => {
-    doc.on('end', () => resolve(Buffer.concat(chunks)))
-    doc.on('error', reject)
+  const executablePath = await resolveLocalChromeExecutablePath()
+  logPdfEvent('info', 'chromium-executable-resolved', context, {
+    executablePath,
+    runtime: 'local',
   })
 
-  doc.font(boldFont).fontSize(24).fillColor('#102033').text(text(copy.invoice))
-  doc.font(regularFont).fontSize(10).fillColor('#64748b').text(text(invoice.invoiceNumber))
-  doc.moveDown(1.5)
-
-  doc.font(boldFont).fontSize(12).fillColor('#102033').text(text(copy.from))
-  doc.font(regularFont).fontSize(10).fillColor('#2e4060').text(text(invoice.company.name))
-  if (invoice.company.country) doc.text(text(invoice.company.country))
-  doc.moveDown()
-
-  doc.font(boldFont).fontSize(12).fillColor('#102033').text(text(copy.billTo))
-  doc.font(regularFont).fontSize(10).fillColor('#2e4060').text(text(invoice.clientName))
-  if (invoice.clientEmail) doc.text(text(invoice.clientEmail))
-  if (invoice.clientAddress) doc.text(text(invoice.clientAddress))
-  doc.moveDown()
-
-  doc.font(boldFont).fontSize(11).text(text(`${copy.issueDate}: `), { continued: true })
-  doc.font(regularFont).text(text(formatDate(invoice.issueDate, locale)))
-  doc.font(boldFont).text(text(`${copy.dueDate}: `), { continued: true })
-  doc.font(regularFont).text(text(formatDate(invoice.dueDate, locale)))
-  doc.font(boldFont).text(text(`${copy.status}: `), { continued: true })
-  doc.font(regularFont).text(text(getInvoiceStatusLabel(invoice.status, locale)))
-  doc.moveDown()
-
-  function drawTableHeader() {
-    ensureSpace(48)
-    const headerY = doc.y
-    doc.font(boldFont).fontSize(9).fillColor('#102033')
-    doc.text(text(copy.description), 42, headerY, { width: 245 })
-    doc.text(text(copy.quantity), 292, headerY, { width: 58, align: 'right' })
-    doc.text(text(copy.unitPrice), 360, headerY, { width: 82, align: 'right' })
-    doc.text(text(copy.amount), 455, headerY, { width: 90, align: 'right' })
-    doc.moveTo(42, headerY + 18).lineTo(553, headerY + 18).strokeColor('#dbe3ed').stroke()
-    doc.y = headerY + 28
-  }
-
-  drawTableHeader()
-
-  const normalizedRows = invoice.items.slice(0, MAX_PDF_ITEMS)
-  const rows = normalizedRows.length ? normalizedRows : [{ description: copy.noItems, quantity: 0, unitPrice: 0, lineTotal: 0 }]
-  for (const item of rows) {
-    ensureSpace(34)
-    if (doc.y < 70) drawTableHeader()
-    const y = doc.y
-    doc.font(regularFont).fontSize(9).fillColor('#102033')
-    doc.text(text(item.description), 42, y, { width: 245 })
-    doc.text(text(toFiniteNumber(item.quantity).toFixed(2)), 292, y, { width: 58, align: 'right' })
-    doc.text(money(item.unitPrice), 360, y, { width: 82, align: 'right' })
-    doc.text(money(item.lineTotal), 455, y, { width: 90, align: 'right' })
-    doc.y = y + 24
-  }
-
-  if (invoice.items.length > MAX_PDF_ITEMS) {
-    ensureSpace(24)
-    doc.font(regularFont).fontSize(8).fillColor('#64748b').text(text(`${invoice.items.length - MAX_PDF_ITEMS} additional line items were omitted from this PDF. Export a detailed report for the full list.`))
-  }
-
-  ensureSpace(120)
-  doc.moveDown()
-  doc.font(boldFont).fontSize(11)
-  doc.text(text(`${copy.subtotal}: ${formatInvoiceMoney(invoice.subtotal, invoice.currency, locale)}`), { align: 'right' })
-  doc.text(text(`${copy.tax}: ${formatInvoiceMoney(invoice.taxTotal, invoice.currency, locale)}`), { align: 'right' })
-  doc.fontSize(15).text(text(`${copy.total}: ${formatInvoiceMoney(invoice.total, invoice.currency, locale)}`), { align: 'right' })
-  doc.moveDown()
-
-  doc.font(regularFont).fontSize(9).fillColor('#64748b').text(text(invoice.notes || copy.thankYou))
-
-  doc.end()
-  const pdf = await done
-  assertPdfBuffer(pdf, 'pdfkit')
-  return pdf
+  return puppeteer.default.launch({
+    args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage', '--font-render-hinting=none'],
+    defaultViewport: VIEWPORT,
+    executablePath,
+    headless: true,
+    protocolTimeout: CHROME_TIMEOUT_MS,
+  })
 }
 
-export async function generateFallbackInvoicePdf(invoice: PdfInvoice, reason?: unknown) {
-  const locale = invoiceLocale(invoice.locale)
-
+async function closeBrowserSafely(browser: Browser, context: InvoicePdfLogContext) {
   try {
-    console.warn('Invoice Chromium PDF generation failed; using PDFKit fallback.', {
-      invoiceNumber: safeInvoiceNumber(invoice.invoiceNumber),
-      reason: reason ? pdfErrorDetails(reason) : undefined,
-    })
-    return await generatePdfKitInvoicePdf(invoice, locale)
+    const pages = await browser.pages().catch(() => [])
+    await Promise.all(pages.map((page) => page.close().catch(() => undefined)))
+    await withTimeout(browser.close(), 2_500, 'browser close')
   } catch (error) {
-    console.error('Invoice fallback PDFKit generation failed; retrying with ASCII-safe PDF.', {
-      invoiceNumber: safeInvoiceNumber(invoice.invoiceNumber),
-      error: pdfErrorDetails(error),
-    })
-    return generatePdfKitInvoicePdf(invoice, 'en')
+    logPdfEvent('warn', 'browser-close-failed', context, { error: errorDetails(error) })
   }
 }
 
-async function generateChromiumInvoicePdf(invoice: PdfInvoice) {
-  let browser: PdfBrowser | null = null
+async function generateChromiumInvoicePdf(invoice: PdfInvoice, context: InvoicePdfLogContext) {
+  let browser: Browser | null = null
 
   try {
-    browser = await launchPdfBrowser()
-    const page = await browser.newPage()
-    page.setDefaultTimeout(15000)
-    page.setDefaultNavigationTimeout(15000)
-    await page.setContent(await renderInvoiceHtml(invoice), { waitUntil: 'domcontentloaded', timeout: 15000 })
-    await page.evaluate(() => document.fonts.ready)
-    await page.emulateMediaType('print')
+    logPdfEvent('info', 'browser-launch-started', context)
+    browser = await withTimeout(launchPdfBrowser(context), CHROME_TIMEOUT_MS, 'browser launch')
+    logPdfEvent('info', 'browser-launch-completed', context)
 
-    const pdf = await page.pdf({
-      format: 'A4',
-      printBackground: true,
-      preferCSSPageSize: true,
-      timeout: 20000,
-    })
-    assertPdfBuffer(pdf, 'chromium')
+    const page = await browser.newPage()
+    page.setDefaultTimeout(15_000)
+    page.setDefaultNavigationTimeout(15_000)
+
+    logPdfEvent('info', 'html-render-started', context)
+    const html = await renderInvoiceHtml(invoice)
+    await page.setContent(html, { waitUntil: 'networkidle0', timeout: 20_000 })
+    await page.evaluate(() => document.fonts.ready.then(() => true))
+    await page.emulateMediaType('print')
+    logPdfEvent('info', 'html-render-completed', context)
+
+    logPdfEvent('info', 'pdf-export-started', context)
+    const pdf = await withTimeout(
+      page.pdf({
+        format: 'A4',
+        printBackground: true,
+        preferCSSPageSize: true,
+        timeout: 25_000,
+      }),
+      PDF_TIMEOUT_MS,
+      'page PDF export'
+    )
+    assertPdfBuffer(pdf)
+    logPdfEvent('info', 'pdf-export-completed', context, { byteLength: pdf.byteLength })
+
     return pdf
+  } catch (error) {
+    logPdfEvent('error', 'chromium-render-failed', context, { error: errorDetails(error) })
+    throw error
   } finally {
-    if (browser) await closeBrowserSafely(browser)
+    if (browser) await closeBrowserSafely(browser, context)
   }
 }
 
-export async function generateInvoicePdf(rawInvoice: PdfInvoice) {
+export async function generateInvoicePdf(rawInvoice: PdfInvoice, context: InvoicePdfLogContext = {}) {
   const invoice = normalizePdfInvoice(rawInvoice)
+  const logContext = {
+    ...context,
+    invoiceNumber: context.invoiceNumber ?? invoice.invoiceNumber,
+    startedAt: context.startedAt ?? Date.now(),
+  }
   const warnings = validateInvoiceForPdf(invoice)
 
   if (warnings.length > 0) {
-    console.warn('Invoice PDF generated with normalized fallback values.', {
-      invoiceNumber: safeInvoiceNumber(invoice.invoiceNumber),
-      warnings,
-    })
+    logPdfEvent('warn', 'invoice-normalized-with-warnings', logContext, { warnings })
   }
 
-  if (PDF_RENDERER !== 'chromium') {
-    try {
-      return await generatePdfKitInvoicePdf(invoice)
-    } catch (error) {
-      console.error('Invoice PDFKit generation failed; retrying with Chromium renderer.', {
-        invoiceNumber: safeInvoiceNumber(invoice.invoiceNumber),
-        error: pdfErrorDetails(error),
-      })
-
-      return generateChromiumInvoicePdf(invoice)
-    }
-  }
-
-  try {
-    return await generateChromiumInvoicePdf(invoice)
-  } catch (error) {
-    console.error('Chromium invoice PDF generation failed.', {
-      invoiceNumber: safeInvoiceNumber(invoice.invoiceNumber),
-      error: pdfErrorDetails(error),
-    })
-    return generateFallbackInvoicePdf(invoice, error)
-  }
+  return generateChromiumInvoicePdf(invoice, logContext)
 }
