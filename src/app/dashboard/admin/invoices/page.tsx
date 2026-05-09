@@ -381,9 +381,18 @@ function InvoicesPageContent() {
   }
 
   async function deleteInvoice(invoice: Invoice) {
-    if (!confirm(`Delete ${invoice.invoiceNumber}?`)) return
+    const confirmation = window.prompt(`Type delete to permanently delete ${invoice.invoiceNumber}.`)
+    if (confirmation?.trim().toLowerCase() !== 'delete') {
+      setError('Invoice was not deleted. Type delete to confirm.')
+      return
+    }
+
     setError(null)
-    const response = await fetch(`/api/invoices/${invoice.id}`, { method: 'DELETE' })
+    const response = await fetch(`/api/invoices/${invoice.id}`, {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ confirmation }),
+    })
     if (!response.ok) {
       const body = await response.json().catch(() => ({}))
       setError(body?.error || 'Invoice could not be deleted.')
@@ -526,12 +535,10 @@ function InvoicesPageContent() {
                     <Pencil size={14} />
                     {t.edit}
                   </button>
-                  {invoice.status !== 'paid' && (
-                    <button type="button" onClick={() => deleteInvoice(invoice)} className="btn-danger btn-sm">
-                      <Trash2 size={14} />
-                      {t.delete}
-                    </button>
-                  )}
+                  <button type="button" onClick={() => deleteInvoice(invoice)} className="btn-danger btn-sm">
+                    <Trash2 size={14} />
+                    {t.delete}
+                  </button>
                 </div>
               </div>
             </article>

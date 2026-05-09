@@ -39,6 +39,10 @@ type InvoicePatchBody = {
   items?: InvoiceItemInput[]
 }
 
+type InvoiceDeleteBody = {
+  confirmation?: unknown
+}
+
 const invoiceInclude = {
   company: { select: { id: true, name: true, country: true, registrationNumber: true } },
   createdBy: { select: { id: true, name: true, email: true } },
@@ -215,7 +219,11 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
   }
 }
 
-export async function DELETE(_req: NextRequest, context: { params: Promise<{ id: string }> }) {
+function hasDeleteConfirmation(body: InvoiceDeleteBody | null) {
+  return typeof body?.confirmation === 'string' && body.confirmation.trim().toLowerCase() === 'delete'
+}
+
+export async function DELETE(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -223,10 +231,14 @@ export async function DELETE(_req: NextRequest, context: { params: Promise<{ id:
   if (!user.companyId) return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
   if (!canManageInvoices(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
+  const body = (await req.json().catch(() => null)) as InvoiceDeleteBody | null
+  if (!hasDeleteConfirmation(body)) {
+    return NextResponse.json({ error: 'Type delete to confirm invoice deletion.' }, { status: 400 })
+  }
+
   const { id } = await context.params
   const existing = await getInvoice(id, user.companyId)
   if (!existing) return NextResponse.json({ error: 'Invoice not found.' }, { status: 404 })
-  if (existing.status === 'paid') return NextResponse.json({ error: 'Paid invoices cannot be deleted.' }, { status: 409 })
 
   try {
     await prisma.$transaction(async (tx) => {
