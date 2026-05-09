@@ -4,7 +4,6 @@ import { prisma } from '@/lib/db'
 import { generateInvoicePdf, normalizePdfInvoice, validateInvoiceForPdf, type PdfInvoice } from '@/lib/invoice-pdf'
 import { serializeInvoice } from '@/lib/invoices'
 
-export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
 
