@@ -38,6 +38,10 @@ function canManageWorkspace(user: SessionUser) {
   return user.role !== 'EMPLOYEE'
 }
 
+function isValidProjectId(id: unknown) {
+  return typeof id === 'string' && id.length >= 8 && id.length <= 128 && /^[a-zA-Z0-9_-]+$/.test(id)
+}
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -272,39 +276,43 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
-  if (!user.companyId) return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
-  if (!canManageWorkspace(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-
-  const { id } = await params
-  const project = await prisma.project.findFirst({
-    where: { id, companyId: user.companyId },
-    select: { id: true },
-  })
-  if (!project) return NextResponse.json({ error: 'Not found' }, { status: 404 })
-
-  const [cameraSupport, mediaSupport] = await Promise.all([getProjectCameraSupport(), getProjectMediaSupport()])
-
   try {
-    await prisma.$transaction((tx) =>
-      deleteProjectGraph(tx, id, {
-        hasCameraMediaTable: cameraSupport.hasCameraMediaTable,
-        hasCameraTable: cameraSupport.hasCameraTable,
-        hasProjectMediaTable: mediaSupport.hasProjectMediaTable,
+    const { id: rawId } = await params
+    const id = rawId?.trim()
+    if (!isValidProjectId(id)) return NextResponse.json({ error: 'Project not found.' }, { status: 404 })
+
+    const session = await auth()
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const user = session.user as SessionUser
+    if (!user.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!canManageWorkspace(user)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+    const project = await prisma.project.findFirst({
+      where: { id, companyId: user.companyId },
+      select: { id: true },
+    })
+    if (!project) return NextResponse.json({ error: 'Project not found.' }, { status: 404 })
+
+    await prisma.$transaction((tx) => deleteProjectGraph(tx, id))
+
+    try {
+      emitCompanyRealtime(user.companyId, 'project_deleted', { projectId: id })
+    } catch (emitError) {
+      console.error('[project-delete:realtime]', {
+        projectId: id,
+        companyId: user.companyId,
+        error: emitError,
       })
-    )
+    }
+
+    return NextResponse.json({ success: true, projectId: id }, { status: 200 })
   } catch (error) {
-    console.error('[project-delete]', error)
-    return NextResponse.json(
-      { error: `${normalizeCompanyType(user.companyType) === 'DIGITAL_AGENCY' ? 'Campaign' : 'Project'} could not be deleted.`, detail: error instanceof Error ? error.message : undefined },
-      { status: 500 }
-    )
+    console.error('[project-delete]', {
+      route: '/api/projects/[id]',
+      error,
+    })
+
+    return NextResponse.json({ error: 'Project could not be deleted.' }, { status: 500 })
   }
-
-  emitCompanyRealtime(user.companyId, 'project_deleted', { projectId: id })
-
-  return NextResponse.json({ success: true })
 }
