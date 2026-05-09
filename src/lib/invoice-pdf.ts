@@ -36,7 +36,6 @@ type RawPdfInvoice = Partial<PdfInvoice> & Record<string, unknown>
 type PdfBrowser = Awaited<ReturnType<typeof launchPdfBrowser>>
 
 let chromiumExecutablePathPromise: Promise<string> | null = null
-let arabicFontCssPromise: Promise<string> | null = null
 
 function escapeHtml(value: unknown) {
   return String(value ?? '')
@@ -205,35 +204,7 @@ export function validateInvoiceForPdf(invoice: PdfInvoice) {
 }
 
 async function getArabicFontCss() {
-  arabicFontCssPromise ??= (async () => {
-    const { readFile } = await import('node:fs/promises')
-    const { createRequire } = await import('node:module')
-    const require = createRequire(import.meta.url)
-    const [regularPath, boldPath] = [
-      require.resolve('@fontsource/noto-naskh-arabic/files/noto-naskh-arabic-arabic-400-normal.woff2'),
-      require.resolve('@fontsource/noto-naskh-arabic/files/noto-naskh-arabic-arabic-700-normal.woff2'),
-    ]
-    const [regular, bold] = await Promise.all([readFile(regularPath), readFile(boldPath)])
-
-    return `
-      @font-face {
-        font-family: "TaskitArabic";
-        src: url(data:font/woff2;base64,${regular.toString('base64')}) format("woff2");
-        font-weight: 400;
-        font-style: normal;
-        font-display: swap;
-      }
-      @font-face {
-        font-family: "TaskitArabic";
-        src: url(data:font/woff2;base64,${bold.toString('base64')}) format("woff2");
-        font-weight: 700 900;
-        font-style: normal;
-        font-display: swap;
-      }
-    `
-  })()
-
-  return arabicFontCssPromise
+  return ''
 }
 
 async function renderInvoiceHtml(rawInvoice: PdfInvoice) {
