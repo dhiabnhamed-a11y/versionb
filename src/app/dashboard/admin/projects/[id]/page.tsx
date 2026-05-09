@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { getCompanyTypeCopy, getDeliverableTypeLabel, normalizeCompanyType } from '@/lib/company-types'
-import { ArrowLeft, Camera, FolderKanban, User, Building2, Link2, Tags, UsersRound } from 'lucide-react'
+import { ArrowLeft, Camera, FolderKanban, User, Building2, Link2, Tags, UsersRound, ReceiptText } from 'lucide-react'
 import { ProjectCamera } from '@/components/camera/ProjectCamera'
 import { MediaPlayer } from '@/components/media/MediaPlayer'
 import { ProjectMediaStudio } from '@/components/media/ProjectMediaStudio'
@@ -19,6 +19,7 @@ type ProjectDetail = {
   description: string | null
   room?: { id: string; name: string } | null
   category?: { id: string; name: string; description?: string | null } | null
+  clientId?: string | null
   clientName?: string | null
   hasCamera: boolean
   cameraType: 'device' | 'external'
@@ -198,11 +199,15 @@ export default function ProjectDetailPage() {
               )}
             </div>
           </div>
-          <div className="text-right">
+          <div className="flex flex-col items-end gap-3 text-right">
             <div className="text-2xl font-bold tabular-nums text-[var(--accent)]">{pct}%</div>
             <div className="text-xs text-[var(--text-muted)]">
               {done}/{project.tasks.length} tasks done
             </div>
+            <Link href={`/dashboard/admin/invoices?campaignId=${project.id}${project.clientId ? `&clientId=${project.clientId}` : ''}`} className="btn-secondary btn-sm">
+              <ReceiptText size={14} />
+              Invoice campaign
+            </Link>
           </div>
         </div>
       </header>

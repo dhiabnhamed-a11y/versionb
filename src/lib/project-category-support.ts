@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 type ProjectCategorySupport = {
   hasCategoryTable: boolean
   hasProjectCategoryColumns: boolean
+  hasProjectClientColumn: boolean
 }
 
 export type ProjectCategoryDto = {
@@ -17,6 +18,10 @@ export type ProjectCategoryDto = {
 type ProjectAgencyFieldRow = {
   id: string
   clientName: string | null
+  clientId: string | null
+  clientCompanyName: string | null
+  clientContactPerson: string | null
+  clientAvatarUrl: string | null
   categoryId: string | null
   categoryName: string | null
   categoryDescription: string | null
@@ -40,7 +45,7 @@ export async function getProjectCategorySupport(): Promise<ProjectCategorySuppor
         FROM information_schema.columns
         WHERE table_schema = 'public'
           AND table_name = 'Project'
-          AND column_name IN ('categoryId', 'clientName')
+          AND column_name IN ('categoryId', 'clientName', 'clientId')
       `
 
       return {
@@ -48,6 +53,7 @@ export async function getProjectCategorySupport(): Promise<ProjectCategorySuppor
         hasProjectCategoryColumns: ['categoryId', 'clientName'].every((column) =>
           columns.some((row) => row.column_name === column)
         ),
+        hasProjectClientColumn: columns.some((row) => row.column_name === 'clientId'),
       }
     })()
   }
@@ -151,10 +157,22 @@ export async function findProjectCategory(companyId: string, categoryId: string)
 export async function attachProjectAgencyFields<T extends { id: string }>(
   projects: T[],
   companyId: string
-): Promise<Array<T & { clientName: string | null; categoryId: string | null; category: { id: string; name: string; description: string | null } | null }>> {
+): Promise<
+  Array<
+    T & {
+      clientId: string | null
+      clientName: string | null
+      client: { id: string; companyName: string; contactPerson: string | null; avatarUrl: string | null } | null
+      categoryId: string | null
+      category: { id: string; name: string; description: string | null } | null
+    }
+  >
+> {
   const withDefaults = projects.map((project) => ({
     ...project,
+    clientId: null,
     clientName: null,
+    client: null,
     categoryId: null,
     category: null,
   }))
@@ -164,25 +182,57 @@ export async function attachProjectAgencyFields<T extends { id: string }>(
     return withDefaults
   }
 
-  const rows = await prisma.$queryRaw<ProjectAgencyFieldRow[]>`
-    SELECT
-      p."id",
-      p."clientName",
-      p."categoryId",
-      c."name" AS "categoryName",
-      c."description" AS "categoryDescription"
-    FROM "Project" p
-    LEFT JOIN "ProjectCategory" c ON c."id" = p."categoryId"
-    WHERE p."companyId" = ${companyId}
-      AND p."id" IN (${Prisma.join(projects.map((project) => project.id))})
-  `
+  const rows = support.hasProjectClientColumn
+    ? await prisma.$queryRaw<ProjectAgencyFieldRow[]>`
+      SELECT
+        p."id",
+        p."clientName",
+        p."clientId",
+        cl."companyName" AS "clientCompanyName",
+        cl."contactPerson" AS "clientContactPerson",
+        cl."avatarUrl" AS "clientAvatarUrl",
+        p."categoryId",
+        c."name" AS "categoryName",
+        c."description" AS "categoryDescription"
+      FROM "Project" p
+      LEFT JOIN "ProjectCategory" c ON c."id" = p."categoryId"
+      LEFT JOIN "Client" cl ON cl."id" = p."clientId"
+      WHERE p."companyId" = ${companyId}
+        AND p."id" IN (${Prisma.join(projects.map((project) => project.id))})
+    `
+    : await prisma.$queryRaw<ProjectAgencyFieldRow[]>`
+      SELECT
+        p."id",
+        p."clientName",
+        NULL AS "clientId",
+        NULL AS "clientCompanyName",
+        NULL AS "clientContactPerson",
+        NULL AS "clientAvatarUrl",
+        p."categoryId",
+        c."name" AS "categoryName",
+        c."description" AS "categoryDescription"
+      FROM "Project" p
+      LEFT JOIN "ProjectCategory" c ON c."id" = p."categoryId"
+      WHERE p."companyId" = ${companyId}
+        AND p."id" IN (${Prisma.join(projects.map((project) => project.id))})
+    `
   const agencyFieldsById = new Map(rows.map((row) => [row.id, row]))
 
   return projects.map((project) => {
     const fields = agencyFieldsById.get(project.id)
     return {
       ...project,
+      clientId: fields?.clientId ?? null,
       clientName: fields?.clientName ?? null,
+      client:
+        fields?.clientId && fields.clientCompanyName
+          ? {
+              id: fields.clientId,
+              companyName: fields.clientCompanyName,
+              contactPerson: fields.clientContactPerson,
+              avatarUrl: fields.clientAvatarUrl,
+            }
+          : null,
       categoryId: fields?.categoryId ?? null,
       category:
         fields?.categoryId && fields.categoryName
@@ -200,15 +250,31 @@ export async function updateProjectAgencyFields(input: {
   projectId: string
   companyId: string
   categoryId?: string | null
+  clientId?: string | null
   clientName?: string | null
 }) {
+  const support = await getProjectCategorySupport()
+  if (support.hasProjectClientColumn) {
+    await prisma.$executeRaw`
+      UPDATE "Project"
+      SET
+        "categoryId" = ${input.categoryId},
+        "clientId" = ${input.clientId ?? null},
+        "clientName" = ${input.clientName ?? null},
+        "updatedAt" = ${new Date()}
+      WHERE "id" = ${input.projectId}
+        AND "companyId" = ${input.companyId}
+    `
+    return
+  }
+
   await prisma.$executeRaw`
-    UPDATE "Project"
-    SET
-      "categoryId" = ${input.categoryId},
-      "clientName" = ${input.clientName ?? null},
-      "updatedAt" = ${new Date()}
-    WHERE "id" = ${input.projectId}
-      AND "companyId" = ${input.companyId}
-  `
+      UPDATE "Project"
+      SET
+        "categoryId" = ${input.categoryId},
+        "clientName" = ${input.clientName ?? null},
+        "updatedAt" = ${new Date()}
+      WHERE "id" = ${input.projectId}
+        AND "companyId" = ${input.companyId}
+    `
 }

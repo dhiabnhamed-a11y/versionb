@@ -39,6 +39,8 @@ model User {
   calendarEvents         CalendarEvent[] @relation("CalendarEventCreatedBy")
   adminActions           AdminActionLog[] @relation("AdminActionActor")
   targetedAdminActions   AdminActionLog[] @relation("AdminActionTarget")
+  createdInvoices        Invoice[]        @relation("InvoiceCreatedBy")
+  clientActivities       ClientActivity[] @relation("ClientActivityActor")
 }
 
 model Company {
@@ -68,9 +70,115 @@ model Company {
   calendarEvents CalendarEvent[]
   settings       CompanySettings?
   adminActionLogs AdminActionLog[]
+  clients       Client[]
+  clientActivities ClientActivity[]
+  invoices       Invoice[]
 
   @@index([status, createdAt])
   @@index([name, registrationNumber, status])
+}
+
+model Client {
+  id            String   @id @default(cuid())
+  companyId     String
+  companyName   String
+  contactPerson String?
+  email         String?
+  phone         String?
+  country       String?
+  address       String?
+  notes         String?
+  avatarUrl     String?
+  status        String   @default("active") // active, inactive
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projects   Project[]
+  invoices   Invoice[]
+  activities ClientActivity[]
+
+  @@index([companyId, status, createdAt])
+  @@index([companyId, companyName])
+  @@index([companyId, email])
+}
+
+model ClientActivity {
+  id        String   @id @default(cuid())
+  companyId String
+  clientId  String
+  actorId   String?
+  type      String
+  title     String
+  body      String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client  Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  actor   User?   @relation("ClientActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([clientId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([type, createdAt])
+}
+
+model Invoice {
+  id            String    @id @default(cuid())
+  companyId     String
+  createdById   String
+  clientId      String?
+  campaignId    String?
+  briefId       String?
+  invoiceNumber String
+  clientName    String
+  clientEmail   String?
+  clientAddress String?
+  status        String    @default("draft") // draft, sent, paid, overdue
+  currency      String    @default("USD")
+  locale        String    @default("en") // en, ar
+  issueDate     DateTime  @default(now())
+  dueDate       DateTime?
+  sentAt        DateTime?
+  paidAt        DateTime?
+  notes         String?
+  taxRate       Decimal   @default(0) @db.Decimal(5, 2)
+  subtotal      Decimal   @default(0) @db.Decimal(12, 2)
+  taxTotal      Decimal   @default(0) @db.Decimal(12, 2)
+  total         Decimal   @default(0) @db.Decimal(12, 2)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  company   Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User          @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  client    Client?       @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  campaign  Project?      @relation("InvoiceCampaign", fields: [campaignId], references: [id], onDelete: SetNull)
+  brief     Task?         @relation("InvoiceBrief", fields: [briefId], references: [id], onDelete: SetNull)
+  items     InvoiceItem[]
+
+  @@unique([companyId, invoiceNumber])
+  @@index([companyId, status, dueDate])
+  @@index([companyId, clientId, createdAt])
+  @@index([companyId, campaignId, createdAt])
+  @@index([companyId, briefId, createdAt])
+  @@index([companyId, createdAt])
+  @@index([createdById, createdAt])
+}
+
+model InvoiceItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  description String
+  quantity    Decimal  @default(1) @db.Decimal(10, 2)
+  unitPrice   Decimal  @default(0) @db.Decimal(12, 2)
+  lineTotal   Decimal  @default(0) @db.Decimal(12, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  invoice Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId])
 }
 
 model CompanySettings {
@@ -189,6 +297,7 @@ model Project {
   companyId   String
   roomId      String?
   categoryId  String?
+  clientId    String?
   clientName  String?
   managerId   String?
   hasCamera   Boolean    @default(false)
@@ -199,8 +308,10 @@ model Project {
   company     Company               @relation(fields: [companyId], references: [id])
   room        Room?                 @relation(fields: [roomId], references: [id], onDelete: SetNull)
   category    ProjectCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  client      Client?               @relation(fields: [clientId], references: [id], onDelete: SetNull)
   manager     User?                 @relation("ProjectManager", fields: [managerId], references: [id])
   tasks       Task[]
+  invoices    Invoice[]             @relation("InvoiceCampaign")
   cameraMedia ProjectCameraMedia[]
   projectMedia ProjectMedia[]
   cameras     ProjectCamera[]
@@ -208,6 +319,7 @@ model Project {
 
   @@index([companyId, roomId])
   @@index([companyId, categoryId])
+  @@index([companyId, clientId])
 }
 
 model ProjectCamera {
@@ -308,6 +420,7 @@ model Task {
   activities  Activity[]
   submissions TaskSubmission[]
   calendarEvents CalendarEvent[]
+  invoices    Invoice[]        @relation("InvoiceBrief")
 }
 
 model TaskSubmission {

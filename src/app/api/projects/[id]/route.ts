@@ -26,6 +26,7 @@ type UpdateProjectBody = {
   description?: string | null
   roomId?: string | null
   categoryId?: string | null
+  clientId?: string | null
   clientName?: string | null
   managerId?: string | null
   hasCamera?: boolean
@@ -172,6 +173,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const description = body.description === undefined ? undefined : body.description?.trim() || null
   const roomId = body.roomId === undefined ? undefined : body.roomId?.trim() || null
   const categoryId = body.categoryId === undefined ? undefined : body.categoryId?.trim() || null
+  const clientId = body.clientId === undefined ? undefined : body.clientId?.trim() || null
   const clientName = body.clientName === undefined ? undefined : body.clientName?.trim() || null
   const managerId = body.managerId === undefined ? undefined : body.managerId?.trim() || null
 
@@ -181,7 +183,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const existingProject = await prisma.project.findFirst({
     where: { id, companyId: user.companyId },
-    select: { id: true, categoryId: true },
+    select: { id: true, categoryId: true, clientId: true, clientName: true },
   })
   if (!existingProject) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
@@ -200,6 +202,14 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     })
     if (!manager) return NextResponse.json({ error: 'Selected manager was not found in this workspace.' }, { status: 404 })
   }
+
+  const selectedClient = clientId
+    ? await prisma.client.findFirst({
+        where: { id: clientId, companyId: user.companyId },
+        select: { id: true, companyName: true },
+      })
+    : null
+  if (clientId && !selectedClient) return NextResponse.json({ error: 'Selected client was not found in this workspace.' }, { status: 404 })
 
   const categorySupport = await getProjectCategorySupport()
   if (categoryId) {
@@ -243,12 +253,13 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     },
   })
 
-  if (categoryId !== undefined || clientName !== undefined) {
+  if (categoryId !== undefined || clientId !== undefined || clientName !== undefined) {
     await updateProjectAgencyFields({
       projectId: id,
       companyId: user.companyId,
       categoryId: categoryId !== undefined ? categoryId : existingProject.categoryId,
-      clientName,
+      clientId: clientId !== undefined ? clientId : existingProject.clientId,
+      clientName: selectedClient?.companyName ?? (clientName !== undefined ? clientName : existingProject.clientName),
     })
   }
 

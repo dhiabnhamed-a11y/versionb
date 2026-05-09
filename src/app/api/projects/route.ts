@@ -133,12 +133,63 @@ async function createProjectWithoutCameraFields(input: {
   roomId?: string
   managerId?: string
   categoryId?: string
+  clientId?: string
   clientName?: string
   hasProjectCategoryColumns?: boolean
+  hasProjectClientColumn?: boolean
 }) {
   const now = new Date()
   const id = randomUUID()
-  const rows = input.hasProjectCategoryColumns
+  const rows = input.hasProjectCategoryColumns && input.hasProjectClientColumn
+    ? await prisma.$queryRaw<
+        Array<{
+          id: string
+          title: string
+          description: string | null
+          roomId: string | null
+          managerId: string | null
+          companyId: string
+          createdAt: Date
+          updatedAt: Date
+        }>
+      >`
+        INSERT INTO "Project" (
+          "id",
+          "title",
+          "description",
+          "companyId",
+          "roomId",
+          "categoryId",
+          "clientId",
+          "clientName",
+          "managerId",
+          "createdAt",
+          "updatedAt"
+        )
+        VALUES (
+          ${id},
+          ${input.title},
+          ${input.description ?? null},
+          ${input.companyId},
+          ${input.roomId ?? null},
+          ${input.categoryId ?? null},
+          ${input.clientId ?? null},
+          ${input.clientName ?? null},
+          ${input.managerId ?? null},
+          ${now},
+          ${now}
+        )
+        RETURNING
+          "id",
+          "title",
+          "description",
+          "roomId",
+          "managerId",
+          "companyId",
+          "createdAt",
+          "updatedAt"
+      `
+    : input.hasProjectCategoryColumns
     ? await prisma.$queryRaw<
         Array<{
           id: string
@@ -301,12 +352,13 @@ export async function POST(req: Request) {
     const support = await getProjectCameraSupport()
     const categorySupport = await getProjectCategorySupport()
     const body = await req.json()
-    const { title, description, managerId, roomId, categoryId, clientName, hasCamera, cameraType } = body as {
+    const { title, description, managerId, roomId, categoryId, clientId, clientName, hasCamera, cameraType } = body as {
       title: string
       description?: string
       managerId?: string
       roomId?: string
       categoryId?: string
+      clientId?: string
       clientName?: string
       hasCamera?: boolean
       cameraType?: 'device' | 'external'
@@ -335,6 +387,16 @@ export async function POST(req: Request) {
       }
     }
 
+    const selectedClient = clientId?.trim()
+      ? await prisma.client.findFirst({
+          where: { id: clientId, companyId: user.companyId },
+          select: { id: true, companyName: true },
+        })
+      : null
+    if (clientId?.trim() && !selectedClient) {
+      return NextResponse.json({ error: 'Selected client was not found in this workspace.' }, { status: 404 })
+    }
+
     if (roomId?.trim()) {
       const room = await prisma.room.findFirst({
         where: {
@@ -360,8 +422,10 @@ export async function POST(req: Request) {
         roomId: roomId || undefined,
         managerId,
         categoryId: companyType === 'DIGITAL_AGENCY' ? categoryId : undefined,
-        clientName: companyType === 'DIGITAL_AGENCY' ? clientName?.trim() || undefined : undefined,
+        clientId: companyType === 'DIGITAL_AGENCY' ? selectedClient?.id : undefined,
+        clientName: companyType === 'DIGITAL_AGENCY' ? selectedClient?.companyName ?? (clientName?.trim() || undefined) : undefined,
         hasProjectCategoryColumns: categorySupport.hasProjectCategoryColumns,
+        hasProjectClientColumn: categorySupport.hasProjectClientColumn,
       })
     } else {
       try {
@@ -382,7 +446,8 @@ export async function POST(req: Request) {
             projectId: project.id,
             companyId: user.companyId,
             categoryId,
-            clientName: clientName?.trim() || null,
+            clientId: selectedClient?.id ?? null,
+            clientName: selectedClient?.companyName ?? (clientName?.trim() || null),
           })
         }
       } catch (error) {
@@ -397,8 +462,10 @@ export async function POST(req: Request) {
           roomId: roomId || undefined,
           managerId,
           categoryId: companyType === 'DIGITAL_AGENCY' ? categoryId : undefined,
-          clientName: companyType === 'DIGITAL_AGENCY' ? clientName?.trim() || undefined : undefined,
+          clientId: companyType === 'DIGITAL_AGENCY' ? selectedClient?.id : undefined,
+          clientName: companyType === 'DIGITAL_AGENCY' ? selectedClient?.companyName ?? (clientName?.trim() || undefined) : undefined,
           hasProjectCategoryColumns: categorySupport.hasProjectCategoryColumns,
+          hasProjectClientColumn: categorySupport.hasProjectClientColumn,
         })
       }
     }

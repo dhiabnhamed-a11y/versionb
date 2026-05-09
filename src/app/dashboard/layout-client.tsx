@@ -29,6 +29,8 @@ import {
   Search,
   Plus,
   Settings,
+  ReceiptText,
+  Building2,
 } from 'lucide-react'
 
 export default function DashboardLayoutClient({
@@ -67,6 +69,7 @@ export default function DashboardLayoutClient({
       ]
     : [
         { href: '/dashboard/admin', label: 'Overview', icon: LayoutDashboard },
+        { href: '/dashboard/admin/clients', label: 'Clients', icon: Building2 },
         {
           href: '/dashboard/admin/projects',
           label:
@@ -76,6 +79,7 @@ export default function DashboardLayoutClient({
           icon: FolderKanban,
         },
         { href: '/dashboard/admin/tasks', label: companyCopy.taskPluralLabel, icon: CheckSquare },
+        { href: '/dashboard/admin/invoices', label: 'Invoices', icon: ReceiptText },
         { href: '/dashboard/admin/calendar', label: 'Calendar', icon: CalendarDays },
         { href: '/dashboard/admin/employees', label: 'Team', icon: Users },
         { href: '/dashboard/admin/alerts', label: 'Send Alert', icon: Bell },
