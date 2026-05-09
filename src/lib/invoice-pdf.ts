@@ -201,13 +201,18 @@ async function launchPdfBrowser() {
 
   if (isServerless) {
     const [{ default: chromium }, puppeteer] = await Promise.all([import('@sparticuz/chromium'), import('puppeteer-core')])
+    chromium.setGraphicsMode = false
     const executablePath = await chromium.executablePath()
+    const headless = 'shell' as const
 
     return puppeteer.default.launch({
-      args: [...chromium.args, '--disable-dev-shm-usage', '--disable-gpu'],
+      args: puppeteer.default.defaultArgs({
+        args: [...chromium.args, '--disable-dev-shm-usage', '--disable-gpu'],
+        headless,
+      }),
       defaultViewport: { width: 1240, height: 1754 },
       executablePath,
-      headless: true,
+      headless,
     })
   }
 

@@ -1,7 +1,7 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ['bufferutil', 'utf-8-validate'],
+  serverExternalPackages: ['@sparticuz/chromium', 'bufferutil', 'utf-8-validate'],
   experimental: {
     staleTimes: {
       dynamic: 0,
