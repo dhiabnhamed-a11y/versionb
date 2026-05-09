@@ -6,6 +6,7 @@ import { buildRtspUrl, testRtspConnection } from '@/lib/camera-stream-manager'
 import { normalizeCameraInput } from '@/lib/camera-validation'
 import { getProjectIfAllowed } from '@/lib/project-access'
 
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(req: NextRequest) {

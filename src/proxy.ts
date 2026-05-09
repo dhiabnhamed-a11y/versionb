@@ -1,6 +1,6 @@
-import { getToken } from 'next-auth/jwt'
-import { NextResponse, type NextRequest } from 'next/server'
+import { NextResponse } from 'next/server'
 
+import { auth } from '@/lib/auth'
 import { canAuthenticateAuthState, getRoleHomePath, isAuthorizedSuperAdminIdentity } from '@/lib/security'
 
 type SessionUser = {
@@ -12,14 +12,9 @@ type SessionUser = {
   companyStatus?: string | null
 }
 
-function authSecret() {
-  return process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'taskforce-super-secret-key-2024-change-in-production'
-}
-
-export async function middleware(req: NextRequest) {
+export default auth((req) => {
   const { pathname } = req.nextUrl
-  const token = await getToken({ req, secret: authSecret() })
-  const user = token as SessionUser | null
+  const user = req.auth?.user as SessionUser | undefined
   const isLoggedIn = Boolean(user?.email)
   const isApprovedSession = user ? canAuthenticateAuthState(user) : false
   const isSuperAdmin = user ? isAuthorizedSuperAdminIdentity(user) : false
@@ -59,7 +54,7 @@ export async function middleware(req: NextRequest) {
   }
 
   return NextResponse.next()
-}
+})
 
 export const config = {
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico|sounds).*)'],

@@ -6,6 +6,7 @@ import { auth } from '@/lib/auth'
 import { getCameraForUser } from '@/lib/camera-access'
 import { getCameraStreamPaths } from '@/lib/camera-stream-manager'
 
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 const contentTypes: Record<string, string> = {

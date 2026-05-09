@@ -7,6 +7,7 @@ import { normalizeCameraInput } from '@/lib/camera-validation'
 import { prisma } from '@/lib/db'
 import { getProjectIfAllowed } from '@/lib/project-access'
 
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {

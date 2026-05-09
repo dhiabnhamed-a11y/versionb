@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth'
 import { canManageProjectCamera, getCameraForUser, toCameraDto } from '@/lib/camera-access'
 import { stopCameraStream } from '@/lib/camera-stream-manager'
 
+export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
