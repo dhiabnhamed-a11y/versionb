@@ -6,6 +6,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import AlertReceiver from '@/components/alerts/AlertReceiver'
+import AiOperationsAssistant from '@/components/dashboard/AiOperationsAssistant'
 import CommandPalette from '@/components/dashboard/CommandPalette'
 import NotificationDropdown from '@/components/dashboard/NotificationDropdown'
 import WorkspaceThemeProvider from '@/components/dashboard/WorkspaceThemeProvider'
@@ -328,6 +329,7 @@ export default function DashboardLayoutClient({
       </div>
 
       {user?.id && realtimeEnabled && !isSuperAdmin && <AlertReceiver userId={user.id} />}
+      <AiOperationsAssistant disabled={isSuperAdmin} />
     </div>
   )
 }

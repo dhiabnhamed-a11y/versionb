@@ -326,6 +326,74 @@ Architecture:
 - Tool layer: create task, draft invoice, summarize project, generate report, search docs.
 - Audit layer: log AI actions that mutate data or generate externally visible content.
 
+Current implementation baseline:
+
+- `POST /api/ai/chat` answers from live Prisma records and applies role-scoped context before any model call.
+- `src/lib/ai-operations.ts` builds deterministic, grounded operational answers for projects, tasks, workload, invoices, clients, approvals, risks, and executive summaries.
+- `src/lib/ai-openai.ts` can optionally polish the grounded response with the OpenAI Responses API when `OPENAI_API_KEY` is configured. The default model is `gpt-5.5`, overrideable with `OPENAI_MODEL`.
+- `src/components/dashboard/AiOperationsAssistant.tsx` provides the floating assistant, suggested prompts, quick actions, and source citations.
+- The command palette can open AI quick actions such as operational risk detection and weekly report generation.
+
+Production RAG design:
+
+```txt
+User prompt
+  -> Auth/session resolution
+  -> Role and workspace policy
+  -> Intent router
+  -> Structured SQL retrieval for operational metrics
+  -> Vector retrieval for briefs, files, comments, SOPs, reports
+  -> Grounded answer draft with citations
+  -> Optional GPT-5.5 reasoning/polish pass
+  -> Response, citations, audit entry, memory update
+```
+
+The assistant should use SQL first for measurable facts such as revenue, overdue invoices, task counts, project status, workload, approval queues, and client activity. Use vector retrieval only for semantic sources such as uploaded briefs, comments, meeting notes, SOPs, contracts, and reports. This prevents the model from inventing business metrics that should come from the database.
+
+Recommended vector schema:
+
+```prisma
+model AiKnowledgeChunk {
+  id          String   @id @default(cuid())
+  workspaceId String
+  entityType  String
+  entityId    String
+  title       String
+  content     String
+  metadata    Json?
+  embedding   Unsupported("vector(3072)")?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([workspaceId, entityType, entityId])
+}
+```
+
+Memory model:
+
+- Short-term memory: recent conversation messages sent with each assistant request.
+- Long-term user memory: preferences such as reporting format, preferred currency, usual focus areas, and recurring clients.
+- Long-term workspace memory: recurring operational facts, SOP references, historical risk summaries, client relationship notes, and approved report templates.
+- Memory writes must be explicit, scoped to workspace/user, and auditable.
+
+Role policy:
+
+- Owner/Manager: workspace operations plus billing and revenue.
+- Employee: assigned projects, assigned tasks, relevant deliverables, and related client/project context only.
+- Super Admin: platform approval console only; workspace AI is disabled unless impersonation or scoped support access is implemented.
+- Client portal role: future portal-only assistant limited to that client's projects, files, approvals, and invoices.
+
+Automation assistant:
+
+Natural-language automation creation should compile into a validated trigger/action draft, not execute immediately. Example: "Notify client when project completed" becomes a disabled `AutomationRule` draft with trigger `project.completed`, action `notify.client`, target client, message template, and approval status. Activation requires an Owner or Manager confirmation.
+
+Realtime AI monitoring:
+
+- Emit domain events for `task.overdue`, `invoice.overdue`, `deliverable.approved`, `approval.requested`, `project.completed`, `file.uploaded`, and `automation.failed`.
+- Queue an AI risk evaluator for high-signal events.
+- Persist proactive recommendations as notifications or report snapshots.
+- Keep event-driven AI alerts factual: include triggering record IDs and never summarize inaccessible data.
+
 ## UX System
 
 The product should feel like a dense enterprise command center:

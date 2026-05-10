@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType }
 import { useRouter } from 'next/navigation'
 import {
   ArrowRight,
+  BrainCircuit,
   Building2,
   CheckSquare,
   FileText,
@@ -23,7 +24,8 @@ type Command = {
   id: string
   label: string
   description: string
-  href: string
+  href?: string
+  assistantPrompt?: string
   group: 'Navigate' | 'Create' | 'Review' | 'Operate'
   keywords: string[]
   icon: ComponentType<LucideProps>
@@ -128,6 +130,24 @@ const baseCommands: Command[] = [
     keywords: ['blocked', 'review', 'changes', 'approval'],
     icon: Sparkles,
   },
+  {
+    id: 'ai-risks',
+    label: 'Detect operational risks',
+    description: 'Ask the AI assistant for projects, workload, approval, and finance risk',
+    assistantPrompt: 'What are the biggest operational risks?',
+    group: 'Operate',
+    keywords: ['ai', 'assistant', 'risk', 'bottleneck', 'executive'],
+    icon: BrainCircuit,
+  },
+  {
+    id: 'ai-weekly-report',
+    label: 'Generate weekly report',
+    description: 'Summarize this week using real workspace data',
+    assistantPrompt: "Summarize this week's business performance.",
+    group: 'Operate',
+    keywords: ['ai', 'assistant', 'weekly', 'report', 'summary'],
+    icon: BrainCircuit,
+  },
 ]
 
 const settingsCommand: Command = {
@@ -213,6 +233,13 @@ export default function CommandPalette({
 
   const runCommand = useCallback(
     (command: Command) => {
+      if (command.assistantPrompt) {
+        window.dispatchEvent(new CustomEvent('taskit:open-ai-assistant', { detail: { prompt: command.assistantPrompt } }))
+        closePalette()
+        return
+      }
+
+      if (!command.href) return
       router.push(command.href)
       closePalette()
     },
