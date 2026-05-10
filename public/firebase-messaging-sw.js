@@ -86,6 +86,7 @@ self.addEventListener('push', (event) => {
       icon: notification.icon,
       badge: notification.badge,
       tag: notification.tag,
+      silent: false,
       data: {
         url: notification.url,
       },

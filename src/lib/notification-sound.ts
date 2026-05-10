@@ -4,6 +4,8 @@ const SOUND_COOLDOWN_MS = 900
 let lastPlayedAt = 0
 let unlockRegistered = false
 let unlocked = false
+let sharedAudio: HTMLAudioElement | null = null
+let pendingPlay = false
 
 function canUseAudio() {
   return typeof window !== 'undefined' && typeof Audio !== 'undefined'
@@ -14,6 +16,19 @@ function createNotificationAudio() {
   audio.preload = 'auto'
   audio.volume = 0.85
   return audio
+}
+
+function getNotificationAudio() {
+  if (!canUseAudio()) return null
+  sharedAudio ??= createNotificationAudio()
+  return sharedAudio
+}
+
+async function tryPlay(audio: HTMLAudioElement, muted: boolean) {
+  audio.pause()
+  audio.currentTime = 0
+  audio.muted = muted
+  await audio.play()
 }
 
 export async function playTaskitNotificationSound(options: { force?: boolean } = {}) {
@@ -27,10 +42,13 @@ export async function playTaskitNotificationSound(options: { force?: boolean } =
   lastPlayedAt = now
 
   try {
-    const audio = createNotificationAudio()
-    await audio.play()
+    const audio = getNotificationAudio()
+    if (!audio) return false
+    await tryPlay(audio, false)
+    pendingPlay = false
     return true
   } catch {
+    pendingPlay = true
     return false
   }
 }
@@ -39,23 +57,28 @@ export function registerTaskitNotificationSoundUnlock() {
   if (!canUseAudio() || unlockRegistered) return
   unlockRegistered = true
 
-  const unlock = () => {
+  const unlock = async () => {
     if (unlocked) return
-    unlocked = true
+    const audio = getNotificationAudio()
+    if (!audio) return
 
-    const audio = createNotificationAudio()
-    audio.muted = true
-    void audio.play()
-      .then(() => {
-        audio.pause()
-        audio.currentTime = 0
-      })
-      .catch(() => {
-        unlocked = false
-      })
+    try {
+      await tryPlay(audio, true)
+      audio.pause()
+      audio.currentTime = 0
+      audio.muted = false
+      unlocked = true
+
+      if (pendingPlay) {
+        pendingPlay = false
+        void playTaskitNotificationSound({ force: true })
+      }
+    } catch {
+      unlocked = false
+    }
   }
 
-  window.addEventListener('pointerdown', unlock, { once: true, passive: true })
-  window.addEventListener('keydown', unlock, { once: true })
-  window.addEventListener('touchstart', unlock, { once: true, passive: true })
+  window.addEventListener('pointerdown', unlock, { passive: true })
+  window.addEventListener('keydown', unlock)
+  window.addEventListener('touchstart', unlock, { passive: true })
 }

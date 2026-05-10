@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Socket } from 'socket.io-client'
 import { getSocket } from '@/lib/socket-client'
-import { playTaskitNotificationSound } from '@/lib/notification-sound'
+import { playTaskitNotificationSound, registerTaskitNotificationSoundUnlock } from '@/lib/notification-sound'
 import { AlertTriangle, X, CheckCircle2 } from 'lucide-react'
 
 interface AlertData {
@@ -18,6 +18,8 @@ export default function AlertReceiver({ userId }: { userId: string }) {
   const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
+    registerTaskitNotificationSoundUnlock()
+
     let isMounted = true
     let cleanupHandlers: (() => void) | null = null
 
@@ -32,7 +34,7 @@ export default function AlertReceiver({ userId }: { userId: string }) {
       }
       const handleAlert = (data: AlertData) => {
         setAlert(data)
-        void playTaskitNotificationSound()
+        void playTaskitNotificationSound({ force: true })
         if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400])
         if ('Notification' in window && Notification.permission === 'granted') {
           new Notification(`TASKIT: ${data.title}`, { body: data.message, icon: '/icons/taskit-192.png' })
