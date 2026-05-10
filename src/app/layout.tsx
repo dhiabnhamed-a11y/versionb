@@ -16,9 +16,9 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 })
 
 export const metadata: Metadata = {
-  title: 'TASKIT | Industry, agency, and team workspaces',
+  title: 'TASKIT OS | Agency Operations Platform',
   description:
-    'A polished workspace for industry teams, digital agencies, and standard project teams with projects, tasks, uploads, and real-time alerts.',
+    'A premium agency operations platform for clients, projects, billing, approvals, automations, analytics, AI assistance, and client portals.',
   manifest: '/manifest.json',
   icons: {
     icon: [
@@ -34,7 +34,7 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
-  themeColor: '#0a2231',
+  themeColor: '#07090e',
 }
 
 export default function RootLayout({
