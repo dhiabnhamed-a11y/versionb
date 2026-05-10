@@ -19,6 +19,7 @@ type AssistantMessage = {
 
 type AssistantResponse = {
   id: string
+  conversationId?: string | null
   answer: string
   citations: AssistantMessage['citations']
   quickActions: string[]
@@ -29,13 +30,22 @@ type AssistantResponse = {
   }
   model: string
   usedModel: boolean
+  memory?: {
+    available: boolean
+    recalled: number
+    remembered: number
+    notes: string[]
+  }
 }
 
 const starterPrompts = [
   'What should management focus on today?',
+  'What is blocking the launch?',
   'Analyze delayed projects',
   'Find overdue invoices',
   'Analyze team workload',
+  'What do you remember about our risks?',
+  'Remember that weekly executive summaries should be concise',
   'Create campaign',
   'Create brief',
   'Create invoice',
@@ -53,14 +63,15 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
+  const [conversationId, setConversationId] = useState<string | null>(null)
   const [messages, setMessages] = useState<AssistantMessage[]>([
     {
       id: 'welcome',
       role: 'assistant',
       content:
-        'Ask me about operational risks, delayed projects, overdue work, invoices, approvals, clients, or team workload. I only answer from records your role can access.',
+        'I am TASKIT Brain: scoped operating intelligence for risks, launches, workload, approvals, clients, invoices, and memory. I only answer from records your role can access.',
       quickActions: starterPrompts,
-      model: 'grounded workspace context',
+      model: 'grounded workspace intelligence',
     },
   ])
   const scrollRef = useRef<HTMLDivElement | null>(null)
@@ -101,6 +112,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
           body: JSON.stringify({
             message,
             messages: toApiMessages(nextMessages),
+            conversationId,
           }),
         })
         const data = (await response.json()) as Partial<AssistantResponse> & { error?: string }
@@ -108,6 +120,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
         if (!response.ok) {
           throw new Error(data.error ?? 'Unable to run assistant.')
         }
+        if (data.conversationId) setConversationId(data.conversationId)
 
         setMessages((current) => [
           ...current,
@@ -134,7 +147,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
         setLoading(false)
       }
     },
-    [disabled, loading, messages]
+    [conversationId, disabled, loading, messages]
   )
 
   useEffect(() => {
@@ -176,7 +189,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
               </span>
               <span>
                 <strong>Operations AI</strong>
-                <small>Grounded workspace intelligence</small>
+                <small>Scoped intelligence and memory</small>
               </span>
             </div>
             <div className="ai-assistant-header-actions">
@@ -223,7 +236,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
             {loading && (
               <div className="ai-assistant-thinking">
                 <Loader2 size={15} />
-                Reading workspace records...
+                Reading workspace records and memory...
               </div>
             )}
           </div>
@@ -239,7 +252,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
               ref={inputRef}
               value={input}
               rows={2}
-              placeholder="Ask about revenue, risks, workload, clients, approvals..."
+              placeholder="Ask about risks, revenue, workload, approvals, memory..."
               onChange={(event) => setInput(event.target.value)}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && !event.shiftKey) {

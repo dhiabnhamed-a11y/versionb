@@ -35,6 +35,22 @@ export type AiGroundedAnswer = {
   }
 }
 
+export type AiMemoryItem = {
+  id: string
+  scope: 'workspace' | 'user'
+  kind: string
+  key: string
+  value: string
+  confidence: number
+  lastSeenAt: string
+}
+
+export type AiMemoryContext = {
+  memoryAvailable: boolean
+  memories: AiMemoryItem[]
+  notes: string[]
+}
+
 type ScopedTask = Awaited<ReturnType<typeof loadWorkspaceContext>>['tasks'][number]
 type ScopedProject = Awaited<ReturnType<typeof loadWorkspaceContext>>['projects'][number]
 type ScopedInvoice = Awaited<ReturnType<typeof loadWorkspaceContext>>['invoices'][number]
@@ -393,6 +409,7 @@ function detectIntent(question: string) {
     return 'workload'
   }
   if (q.includes('approval') || q.includes('feedback') || q.includes('deliverable')) return 'approvals'
+  if (q.includes('remember') || q.includes('memory') || q.includes('what do you know about') || q.includes('what do you know')) return 'memory'
   if (
     q.includes('risk') ||
     q.includes('bottleneck') ||
@@ -1090,6 +1107,42 @@ function buildAutomationAnswer(): AiGroundedAnswer {
   }
 }
 
+function buildMemoryAnswer(question: string, memory?: AiMemoryContext): AiGroundedAnswer {
+  const q = question.toLowerCase()
+  const wantsSave = /\b(remember|note|save)\b/.test(q)
+  const visible = compactList(memory?.memories ?? [], 8)
+
+  const answer = lines([
+    'Direct Answer',
+    memory?.memoryAvailable
+      ? wantsSave
+        ? 'I can store that as scoped AI memory and use it in future workspace intelligence responses.'
+        : `${visible.length} relevant memory signal${visible.length === 1 ? '' : 's'} are available in your permitted scope.`
+      : 'Persistent AI memory is not available yet. I can use recent messages in this conversation, but long-term recall requires the AI memory migration to be applied.',
+    '',
+    visible.length ? 'Relevant Memory' : '',
+    ...visible.map((item) => `- ${item.value}`),
+    '',
+    'Governance',
+    '- Memory is scoped by workspace and user role.',
+    '- I will not use memory to expose finance, client, or operational data outside your permissions.',
+  ])
+
+  return {
+    answer,
+    intent: 'memory',
+    confidence: memory?.memoryAvailable ? 'high' : 'medium',
+    citations: [],
+    quickActions: ['What should management focus on today?', 'Analyze delayed projects', 'Which clients need follow-up?'],
+    facts: {
+      memoryAvailable: Boolean(memory?.memoryAvailable),
+      recalledMemories: visible,
+      persistentMemoryRequired: !memory?.memoryAvailable,
+    },
+    policy: { role: 'EMPLOYEE', scope: 'assigned-work', financeVisible: false },
+  }
+}
+
 function buildGeneralAnswer(role: string, financeVisible: boolean): AiGroundedAnswer {
   return {
     answer: [
@@ -1128,6 +1181,7 @@ export async function buildGroundedOperationalAnswer(input: {
   question: string
   user: AiSessionUser
   messages?: AiMessageInput[]
+  memory?: AiMemoryContext
 }): Promise<AiGroundedAnswer> {
   const role = normalizeRole(input.user.role)
   if (!input.user.companyId || role === 'SUPER_ADMIN') {
@@ -1187,6 +1241,8 @@ export async function buildGroundedOperationalAnswer(input: {
             ? buildApprovalsAnswer(approvalQueue)
             : intent === 'automations'
               ? buildAutomationAnswer()
+              : intent === 'memory'
+                ? buildMemoryAnswer(input.question, input.memory)
               : intent === 'general'
                 ? buildGeneralAnswer(role, financeVisible)
               : intent === 'tasks'
@@ -1208,6 +1264,11 @@ export async function buildGroundedOperationalAnswer(input: {
         user: activity.user.name,
         createdAt: activity.createdAt.toISOString(),
       })),
+      memory: {
+        available: Boolean(input.memory?.memoryAvailable),
+        recalled: compactList(input.memory?.memories ?? [], 6),
+        notes: input.memory?.notes ?? [],
+      },
     },
     policy: {
       role,

@@ -46,6 +46,8 @@ model User {
   approvalDecisions        ApprovalDecision[]    @relation("ApprovalDecisionDecidedBy")
   deliverableActivities    DeliverableActivity[] @relation("DeliverableActivityActor")
   assignedSubtasks         Subtask[]             @relation("SubtaskAssignee")
+  aiConversations          AiConversation[]
+  aiMemories               AiMemory[]
 }
 
 model Company {
@@ -83,6 +85,8 @@ model Company {
   workflowTemplates   WorkflowTemplate[]
   ApprovalDecision    ApprovalDecision[]
   DeliverableActivity DeliverableActivity[]
+  aiConversations     AiConversation[]
+  aiMemories          AiMemory[]
 
   @@index([status, createdAt])
   @@index([name, registrationNumber, status])
@@ -748,4 +752,58 @@ model PushToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model AiConversation {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String
+  title     String?
+  context   Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company  Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages AiMessage[]
+
+  @@index([companyId, userId, updatedAt])
+  @@index([companyId, createdAt])
+}
+
+model AiMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String
+  content        String
+  intent         String?
+  citations      Json?
+  createdAt      DateTime @default(now())
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@index([role, createdAt])
+}
+
+model AiMemory {
+  id         String   @id @default(cuid())
+  companyId  String
+  userId     String?
+  scope      String   @default("workspace") // workspace, user
+  kind       String
+  key        String
+  value      String
+  confidence Float    @default(0.7)
+  source     String?
+  lastSeenAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, scope, kind, lastSeenAt])
+  @@index([companyId, userId, lastSeenAt])
+  @@index([companyId, kind, key])
 }

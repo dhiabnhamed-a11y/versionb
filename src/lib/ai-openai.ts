@@ -1,4 +1,4 @@
-import type { AiGroundedAnswer, AiMessageInput } from '@/lib/ai-operations'
+import type { AiGroundedAnswer, AiMemoryContext, AiMessageInput } from '@/lib/ai-operations'
 
 type OpenAiResponsePayload = {
   output_text?: string
@@ -32,6 +32,7 @@ export async function polishGroundedAnswerWithOpenAi(input: {
   question: string
   grounded: AiGroundedAnswer
   messages?: AiMessageInput[]
+  memory?: AiMemoryContext
 }) {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
@@ -64,6 +65,7 @@ export async function polishGroundedAnswerWithOpenAi(input: {
           'When data is missing, say what is unavailable and recommend the minimum operational next step to make that metric measurable.',
           'Preserve specific counts, amounts, entity names, and limitations from the grounded answer. Do not replace them with vague wording.',
           'Prioritize actionable executive guidance over generic advice. Connect related signals such as approvals blocking delivery, overdue work creating campaign risk, and overdue invoices creating cash-flow risk only when those facts are present.',
+          'Use supplied memory only when it is relevant and permitted. Treat memory as context, not proof of current live metrics.',
           'Use concise sections when useful: Direct Answer, Key Insights, Risks, Recommendations, Suggested Next Actions.',
           'Keep the answer concise, strategic, and operationally useful.',
         ].join('\n'),
@@ -78,6 +80,13 @@ export async function polishGroundedAnswerWithOpenAi(input: {
                   recentMessages: input.messages?.slice(-6) ?? [],
                   groundedAnswer: input.grounded.answer,
                   facts: input.grounded.facts,
+                  memory: input.memory
+                    ? {
+                        available: input.memory.memoryAvailable,
+                        memories: input.memory.memories.slice(0, 8),
+                        notes: input.memory.notes,
+                      }
+                    : null,
                   policy: input.grounded.policy,
                   citations: input.grounded.citations,
                 }),

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { buildGroundedOperationalAnswer, type AiMessageInput } from '@/lib/ai-operations'
 import { polishGroundedAnswerWithOpenAi } from '@/lib/ai-openai'
+import { loadAiMemoryContext, persistAiTurn } from '@/lib/ai-memory'
 import { NO_STORE_HEADERS } from '@/lib/http'
 
 type SessionUser = {
@@ -15,6 +16,7 @@ type SessionUser = {
 type ChatBody = {
   message?: string
   messages?: AiMessageInput[]
+  conversationId?: string
 }
 
 function cleanMessage(value: unknown) {
@@ -37,6 +39,10 @@ function cleanMessages(messages: unknown): AiMessageInput[] {
     .slice(-12)
 }
 
+function cleanConversationId(value: unknown) {
+  return typeof value === 'string' && /^[a-z0-9_-]{8,80}$/i.test(value) ? value : null
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -45,21 +51,37 @@ export async function POST(req: NextRequest) {
   const body = (await req.json().catch(() => ({}))) as ChatBody
   const message = cleanMessage(body.message)
   const messages = cleanMessages(body.messages)
+  const conversationId = cleanConversationId(body.conversationId)
 
   if (!message) {
     return NextResponse.json({ error: 'Message is required.' }, { status: 400 })
   }
 
-  const grounded = await buildGroundedOperationalAnswer({
+  const memory = await loadAiMemoryContext({
     question: message,
     messages,
     user,
   })
-  const polished = await polishGroundedAnswerWithOpenAi({ question: message, messages, grounded })
+
+  const grounded = await buildGroundedOperationalAnswer({
+    question: message,
+    messages,
+    memory,
+    user,
+  })
+  const polished = await polishGroundedAnswerWithOpenAi({ question: message, messages, grounded, memory })
+  const memoryWrite = await persistAiTurn({
+    user,
+    conversationId,
+    question: message,
+    answer: polished.answer,
+    grounded,
+  })
 
   return NextResponse.json(
     {
       id: crypto.randomUUID(),
+      conversationId: memoryWrite.conversationId ?? conversationId,
       answer: polished.answer,
       intent: grounded.intent,
       confidence: grounded.confidence,
@@ -68,9 +90,14 @@ export async function POST(req: NextRequest) {
       policy: grounded.policy,
       model: polished.model,
       usedModel: polished.usedModel,
+      memory: {
+        available: memory.memoryAvailable && memoryWrite.memoryAvailable,
+        recalled: memory.memories.length,
+        remembered: memoryWrite.remembered.length,
+        notes: [...memory.notes, ...memoryWrite.notes],
+      },
       generatedAt: new Date().toISOString(),
     },
     { headers: NO_STORE_HEADERS }
   )
 }
-
