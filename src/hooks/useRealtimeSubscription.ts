@@ -5,8 +5,6 @@ import { getSocket } from '@/lib/socket-client'
 import { getSupabaseBrowserClient } from '@/lib/supabaseClient'
 import type { RealtimeEventName } from '@/lib/realtime-events'
 
-const POLLING_INTERVAL_MS = 2000
-
 const EVENT_TABLES: Partial<Record<RealtimeEventName, string[]>> = {
   task_created: ['Task'],
   task_updated: ['Task'],
@@ -25,11 +23,20 @@ const EVENT_TABLES: Partial<Record<RealtimeEventName, string[]>> = {
   alert_read: ['Alert'],
 }
 
+type RealtimeSubscriptionOptions =
+  | number
+  | {
+      debounceMs?: number
+      pollingIntervalMs?: number | false
+    }
+
 export function useRealtimeSubscription(
   events: readonly RealtimeEventName[],
   onEvent: (eventName: RealtimeEventName, payload: unknown) => void,
-  debounceMs = 250
+  options: RealtimeSubscriptionOptions = 250
 ) {
+  const debounceMs = typeof options === 'number' ? options : options.debounceMs ?? 250
+  const pollingIntervalMs = typeof options === 'number' ? false : options.pollingIntervalMs ?? false
   const onEventRef = useRef(onEvent)
   const timerRef = useRef<number | null>(null)
   const pendingRef = useRef<{ eventName: RealtimeEventName; payload: unknown } | null>(null)
@@ -74,10 +81,11 @@ export function useRealtimeSubscription(
     }
 
     const startPolling = () => {
+      if (pollingIntervalMs === false) return
       if (pollingTimer || !active) return
       pollingTimer = window.setInterval(() => {
         emitDebounced('workspace_event', { source: 'polling', at: new Date().toISOString() })
-      }, POLLING_INTERVAL_MS)
+      }, pollingIntervalMs)
     }
 
     const reconcilePolling = () => {
@@ -170,5 +178,5 @@ export function useRealtimeSubscription(
       }
       pendingRef.current = null
     }
-  }, [channelKey, debounceMs, eventsKey])
+  }, [channelKey, debounceMs, eventsKey, pollingIntervalMs])
 }
