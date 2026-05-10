@@ -43,6 +43,8 @@ type ScopedDeliverable = Awaited<ReturnType<typeof loadWorkspaceContext>>['deliv
 
 const OPEN_STAGES = ['TODO', 'IN_PROGRESS', 'REVIEW']
 const HIGH_PRIORITY = ['HIGH', 'CRITICAL']
+const HIGH_RISK_PROJECT_SCORE = 45
+const WORKLOAD_RISK_THRESHOLD = 85
 
 function normalizeRole(role?: string | null) {
   return role?.trim().toUpperCase() || 'EMPLOYEE'
@@ -87,6 +89,10 @@ function formatMoney(value: number, currency = 'USD') {
     currency,
     maximumFractionDigits: 0,
   }).format(value)
+}
+
+function plural(count: number, singular: string, pluralLabel = `${singular}s`) {
+  return `${count} ${count === 1 ? singular : pluralLabel}`
 }
 
 function taskHref(task: Pick<ScopedTask, 'projectId'>) {
@@ -362,15 +368,44 @@ function detectIntent(question: string) {
 
   if (/\b(create|make|add|draft|generate|start)\b/.test(q) && /\b(campaign|project|brief|invoice|bill)\b/.test(q)) return 'action'
   if (q.includes('automation') || q.includes('workflow execution') || q.includes('reminder')) return 'automations'
-  if (q.includes('invoice') || q.includes('revenue') || q.includes('payment') || q.includes('cash') || q.includes('mrr') || q.includes('profit')) {
+  if (
+    q.includes('invoice') ||
+    q.includes('revenue') ||
+    q.includes('payment') ||
+    q.includes('cash') ||
+    q.includes('mrr') ||
+    q.includes('profit') ||
+    q.includes('margin') ||
+    q.includes('forecast')
+  ) {
     return 'finance'
   }
-  if (q.includes('client') || q.includes('follow-up') || q.includes('follow up') || q.includes('inactive')) return 'clients'
-  if (q.includes('workload') || q.includes('productivity') || q.includes('overloaded') || q.includes('employee') || q.includes('team member')) {
+  if (q.includes('client') || q.includes('follow-up') || q.includes('follow up') || q.includes('inactive') || q.includes('churn')) return 'clients'
+  if (
+    q.includes('workload') ||
+    q.includes('productivity') ||
+    q.includes('overloaded') ||
+    q.includes('employee') ||
+    q.includes('team member') ||
+    q.includes('capacity') ||
+    q.includes('burnout')
+  ) {
     return 'workload'
   }
   if (q.includes('approval') || q.includes('feedback') || q.includes('deliverable')) return 'approvals'
-  if (q.includes('risk') || q.includes('bottleneck') || q.includes('focus') || q.includes('executive') || q.includes('performance') || q.includes('week')) {
+  if (
+    q.includes('risk') ||
+    q.includes('bottleneck') ||
+    q.includes('focus') ||
+    q.includes('executive') ||
+    q.includes('performance') ||
+    q.includes('week') ||
+    q.includes('today') ||
+    q.includes('priority') ||
+    q.includes('prioritize') ||
+    q.includes('operate') ||
+    q.includes('summary')
+  ) {
     return 'executive'
   }
   if (q.includes('task') || q.includes('overdue')) return 'tasks'
@@ -395,6 +430,9 @@ function summarizeTasks(tasks: ScopedTask[], now: Date) {
   const overdueTasks = openTasks.filter((task) => task.deadline && task.deadline < now)
   const dueThisWeek = openTasks.filter((task) => task.deadline && task.deadline >= now && task.deadline < addDays(now, 7))
   const completedThisMonth = tasks.filter((task) => task.stage === 'DONE' && task.updatedAt >= startOfMonth(now))
+  const criticalOpen = openTasks.filter((task) => HIGH_PRIORITY.includes(task.priority))
+  const unassignedOpen = openTasks.filter((task) => !task.assignee)
+  const staleOpen = openTasks.filter((task) => task.updatedAt < addDays(now, -7))
 
   return {
     total: tasks.length,
@@ -402,6 +440,9 @@ function summarizeTasks(tasks: ScopedTask[], now: Date) {
     overdue: overdueTasks,
     dueThisWeek,
     completedThisMonth,
+    criticalOpen,
+    unassignedOpen,
+    staleOpen,
     byStage: OPEN_STAGES.concat('DONE').map((stage) => ({
       stage,
       count: tasks.filter((task) => task.stage === stage).length,
@@ -427,7 +468,8 @@ function summarizeProjects(projects: ScopedProject[], now: Date) {
       overdueDeliverables.length * 20 +
       reviewTasks.length * 8 +
       waitingDeliverables.length * 6 +
-      (completionRate < 35 && project.tasks.length > 4 ? 10 : 0)
+      (completionRate < 35 && project.tasks.length > 4 ? 10 : 0) +
+      (openTasks.length > 0 && project.updatedAt < addDays(now, -14) ? 12 : 0)
 
     return {
       project,
@@ -437,6 +479,7 @@ function summarizeProjects(projects: ScopedProject[], now: Date) {
       waitingDeliverables,
       overdueDeliverables,
       completionRate,
+      stalledDays: openTasks.length > 0 && project.updatedAt < addDays(now, -14) ? daysBetween(now, project.updatedAt) : 0,
       riskScore,
     }
   })
@@ -450,7 +493,8 @@ function summarizeWorkload(members: Awaited<ReturnType<typeof loadWorkspaceConte
       const dueSoon = openTasks.filter((task) => task.deadline && task.deadline >= now && task.deadline < addDays(now, 7))
       const critical = openTasks.filter((task) => HIGH_PRIORITY.includes(task.priority))
       const doneThisMonth = member.assignedTasks.filter((task) => task.stage === 'DONE' && task.updatedAt >= startOfMonth(now))
-      const capacityScore = Math.min(100, openTasks.length * 12 + overdueTasks.length * 16 + critical.length * 8 + dueSoon.length * 5)
+      const staleOpen = openTasks.filter((task) => task.updatedAt < addDays(now, -7))
+      const capacityScore = Math.min(100, openTasks.length * 12 + overdueTasks.length * 16 + critical.length * 8 + dueSoon.length * 5 + staleOpen.length * 3)
 
       return {
         member,
@@ -458,6 +502,7 @@ function summarizeWorkload(members: Awaited<ReturnType<typeof loadWorkspaceConte
         overdueTasks,
         dueSoon,
         critical,
+        staleOpen,
         doneThisMonth,
         capacityScore,
       }
@@ -469,11 +514,13 @@ function summarizeFinance(invoices: ScopedInvoice[], now: Date) {
   const paidThisMonth = invoices.filter((invoice) => invoice.status === 'paid' && invoice.paidAt && invoice.paidAt >= startOfMonth(now))
   const outstanding = invoices.filter((invoice) => invoice.status === 'sent' || invoice.status === 'overdue')
   const overdue = outstanding.filter((invoice) => invoice.status === 'overdue' || (invoice.dueDate && invoice.dueDate < now))
+  const dueSoon = outstanding.filter((invoice) => invoice.dueDate && invoice.dueDate >= now && invoice.dueDate < addDays(now, 7))
   const olderThan30 = overdue.filter((invoice) => invoice.dueDate && daysBetween(now, invoice.dueDate) > 30)
   const primaryCurrency = invoices[0]?.currency ?? 'USD'
   const revenueThisMonth = paidThisMonth.reduce((sum, invoice) => sum + Number(invoice.total), 0)
   const outstandingTotal = outstanding.reduce((sum, invoice) => sum + Number(invoice.total), 0)
   const overdueTotal = overdue.reduce((sum, invoice) => sum + Number(invoice.total), 0)
+  const dueSoonTotal = dueSoon.reduce((sum, invoice) => sum + Number(invoice.total), 0)
   const clientRevenue = new Map<string, number>()
 
   for (const invoice of invoices.filter((item) => item.status === 'paid')) {
@@ -486,7 +533,9 @@ function summarizeFinance(invoices: ScopedInvoice[], now: Date) {
     outstandingTotal,
     overdueTotal,
     overdue,
+    dueSoon,
     olderThan30,
+    dueSoonTotal,
     topClients: [...clientRevenue.entries()]
       .map(([clientName, total]) => ({ clientName, total }))
       .sort((a, b) => b.total - a.total)
@@ -535,6 +584,107 @@ function summarizeApprovals(deliverables: ScopedDeliverable[], now: Date) {
       daysOverdue: deliverable.dueAt && deliverable.dueAt < now ? daysBetween(now, deliverable.dueAt) : 0,
     }))
     .sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.deliverable.updatedAt.getTime() - b.deliverable.updatedAt.getTime())
+}
+
+function buildOperatingSignals(input: {
+  taskSummary: ReturnType<typeof summarizeTasks>
+  projectRisk: ReturnType<typeof summarizeProjects>
+  workload: ReturnType<typeof summarizeWorkload>
+  finance: ReturnType<typeof summarizeFinance>
+  clientHealth: ReturnType<typeof summarizeClients>
+  approvalQueue: ReturnType<typeof summarizeApprovals>
+  financeVisible: boolean
+}) {
+  const atRiskProjects = input.projectRisk.filter((item) => item.riskScore > 0).sort((a, b) => b.riskScore - a.riskScore)
+  const highRiskProjects = atRiskProjects.filter((item) => item.riskScore >= HIGH_RISK_PROJECT_SCORE)
+  const overloaded = input.workload.filter((item) => item.capacityScore >= WORKLOAD_RISK_THRESHOLD)
+  const inactiveClients = input.clientHealth.filter((item) => item.client.status === 'inactive' || item.inactiveDays >= 21)
+  const overdueApprovals = input.approvalQueue.filter((item) => item.overdue)
+  const stalledProjects = input.projectRisk.filter((item) => item.stalledDays >= 14).sort((a, b) => b.stalledDays - a.stalledDays)
+  const unpaidRisk = input.financeVisible ? input.finance.overdueTotal : 0
+
+  const primaryBottlenecks = [
+    input.approvalQueue.length
+      ? {
+          label: 'Approval queue',
+          impact: `${plural(input.approvalQueue.length, 'deliverable')} waiting for review or approval${overdueApprovals.length ? `; ${plural(overdueApprovals.length, 'item')} overdue` : ''}`,
+          severity: overdueApprovals.length ? 95 : 70,
+        }
+      : null,
+    input.taskSummary.overdue.length
+      ? {
+          label: 'Missed execution deadlines',
+          impact: `${plural(input.taskSummary.overdue.length, 'task')} overdue; ${plural(input.taskSummary.criticalOpen.length, 'critical/high-priority task')} still open`,
+          severity: Math.min(100, input.taskSummary.overdue.length * 12 + input.taskSummary.criticalOpen.length * 8),
+        }
+      : null,
+    overloaded.length
+      ? {
+          label: 'Capacity concentration',
+          impact: `${plural(overloaded.length, 'team member')} above ${WORKLOAD_RISK_THRESHOLD}% workload signal`,
+          severity: Math.min(100, overloaded.length * 28),
+        }
+      : null,
+    stalledProjects.length
+      ? {
+          label: 'Stalled delivery motion',
+          impact: `${plural(stalledProjects.length, 'campaign')} open but inactive for 14+ days`,
+          severity: Math.min(100, stalledProjects.length * 18),
+        }
+      : null,
+    input.financeVisible && input.finance.overdue.length
+      ? {
+          label: 'Cash collection',
+          impact: `${formatMoney(input.finance.overdueTotal, input.finance.primaryCurrency)} overdue across ${plural(input.finance.overdue.length, 'invoice')}`,
+          severity: input.finance.olderThan30.length ? 100 : 80,
+        }
+      : null,
+    inactiveClients.length
+      ? {
+          label: 'Client relationship drift',
+          impact: `${plural(inactiveClients.length, 'client')} inactive or silent for 21+ days`,
+          severity: Math.min(90, inactiveClients.length * 18),
+        }
+      : null,
+  ]
+    .filter((item): item is { label: string; impact: string; severity: number } => Boolean(item))
+    .sort((a, b) => b.severity - a.severity)
+
+  const nextActions = [
+    input.taskSummary.overdue.length
+      ? `Clear or reassign the ${plural(Math.min(input.taskSummary.overdue.length, 3), 'oldest overdue task')} before accepting new same-week commitments.`
+      : '',
+    atRiskProjects[0]
+      ? `Run a manager review on ${atRiskProjects[0].project.title}; it is the highest-risk campaign in the current scope.`
+      : '',
+    input.approvalQueue.length
+      ? 'Move pending approvals today, starting with overdue client-review deliverables because they block delivery and billing.'
+      : '',
+    overloaded[0]
+      ? `Rebalance work from ${overloaded[0].member.name}; their capacity signal is ${overloaded[0].capacityScore}%.`
+      : '',
+    input.financeVisible && input.finance.overdue.length
+      ? `Escalate overdue invoice follow-ups worth ${formatMoney(input.finance.overdueTotal, input.finance.primaryCurrency)}.`
+      : '',
+    inactiveClients[0]
+      ? `Schedule a client-health check-in with ${inactiveClients[0].client.companyName}.`
+      : '',
+    input.taskSummary.unassignedOpen.length
+      ? `Assign owners to ${plural(input.taskSummary.unassignedOpen.length, 'open task')} without an assignee.`
+      : '',
+  ].filter(Boolean)
+
+  return {
+    atRiskProjects,
+    highRiskProjects,
+    overloaded,
+    inactiveClients,
+    overdueApprovals,
+    stalledProjects,
+    unpaidRisk,
+    primaryBottlenecks,
+    nextActions,
+  }
 }
 
 function lines(items: string[]) {
@@ -658,7 +808,13 @@ function buildProjectAnswer(projectRisk: ReturnType<typeof summarizeProjects>): 
 function buildFinanceAnswer(finance: ReturnType<typeof summarizeFinance>, financeVisible: boolean): AiGroundedAnswer {
   if (!financeVisible) {
     return {
-      answer: 'I cannot show invoice, payment, or revenue data for your current role. I can still analyze your assigned tasks, deadlines, project blockers, and review workload.',
+      answer: lines([
+        'Direct Answer',
+        'I cannot show invoice, payment, or revenue data for your current role.',
+        '',
+        'What I can analyze instead',
+        '- Assigned tasks, deadlines, project blockers, deliverable reviews, and workload signals visible to your role.',
+      ]),
       intent: 'finance',
       confidence: 'high',
       citations: [],
@@ -670,23 +826,33 @@ function buildFinanceAnswer(finance: ReturnType<typeof summarizeFinance>, financ
 
   const visibleOverdue = compactList(finance.overdue, 6)
   const answer = lines([
-    `Revenue this month: ${formatMoney(finance.revenueThisMonth, finance.primaryCurrency)}`,
-    `Outstanding invoices: ${formatMoney(finance.outstandingTotal, finance.primaryCurrency)}`,
-    `Overdue invoices: ${formatMoney(finance.overdueTotal, finance.primaryCurrency)} across ${finance.overdue.length} invoice${finance.overdue.length === 1 ? '' : 's'}`,
+    'Direct Answer',
+    `Revenue this month is ${formatMoney(finance.revenueThisMonth, finance.primaryCurrency)}. Outstanding invoices total ${formatMoney(finance.outstandingTotal, finance.primaryCurrency)}, with ${formatMoney(finance.overdueTotal, finance.primaryCurrency)} overdue.`,
     '',
+    'Key Insights',
     finance.topClients[0]
-      ? `Highest revenue client: ${finance.topClients[0].clientName} (${formatMoney(finance.topClients[0].total, finance.primaryCurrency)})`
-      : 'Highest revenue client: no paid invoice data found',
-    finance.olderThan30.length
-      ? `Cash-flow warning: ${finance.olderThan30.length} overdue invoice${finance.olderThan30.length === 1 ? '' : 's'} are older than 30 days.`
-      : 'Cash-flow warning: no unpaid invoices older than 30 days were found.',
+      ? `- Highest revenue client: ${finance.topClients[0].clientName} (${formatMoney(finance.topClients[0].total, finance.primaryCurrency)})`
+      : '- Highest revenue client: no paid invoice data found.',
+    finance.dueSoon.length
+      ? `- ${formatMoney(finance.dueSoonTotal, finance.primaryCurrency)} is due within 7 days across ${plural(finance.dueSoon.length, 'invoice')}.`
+      : '- No sent invoices are due within the next 7 days.',
+    '- Profit margin and burn rate are unavailable because cost and time-entry data are not in the active workspace schema.',
     '',
+    'Risks',
+    finance.olderThan30.length
+      ? `- Cash-flow risk: ${plural(finance.olderThan30.length, 'overdue invoice')} older than 30 days.`
+      : '- No unpaid invoices older than 30 days were found.',
+    finance.overdue.length ? `- ${plural(finance.overdue.length, 'invoice')} require collection follow-up.` : '',
+    '',
+    visibleOverdue.length ? 'Priority Follow-Ups' : '',
     ...visibleOverdue.map((invoice) => {
       const overdueBy = invoice.dueDate ? `${daysBetween(new Date(), invoice.dueDate)} days overdue` : 'no due date'
       return `- ${invoice.invoiceNumber} (${invoice.clientName}) - ${formatMoney(Number(invoice.total), invoice.currency)}, ${overdueBy}`
     }),
     '',
-    'Recommendation: follow up on overdue invoices first, then review sent invoices with approaching due dates.',
+    'Suggested Next Actions',
+    '- Follow up on overdue invoices first, then review sent invoices with approaching due dates.',
+    '- Add cost/time tracking before using this assistant for true profitability, margin, or burn-rate decisions.',
   ])
 
   return {
@@ -699,9 +865,12 @@ function buildFinanceAnswer(finance: ReturnType<typeof summarizeFinance>, financ
       revenueThisMonth: finance.revenueThisMonth,
       outstandingTotal: finance.outstandingTotal,
       overdueTotal: finance.overdueTotal,
+      dueSoonTotal: finance.dueSoonTotal,
       overdueInvoices: finance.overdue.length,
+      dueSoonInvoices: finance.dueSoon.length,
       unpaidOlderThan30: finance.olderThan30.length,
       topClients: finance.topClients,
+      unavailableMetrics: ['profitMargin', 'burnRate', 'projectCost'],
     },
     policy: { role: 'OWNER', scope: 'workspace', financeVisible: true },
   }
@@ -709,10 +878,10 @@ function buildFinanceAnswer(finance: ReturnType<typeof summarizeFinance>, financ
 
 function buildWorkloadAnswer(workload: ReturnType<typeof summarizeWorkload>): AiGroundedAnswer {
   const visible = compactList(workload, 7)
-  const overloaded = workload.filter((item) => item.capacityScore >= 85)
+  const overloaded = workload.filter((item) => item.capacityScore >= WORKLOAD_RISK_THRESHOLD)
   const answer = visible.length
     ? lines([
-        `${overloaded.length} team member${overloaded.length === 1 ? '' : 's'} are above the 85% workload risk threshold.`,
+        `${plural(overloaded.length, 'team member')} are above the ${WORKLOAD_RISK_THRESHOLD}% workload risk threshold.`,
         '',
         ...visible.map(({ member, openTasks, overdueTasks, dueSoon, doneThisMonth, capacityScore }) => {
           return `- ${member.name}: ${capacityScore}% capacity signal, ${openTasks.length} open, ${overdueTasks.length} overdue, ${dueSoon.length} due this week, ${doneThisMonth.length} completed this month`
@@ -720,7 +889,7 @@ function buildWorkloadAnswer(workload: ReturnType<typeof summarizeWorkload>): Ai
         '',
         overloaded.length
           ? 'Recommendation: rebalance overdue and critical work from the highest-capacity people before adding new commitments.'
-          : 'Recommendation: current workload looks manageable; keep an eye on tasks due this week.',
+          : 'Recommendation: current workload looks manageable from task counts; true utilization requires time-entry capacity data, which is not in the active schema.',
       ])
     : 'No team workload records were found in your permitted workspace scope.'
 
@@ -819,44 +988,59 @@ function buildExecutiveAnswer(input: {
   approvalQueue: ReturnType<typeof summarizeApprovals>
   financeVisible: boolean
 }) {
-  const atRiskProjects = input.projectRisk.filter((item) => item.riskScore > 0).sort((a, b) => b.riskScore - a.riskScore)
-  const overloaded = input.workload.filter((item) => item.capacityScore >= 85)
-  const inactiveClients = input.clientHealth.filter((item) => item.client.status === 'inactive' || item.inactiveDays >= 21)
+  const signals = buildOperatingSignals(input)
   const citations = [
-    ...citeProjects(compactList(atRiskProjects.map((item) => item.project), 3)),
+    ...citeProjects(compactList(signals.atRiskProjects.map((item) => item.project), 3)),
     ...citeTasks(compactList(input.taskSummary.overdue, 3)),
-    ...citeClients(compactList(inactiveClients.map((item) => item.client), 2)),
+    ...citeClients(compactList(signals.inactiveClients.map((item) => item.client), 2)),
   ]
 
-  const risks = [
-    atRiskProjects.length ? `${atRiskProjects.length} projects have delay or approval risk` : '',
-    input.taskSummary.overdue.length ? `${input.taskSummary.overdue.length} tasks are overdue` : '',
-    overloaded.length ? `${overloaded.length} team members are overloaded` : '',
-    input.approvalQueue.length ? `${input.approvalQueue.length} deliverables need review or approval` : '',
-    input.financeVisible && input.finance.overdue.length ? `${input.finance.overdue.length} invoices are overdue` : '',
-    inactiveClients.length ? `${inactiveClients.length} clients need follow-up` : '',
-  ].filter(Boolean)
+  const directAnswer =
+    signals.primaryBottlenecks.length > 0
+      ? `${plural(signals.primaryBottlenecks.length, 'operational bottleneck')} need attention now. The strongest signal is ${signals.primaryBottlenecks[0].label.toLowerCase()}: ${signals.primaryBottlenecks[0].impact}.`
+      : 'No major operational bottlenecks were detected from the currently scoped records.'
 
   const answer = lines([
-    'Executive operations summary',
+    'Direct Answer',
+    directAnswer,
     '',
+    'Key Insights',
     `- Open tasks: ${input.taskSummary.open}`,
     `- Overdue tasks: ${input.taskSummary.overdue.length}`,
-    `- Projects at risk: ${atRiskProjects.length}`,
+    `- Critical/high-priority open tasks: ${input.taskSummary.criticalOpen.length}`,
+    `- Unassigned open tasks: ${input.taskSummary.unassignedOpen.length}`,
+    `- Projects at risk: ${signals.atRiskProjects.length}`,
+    `- High-risk projects: ${signals.highRiskProjects.length}`,
     `- Review/approval queue: ${input.approvalQueue.length}`,
-    `- Overloaded team members: ${overloaded.length}`,
+    `- Overloaded team members: ${signals.overloaded.length}`,
+    `- Clients needing follow-up: ${signals.inactiveClients.length}`,
     input.financeVisible ? `- Revenue this month: ${formatMoney(input.finance.revenueThisMonth, input.finance.primaryCurrency)}` : '',
     input.financeVisible ? `- Outstanding invoices: ${formatMoney(input.finance.outstandingTotal, input.finance.primaryCurrency)}` : '',
+    input.financeVisible ? `- Overdue invoices: ${formatMoney(input.finance.overdueTotal, input.finance.primaryCurrency)}` : '',
+    input.financeVisible ? '' : '- Financial data is hidden for this role, so revenue and invoice risk are not included.',
     '',
-    risks.length ? 'Biggest operational risks:' : 'Biggest operational risks: none detected from the current scoped records.',
-    ...risks.map((risk) => `- ${risk}`),
+    'Risks',
+    signals.primaryBottlenecks.length
+      ? ''
+      : '- No high-signal risks were found in the visible records. Continue monitoring deadlines, approvals, and client activity.',
+    ...signals.primaryBottlenecks.slice(0, 6).map((risk) => `- ${risk.label}: ${risk.impact}`),
     '',
-    'Management focus today:',
-    input.taskSummary.overdue.length ? '- Clear overdue tasks with deadlines already missed.' : '',
-    atRiskProjects.length ? `- Review ${atRiskProjects[0].project.title}, the highest-risk project in scope.` : '',
-    overloaded.length ? `- Rebalance work from ${overloaded[0].member.name}.` : '',
-    input.financeVisible && input.finance.overdue.length ? '- Follow up on overdue invoices before new delivery commitments.' : '',
-    input.approvalQueue.length ? '- Push pending approvals to unblock delivery and billing.' : '',
+    'Recommendations',
+    signals.atRiskProjects[0]
+      ? `- Treat ${signals.atRiskProjects[0].project.title} as the management-control project until blockers are cleared.`
+      : '- Keep current project cadence; no campaign is signaling elevated risk.',
+    input.approvalQueue.length
+      ? '- Move approval decisions before opening more production work, because approvals are the cleanest path to delivery and billing.'
+      : '- Keep approval queues short by reviewing new deliverables the same day they enter review.',
+    signals.overloaded.length
+      ? '- Rebalance work before capacity pressure turns into missed deadlines.'
+      : '- Capacity looks manageable from task counts; validate with time-entry data when that model exists.',
+    input.financeVisible
+      ? '- Use overdue invoice value as the cash-risk floor; true margin impact is unavailable without cost/time tracking.'
+      : '- Ask an Owner or Manager for finance visibility if cash-flow decisions are required.',
+    '',
+    'Suggested Next Actions',
+    ...(signals.nextActions.length ? compactList(signals.nextActions, 6).map((action) => `- ${action}`) : ['- No immediate corrective action is required from the current scoped records.']),
   ])
 
   return {
@@ -868,12 +1052,19 @@ function buildExecutiveAnswer(input: {
     facts: {
       openTasks: input.taskSummary.open,
       overdueTasks: input.taskSummary.overdue.length,
-      projectsAtRisk: atRiskProjects.length,
-      overloadedMembers: overloaded.length,
+      criticalOpenTasks: input.taskSummary.criticalOpen.length,
+      unassignedOpenTasks: input.taskSummary.unassignedOpen.length,
+      projectsAtRisk: signals.atRiskProjects.length,
+      highRiskProjects: signals.highRiskProjects.length,
+      overloadedMembers: signals.overloaded.length,
       approvalQueue: input.approvalQueue.length,
-      inactiveClients: inactiveClients.length,
+      overdueApprovals: signals.overdueApprovals.length,
+      inactiveClients: signals.inactiveClients.length,
+      bottlenecks: signals.primaryBottlenecks,
       revenueThisMonth: input.financeVisible ? input.finance.revenueThisMonth : null,
       outstandingInvoices: input.financeVisible ? input.finance.outstandingTotal : null,
+      overdueInvoiceValue: input.financeVisible ? input.finance.overdueTotal : null,
+      unavailableMetrics: input.financeVisible ? ['profitMargin', 'burnRate', 'resourceUtilizationHours'] : ['finance'],
     },
     policy: { role: 'MANAGER', scope: 'workspace' as const, financeVisible: input.financeVisible },
   }
@@ -881,8 +1072,15 @@ function buildExecutiveAnswer(input: {
 
 function buildAutomationAnswer(): AiGroundedAnswer {
   return {
-    answer:
-      'Automation execution logs are not yet present in the active Prisma schema, so I cannot report failed workflow runs from real records. The safest next build step is to add AutomationRule and AutomationRun tables, then wire route handlers to emit run results for invoice.overdue, deliverable.approved, task.overdue, and project.completed events.',
+    answer: lines([
+      'Direct Answer',
+      'Automation execution logs are not yet present in the active Prisma schema, so I cannot report failed workflow runs from real records.',
+      '',
+      'Recommended Build Path',
+      '- Add AutomationRule and AutomationRun tables.',
+      '- Emit run results for invoice.overdue, deliverable.approved, task.overdue, and project.completed events.',
+      '- Compile natural-language automation requests into disabled drafts that require Owner or Manager confirmation before activation.',
+    ]),
     intent: 'automations',
     confidence: 'high',
     citations: [],
@@ -895,17 +1093,25 @@ function buildAutomationAnswer(): AiGroundedAnswer {
 function buildGeneralAnswer(role: string, financeVisible: boolean): AiGroundedAnswer {
   return {
     answer: [
-      'I am your TASKIT operations assistant.',
+      'Direct Answer',
+      'I am TASKIT OS intelligence: a permission-scoped operating assistant for agency execution, client delivery, approvals, workload, and billing decisions.',
       '',
-      'I can help you analyze workspace health, identify delayed campaigns, summarize tasks, review workload, surface client follow-ups, and prepare executive updates from real platform records.',
-      financeVisible ? 'I can also analyze invoices, revenue, outstanding payments, and create invoice drafts when you provide the client and amount.' : '',
+      'What I can do from live workspace records',
+      '- Detect operational risks, delayed campaigns, overdue work, approval bottlenecks, inactive clients, and workload pressure.',
+      financeVisible
+        ? '- Analyze invoices, revenue, outstanding payments, cash-collection risk, and draft invoices when the client and amount are clear.'
+        : '- Analyze assigned delivery work and project blockers; finance data is hidden for this role.',
+      '- Create campaign, brief, and invoice drafts when your role has permission and the request is specific.',
       '',
-      'You can also ask me to create operational records, for example:',
+      'Useful prompts',
+      '- What should management focus on today?',
+      '- Which campaigns are at risk and why?',
+      '- Which clients need follow-up?',
+      '- Where is the team overloaded?',
       '- Create campaign "Spring Launch" for Acme under Social Media',
-      '- Create a brief for Spring Launch about the launch video scope',
-      '- Draft an invoice for Acme for $1200 due next week',
       '',
-      'I will only create records when the request is clear and your role has permission.',
+      'Governance',
+      'I will not invent metrics, clients, invoices, people, or events. If data is missing, I will say what is unavailable.',
     ].filter(Boolean).join('\n'),
     intent: 'general',
     confidence: 'high',

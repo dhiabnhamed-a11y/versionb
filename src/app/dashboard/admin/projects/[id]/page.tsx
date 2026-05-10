@@ -76,8 +76,9 @@ export default function ProjectDetailPage() {
   const companyCopy = getCompanyTypeCopy(companyType)
   const isAgency = companyType === 'DIGITAL_AGENCY'
 
-  const loadProject = useCallback(async (signal?: AbortSignal) => {
-    setLoading(true)
+  const loadProject = useCallback(async (signal?: AbortSignal, options?: { showLoading?: boolean }) => {
+    const showLoading = options?.showLoading ?? true
+    if (showLoading) setLoading(true)
     const res = await fetch(`/api/projects/${id}`, { cache: 'no-store', signal })
     if (res.status === 404) {
       setNotFound(true)
@@ -86,7 +87,7 @@ export default function ProjectDetailPage() {
       setProject(await res.json())
       setNotFound(false)
     }
-    setLoading(false)
+    if (showLoading) setLoading(false)
   }, [id])
 
   useEffect(() => {
@@ -94,7 +95,7 @@ export default function ProjectDetailPage() {
     const controller = new AbortController()
     ;(async () => {
       try {
-        await loadProject(controller.signal)
+        await loadProject(controller.signal, { showLoading: true })
       } catch (error) {
         if (!cancelled && !(error instanceof DOMException && error.name === 'AbortError')) {
           setLoading(false)
@@ -113,7 +114,7 @@ export default function ProjectDetailPage() {
     }
 
     if (eventName === 'project_media_created' || eventName === 'task_submission_created' || eventName === 'task_updated' || eventName === 'workspace_event') {
-      void loadProject()
+      void loadProject(undefined, { showLoading: false })
     }
   }, 250)
 

@@ -1,9 +1,8 @@
-import { getApp, getApps, initializeApp } from 'firebase/app'
-import { getMessaging, getToken, isSupported, onMessage } from 'firebase/messaging'
-
 const TASKIT_SW_PATH = '/sw.js'
 const TASKIT_SW_SCOPE = '/'
 const TOKEN_REFRESH_INTERVAL_MS = 1000 * 60 * 60 * 12
+let firebaseAppModulePromise = null
+let firebaseMessagingModulePromise = null
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -22,11 +21,22 @@ function isLocalhost() {
   return typeof window !== 'undefined' && ['localhost', '127.0.0.1', '[::1]'].includes(window.location.hostname)
 }
 
-export function getFirebaseApp() {
+function loadFirebaseAppModule() {
+  firebaseAppModulePromise ??= import('firebase/app')
+  return firebaseAppModulePromise
+}
+
+function loadFirebaseMessagingModule() {
+  firebaseMessagingModulePromise ??= import('firebase/messaging')
+  return firebaseMessagingModulePromise
+}
+
+export async function getFirebaseApp() {
   if (!hasFirebaseConfig()) {
     throw new Error('Missing Firebase client environment variables.')
   }
 
+  const { getApp, getApps, initializeApp } = await loadFirebaseAppModule()
   return getApps().length ? getApp() : initializeApp(firebaseConfig)
 }
 
@@ -70,12 +80,13 @@ async function getFirebaseMessagingInstance() {
     return null
   }
 
+  const { getMessaging, isSupported } = await loadFirebaseMessagingModule()
   const supported = await isSupported().catch(() => false)
   if (!supported) {
     return null
   }
 
-  return getMessaging(getFirebaseApp())
+  return getMessaging(await getFirebaseApp())
 }
 
 export async function getFcmToken() {
@@ -95,6 +106,7 @@ export async function getFcmToken() {
     return null
   }
 
+  const { getToken } = await loadFirebaseMessagingModule()
   const token = await getToken(messaging, {
     vapidKey,
     serviceWorkerRegistration,
@@ -169,5 +181,6 @@ export async function subscribeToForegroundMessages(handler) {
     return () => {}
   }
 
+  const { onMessage } = await loadFirebaseMessagingModule()
   return onMessage(messaging, handler)
 }

@@ -107,13 +107,9 @@ function HlsPlayer({
 
     playerRef.current = player
     player.on('error', onDisconnect)
-    player.on('stalled', onDisconnect)
-    player.on('waiting', onDisconnect)
 
     return () => {
       player.off('error', onDisconnect)
-      player.off('stalled', onDisconnect)
-      player.off('waiting', onDisconnect)
       player.dispose()
       playerRef.current = null
     }
@@ -166,24 +162,6 @@ export function ProjectCamera({
   const [playerReloadKey, setPlayerReloadKey] = useState(0)
   const [reconnectNotice, setReconnectNotice] = useState<string | null>(null)
   const reconnectTimerRef = useRef<number | null>(null)
-
-  useEffect(() => {
-    console.log('[ProjectCamera] mounted', {
-      projectId,
-      initialEnabled,
-      initialCameraType,
-    })
-  }, [initialCameraType, initialEnabled, projectId])
-
-  useEffect(() => {
-    console.log('[ProjectCamera] render state', {
-      projectId,
-      enabled,
-      source,
-      hasExternalCamera: Boolean(externalCamera),
-      status: externalCamera?.status || 'OFFLINE',
-    })
-  }, [enabled, externalCamera, projectId, source])
 
   const generatedRtspPreview = useMemo(() => {
     const ip = form.ipAddress || 'camera-ip'
@@ -272,7 +250,6 @@ export function ProjectCamera({
     setPanelError(null)
     setBusy('settings')
     try {
-      console.log('[ProjectCamera] saving project camera settings', next)
       const res = await fetch(`/api/projects/${projectId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },

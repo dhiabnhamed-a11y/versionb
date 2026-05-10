@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
+import dynamic from 'next/dynamic'
 import { useSession } from 'next-auth/react'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
@@ -22,20 +23,6 @@ import {
   Users,
   Zap,
 } from 'lucide-react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  Line,
-  LineChart,
-  Pie,
-  PieChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 
 interface Stats {
   totalTasks: number
@@ -91,23 +78,64 @@ const DASHBOARD_REALTIME_EVENTS = [
   'user_offline',
 ] as const
 
+function ChartLoadingState({ label = 'Loading chart' }: { label?: string }) {
+  return (
+    <div className="flex h-[250px] items-center justify-center rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)]">
+      <div className="loading-shimmer h-4 w-36 rounded-full" aria-label={label} />
+    </div>
+  )
+}
+
+const ActivityLineChart = dynamic(
+  () => import('@/components/dashboard/AdminCharts').then((module) => module.ActivityLineChart),
+  {
+    ssr: false,
+    loading: () => <ChartLoadingState label="Loading activity chart" />,
+  }
+)
+
+const StatusBarChart = dynamic(
+  () => import('@/components/dashboard/AdminCharts').then((module) => module.StatusBarChart),
+  {
+    ssr: false,
+    loading: () => <ChartLoadingState label="Loading status chart" />,
+  }
+)
+
+const RolesPieChart = dynamic(
+  () => import('@/components/dashboard/AdminCharts').then((module) => module.RolesPieChart),
+  {
+    ssr: false,
+    loading: () => <ChartLoadingState label="Loading roles chart" />,
+  }
+)
+
 function AnimatedCounter({ value, duration = 800 }: { value: number; duration?: number }) {
   const [display, setDisplay] = useState(0)
 
   useEffect(() => {
-    let start = 0
-    const step = Math.max(1, value / (duration / 16))
-    const timer = setInterval(() => {
-      start += step
-      if (start >= value) {
-        setDisplay(value)
-        clearInterval(timer)
-      } else {
-        setDisplay(Math.floor(start))
-      }
-    }, 16)
+    if (value === 0 || window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setDisplay(value)
+      return
+    }
 
-    return () => clearInterval(timer)
+    let frame = 0
+    let startedAt = 0
+
+    const tick = (time: number) => {
+      startedAt ||= time
+      const progress = Math.min((time - startedAt) / duration, 1)
+      setDisplay(Math.floor(value * progress))
+
+      if (progress < 1) {
+        frame = window.requestAnimationFrame(tick)
+      } else {
+        setDisplay(value)
+      }
+    }
+
+    frame = window.requestAnimationFrame(tick)
+    return () => window.cancelAnimationFrame(frame)
   }, [value, duration])
 
   return <span className="tabular-nums">{display}</span>
@@ -380,24 +408,7 @@ export default function AdminDashboard() {
           {!stats?.activitySeries?.some((item) => item.created || item.completed) ? (
             <EmptyChartState label="No activity trend yet" />
           ) : (
-            <div className="h-[260px] min-h-[260px] min-w-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={stats.activitySeries} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
-                  <CartesianGrid stroke="rgba(100,116,139,0.18)" vertical={false} />
-                  <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} allowDecimals={false} />
-                  <Tooltip
-                    contentStyle={{
-                      border: '1px solid var(--border)',
-                      borderRadius: 10,
-                      boxShadow: 'var(--shadow-card)',
-                    }}
-                  />
-                  <Line type="monotone" dataKey="created" stroke="#0369a1" strokeWidth={3} dot={{ r: 3 }} name="Created" />
-                  <Line type="monotone" dataKey="completed" stroke="#059669" strokeWidth={3} dot={{ r: 3 }} name="Completed" />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
+            <ActivityLineChart data={stats.activitySeries} />
           )}
         </section>
 
@@ -604,27 +615,7 @@ export default function AdminDashboard() {
               {!stats?.taskStageBreakdown?.some((item) => item.value) ? (
                 <EmptyChartState label="No task data yet" />
               ) : (
-                <div className="h-[250px] min-h-[250px] min-w-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={stats.taskStageBreakdown} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
-                      <CartesianGrid stroke="rgba(100,116,139,0.18)" vertical={false} />
-                      <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
-                      <YAxis tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 12 }} allowDecimals={false} />
-                      <Tooltip
-                        contentStyle={{
-                          border: '1px solid var(--border)',
-                          borderRadius: 10,
-                          boxShadow: 'var(--shadow-card)',
-                        }}
-                      />
-                      <Bar dataKey="value" radius={[8, 8, 0, 0]} name="Tasks">
-                        {stats.taskStageBreakdown.map((entry) => (
-                          <Cell key={entry.stage} fill={entry.color} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
+                <StatusBarChart data={stats.taskStageBreakdown} />
               )}
             </section>
 
@@ -638,31 +629,7 @@ export default function AdminDashboard() {
               {!stats?.rolesDistribution?.some((item) => item.value) ? (
                 <EmptyChartState label="No role data yet" />
               ) : (
-                <div className="h-[250px] min-h-[250px] min-w-0">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={stats.rolesDistribution}
-                        dataKey="value"
-                        nameKey="name"
-                        innerRadius={58}
-                        outerRadius={88}
-                        paddingAngle={3}
-                      >
-                        {stats.rolesDistribution.map((entry, index) => (
-                          <Cell key={entry.name} fill={['#0369a1', '#7c3aed', '#d97706', '#059669'][index % 4]} />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          border: '1px solid var(--border)',
-                          borderRadius: 10,
-                          boxShadow: 'var(--shadow-card)',
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
+                <RolesPieChart data={stats.rolesDistribution} />
               )}
             </section>
           </div>

@@ -1,5 +1,5 @@
 // Socket client singleton - only runs on client side
-import { io, Socket } from 'socket.io-client'
+import type { Socket } from 'socket.io-client'
 
 let socket: Socket | null = null
 let socketInitPromise: Promise<Socket | null> | null = null
@@ -36,6 +36,7 @@ export async function getSocket(): Promise<Socket | null> {
 
   if (!socketInitPromise) {
     socketInitPromise = (async () => {
+      const { io } = await import('socket.io-client')
       socket = io({
         path: '/api/socketio',
         addTrailingSlash: false,

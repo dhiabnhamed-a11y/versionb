@@ -228,7 +228,7 @@ export default function EmployeeDashboard() {
                           {getDeliverableTypeLabel(task.deliverableType)}
                         </span>
                       )}
-                      <h3 style={{ fontSize: '14px', fontWeight: '600' }}>{task.title}</h3>
+                      <h3 style={{ minWidth: 0, overflowWrap: 'anywhere', fontSize: '14px', fontWeight: '600' }}>{task.title}</h3>
                       {isOverdue && (
                         <span style={{ fontSize: '10px', color: '#ef4444', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', padding: '1px 6px', borderRadius: '3px', fontWeight: '700' }}>
                           OVERDUE
@@ -301,33 +301,52 @@ export default function EmployeeDashboard() {
                 {task.submissions.length > 0 && (
                   <div style={{ marginTop: '10px', display: 'grid', gap: '8px' }}>
                     {task.submissions.map((submission) => (
-                      <div key={submission.id} style={{ display: 'grid', gridTemplateColumns: isAgency && submission.mediaType ? 'minmax(0, 220px) 1fr auto' : '1fr auto', alignItems: 'center', gap: '10px', borderRadius: '8px', background: 'var(--bg-elevated)', padding: '10px 12px' }}>
+                      <div
+                        key={submission.id}
+                        className="grid min-w-0 gap-3 rounded-[8px] bg-[var(--bg-elevated)] px-3 py-2.5"
+                      >
                         {isAgency && submission.mediaType && (
-                          <MediaPlayer
-                            media={{
-                              id: submission.id,
-                              url: submission.fileUrl,
-                              playbackUrl: submission.playbackUrl,
-                              thumbnailUrl: submission.thumbnailUrl,
-                              type: submission.mediaType,
-                              mimeType: submission.fileType,
-                              fileName: submission.fileName,
-                              fileSize: submission.fileSize,
-                              duration: submission.duration,
-                            }}
-                          />
-                        )}
-                        <div>
-                          <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>{submission.fileName}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                            Uploaded {formatTimeAgo(submission.createdAt)}
+                          <div className="min-w-0">
+                            <MediaPlayer
+                              media={{
+                                id: submission.id,
+                                url: submission.fileUrl,
+                                playbackUrl: submission.playbackUrl,
+                                thumbnailUrl: submission.thumbnailUrl,
+                                type: submission.mediaType,
+                                mimeType: submission.fileType,
+                                fileName: submission.fileName,
+                                fileSize: submission.fileSize,
+                                duration: submission.duration,
+                              }}
+                            />
                           </div>
-                          {submission.note && <div style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>{submission.note}</div>}
+                        )}
+                        <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
+                          <div className="min-w-0 flex-[1_1_260px]">
+                            <div style={{ overflowWrap: 'anywhere', fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                              {submission.fileName}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
+                              Uploaded {formatTimeAgo(submission.createdAt)}
+                            </div>
+                            {submission.note && (
+                              <div style={{ overflowWrap: 'anywhere', fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                                {submission.note}
+                              </div>
+                            )}
+                          </div>
+                          <a
+                            href={submission.fileUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="btn-secondary shrink-0 whitespace-nowrap"
+                            style={{ textDecoration: 'none', fontSize: '11px', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                          >
+                            <Link2 size={13} />
+                            Open file
+                          </a>
                         </div>
-                        <a href={submission.fileUrl} target="_blank" rel="noreferrer" className="btn-secondary" style={{ textDecoration: 'none', fontSize: '11px', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                          <Link2 size={13} />
-                          Open file
-                        </a>
                       </div>
                     ))}
                   </div>
