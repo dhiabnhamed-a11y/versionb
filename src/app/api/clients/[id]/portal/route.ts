@@ -60,6 +60,6 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   return NextResponse.json({
     ok: true,
     enabled: portalEnabled,
-    url: portalToken ? getClientPortalUrl(portalToken) : null,
+    url: portalToken ? getClientPortalUrl(portalToken, req) : null,
   })
 }
