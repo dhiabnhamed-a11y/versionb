@@ -9,8 +9,11 @@ import {
   Building2,
   CheckCircle2,
   Clock3,
+  Copy,
   Download,
+  ExternalLink,
   FolderKanban,
+  Link2,
   Loader2,
   Mail,
   Phone,
@@ -102,6 +105,9 @@ export default function ClientProfilePage() {
   const { data, isLoading, error } = useSWR<ProfileResponse>(params?.id ? `/api/clients/${params.id}` : null, fetcher)
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
+  const [portalUrl, setPortalUrl] = useState<string | null>(null)
+  const [portalLoading, setPortalLoading] = useState(false)
+  const [portalError, setPortalError] = useState<string | null>(null)
 
   async function downloadInvoicePdf(invoice: ProfileResponse['client']['invoices'][number]) {
     setDownloadingInvoiceId(invoice.id)
@@ -117,6 +123,28 @@ export default function ClientProfilePage() {
       setDownloadError(reason instanceof Error ? reason.message : 'Invoice PDF could not be downloaded.')
     } finally {
       setDownloadingInvoiceId(null)
+    }
+  }
+
+  async function generatePortalLink(rotate = false) {
+    setPortalLoading(true)
+    setPortalError(null)
+    try {
+      const response = await fetch(`/api/clients/${params.id}/portal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled: true, rotate }),
+      })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body?.error || 'Portal link could not be generated.')
+      setPortalUrl(body.url)
+      if (body.url && navigator.clipboard) {
+        await navigator.clipboard.writeText(body.url).catch(() => undefined)
+      }
+    } catch (reason) {
+      setPortalError(reason instanceof Error ? reason.message : 'Portal link could not be generated.')
+    } finally {
+      setPortalLoading(false)
     }
   }
 
@@ -193,8 +221,40 @@ export default function ClientProfilePage() {
             <FolderKanban size={16} />
             New campaign
           </Link>
+          <button type="button" onClick={() => generatePortalLink(false)} disabled={portalLoading} className="btn-secondary">
+            {portalLoading ? <Loader2 size={16} className="animate-spin" /> : <Link2 size={16} />}
+            Client link
+          </button>
         </div>
       </section>
+
+      {(portalUrl || portalError) && (
+        <section className="card">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div className="min-w-0">
+              <h2 className="panel-title">Client portal</h2>
+              <p className="panel-meta">Share this private link so the client can review linked campaigns, deliverables, and leave feedback.</p>
+              {portalError && <p className="mt-2 text-sm font-semibold text-red-600">{portalError}</p>}
+              {portalUrl && <p className="mt-2 truncate text-xs font-semibold text-[var(--text-secondary)]">{portalUrl}</p>}
+            </div>
+            {portalUrl && (
+              <div className="flex flex-wrap gap-2">
+                <button type="button" className="btn-secondary btn-sm" onClick={() => navigator.clipboard?.writeText(portalUrl)}>
+                  <Copy size={14} />
+                  Copy
+                </button>
+                <a href={portalUrl} target="_blank" rel="noreferrer" className="btn-secondary btn-sm">
+                  <ExternalLink size={14} />
+                  Open
+                </a>
+                <button type="button" className="btn-danger btn-sm" onClick={() => generatePortalLink(true)} disabled={portalLoading}>
+                  Rotate
+                </button>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       <div className="dashboard-stat-grid">
         <article className="stat-card">

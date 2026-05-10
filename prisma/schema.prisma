@@ -79,6 +79,7 @@ model Company {
   adminActionLogs     AdminActionLog[]
   clients             Client[]
   clientActivities    ClientActivity[]
+  clientPortalComments ClientPortalComment[]
   invoices            Invoice[]
   briefs              Brief[]
   deliverables        Deliverable[]
@@ -104,6 +105,8 @@ model Client {
   notes         String?
   avatarUrl     String?
   status        String   @default("active") // active, inactive
+  portalToken   String?  @unique
+  portalEnabled Boolean  @default(false)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
@@ -111,12 +114,34 @@ model Client {
   projects   Project[]
   invoices   Invoice[]
   activities ClientActivity[]
+  portalComments ClientPortalComment[]
   briefs     Brief[]
   approvals  ApprovalDecision[]
 
   @@index([companyId, status, createdAt])
   @@index([companyId, companyName])
   @@index([companyId, email])
+}
+
+model ClientPortalComment {
+  id            String   @id @default(cuid())
+  companyId     String
+  clientId      String
+  campaignId    String?
+  deliverableId String?
+  authorName    String
+  authorEmail   String?
+  content       String
+  createdAt     DateTime @default(now())
+
+  company     Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client      Client       @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  campaign    Project?     @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  deliverable Deliverable? @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+
+  @@index([clientId, createdAt])
+  @@index([campaignId, createdAt])
+  @@index([deliverableId, createdAt])
 }
 
 model ClientActivity {
@@ -337,6 +362,7 @@ model Project {
   projectMedia   ProjectMedia[]
   cameras        ProjectCamera[]
   calendarEvents CalendarEvent[]
+  clientPortalComments ClientPortalComment[]
 
   @@index([companyId, roomId])
   @@index([companyId, categoryId])
@@ -485,6 +511,7 @@ model Deliverable {
   approvals    ApprovalDecision[]
   activities   DeliverableActivity[]
   invoiceItems InvoiceItem[]
+  clientPortalComments ClientPortalComment[]
 
   @@index([companyId, campaignId, status, createdAt])
   @@index([briefId, status, createdAt])

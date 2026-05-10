@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { Camera, ChevronRight, FolderKanban, Plus, Loader2, User, Building2, Tags, UsersRound, Pencil, Trash2 } from 'lucide-react'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 
@@ -16,6 +17,8 @@ interface Project {
   room?: { id: string; name: string } | null
   categoryId?: string | null
   category?: { id: string; name: string; description?: string | null } | null
+  clientId?: string | null
+  client?: { id: string; companyName: string; contactPerson?: string | null; avatarUrl?: string | null } | null
   clientName?: string | null
   hasCamera?: boolean
   cameraType?: 'device' | 'external'
@@ -42,6 +45,13 @@ interface ProjectCategory {
   projectCount: number
 }
 
+interface Client {
+  id: string
+  companyName: string
+  contactPerson?: string | null
+  status: 'active' | 'inactive'
+}
+
 interface ApiFailure {
   error?: string
   detail?: string
@@ -61,6 +71,8 @@ const PROJECT_REALTIME_EVENTS = [
 
 export default function ProjectsPage() {
   const { data: session } = useSession()
+  const searchParams = useSearchParams()
+  const requestedClientId = searchParams.get('clientId') ?? ''
   const companyType = normalizeCompanyType((session?.user as { companyType?: string | null } | undefined)?.companyType)
   const companyCopy = getCompanyTypeCopy(companyType)
   const isIndustry = companyType === 'INDUSTRY'
@@ -70,6 +82,7 @@ export default function ProjectsPage() {
   const [employees, setEmployees] = useState<Employee[]>([])
   const [rooms, setRooms] = useState<Room[]>([])
   const [categories, setCategories] = useState<ProjectCategory[]>([])
+  const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState<ApiFailure | null>(null)
   const [showProjectModal, setShowProjectModal] = useState(false)
@@ -82,6 +95,7 @@ export default function ProjectsPage() {
     description: '',
     roomId: '',
     categoryId: '',
+    clientId: '',
     clientName: '',
     managerId: '',
     hasCamera: false,
@@ -103,18 +117,20 @@ export default function ProjectsPage() {
   const [categoryError, setCategoryError] = useState<ApiFailure | null>(null)
 
   const fetchProjectsData = useCallback(async () => {
-    const [projectResponse, employeeResponse, roomResponse, categoryResponse] = await Promise.all([
+    const [projectResponse, employeeResponse, roomResponse, categoryResponse, clientResponse] = await Promise.all([
       fetch('/api/projects', { cache: 'no-store' }),
       fetch('/api/employees', { cache: 'no-store' }),
       fetch('/api/rooms', { cache: 'no-store' }),
       fetch('/api/project-categories', { cache: 'no-store' }),
+      fetch('/api/clients?pageSize=100&status=active', { cache: 'no-store' }),
     ])
 
-    const [projectBody, employeeBody, roomBody, categoryBody] = await Promise.all([
+    const [projectBody, employeeBody, roomBody, categoryBody, clientBody] = await Promise.all([
       projectResponse.json(),
       employeeResponse.json(),
       roomResponse.json(),
       categoryResponse.json(),
+      clientResponse.json(),
     ])
 
     return {
@@ -123,6 +139,7 @@ export default function ProjectsPage() {
       employees: Array.isArray(employeeBody) ? employeeBody : [],
       rooms: Array.isArray(roomBody) ? roomBody : [],
       categories: Array.isArray(categoryBody) ? categoryBody : [],
+      clients: Array.isArray(clientBody?.items) ? clientBody.items : [],
       projectError: Array.isArray(projectBody) ? null : ((projectBody as ApiFailure) ?? null),
     }
   }, [])
@@ -133,6 +150,7 @@ export default function ProjectsPage() {
     setEmployees(data.employees)
     setRooms(data.rooms)
     setCategories(data.categories)
+    setClients(data.clients)
     setLoadError(data.ok ? null : data.projectError)
   }, [fetchProjectsData])
 
@@ -146,6 +164,7 @@ export default function ProjectsPage() {
       setEmployees(data.employees)
       setRooms(data.rooms)
       setCategories(data.categories)
+      setClients(data.clients)
       setLoadError(data.ok ? null : data.projectError)
       setLoading(false)
     }
@@ -167,6 +186,7 @@ export default function ProjectsPage() {
       description: '',
       roomId: '',
       categoryId: '',
+      clientId: requestedClientId,
       clientName: '',
       managerId: '',
       hasCamera: false,
@@ -188,7 +208,8 @@ export default function ProjectsPage() {
       description: project.description ?? '',
       roomId: project.roomId ?? '',
       categoryId: project.categoryId ?? '',
-      clientName: project.clientName ?? '',
+      clientId: project.clientId ?? '',
+      clientName: project.client?.companyName ?? project.clientName ?? '',
       managerId: project.manager?.id ?? '',
       hasCamera: Boolean(project.hasCamera),
       cameraType: project.cameraType ?? 'device',
@@ -210,7 +231,8 @@ export default function ProjectsPage() {
         description: form.description || undefined,
         roomId: isIndustry ? form.roomId || undefined : undefined,
         categoryId: isAgency ? form.categoryId || undefined : undefined,
-        clientName: isAgency ? form.clientName || undefined : undefined,
+        clientId: isAgency ? form.clientId || undefined : undefined,
+        clientName: isAgency && !form.clientId ? form.clientName || undefined : undefined,
         managerId: form.managerId || undefined,
         hasCamera: form.hasCamera,
         cameraType: form.cameraType,
@@ -353,13 +375,13 @@ export default function ProjectsPage() {
             {project.category.name}
           </div>
         )}
-        {isAgency && project.clientName && (
+        {isAgency && (project.client?.companyName || project.clientName) && (
           <div
             className="mb-2 inline-flex w-fit items-center gap-1 rounded-md border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
             style={{ borderColor: 'rgba(19,141,136,0.18)', color: 'var(--accent)', background: 'var(--accent-subtle)' }}
           >
             <UsersRound size={11} />
-            {project.clientName}
+            {project.client?.companyName || project.clientName}
           </div>
         )}
         {project.hasCamera && (
@@ -481,7 +503,7 @@ export default function ProjectsPage() {
           <button
             onClick={openCreateProjectModal}
             className="btn-primary"
-            disabled={(isIndustry && rooms.length === 0) || (isAgency && categories.length === 0)}
+            disabled={(isIndustry && rooms.length === 0) || (isAgency && (categories.length === 0 || clients.length === 0))}
             style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
           >
             <Plus size={15} /> New {companyCopy.projectLabel}
@@ -587,7 +609,7 @@ export default function ProjectsPage() {
             onClick={openCreateProjectModal}
             className="btn-primary"
             style={{ fontSize: '12px' }}
-            disabled={(isIndustry && rooms.length === 0) || (isAgency && categories.length === 0)}
+            disabled={(isIndustry && rooms.length === 0) || (isAgency && (categories.length === 0 || clients.length === 0))}
           >
             Create {companyCopy.projectLabel}
           </button>
@@ -714,13 +736,46 @@ export default function ProjectsPage() {
 
                   <div>
                     <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
-                      Client name
+                      Client *
+                    </label>
+                    <select
+                      className="input"
+                      value={form.clientId}
+                      onChange={(event) => {
+                        const client = clients.find((item) => item.id === event.target.value)
+                        setForm({
+                          ...form,
+                          clientId: event.target.value,
+                          clientName: client?.companyName ?? '',
+                        })
+                      }}
+                      required
+                    >
+                      <option value="">Select a client...</option>
+                      {clients.map((client) => (
+                        <option key={client.id} value={client.id}>
+                          {client.companyName}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {clients.length === 0 && (
+                    <div className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-3 text-xs font-semibold text-[var(--text-muted)]">
+                      Create a client first, then return here to start the campaign chain.
+                    </div>
+                  )}
+
+                  <div>
+                    <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                      Client display name
                     </label>
                     <input
                       className="input"
                       placeholder="e.g. Northstar Studio"
                       value={form.clientName}
                       onChange={(event) => setForm({ ...form, clientName: event.target.value })}
+                      disabled={Boolean(form.clientId)}
                     />
                   </div>
                 </>
