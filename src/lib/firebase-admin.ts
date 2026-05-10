@@ -170,6 +170,7 @@ export async function sendNotification(
       icon,
       badge,
       url: relativeUrl,
+      sound: '/sounds/taskitnot.m4a',
       tag,
       ...data,
     }),
@@ -184,6 +185,7 @@ export async function sendNotification(
         icon,
         badge,
         tag,
+        silent: false,
         requireInteraction: false,
         data: {
           url: relativeUrl,
@@ -201,6 +203,7 @@ export async function sendNotification(
         icon: 'ic_notification',
         channelId: 'taskit-alerts',
         clickAction: 'OPEN_TASKIT_ALERTS',
+        defaultSound: true,
       },
     },
     apns: {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Bell, Radio, Phone, Clock, Send, Loader2, CheckCircle2 } from 'lucide-react'
+import { playTaskitNotificationSound, registerTaskitNotificationSoundUnlock } from '@/lib/notification-sound'
 
 interface Employee { id: string; name: string; email: string; role: string }
 
@@ -19,6 +20,7 @@ export default function SendAlertPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    registerTaskitNotificationSoundUnlock()
     fetch('/api/employees').then(r => r.json()).then(d => setEmployees(Array.isArray(d) ? d.filter((e: Employee) => e.role === 'EMPLOYEE') : []))
   }, [])
 
@@ -29,6 +31,7 @@ export default function SendAlertPage() {
     const res = await fetch('/api/alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
     setSending(false)
     if (res.ok) {
+      void playTaskitNotificationSound({ force: true })
       setSuccess(true); setForm({ ...form, title: '', message: '', recipientId: '' })
       setTimeout(() => setSuccess(false), 4000)
     } else { const d = await res.json(); setError(d.error || 'Failed to send') }

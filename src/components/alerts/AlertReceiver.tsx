@@ -1,10 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
 import type { Socket } from 'socket.io-client'
 import { getSocket } from '@/lib/socket-client'
+import { playTaskitNotificationSound } from '@/lib/notification-sound'
 import { AlertTriangle, X, CheckCircle2 } from 'lucide-react'
 
 interface AlertData {
@@ -12,25 +11,6 @@ interface AlertData {
   type: string
   title: string
   message: string
-}
-
-function playAlertSound() {
-  try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
-    const playBeep = (freq: number, start: number, dur: number) => {
-      const osc = ctx.createOscillator()
-      const gain = ctx.createGain()
-      osc.connect(gain); gain.connect(ctx.destination)
-      osc.type = 'sine'; osc.frequency.value = freq
-      gain.gain.setValueAtTime(0.3, ctx.currentTime + start)
-      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + start + dur)
-      osc.start(ctx.currentTime + start)
-      osc.stop(ctx.currentTime + start + dur)
-    }
-    playBeep(880, 0, 0.15); playBeep(880, 0.2, 0.15)
-    playBeep(1100, 0.5, 0.15); playBeep(1100, 0.7, 0.15)
-    playBeep(880, 1.0, 0.3)
-  } catch (e) {}
 }
 
 export default function AlertReceiver({ userId }: { userId: string }) {
@@ -52,7 +32,7 @@ export default function AlertReceiver({ userId }: { userId: string }) {
       }
       const handleAlert = (data: AlertData) => {
         setAlert(data)
-        playAlertSound()
+        void playTaskitNotificationSound()
         if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 400])
         if ('Notification' in window && Notification.permission === 'granted') {
           new Notification(`TASKIT: ${data.title}`, { body: data.message, icon: '/icons/taskit-192.png' })

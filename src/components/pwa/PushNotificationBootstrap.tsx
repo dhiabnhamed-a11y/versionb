@@ -7,6 +7,10 @@ import {
   syncGrantedPushToken,
   subscribeToForegroundMessages,
 } from '@/firebase'
+import {
+  playTaskitNotificationSound,
+  registerTaskitNotificationSoundUnlock,
+} from '@/lib/notification-sound'
 
 export default function PushNotificationBootstrap({ userId }: { userId?: string }) {
   useEffect(() => {
@@ -14,6 +18,7 @@ export default function PushNotificationBootstrap({ userId }: { userId?: string 
       return
     }
 
+    registerTaskitNotificationSoundUnlock()
     void syncGrantedPushToken()
 
     const refreshTimer = window.setInterval(() => {
@@ -31,6 +36,7 @@ export default function PushNotificationBootstrap({ userId }: { userId?: string 
         const notification = extractTaskitNotification(payload)
 
         window.dispatchEvent(new CustomEvent('taskit:fcm-message', { detail: payload }))
+        void playTaskitNotificationSound()
 
         if ('Notification' in window && Notification.permission === 'granted') {
           const shown = new Notification(notification.title, {
