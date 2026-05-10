@@ -2,9 +2,9 @@
 
 import { useEffect } from 'react'
 import {
-  enablePushNotifications,
   extractTaskitNotification,
   refreshPushTokenIfNeeded,
+  syncGrantedPushToken,
   subscribeToForegroundMessages,
 } from '@/firebase'
 
@@ -14,7 +14,7 @@ export default function PushNotificationBootstrap({ userId }: { userId?: string 
       return
     }
 
-    void enablePushNotifications()
+    void syncGrantedPushToken()
 
     const refreshTimer = window.setInterval(() => {
       void refreshPushTokenIfNeeded()

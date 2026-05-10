@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
-import { Bell, CheckCheck } from 'lucide-react'
+import { Bell, BellRing, CheckCheck, Loader2 } from 'lucide-react'
+import { enablePushNotifications, refreshPushTokenIfNeeded } from '@/firebase'
 import { formatTimeAgo } from '@/lib/utils'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import type { RealtimeEventName } from '@/lib/realtime-events'
@@ -18,11 +19,13 @@ type AlertRecord = {
 }
 
 const NOTIFICATION_REALTIME_EVENTS = ['alert', 'alert_read'] as const
+type PushStatus = 'checking' | 'unsupported' | 'default' | 'granted' | 'denied' | 'syncing' | 'enabled' | 'failed'
 
 export default function NotificationDropdown({ alertsHref = '/dashboard/employee/alerts' }: { alertsHref?: string }) {
   const [alerts, setAlerts] = useState<AlertRecord[]>([])
   const [open, setOpen] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [pushStatus, setPushStatus] = useState<PushStatus>('checking')
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -87,7 +90,24 @@ export default function NotificationDropdown({ alertsHref = '/dashboard/employee
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [])
 
+  useEffect(() => {
+    if (!('Notification' in window)) {
+      setPushStatus('unsupported')
+      return
+    }
+
+    const permission = Notification.permission as PushStatus
+    setPushStatus(permission)
+
+    if (permission === 'granted') {
+      void refreshPushTokenIfNeeded().then((result) => {
+        setPushStatus(result.success ? 'enabled' : 'failed')
+      })
+    }
+  }, [])
+
   const unreadCount = useMemo(() => alerts.filter((alert) => !alert.read).length, [alerts])
+  const canEnablePush = pushStatus === 'default' || pushStatus === 'failed'
 
   async function markRead(alertId: string) {
     setAlerts((current) => current.map((alert) => (alert.id === alertId ? { ...alert, read: true } : alert)))
@@ -110,6 +130,12 @@ export default function NotificationDropdown({ alertsHref = '/dashboard/employee
         })
       )
     )
+  }
+
+  async function handleEnablePush() {
+    setPushStatus('syncing')
+    const result = await enablePushNotifications()
+    setPushStatus(result.success ? 'enabled' : result.reason === 'denied' ? 'denied' : 'failed')
   }
 
   return (
@@ -136,15 +162,28 @@ export default function NotificationDropdown({ alertsHref = '/dashboard/employee
               <div className="text-sm font-black text-[var(--text-primary)]">Notifications</div>
               <div className="text-xs font-semibold text-[var(--text-muted)]">{unreadCount} unread alerts</div>
             </div>
-            <button
-              type="button"
-              onClick={markAllRead}
-              disabled={unreadCount === 0}
-              className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-bold text-[var(--accent)] transition hover:bg-[var(--accent-subtle)] disabled:opacity-40"
-            >
-              <CheckCheck size={13} />
-              Read all
-            </button>
+            <div className="flex items-center gap-1.5">
+              {canEnablePush && (
+                <button
+                  type="button"
+                  onClick={handleEnablePush}
+                  className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-bold text-[var(--accent)] transition hover:bg-[var(--accent-subtle)]"
+                >
+                  <BellRing size={13} />
+                  Enable push
+                </button>
+              )}
+              {pushStatus === 'syncing' && <Loader2 size={14} className="animate-spin text-[var(--accent)]" aria-label="Syncing push token" />}
+              <button
+                type="button"
+                onClick={markAllRead}
+                disabled={unreadCount === 0}
+                className="inline-flex items-center gap-1 rounded-full px-2 py-1 text-[11px] font-bold text-[var(--accent)] transition hover:bg-[var(--accent-subtle)] disabled:opacity-40"
+              >
+                <CheckCheck size={13} />
+                Read all
+              </button>
+            </div>
           </div>
 
           <div className="max-h-[360px] overflow-y-auto p-2">

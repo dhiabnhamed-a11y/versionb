@@ -2,7 +2,13 @@ import { NextResponse } from 'next/server'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { NO_STORE_HEADERS } from '@/lib/http'
-import { isFirebaseAdminConfigured, isInvalidFirebaseTokenError, sendNotification } from '@/lib/firebase-admin'
+import {
+  getFirebaseMessagingErrorCode,
+  isFirebaseAdminConfigured,
+  isFirebaseProjectMismatchError,
+  isInvalidFirebaseTokenError,
+  sendNotification,
+} from '@/lib/firebase-admin'
 import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'
 import { emitUserRealtime } from '@/lib/realtime-server'
 
@@ -114,6 +120,26 @@ export async function POST(req: Request) {
       const invalidTokens = results
         .map((result, index) => (result.status === 'rejected' && isInvalidFirebaseTokenError(result.reason) ? recipientTokens[index]?.token : null))
         .filter((token): token is string => Boolean(token))
+
+      const failedResults = results
+        .map((result, index) => ({
+          result,
+          token: recipientTokens[index]?.token,
+        }))
+        .filter((entry) => entry.result.status === 'rejected')
+
+      if (failedResults.length > 0) {
+        console.error('[alerts] FCM mirror failed for one or more tokens.', {
+          recipientId,
+          failures: failedResults.map(({ result }) => {
+            const reason = result.status === 'rejected' ? result.reason : null
+            return {
+              code: getFirebaseMessagingErrorCode(reason),
+              projectMismatch: isFirebaseProjectMismatchError(reason),
+            }
+          }),
+        })
+      }
 
       if (invalidTokens.length > 0) {
         await prisma.pushToken.deleteMany({

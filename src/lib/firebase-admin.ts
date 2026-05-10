@@ -1,10 +1,32 @@
 import { cert, getApps, initializeApp } from 'firebase-admin/app'
-import { getMessaging } from 'firebase-admin/messaging'
+import { getMessaging, type Message } from 'firebase-admin/messaging'
+
+type FirebaseAdminConfig = {
+  projectId: string
+  clientEmail: string
+  privateKey: string
+}
+
+function cleanEnvValue(value?: string) {
+  return value?.trim()
+}
+
+function normalizePrivateKey(value?: string) {
+  return cleanEnvValue(value)?.replace(/\\n/g, '\n')
+}
+
+function getServiceAccountProjectId(clientEmail?: string) {
+  return clientEmail?.match(/@([^@]+)\.iam\.gserviceaccount\.com$/)?.[1] ?? null
+}
+
+function getAppSenderId(appId?: string) {
+  return appId?.split(':')?.[1] ?? null
+}
 
 function getFirebaseAdminConfig() {
-  const projectId = process.env.FIREBASE_PROJECT_ID
-  const clientEmail = process.env.FIREBASE_CLIENT_EMAIL
-  const privateKey = process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n')
+  const projectId = cleanEnvValue(process.env.FIREBASE_PROJECT_ID)
+  const clientEmail = cleanEnvValue(process.env.FIREBASE_CLIENT_EMAIL)
+  const privateKey = normalizePrivateKey(process.env.FIREBASE_PRIVATE_KEY)
 
   if (!projectId || !clientEmail || !privateKey) {
     return null
@@ -14,6 +36,37 @@ function getFirebaseAdminConfig() {
     projectId,
     clientEmail,
     privateKey,
+  } satisfies FirebaseAdminConfig
+}
+
+export function getFirebaseProjectDiagnostics() {
+  const adminConfig = getFirebaseAdminConfig()
+  const serviceAccountProjectId = getServiceAccountProjectId(adminConfig?.clientEmail)
+  const clientProjectId = cleanEnvValue(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID) ?? null
+  const clientSenderId = cleanEnvValue(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID) ?? null
+  const appSenderId = getAppSenderId(cleanEnvValue(process.env.NEXT_PUBLIC_FIREBASE_APP_ID))
+  const mismatches: string[] = []
+
+  if (adminConfig?.projectId && clientProjectId && adminConfig.projectId !== clientProjectId) {
+    mismatches.push('FIREBASE_PROJECT_ID does not match NEXT_PUBLIC_FIREBASE_PROJECT_ID')
+  }
+
+  if (adminConfig?.projectId && serviceAccountProjectId && adminConfig.projectId !== serviceAccountProjectId) {
+    mismatches.push('FIREBASE_PROJECT_ID does not match FIREBASE_CLIENT_EMAIL project')
+  }
+
+  if (clientSenderId && appSenderId && clientSenderId !== appSenderId) {
+    mismatches.push('NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID does not match NEXT_PUBLIC_FIREBASE_APP_ID')
+  }
+
+  return {
+    adminConfigured: Boolean(adminConfig),
+    adminProjectId: adminConfig?.projectId ?? null,
+    clientProjectId,
+    clientSenderId,
+    appSenderId,
+    serviceAccountProjectId,
+    mismatches,
   }
 }
 
@@ -30,7 +83,63 @@ function getFirebaseAdminApp() {
   return getApps()[0]
     ?? initializeApp({
       credential: cert(config),
+      projectId: config.projectId,
     })
+}
+
+function getAppBaseUrl() {
+  return cleanEnvValue(process.env.NEXT_PUBLIC_APP_URL)
+    ?? cleanEnvValue(process.env.NEXTAUTH_URL)
+    ?? 'http://localhost:3000'
+}
+
+function getAbsoluteUrl(url: string) {
+  return new URL(url, getAppBaseUrl()).href
+}
+
+function toFcmData(data: Record<string, unknown>) {
+  return Object.fromEntries(
+    Object.entries(data)
+      .filter(([, value]) => value !== undefined && value !== null)
+      .map(([key, value]) => [key, String(value)])
+  )
+}
+
+function maskToken(token: string) {
+  return token.length > 18 ? `${token.slice(0, 10)}...${token.slice(-8)}` : '[short-token]'
+}
+
+export function getFirebaseMessagingErrorCode(error: unknown) {
+  if (!error || typeof error !== 'object') return ''
+  return 'code' in error ? String((error as { code?: unknown }).code) : ''
+}
+
+function logFirebaseSendError(error: unknown, token: string) {
+  const code = getFirebaseMessagingErrorCode(error)
+  const diagnostic = getFirebaseProjectDiagnostics()
+  const message = error && typeof error === 'object' && 'message' in error
+    ? String((error as { message?: unknown }).message)
+    : 'Unknown Firebase Messaging error'
+
+  if (
+    code === 'messaging/mismatched-credential'
+    || code === 'messaging/registration-token-not-registered'
+    || code === 'messaging/invalid-registration-token'
+  ) {
+    console.error('[fcm] Token send failed.', {
+      code,
+      message,
+      token: maskToken(token),
+      firebaseProject: diagnostic,
+    })
+    return
+  }
+
+  console.error('[fcm] Token send failed with an unexpected error.', {
+    code,
+    message,
+    token: maskToken(token),
+  })
 }
 
 export async function sendNotification(
@@ -44,32 +153,85 @@ export async function sendNotification(
   }
 
   const messaging = getMessaging(getFirebaseAdminApp())
-
-  return messaging.send({
+  const relativeUrl = data.url ?? '/dashboard/employee/alerts'
+  const absoluteUrl = getAbsoluteUrl(relativeUrl)
+  const icon = data.icon ?? '/icons/taskit-192.png'
+  const badge = data.badge ?? '/favicon.ico'
+  const tag = data.tag ?? data.alertId ?? 'taskit-alert'
+  const message: Message = {
     token: userToken,
-    data: {
+    notification: {
       title,
       body,
-      icon: data.icon ?? '/icons/taskit-192.png',
-      badge: data.badge ?? '/favicon.ico',
-      url: data.url ?? '/dashboard/employee/alerts',
-      tag: data.tag ?? data.alertId ?? 'taskit-alert',
-      ...data,
     },
+    data: toFcmData({
+      title,
+      body,
+      icon,
+      badge,
+      url: relativeUrl,
+      tag,
+      ...data,
+    }),
     webpush: {
       headers: {
         Urgency: 'high',
         TTL: '86400',
       },
+      notification: {
+        title,
+        body,
+        icon,
+        badge,
+        tag,
+        requireInteraction: false,
+        data: {
+          url: relativeUrl,
+        },
+      },
       fcmOptions: {
-        link: data.url ?? '/dashboard/employee/alerts',
+        link: absoluteUrl,
       },
     },
-  })
+    android: {
+      priority: 'high',
+      notification: {
+        title,
+        body,
+        icon: 'ic_notification',
+        channelId: 'taskit-alerts',
+        clickAction: 'OPEN_TASKIT_ALERTS',
+      },
+    },
+    apns: {
+      headers: {
+        'apns-priority': '10',
+      },
+      payload: {
+        aps: {
+          alert: {
+            title,
+            body,
+          },
+          sound: 'default',
+        },
+      },
+    },
+  }
+
+  try {
+    return await messaging.send(message)
+  } catch (error) {
+    logFirebaseSendError(error, userToken)
+    throw error
+  }
 }
 
 export function isInvalidFirebaseTokenError(error: unknown) {
-  if (!error || typeof error !== 'object') return false
-  const code = 'code' in error ? String((error as { code?: unknown }).code) : ''
+  const code = getFirebaseMessagingErrorCode(error)
   return code === 'messaging/registration-token-not-registered' || code === 'messaging/invalid-registration-token'
+}
+
+export function isFirebaseProjectMismatchError(error: unknown) {
+  return getFirebaseMessagingErrorCode(error) === 'messaging/mismatched-credential'
 }
