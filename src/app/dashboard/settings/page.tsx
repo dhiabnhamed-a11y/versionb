@@ -4,6 +4,7 @@ import { auth, getSessionHomePath } from '@/lib/auth'
 import {
   canManageSettings,
   getSettingsTeamUsers,
+  getUserDashboardDesignSettings,
   getWorkspaceThemeSettings,
   type SettingsSessionUser,
 } from '@/lib/settings'
@@ -16,27 +17,31 @@ export default async function SettingsPage() {
   }
 
   const user = session.user as SettingsSessionUser
-  if (!canManageSettings(user.role)) {
+  if (!user.id) {
     redirect(getSessionHomePath(session))
   }
 
-  if (!user.companyId || !user.id) {
-    redirect(getSessionHomePath(session))
-  }
-
-  const [appearance, teamUsers] = await Promise.all([
+  const canManageWorkspace = canManageSettings(user.role)
+  const [appearance, personalDesign, teamUsers] = await Promise.all([
     getWorkspaceThemeSettings(user.companyId),
-    getSettingsTeamUsers(user.companyId, user.id),
+    getUserDashboardDesignSettings(user.id),
+    canManageWorkspace && user.companyId ? getSettingsTeamUsers(user.companyId, user.id) : Promise.resolve([]),
   ])
 
   return (
     <SettingsClient
       initialAppearance={appearance}
+      initialDesign={personalDesign}
       initialUsers={teamUsers}
-      currentUser={{
-        id: user.id,
-        role: user.role === 'OWNER' ? 'OWNER' : 'MANAGER',
-      }}
+      currentUser={
+        canManageWorkspace
+          ? {
+              id: user.id,
+              role: user.role === 'OWNER' ? 'OWNER' : 'MANAGER',
+            }
+          : null
+      }
+      canManageWorkspace={canManageWorkspace}
     />
   )
 }

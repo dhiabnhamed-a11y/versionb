@@ -152,11 +152,11 @@ const baseCommands: Command[] = [
 
 const settingsCommand: Command = {
   id: 'settings',
-  label: 'Workspace settings',
-  description: 'Branding, workspace profile, and admin controls',
+  label: 'Settings',
+  description: 'Account design and workspace controls',
   href: '/dashboard/settings',
   group: 'Operate',
-  keywords: ['settings', 'brand', 'workspace', 'admin'],
+  keywords: ['settings', 'design', 'brand', 'workspace', 'admin'],
   icon: Settings,
 }
 
@@ -202,6 +202,7 @@ export default function CommandPalette({
           keywords: ['my', 'tasks', 'briefs', 'assigned'],
           icon: CheckSquare,
         },
+        settingsCommand,
       ] satisfies Command[]
     }
 

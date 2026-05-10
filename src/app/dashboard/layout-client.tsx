@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useSyncExternalStore, type CSSProperties } from 'react'
+import { useEffect, useState, useSyncExternalStore, type CSSProperties } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -12,8 +12,9 @@ import NotificationDropdown from '@/components/dashboard/NotificationDropdown'
 import WorkspaceThemeProvider from '@/components/dashboard/WorkspaceThemeProvider'
 import PushNotificationBootstrap from '@/components/pwa/PushNotificationBootstrap'
 import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
+import { normalizeDashboardDesignConfig } from '@/lib/dashboard-design'
 import { isRealtimeAlertsEnabled } from '@/lib/socket-client'
-import type { WorkspaceThemeSettings } from '@/lib/settings'
+import type { UserDashboardDesignSettings, WorkspaceThemeSettings } from '@/lib/settings'
 import logo from '@/app/logo.png'
 import {
   LayoutDashboard,
@@ -40,15 +41,18 @@ import {
 export default function DashboardLayoutClient({
   children,
   initialThemeSettings,
+  initialUserDesign,
 }: {
   children: React.ReactNode
   initialThemeSettings: WorkspaceThemeSettings
+  initialUserDesign: UserDashboardDesignSettings
 }) {
   const { data: session } = useSession()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [commandOpen, setCommandOpen] = useState(false)
+  const [userDesign, setUserDesign] = useState(initialUserDesign)
   const realtimeEnabled = useSyncExternalStore(
     () => () => undefined,
     () => isRealtimeAlertsEnabled(),
@@ -58,9 +62,24 @@ export default function DashboardLayoutClient({
   const user = session?.user as { id?: string; name?: string; role?: string; companyType?: string | null }
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
   const isEmployee = user?.role === 'EMPLOYEE'
-  const canOpenSettings = user?.role === 'OWNER' || user?.role === 'MANAGER'
+  const canManageWorkspace = user?.role === 'OWNER' || user?.role === 'MANAGER'
+  const canOpenSettings = !isSuperAdmin
   const companyType = normalizeCompanyType(user?.companyType)
   const companyCopy = getCompanyTypeCopy(companyType)
+  useEffect(() => {
+    function handleUserDesign(event: Event) {
+      const nextDesign = (event as CustomEvent<UserDashboardDesignSettings>).detail
+      if (nextDesign) setUserDesign(nextDesign)
+    }
+
+    window.addEventListener('taskit:user-dashboard-design', handleUserDesign)
+    return () => window.removeEventListener('taskit:user-dashboard-design', handleUserDesign)
+  }, [])
+
+  const dashboardDesignConfig = normalizeDashboardDesignConfig(userDesign.designJson)
+  const brandName = dashboardDesignConfig.brand.name || 'TASKIT'
+  const brandLogo = dashboardDesignConfig.brand.logoDataUrl || logo
+  const hasCustomLogo = Boolean(dashboardDesignConfig.brand.logoDataUrl)
   const links = isSuperAdmin
     ? [{ href: '/dashboard/super-admin', label: 'Company approvals', icon: ShieldCheck }]
     : isEmployee
@@ -126,13 +145,20 @@ export default function DashboardLayoutClient({
   } as CSSProperties
 
   return (
-    <div className={`dashboard-app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`} style={initialThemeStyle}>
-      <WorkspaceThemeProvider settings={initialThemeSettings} />
+    <div
+      className={`dashboard-app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}
+      data-user-design={userDesign.enabled && userDesign.compiledCss ? 'active' : undefined}
+      style={initialThemeStyle}
+    >
+      {userDesign.enabled && userDesign.compiledCss && (
+        <style id="taskit-user-dashboard-design" dangerouslySetInnerHTML={{ __html: userDesign.compiledCss }} />
+      )}
+      <WorkspaceThemeProvider settings={initialThemeSettings} userDesign={userDesign} />
       {!isSuperAdmin && <PushNotificationBootstrap userId={user?.id} />}
       <CommandPalette
         open={commandOpen}
         onOpenChange={setCommandOpen}
-        canManageWorkspace={canOpenSettings}
+        canManageWorkspace={canManageWorkspace}
         isEmployee={isEmployee}
         isSuperAdmin={isSuperAdmin}
       />
@@ -151,11 +177,23 @@ export default function DashboardLayoutClient({
             <div className="flex items-center gap-3">
               <div
                 className="sidebar-brand-mark icon-box flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] border transition-transform duration-200 hover:scale-105"
+                style={{ borderRadius: dashboardDesignConfig.brand.logoRadius }}
               >
-                <Image src={logo} alt="TASKIT logo" width={30} height={30} className="h-7 w-7 object-contain" />
+                <Image
+                  src={brandLogo}
+                  alt={`${brandName} logo`}
+                  width={dashboardDesignConfig.brand.logoSize}
+                  height={dashboardDesignConfig.brand.logoSize}
+                  unoptimized={hasCustomLogo}
+                  className="object-contain"
+                  style={{
+                    width: dashboardDesignConfig.brand.logoSize,
+                    height: dashboardDesignConfig.brand.logoSize,
+                  }}
+                />
               </div>
               <div className="sidebar-brand-copy min-w-0">
-                <div className="text-base font-bold text-[var(--text-primary)]">TASKIT</div>
+                <div className="truncate text-base font-bold text-[var(--text-primary)]">{brandName}</div>
                 <div className="text-[10px] font-semibold uppercase tracking-[0.12em]" style={{ color: 'var(--text-muted)' }}>
                   {workspaceLabel}
                 </div>

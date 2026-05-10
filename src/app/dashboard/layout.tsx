@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { SessionProvider } from 'next-auth/react'
 import { auth } from '@/lib/auth'
-import { getWorkspaceThemeSettings } from '@/lib/settings'
+import { getUserDashboardDesignSettings, getWorkspaceThemeSettings } from '@/lib/settings'
 import DashboardLayout from './layout-client'
 
 export default async function DashboardRootLayout({ children }: { children: React.ReactNode }) {
@@ -11,11 +11,16 @@ export default async function DashboardRootLayout({ children }: { children: Reac
     redirect('/login')
   }
 
-  const initialThemeSettings = await getWorkspaceThemeSettings(session.user.companyId)
+  const [initialThemeSettings, initialUserDesign] = await Promise.all([
+    getWorkspaceThemeSettings(session.user.companyId),
+    getUserDashboardDesignSettings(session.user.id),
+  ])
 
   return (
     <SessionProvider>
-      <DashboardLayout initialThemeSettings={initialThemeSettings}>{children}</DashboardLayout>
+      <DashboardLayout initialThemeSettings={initialThemeSettings} initialUserDesign={initialUserDesign}>
+        {children}
+      </DashboardLayout>
     </SessionProvider>
   )
 }

@@ -1,6 +1,8 @@
 'use client'
 
-import type { WorkspaceThemeSettings } from '@/lib/settings'
+import type { UserDashboardDesignSettings, WorkspaceThemeSettings } from '@/lib/settings'
+
+const USER_DASHBOARD_STYLE_ID = 'taskit-user-dashboard-design'
 
 function clampChannel(value: number) {
   return Math.max(0, Math.min(255, Math.round(value)))
@@ -85,4 +87,34 @@ export function applyWorkspaceTheme(settings: WorkspaceThemeSettings) {
   root.style.setProperty('--sidebar-hover', '#f3f6fa')
   root.style.setProperty('--sidebar-active-bg', rgba(settings.primaryColor, 0.08))
   root.style.setProperty('--sidebar-active-border', rgba(settings.primaryColor, 0.24))
+}
+
+export function applyUserDashboardDesign(design: UserDashboardDesignSettings) {
+  if (typeof document === 'undefined') return
+
+  const shell = document.querySelector<HTMLElement>('.dashboard-app-shell')
+  if (shell) {
+    if (design.enabled && design.compiledCss.trim()) {
+      shell.dataset.userDesign = 'active'
+    } else {
+      delete shell.dataset.userDesign
+    }
+  }
+
+  let style = document.getElementById(USER_DASHBOARD_STYLE_ID) as HTMLStyleElement | null
+  if (!design.enabled || !design.compiledCss.trim()) {
+    style?.remove()
+    window.dispatchEvent(new CustomEvent('taskit:user-dashboard-design', { detail: design }))
+    return
+  }
+
+  if (!style) {
+    style = document.createElement('style')
+    style.id = USER_DASHBOARD_STYLE_ID
+    document.head.appendChild(style)
+  }
+
+  style.textContent = design.compiledCss
+
+  window.dispatchEvent(new CustomEvent('taskit:user-dashboard-design', { detail: design }))
 }

@@ -2,6 +2,15 @@ import 'server-only'
 
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
+import {
+  DEFAULT_DASHBOARD_DESIGN_CONFIG,
+  normalizeDashboardDesignConfig,
+  type DashboardButtonStyle,
+  type DashboardCardShadow,
+  type DashboardDesignConfig,
+  type DashboardDesignDensity,
+  type DashboardSidebarSide,
+} from '@/lib/dashboard-design'
 
 export const SETTINGS_ADMIN_ROLES = ['OWNER', 'MANAGER'] as const
 export const PUBLIC_WORKSPACE_ROLES = ['OWNER', 'MANAGER', 'WORKER'] as const
@@ -16,6 +25,18 @@ export type WorkspaceThemeSettings = {
   backgroundColor: string
   sidebarColor: string
   themeMode: ThemeMode
+}
+
+export type DashboardDesignSourceType = 'json' | 'css'
+
+export type UserDashboardDesignSettings = {
+  enabled: boolean
+  name: string | null
+  sourceType: DashboardDesignSourceType | 'none'
+  designJson: Prisma.JsonValue | null
+  customCss: string | null
+  compiledCss: string
+  updatedAt: string | null
 }
 
 export type SettingsSessionUser = {
@@ -41,7 +62,34 @@ const DEFAULT_THEME_SETTINGS: WorkspaceThemeSettings = {
   themeMode: 'light',
 }
 
+export const DEFAULT_USER_DASHBOARD_DESIGN: UserDashboardDesignSettings = {
+  enabled: false,
+  name: null,
+  sourceType: 'none',
+  designJson: null,
+  customCss: null,
+  compiledCss: '',
+  updatedAt: null,
+}
+
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i
+const CSS_COLOR_PATTERN =
+  /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%]+\)|hsla?\([\d\s.,%a-z-]+\)|[a-z]+)$/i
+const CSS_LENGTH_PATTERN = /^-?\d+(\.\d+)?(px|rem|em|vh|vw|dvh|dvw|%)$|^0$/i
+const CSS_FORBIDDEN_PATTERN =
+  /@import\b|javascript\s*:|expression\s*\(|behavior\s*:|-moz-binding|<\/?style\b|<script\b|url\s*\(\s*['"]?\s*(javascript:|data:text\/html)/i
+const CSS_VARIABLE_NAME_PATTERN = /^--[a-z0-9-]+$/i
+const USER_DESIGN_MAX_CHARS = 80_000
+const USER_DESIGN_BUILDER_MAX_CHARS = 320_000
+const USER_LOGO_MAX_CHARS = 240_000
+const IMAGE_DATA_URL_PATTERN = /^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i
+const FONT_FAMILY_OPTIONS = new Set([
+  DEFAULT_DASHBOARD_DESIGN_CONFIG.typography.fontFamily,
+  'Arial, Helvetica, sans-serif',
+  'Georgia, "Times New Roman", serif',
+  '"Trebuchet MS", Arial, sans-serif',
+  '"Courier New", Courier, monospace',
+])
 
 function normalizeUpper(value?: string | null) {
   return value?.trim().toUpperCase() ?? ''
@@ -100,6 +148,444 @@ export function sanitizeThemeSettings(input: Partial<WorkspaceThemeSettings>) {
   }
 }
 
+function assertSafeDesignText(content: string, label: string) {
+  if (content.length > USER_DESIGN_MAX_CHARS) {
+    throw new SettingsAccessError(`${label} must be smaller than 80 KB.`)
+  }
+
+  if (CSS_FORBIDDEN_PATTERN.test(content)) {
+    throw new SettingsAccessError(`${label} contains CSS that cannot be saved.`)
+  }
+}
+
+function sanitizeCss(content: string) {
+  const css = content.replace(/\0/g, '').trim()
+  assertSafeDesignText(css, 'CSS')
+  return css
+}
+
+function sanitizeCssValue(value: unknown, label: string) {
+  const text = typeof value === 'number' ? String(value) : typeof value === 'string' ? value.trim() : ''
+  if (!text) return null
+  if (text.length > 220 || /[{};]/.test(text) || CSS_FORBIDDEN_PATTERN.test(text)) {
+    throw new SettingsAccessError(`${label} is not a safe CSS value.`)
+  }
+
+  return text
+}
+
+function sanitizeCssColor(value: unknown, label: string) {
+  const text = sanitizeCssValue(value, label)
+  if (!text) return null
+  if (!CSS_COLOR_PATTERN.test(text)) {
+    throw new SettingsAccessError(`${label} must be a valid CSS color.`)
+  }
+
+  return text
+}
+
+function sanitizeCssLength(value: unknown, label: string) {
+  const text = typeof value === 'number' ? `${value}px` : sanitizeCssValue(value, label)
+  if (!text) return null
+  if (!CSS_LENGTH_PATTERN.test(text)) {
+    throw new SettingsAccessError(`${label} must be a valid CSS length.`)
+  }
+
+  return text
+}
+
+function clampNumber(value: number, min: number, max: number, fallback: number) {
+  if (!Number.isFinite(value)) return fallback
+  return Math.max(min, Math.min(max, Math.round(value)))
+}
+
+function sanitizeHexColor(value: string, label: string) {
+  const text = value.trim()
+  if (!HEX_COLOR_PATTERN.test(text)) {
+    throw new SettingsAccessError(`${label} must be a 6-digit hex color.`)
+  }
+
+  return text
+}
+
+function sanitizeEnum<T extends string>(value: T, allowed: readonly T[], label: string) {
+  if (!allowed.includes(value)) {
+    throw new SettingsAccessError(`${label} is not supported.`)
+  }
+
+  return value
+}
+
+function sanitizeBrandName(value: string) {
+  const text = value.replace(/\s+/g, ' ').trim().slice(0, 42)
+  if (!text) return DEFAULT_DASHBOARD_DESIGN_CONFIG.brand.name
+  if (/[<>]/.test(text)) {
+    throw new SettingsAccessError('Brand name cannot contain markup.')
+  }
+
+  return text
+}
+
+function sanitizeLogoDataUrl(value: string | null) {
+  if (!value) return null
+  if (value.length > USER_LOGO_MAX_CHARS) {
+    throw new SettingsAccessError('Logo image must be smaller than 180 KB.')
+  }
+  if (!IMAGE_DATA_URL_PATTERN.test(value)) {
+    throw new SettingsAccessError('Logo must be a PNG, JPG, GIF, or WebP image.')
+  }
+
+  return value
+}
+
+function sanitizeFontFamily(value: string) {
+  const text = sanitizeCssValue(value, 'Font family') ?? DEFAULT_DASHBOARD_DESIGN_CONFIG.typography.fontFamily
+  if (!FONT_FAMILY_OPTIONS.has(text)) {
+    throw new SettingsAccessError('Choose one of the available font families.')
+  }
+
+  return text
+}
+
+function sanitizeDashboardDesignConfig(input: unknown): DashboardDesignConfig {
+  const design = normalizeDashboardDesignConfig(input)
+
+  return {
+    version: 1,
+    brand: {
+      name: sanitizeBrandName(design.brand.name),
+      logoDataUrl: sanitizeLogoDataUrl(design.brand.logoDataUrl),
+      logoSize: clampNumber(design.brand.logoSize, 20, 54, DEFAULT_DASHBOARD_DESIGN_CONFIG.brand.logoSize),
+      logoRadius: clampNumber(design.brand.logoRadius, 0, 22, DEFAULT_DASHBOARD_DESIGN_CONFIG.brand.logoRadius),
+    },
+    palette: {
+      primary: sanitizeHexColor(design.palette.primary, 'Primary color'),
+      accent: sanitizeHexColor(design.palette.accent, 'Accent color'),
+      background: sanitizeHexColor(design.palette.background, 'Background color'),
+      backgroundSoft: sanitizeHexColor(design.palette.backgroundSoft, 'Soft background color'),
+      card: sanitizeHexColor(design.palette.card, 'Card color'),
+      elevated: sanitizeHexColor(design.palette.elevated, 'Elevated color'),
+      sidebar: sanitizeHexColor(design.palette.sidebar, 'Sidebar color'),
+      sidebarSurface: sanitizeHexColor(design.palette.sidebarSurface, 'Sidebar surface color'),
+      border: sanitizeHexColor(design.palette.border, 'Border color'),
+      text: sanitizeHexColor(design.palette.text, 'Text color'),
+      textSecondary: sanitizeHexColor(design.palette.textSecondary, 'Secondary text color'),
+      textMuted: sanitizeHexColor(design.palette.textMuted, 'Muted text color'),
+      success: sanitizeHexColor(design.palette.success, 'Success color'),
+      warning: sanitizeHexColor(design.palette.warning, 'Warning color'),
+      danger: sanitizeHexColor(design.palette.danger, 'Danger color'),
+      info: sanitizeHexColor(design.palette.info, 'Info color'),
+    },
+    background: {
+      style: sanitizeEnum(design.background.style, ['solid', 'gradient'] as const, 'Background style'),
+      gradientFrom: sanitizeHexColor(design.background.gradientFrom, 'Background gradient start'),
+      gradientTo: sanitizeHexColor(design.background.gradientTo, 'Background gradient end'),
+    },
+    typography: {
+      fontFamily: sanitizeFontFamily(design.typography.fontFamily),
+      baseSize: clampNumber(design.typography.baseSize, 13, 18, DEFAULT_DASHBOARD_DESIGN_CONFIG.typography.baseSize),
+      headingWeight: clampNumber(design.typography.headingWeight, 500, 900, DEFAULT_DASHBOARD_DESIGN_CONFIG.typography.headingWeight),
+      bodyWeight: clampNumber(design.typography.bodyWeight, 300, 700, DEFAULT_DASHBOARD_DESIGN_CONFIG.typography.bodyWeight),
+    },
+    layout: {
+      sidebarWidth: clampNumber(design.layout.sidebarWidth, 220, 360, DEFAULT_DASHBOARD_DESIGN_CONFIG.layout.sidebarWidth),
+      sidebarSide: sanitizeEnum<DashboardSidebarSide>(design.layout.sidebarSide, ['left', 'right'] as const, 'Sidebar side'),
+      contentWidth: clampNumber(design.layout.contentWidth, 900, 1600, DEFAULT_DASHBOARD_DESIGN_CONFIG.layout.contentWidth),
+      density: sanitizeEnum<DashboardDesignDensity>(design.layout.density, ['compact', 'comfortable', 'spacious'] as const, 'Density'),
+      navRadius: clampNumber(design.layout.navRadius, 0, 24, DEFAULT_DASHBOARD_DESIGN_CONFIG.layout.navRadius),
+      cardRadius: clampNumber(design.layout.cardRadius, 0, 24, DEFAULT_DASHBOARD_DESIGN_CONFIG.layout.cardRadius),
+    },
+    buttons: {
+      style: sanitizeEnum<DashboardButtonStyle>(design.buttons.style, ['solid', 'soft', 'outline', 'minimal'] as const, 'Button style'),
+      radius: clampNumber(design.buttons.radius, 0, 24, DEFAULT_DASHBOARD_DESIGN_CONFIG.buttons.radius),
+      height: clampNumber(design.buttons.height, 36, 58, DEFAULT_DASHBOARD_DESIGN_CONFIG.buttons.height),
+      fontWeight: clampNumber(design.buttons.fontWeight, 500, 900, DEFAULT_DASHBOARD_DESIGN_CONFIG.buttons.fontWeight),
+    },
+    cards: {
+      shadow: sanitizeEnum<DashboardCardShadow>(design.cards.shadow, ['none', 'soft', 'strong'] as const, 'Card shadow'),
+      borderWidth: clampNumber(design.cards.borderWidth, 0, 3, DEFAULT_DASHBOARD_DESIGN_CONFIG.cards.borderWidth),
+    },
+  }
+}
+
+function asJsonObject(value: unknown, label: string): Record<string, unknown> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    throw new SettingsAccessError(`${label} must be a JSON object.`)
+  }
+
+  return value as Record<string, unknown>
+}
+
+function optionalObject(value: unknown) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+}
+
+function appendVariable(lines: string[], name: string, value: string | null) {
+  if (!value) return
+  lines.push(`  ${name}: ${value};`)
+}
+
+function appendTokenVariables(lines: string[], tokens: Record<string, unknown>) {
+  for (const [name, rawValue] of Object.entries(tokens)) {
+    if (!CSS_VARIABLE_NAME_PATTERN.test(name)) continue
+    const value = sanitizeCssValue(rawValue, name)
+    appendVariable(lines, name, value)
+  }
+}
+
+function hexToRgb(hex: string) {
+  const normalized = HEX_COLOR_PATTERN.test(hex) ? hex.slice(1) : '0369a1'
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16),
+  }
+}
+
+function rgba(hex: string, alpha: number) {
+  const color = hexToRgb(hex)
+  return `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`
+}
+
+function buttonColors(style: DashboardButtonStyle, design: DashboardDesignConfig) {
+  if (style === 'soft') {
+    return {
+      background: rgba(design.palette.primary, 0.12),
+      color: design.palette.primary,
+      border: rgba(design.palette.primary, 0.24),
+      hover: rgba(design.palette.primary, 0.18),
+    }
+  }
+
+  if (style === 'outline') {
+    return {
+      background: 'transparent',
+      color: design.palette.primary,
+      border: design.palette.primary,
+      hover: rgba(design.palette.primary, 0.08),
+    }
+  }
+
+  if (style === 'minimal') {
+    return {
+      background: 'transparent',
+      color: design.palette.primary,
+      border: 'transparent',
+      hover: rgba(design.palette.primary, 0.08),
+    }
+  }
+
+  return {
+    background: `linear-gradient(135deg, ${design.palette.primary} 0%, ${design.palette.accent} 100%)`,
+    color: '#ffffff',
+    border: 'transparent',
+    hover: design.palette.accent,
+  }
+}
+
+function cardShadowValue(shadow: DashboardCardShadow) {
+  if (shadow === 'none') return 'none'
+  if (shadow === 'strong') return '0 16px 44px rgba(11,22,40,0.16), 0 2px 10px rgba(11,22,40,0.08)'
+  return '0 1px 2px rgba(11,22,40,0.05), 0 10px 30px rgba(11,22,40,0.06)'
+}
+
+function densityPadding(density: DashboardDesignDensity) {
+  if (density === 'compact') {
+    return {
+      shell: '1.25rem',
+      card: '1rem',
+      linkHeight: '38px',
+      statHeight: '108px',
+    }
+  }
+
+  if (density === 'spacious') {
+    return {
+      shell: '3rem',
+      card: '1.75rem',
+      linkHeight: '50px',
+      statHeight: '148px',
+    }
+  }
+
+  return {
+    shell: '2rem',
+    card: '1.5rem',
+    linkHeight: '44px',
+    statHeight: '128px',
+  }
+}
+
+function compileDashboardDesignJson(design: Record<string, unknown>) {
+  const noCodeDesign = sanitizeDashboardDesignConfig(design)
+  const theme = optionalObject(design.theme)
+  const tokens = {
+    ...optionalObject(design.tokens),
+    ...optionalObject(design.variables),
+    ...optionalObject(design.cssVariables),
+  }
+  const layout = optionalObject(design.layout)
+  const typography = optionalObject(design.typography)
+
+  const button = buttonColors(noCodeDesign.buttons.style, noCodeDesign)
+  const densityValues = densityPadding(noCodeDesign.layout.density)
+  const shellBackground =
+    noCodeDesign.background.style === 'gradient'
+      ? `linear-gradient(135deg, ${noCodeDesign.background.gradientFrom} 0%, ${noCodeDesign.background.gradientTo} 100%)`
+      : noCodeDesign.palette.background
+
+  const variableLines: string[] = [
+    `  --accent: ${noCodeDesign.palette.primary};`,
+    `  --primary: ${noCodeDesign.palette.primary};`,
+    `  --accent-bright: ${noCodeDesign.palette.accent};`,
+    `  --accent-hover: ${noCodeDesign.palette.accent};`,
+    `  --accent-gradient: linear-gradient(135deg, ${noCodeDesign.palette.primary} 0%, ${noCodeDesign.palette.accent} 100%);`,
+    `  --accent-glow: ${rgba(noCodeDesign.palette.primary, 0.16)};`,
+    `  --accent-ring: ${rgba(noCodeDesign.palette.primary, 0.32)};`,
+    `  --accent-subtle: ${rgba(noCodeDesign.palette.primary, 0.1)};`,
+    `  --bg-primary: ${noCodeDesign.palette.background};`,
+    `  --bg: ${noCodeDesign.palette.background};`,
+    `  --bg-secondary: ${noCodeDesign.palette.backgroundSoft};`,
+    `  --bg-card: ${noCodeDesign.palette.card};`,
+    `  --bg-elevated: ${noCodeDesign.palette.elevated};`,
+    `  --sidebar-bg: ${noCodeDesign.palette.sidebar};`,
+    `  --sidebar: ${noCodeDesign.palette.sidebar};`,
+    `  --sidebar-surface: ${noCodeDesign.palette.sidebarSurface};`,
+    `  --sidebar-border: ${noCodeDesign.palette.border};`,
+    `  --sidebar-text: ${noCodeDesign.palette.textSecondary};`,
+    `  --sidebar-text-active: ${noCodeDesign.palette.text};`,
+    `  --sidebar-hover: ${rgba(noCodeDesign.palette.primary, 0.08)};`,
+    `  --sidebar-active-bg: ${rgba(noCodeDesign.palette.primary, 0.12)};`,
+    `  --sidebar-active-border: ${rgba(noCodeDesign.palette.primary, 0.28)};`,
+    `  --border: ${noCodeDesign.palette.border};`,
+    `  --border-light: ${rgba(noCodeDesign.palette.primary, 0.24)};`,
+    `  --text-primary: ${noCodeDesign.palette.text};`,
+    `  --text-secondary: ${noCodeDesign.palette.textSecondary};`,
+    `  --text-muted: ${noCodeDesign.palette.textMuted};`,
+    `  --text-light: ${rgba(noCodeDesign.palette.textMuted, 0.72)};`,
+    `  --success: ${noCodeDesign.palette.success};`,
+    `  --warning: ${noCodeDesign.palette.warning};`,
+    `  --danger: ${noCodeDesign.palette.danger};`,
+    `  --info: ${noCodeDesign.palette.info};`,
+    `  --radius-sm: ${noCodeDesign.layout.navRadius}px;`,
+    `  --radius-md: ${noCodeDesign.layout.cardRadius}px;`,
+    `  --radius-lg: ${Math.min(32, noCodeDesign.layout.cardRadius + 4)}px;`,
+    `  --font-sans: ${noCodeDesign.typography.fontFamily};`,
+    `  --shadow-card: ${cardShadowValue(noCodeDesign.cards.shadow)};`,
+    `  --user-sidebar-width: ${noCodeDesign.layout.sidebarWidth}px;`,
+    `  --user-content-max-width: ${noCodeDesign.layout.contentWidth}px;`,
+    `  --user-button-bg: ${button.background};`,
+    `  --user-button-color: ${button.color};`,
+    `  --user-button-border: ${button.border};`,
+    `  --user-button-hover-bg: ${button.hover};`,
+    `  --user-button-radius: ${noCodeDesign.buttons.radius}px;`,
+    `  --user-button-height: ${noCodeDesign.buttons.height}px;`,
+    `  --user-button-weight: ${noCodeDesign.buttons.fontWeight};`,
+    `  --user-card-border-width: ${noCodeDesign.cards.borderWidth}px;`,
+    `  --user-shell-background: ${shellBackground};`,
+  ]
+  appendVariable(variableLines, '--accent', sanitizeCssColor(theme.primaryColor ?? theme.accentColor ?? design.primaryColor, 'Primary color'))
+  appendVariable(variableLines, '--primary', sanitizeCssColor(theme.primaryColor ?? theme.accentColor ?? design.primaryColor, 'Primary color'))
+  appendVariable(variableLines, '--accent-hover', sanitizeCssColor(theme.accentHoverColor, 'Accent hover color'))
+  appendVariable(variableLines, '--bg-primary', sanitizeCssColor(theme.backgroundColor ?? design.backgroundColor, 'Background color'))
+  appendVariable(variableLines, '--bg', sanitizeCssColor(theme.backgroundColor ?? design.backgroundColor, 'Background color'))
+  appendVariable(variableLines, '--bg-card', sanitizeCssColor(theme.cardColor, 'Card color'))
+  appendVariable(variableLines, '--bg-elevated', sanitizeCssColor(theme.elevatedColor, 'Elevated color'))
+  appendVariable(variableLines, '--sidebar-bg', sanitizeCssColor(theme.sidebarColor ?? design.sidebarColor, 'Sidebar color'))
+  appendVariable(variableLines, '--sidebar', sanitizeCssColor(theme.sidebarColor ?? design.sidebarColor, 'Sidebar color'))
+  appendVariable(variableLines, '--text-primary', sanitizeCssColor(theme.textColor, 'Text color'))
+  appendVariable(variableLines, '--text-secondary', sanitizeCssColor(theme.secondaryTextColor, 'Secondary text color'))
+  appendVariable(variableLines, '--text-muted', sanitizeCssColor(theme.mutedTextColor, 'Muted text color'))
+  appendVariable(variableLines, '--border', sanitizeCssColor(theme.borderColor, 'Border color'))
+  appendVariable(variableLines, '--radius-sm', sanitizeCssLength(theme.radius ?? layout.radius, 'Radius'))
+  appendVariable(variableLines, '--radius-md', sanitizeCssLength(theme.cardRadius ?? layout.cardRadius, 'Card radius'))
+  appendVariable(variableLines, '--radius-lg', sanitizeCssLength(layout.largeRadius, 'Large radius'))
+  appendVariable(variableLines, '--font-sans', sanitizeCssValue(typography.fontFamily ?? design.fontFamily, 'Font family'))
+  appendVariable(variableLines, '--dashboard-content-gutter', sanitizeCssLength(layout.gutter, 'Content gutter'))
+  appendVariable(variableLines, '--user-sidebar-width', sanitizeCssLength(layout.sidebarWidth, 'Sidebar width'))
+  appendVariable(variableLines, '--user-content-max-width', sanitizeCssLength(layout.contentMaxWidth, 'Content width'))
+  appendTokenVariables(variableLines, tokens)
+
+  const sideRules =
+    noCodeDesign.layout.sidebarSide === 'right'
+      ? [
+          '@media (min-width: 901px) {',
+          '  .dashboard-app-shell[data-user-design="active"]:not(.sidebar-collapsed) { grid-template-columns: minmax(0, 1fr) var(--user-sidebar-width); }',
+          '  .dashboard-app-shell[data-user-design="active"].sidebar-collapsed { grid-template-columns: minmax(0, 1fr) 88px; }',
+          '  .dashboard-app-shell[data-user-design="active"] .sidebar { order: 2; border-right: 0; border-left: 1px solid var(--sidebar-border); }',
+          '  .dashboard-app-shell[data-user-design="active"] .main-content { order: 1; }',
+          '}',
+          '@media (max-width: 900px) {',
+          '  .dashboard-app-shell[data-user-design="active"] .sidebar { inset: 0 0 0 auto; transform: translateX(100%); }',
+          '  .dashboard-app-shell[data-user-design="active"] .sidebar.open { transform: translateX(0); }',
+          '}',
+        ]
+      : [
+          '@media (min-width: 901px) {',
+          '  .dashboard-app-shell[data-user-design="active"]:not(.sidebar-collapsed) { grid-template-columns: var(--user-sidebar-width) minmax(0, 1fr); }',
+          '}',
+        ]
+
+  const ruleLines: string[] = [
+    '.dashboard-app-shell[data-user-design="active"] {',
+    '  background: var(--user-shell-background);',
+    `  font-size: ${noCodeDesign.typography.baseSize}px;`,
+    `  font-weight: ${noCodeDesign.typography.bodyWeight};`,
+    '}',
+    '.dashboard-app-shell[data-user-design="active"] .sidebar:not(.collapsed) { width: var(--user-sidebar-width); }',
+    '.dashboard-app-shell[data-user-design="active"] .dashboard-shell-body, .dashboard-app-shell[data-user-design="active"] .dashboard-page { max-width: var(--user-content-max-width) !important; }',
+    `.dashboard-app-shell[data-user-design="active"] .dashboard-shell-body { padding-block: ${densityValues.shell}; }`,
+    `.dashboard-app-shell[data-user-design="active"] .card, .dashboard-app-shell[data-user-design="active"] .dashboard-hero, .dashboard-app-shell[data-user-design="active"] .stat-card { border-width: var(--user-card-border-width); }`,
+    `.dashboard-app-shell[data-user-design="active"] .card { padding: ${densityValues.card}; }`,
+    `.dashboard-app-shell[data-user-design="active"] .sidebar-link, .dashboard-app-shell[data-user-design="active"] .sidebar-command-trigger { min-height: ${densityValues.linkHeight}; border-radius: var(--radius-sm); }`,
+    `.dashboard-app-shell[data-user-design="active"] .stat-card { min-height: ${densityValues.statHeight}; }`,
+    `.dashboard-app-shell[data-user-design="active"] .page-heading, .dashboard-app-shell[data-user-design="active"] .panel-title { font-weight: ${noCodeDesign.typography.headingWeight}; }`,
+    '.dashboard-app-shell[data-user-design="active"] .btn-primary, .dashboard-app-shell[data-user-design="active"] .dashboard-shell-header a[href="/dashboard/admin/tasks"] {',
+    '  min-height: var(--user-button-height) !important;',
+    '  border-radius: var(--user-button-radius) !important;',
+    '  background: var(--user-button-bg) !important;',
+    '  color: var(--user-button-color) !important;',
+    '  border: 1px solid var(--user-button-border) !important;',
+    '  font-weight: var(--user-button-weight) !important;',
+    '}',
+    '.dashboard-app-shell[data-user-design="active"] .btn-primary:hover, .dashboard-app-shell[data-user-design="active"] .dashboard-shell-header a[href="/dashboard/admin/tasks"]:hover { background: var(--user-button-hover-bg) !important; }',
+    '.dashboard-app-shell[data-user-design="active"] .btn-secondary, .dashboard-app-shell[data-user-design="active"] .input, .dashboard-app-shell[data-user-design="active"] .command-trigger { border-radius: var(--user-button-radius) !important; }',
+    ...sideRules,
+  ]
+
+  const customCss =
+    typeof design.css === 'string'
+      ? sanitizeCss(design.css)
+      : typeof design.customCss === 'string'
+      ? sanitizeCss(design.customCss)
+      : ''
+
+  const compiled = [
+    variableLines.length
+      ? `.dashboard-app-shell[data-user-design="active"] {\n${variableLines.join('\n')}\n}`
+      : '',
+    ...ruleLines,
+    customCss,
+  ]
+    .filter(Boolean)
+    .join('\n\n')
+
+  assertSafeDesignText(compiled, 'Compiled design')
+  return compiled
+}
+
+function normalizeDesignSourceType(sourceType: string): DashboardDesignSourceType {
+  const normalized = sourceType.trim().toLowerCase()
+  if (normalized === 'json' || normalized === 'css') return normalized
+  throw new SettingsAccessError('Design file must be JSON or CSS.')
+}
+
+function normalizeDesignFileName(fileName?: string | null) {
+  const trimmed = fileName?.trim()
+  if (!trimmed) return 'Dashboard design'
+  return trimmed.slice(0, 160)
+}
+
 export async function getWorkspaceThemeSettings(companyId?: string | null): Promise<WorkspaceThemeSettings> {
   if (!companyId) return DEFAULT_THEME_SETTINGS
 
@@ -121,6 +607,184 @@ export async function getWorkspaceThemeSettings(companyId?: string | null): Prom
     sidebarColor: settings.sidebarColor,
     themeMode: settings.themeMode === 'dark' ? 'dark' : 'light',
   }
+}
+
+export async function getUserDashboardDesignSettings(userId?: string | null): Promise<UserDashboardDesignSettings> {
+  if (!userId) return DEFAULT_USER_DASHBOARD_DESIGN
+
+  const design = await prisma.userDashboardDesign.findUnique({
+    where: { userId },
+    select: {
+      name: true,
+      sourceType: true,
+      designJson: true,
+      customCss: true,
+      compiledCss: true,
+      enabled: true,
+      updatedAt: true,
+    },
+  })
+
+  if (!design || !design.enabled) return DEFAULT_USER_DASHBOARD_DESIGN
+
+  return {
+    enabled: design.enabled,
+    name: design.name,
+    sourceType: design.sourceType === 'css' ? 'css' : 'json',
+    designJson: design.designJson,
+    customCss: design.customCss,
+    compiledCss: design.compiledCss,
+    updatedAt: design.updatedAt.toISOString(),
+  }
+}
+
+export async function updateUserDashboardDesign(
+  requester: SettingsSessionUser,
+  input: {
+    sourceType: string
+    fileName?: string | null
+    content: string
+  }
+) {
+  if (!requester.id) throw new SettingsAccessError('Unauthorized', 401)
+
+  const sourceType = normalizeDesignSourceType(input.sourceType)
+  const name = normalizeDesignFileName(input.fileName)
+  const content = input.content.replace(/\0/g, '').trim()
+  if (!content) throw new SettingsAccessError('Design file cannot be empty.')
+  if (content.length > USER_DESIGN_MAX_CHARS) {
+    throw new SettingsAccessError('Design file must be smaller than 80 KB.')
+  }
+
+  let designJson: Prisma.InputJsonValue | undefined
+  let customCss: string | null = null
+  let compiledCss = ''
+
+  if (sourceType === 'css') {
+    customCss = sanitizeCss(content)
+    compiledCss = customCss
+  } else {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(content)
+    } catch {
+      throw new SettingsAccessError('JSON design file could not be parsed.')
+    }
+
+    const jsonObject = asJsonObject(parsed, 'Design JSON')
+    compiledCss = compileDashboardDesignJson(jsonObject)
+    designJson = jsonObject as Prisma.InputJsonObject
+    customCss =
+      typeof jsonObject.css === 'string'
+        ? sanitizeCss(jsonObject.css)
+        : typeof jsonObject.customCss === 'string'
+        ? sanitizeCss(jsonObject.customCss)
+        : null
+  }
+
+  const updated = await prisma.userDashboardDesign.upsert({
+    where: { userId: requester.id },
+    create: {
+      userId: requester.id,
+      name,
+      sourceType,
+      designJson,
+      customCss,
+      compiledCss,
+      enabled: true,
+    },
+    update: {
+      name,
+      sourceType,
+      designJson: designJson ?? Prisma.JsonNull,
+      customCss,
+      compiledCss,
+      enabled: true,
+    },
+    select: {
+      name: true,
+      sourceType: true,
+      designJson: true,
+      customCss: true,
+      compiledCss: true,
+      enabled: true,
+      updatedAt: true,
+    },
+  })
+
+  return {
+    enabled: updated.enabled,
+    name: updated.name,
+    sourceType: updated.sourceType === 'css' ? 'css' : 'json',
+    designJson: updated.designJson,
+    customCss: updated.customCss,
+    compiledCss: updated.compiledCss,
+    updatedAt: updated.updatedAt.toISOString(),
+  } satisfies UserDashboardDesignSettings
+}
+
+export async function updateUserDashboardDesignBuilder(
+  requester: SettingsSessionUser,
+  input: unknown
+) {
+  if (!requester.id) throw new SettingsAccessError('Unauthorized', 401)
+
+  const design = sanitizeDashboardDesignConfig(input)
+  const content = JSON.stringify(design)
+  if (content.length > USER_DESIGN_BUILDER_MAX_CHARS) {
+    throw new SettingsAccessError('Dashboard design is too large.')
+  }
+
+  const compiledCss = compileDashboardDesignJson(design)
+  const updated = await prisma.userDashboardDesign.upsert({
+    where: { userId: requester.id },
+    create: {
+      userId: requester.id,
+      name: `${design.brand.name} dashboard`,
+      sourceType: 'json',
+      designJson: design as Prisma.InputJsonObject,
+      customCss: null,
+      compiledCss,
+      enabled: true,
+    },
+    update: {
+      name: `${design.brand.name} dashboard`,
+      sourceType: 'json',
+      designJson: design as Prisma.InputJsonObject,
+      customCss: null,
+      compiledCss,
+      enabled: true,
+    },
+    select: {
+      name: true,
+      sourceType: true,
+      designJson: true,
+      customCss: true,
+      compiledCss: true,
+      enabled: true,
+      updatedAt: true,
+    },
+  })
+
+  return {
+    enabled: updated.enabled,
+    name: updated.name,
+    sourceType: 'json',
+    designJson: updated.designJson,
+    customCss: updated.customCss,
+    compiledCss: updated.compiledCss,
+    updatedAt: updated.updatedAt.toISOString(),
+  } satisfies UserDashboardDesignSettings
+}
+
+export async function resetUserDashboardDesign(requester: SettingsSessionUser) {
+  if (!requester.id) throw new SettingsAccessError('Unauthorized', 401)
+
+  await prisma.userDashboardDesign.deleteMany({
+    where: { userId: requester.id },
+  })
+
+  return DEFAULT_USER_DASHBOARD_DESIGN
 }
 
 type AdminActionClient = typeof prisma | Prisma.TransactionClient
