@@ -36,6 +36,9 @@ const starterPrompts = [
   'Analyze delayed projects',
   'Find overdue invoices',
   'Analyze team workload',
+  'Create campaign',
+  'Create brief',
+  'Create invoice',
   'Summarize pending approvals',
   'Which clients need follow-up?',
 ]
@@ -254,4 +257,3 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
     </>
   )
 }
-

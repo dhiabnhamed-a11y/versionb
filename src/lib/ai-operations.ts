@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/db'
+import { executeAiWorkspaceAction } from '@/lib/ai-actions'
 
 export type AiMessageInput = {
   role: 'user' | 'assistant'
@@ -359,6 +360,7 @@ async function loadWorkspaceContext(user: AiSessionUser) {
 function detectIntent(question: string) {
   const q = question.toLowerCase()
 
+  if (/\b(create|make|add|draft|generate|start)\b/.test(q) && /\b(campaign|project|brief|invoice|bill)\b/.test(q)) return 'action'
   if (q.includes('automation') || q.includes('workflow execution') || q.includes('reminder')) return 'automations'
   if (q.includes('invoice') || q.includes('revenue') || q.includes('payment') || q.includes('cash') || q.includes('mrr') || q.includes('profit')) {
     return 'finance'
@@ -373,6 +375,17 @@ function detectIntent(question: string) {
   }
   if (q.includes('task') || q.includes('overdue')) return 'tasks'
   if (q.includes('project') || q.includes('delayed')) return 'projects'
+
+  if (
+    q.includes('hello') ||
+    q.includes('hi') ||
+    q.includes('help') ||
+    q.includes('what can you do') ||
+    q.includes('who are you') ||
+    q.length < 32
+  ) {
+    return 'general'
+  }
 
   return 'executive'
 }
@@ -879,6 +892,32 @@ function buildAutomationAnswer(): AiGroundedAnswer {
   }
 }
 
+function buildGeneralAnswer(role: string, financeVisible: boolean): AiGroundedAnswer {
+  return {
+    answer: [
+      'I am your TASKIT operations assistant.',
+      '',
+      'I can help you analyze workspace health, identify delayed campaigns, summarize tasks, review workload, surface client follow-ups, and prepare executive updates from real platform records.',
+      financeVisible ? 'I can also analyze invoices, revenue, outstanding payments, and create invoice drafts when you provide the client and amount.' : '',
+      '',
+      'You can also ask me to create operational records, for example:',
+      '- Create campaign "Spring Launch" for Acme under Social Media',
+      '- Create a brief for Spring Launch about the launch video scope',
+      '- Draft an invoice for Acme for $1200 due next week',
+      '',
+      'I will only create records when the request is clear and your role has permission.',
+    ].filter(Boolean).join('\n'),
+    intent: 'general',
+    confidence: 'high',
+    citations: [],
+    quickActions: ['Detect operational risks', 'Analyze delayed projects', 'Create campaign', 'Create brief', 'Create invoice'],
+    facts: {
+      capabilities: ['analysis', 'summaries', 'risk detection', 'campaign creation', 'brief creation', 'invoice drafting'],
+    },
+    policy: { role, scope: role === 'EMPLOYEE' ? 'assigned-work' : 'workspace', financeVisible },
+  }
+}
+
 export async function buildGroundedOperationalAnswer(input: {
   question: string
   user: AiSessionUser
@@ -894,6 +933,29 @@ export async function buildGroundedOperationalAnswer(input: {
       quickActions: [],
       facts: { hasWorkspace: false },
       policy: { role, scope: 'none', financeVisible: false },
+    }
+  }
+
+  const action = await executeAiWorkspaceAction({
+    message: input.question,
+    user: input.user,
+  })
+  if (action.handled) {
+    return {
+      answer: action.answer ?? 'Done.',
+      intent: action.intent ?? 'action',
+      confidence: action.confidence ?? 'medium',
+      citations: action.citations ?? [],
+      quickActions: action.quickActions ?? ['Detect operational risks', 'Analyze delayed projects'],
+      facts: {
+        ...(action.facts ?? {}),
+        generatedAt: new Date().toISOString(),
+      },
+      policy: {
+        role,
+        scope: isEmployee(input.user) ? 'assigned-work' : 'workspace',
+        financeVisible: canViewFinance(input.user),
+      },
     }
   }
 
@@ -919,6 +981,8 @@ export async function buildGroundedOperationalAnswer(input: {
             ? buildApprovalsAnswer(approvalQueue)
             : intent === 'automations'
               ? buildAutomationAnswer()
+              : intent === 'general'
+                ? buildGeneralAnswer(role, financeVisible)
               : intent === 'tasks'
                 ? buildTaskAnswer(input.question, taskSummary, now)
                 : intent === 'projects'
@@ -946,4 +1010,3 @@ export async function buildGroundedOperationalAnswer(input: {
     },
   }
 }
-
