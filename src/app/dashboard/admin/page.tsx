@@ -4,8 +4,10 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useSession } from 'next-auth/react'
+import EnterpriseDashboardBuilder from '@/components/dashboard/EnterpriseDashboardBuilder'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
+import type { DashboardWidgetConfig } from '@/lib/dashboard-design'
 import {
   AlertTriangle,
   ArrowRight,
@@ -171,7 +173,6 @@ export default function AdminDashboard() {
   const { data: session } = useSession()
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
-  const [additionalInsightsOpen, setAdditionalInsightsOpen] = useState(false)
 
   const loadStats = useCallback(async () => {
     const data = (await fetch('/api/analytics', { cache: 'no-store' }).then((response) => response.json())) as Stats
@@ -333,34 +334,10 @@ export default function AdminDashboard() {
       ]
     : []
 
-  return (
-    <div className="dashboard-page">
-      <section className="dashboard-hero">
-        <div className="min-w-0">
-          <div className="dashboard-hero-kicker">
-            <Sparkles size={13} />
-            {companyCopy.workspaceLabel}
-          </div>
-          <h1 className="page-heading mt-4">
-            <span suppressHydrationWarning>{greeting}</span>, {user?.name?.split(' ')[0] || 'there'}
-          </h1>
-          <p className="page-sub max-w-2xl">{workspaceMessage}</p>
-        </div>
-
-        <div className="dashboard-hero-actions">
-          <Link href="/dashboard/admin/projects" className="btn-secondary">
-            <FolderKanban size={16} />
-            {companyCopy.projectPluralLabel}
-          </Link>
-          <Link href="/dashboard/admin/tasks" className="btn-primary">
-            <Plus size={16} />
-            New {companyCopy.taskLabel}
-          </Link>
-        </div>
-      </section>
-
-      {loading ? (
-        <div className="dashboard-stat-grid">
+  function renderDashboardWidget(widget: DashboardWidgetConfig) {
+    if (widget.type === 'priorityMetrics') {
+      return loading ? (
+        <div className="dashboard-stat-grid mb-0">
           {[...Array(4)].map((_, index) => (
             <div key={index} className="stat-card loading-shimmer" aria-label="Loading overview metric">
               <div className="h-10 w-10 rounded-[10px] bg-white/70" />
@@ -370,7 +347,7 @@ export default function AdminDashboard() {
           ))}
         </div>
       ) : (
-        <div className="dashboard-stat-grid">
+        <div className="dashboard-stat-grid mb-0">
           {overviewCards.map((card, index) => {
             const Icon = card.icon
             return (
@@ -392,34 +369,20 @@ export default function AdminDashboard() {
             )
           })}
         </div>
-      )}
+      )
+    }
 
-      <div className="dashboard-section-grid">
-        <section className="card">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">Activity over time</h2>
-              <p className="panel-meta">Created and completed work across the last 7 days.</p>
-            </div>
-            <span className="rounded-full bg-[var(--bg-elevated)] px-3 py-1 text-[11px] font-bold text-[var(--text-muted)]">
-              This week vs last week
-            </span>
-          </div>
-          {!stats?.activitySeries?.some((item) => item.created || item.completed) ? (
-            <EmptyChartState label="No activity trend yet" />
-          ) : (
-            <ActivityLineChart data={stats.activitySeries} />
-          )}
-        </section>
+    if (widget.type === 'activityTrend') {
+      return !stats?.activitySeries?.some((item) => item.created || item.completed) ? (
+        <EmptyChartState label="No activity trend yet" />
+      ) : (
+        <ActivityLineChart data={stats.activitySeries} />
+      )
+    }
 
-        <section className="card">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">{isAgency ? 'Brief breakdown' : 'Task breakdown'}</h2>
-              <p className="panel-meta">A quick read on what is finished, active, or late.</p>
-            </div>
-          </div>
-
+    if (widget.type === 'taskBreakdown') {
+      return (
+        <>
           <div className="mb-5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)] p-4">
             <div className="mb-3 flex items-center justify-between gap-3">
               <span className="text-sm font-semibold text-[var(--text-primary)]">Overall completion</span>
@@ -454,12 +417,9 @@ export default function AdminDashboard() {
               })}
             </div>
           ) : (
-            <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] bg-white px-5 py-8 text-center">
+            <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] bg-[var(--bg-elevated)] px-5 py-8 text-center">
               <CheckSquare size={28} style={{ opacity: 0.35, margin: '0 auto 10px', color: 'var(--text-muted)' }} />
               <p className="text-sm font-semibold text-[var(--text-primary)]">No {companyCopy.taskPluralLabel.toLowerCase()} yet</p>
-              <p className="mx-auto mt-1 max-w-xs text-sm leading-6 text-[var(--text-muted)]">
-                Create a {companyCopy.projectLabel.toLowerCase()} first, then split it into clear {companyCopy.taskPluralLabel.toLowerCase()}.
-              </p>
             </div>
           )}
 
@@ -473,191 +433,172 @@ export default function AdminDashboard() {
               Send alert
             </Link>
           </div>
-        </section>
-      </div>
+        </>
+      )
+    }
 
-      <div className="dashboard-section-grid">
-        <section className="card">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">Team performance</h2>
-              <p className="panel-meta">Top contributors by completed work.</p>
+    if (widget.type === 'teamPerformance') {
+      return !teamRows.length ? (
+        <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] bg-[var(--bg-elevated)] px-5 py-10 text-center">
+          <Users size={30} style={{ opacity: 0.34, margin: '0 auto 10px', color: 'var(--text-muted)' }} />
+          <p className="text-sm font-semibold text-[var(--text-primary)]">No team members yet</p>
+        </div>
+      ) : (
+        <div className="activity-list">
+          {teamRows.map((employee, index) => (
+            <div key={employee.name} className="team-card">
+              <div className="team-row-header">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="icon-box h-8 w-8 rounded-full text-xs font-bold text-[var(--accent)]" style={{ background: 'var(--accent-subtle)' }}>
+                    {index + 1}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-semibold text-[var(--text-primary)]">{employee.name}</div>
+                    <div className="text-xs text-[var(--text-muted)]">
+                      {employee.done}/{employee.total} complete
+                    </div>
+                  </div>
+                </div>
+                <div className="text-sm font-bold" style={{ color: employee.score >= 80 ? '#059669' : employee.score >= 50 ? '#d97706' : '#dc2626' }}>
+                  {employee.score}%
+                </div>
+              </div>
+              <div className="progress-bar mt-3">
+                <div
+                  className="progress-fill"
+                  style={{
+                    width: `${employee.score}%`,
+                    background: employee.score >= 80 ? '#059669' : employee.score >= 50 ? '#d97706' : '#dc2626',
+                  }}
+                />
+              </div>
             </div>
-            <Link href="/dashboard/admin/employees" className="btn-secondary btn-sm">
-              Team
-              <ArrowRight size={14} />
-            </Link>
-          </div>
+          ))}
+        </div>
+      )
+    }
 
-          {!teamRows.length ? (
-            <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] bg-[var(--bg-elevated)] px-5 py-10 text-center">
-              <Users size={30} style={{ opacity: 0.34, margin: '0 auto 10px', color: 'var(--text-muted)' }} />
-              <p className="text-sm font-semibold text-[var(--text-primary)]">No team members yet</p>
-              <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-[var(--text-muted)]">
-                Invite employees to start seeing workload, progress, and completion trends here.
+    if (widget.type === 'recentActivity') {
+      return !recentRows.length ? (
+        <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] bg-[var(--bg-elevated)] px-5 py-10 text-center text-sm font-semibold text-[var(--text-muted)]">
+          No activity logged yet
+        </div>
+      ) : (
+        <div className="activity-list">
+          {recentRows.map((activity) => (
+            <div key={activity.id} className="activity-card">
+              <div className="activity-row">
+                <div className="flex min-w-0 items-start gap-3">
+                  <div className="icon-box h-9 w-9 rounded-full text-xs font-bold text-[var(--accent)]" style={{ background: 'var(--accent-subtle)' }}>
+                    {activity.user.name.charAt(0)}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className="text-sm font-semibold text-[var(--text-primary)]">{activity.user.name}</span>
+                      <span className="text-xs font-medium text-[var(--text-muted)]">{activity.action}</span>
+                    </div>
+                    <div className="mt-1 truncate text-xs text-[var(--text-muted)]">
+                      {activity.task.project.title} / {activity.task.title}
+                    </div>
+                  </div>
+                </div>
+                <span className="shrink-0 text-[11px] font-semibold text-[var(--text-muted)]">
+                  {new Date(activity.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    if (widget.type === 'workspaceSignals') {
+      return !secondaryCards.length ? (
+        <EmptyChartState label="No secondary signals yet" />
+      ) : (
+        <div className="compact-stat-grid">
+          {secondaryCards.map((card) => (
+            <div key={card.label} className="compact-stat">
+              <div className="compact-stat-label">{card.label}</div>
+              <div className="compact-stat-value">
+                <AnimatedCounter value={card.value} />
+              </div>
+              <div className="mt-1 text-xs text-[var(--text-muted)]">{card.help}</div>
+            </div>
+          ))}
+        </div>
+      )
+    }
+
+    if (widget.type === 'statusMix') {
+      return !stats?.taskStageBreakdown?.some((item) => item.value) ? (
+        <EmptyChartState label="No task data yet" />
+      ) : (
+        <StatusBarChart data={stats.taskStageBreakdown} />
+      )
+    }
+
+    if (widget.type === 'rolesDistribution') {
+      return !stats?.rolesDistribution?.some((item) => item.value) ? (
+        <EmptyChartState label="No role data yet" />
+      ) : (
+        <RolesPieChart data={stats.rolesDistribution} />
+      )
+    }
+
+    if (widget.type === 'agencySetup') {
+      if (!isAgency) return <EmptyChartState label="Available for digital agency workspaces" />
+      return (
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex items-start gap-3">
+            <div className="icon-box h-11 w-11" style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed' }}>
+              <BriefcaseBusiness size={20} />
+            </div>
+            <div>
+              <h2 className="panel-title">Agency setup</h2>
+              <p className="panel-meta max-w-2xl">
+                Create client categories, add campaigns under each category, then split every campaign into briefs.
               </p>
             </div>
-          ) : (
-            <div className="activity-list">
-              {teamRows.map((employee, index) => (
-                <div key={employee.name} className="team-card">
-                  <div className="team-row-header">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="icon-box h-8 w-8 rounded-full text-xs font-bold text-[var(--accent)]" style={{ background: 'var(--accent-subtle)' }}>
-                        {index + 1}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-[var(--text-primary)]">{employee.name}</div>
-                        <div className="text-xs text-[var(--text-muted)]">
-                          {employee.done}/{employee.total} complete
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-sm font-bold" style={{ color: employee.score >= 80 ? '#059669' : employee.score >= 50 ? '#d97706' : '#dc2626' }}>
-                      {employee.score}%
-                    </div>
-                  </div>
-                  <div className="progress-bar mt-3">
-                    <div
-                      className="progress-fill"
-                      style={{
-                        width: `${employee.score}%`,
-                        background: employee.score >= 80 ? '#059669' : employee.score >= 50 ? '#d97706' : '#dc2626',
-                      }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="card">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">Recent activity</h2>
-              <p className="panel-meta">Newest task and project movement.</p>
-            </div>
-            <Link href="/dashboard/admin/tasks" className="btn-secondary btn-sm">
-              View tasks
-              <ArrowRight size={14} />
-            </Link>
           </div>
-
-          {!recentRows.length ? (
-            <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] bg-[var(--bg-elevated)] px-5 py-10 text-center text-sm font-semibold text-[var(--text-muted)]">
-              No activity logged yet
-            </div>
-          ) : (
-            <div className="activity-list">
-              {recentRows.map((activity) => (
-                <div key={activity.id} className="activity-card">
-                  <div className="activity-row">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <div className="icon-box h-9 w-9 rounded-full text-xs font-bold text-[var(--accent)]" style={{ background: 'var(--accent-subtle)' }}>
-                        {activity.user.name.charAt(0)}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold text-[var(--text-primary)]">{activity.user.name}</span>
-                          <span className="text-xs font-medium text-[var(--text-muted)]">{activity.action}</span>
-                        </div>
-                        <div className="mt-1 truncate text-xs text-[var(--text-muted)]">
-                          {activity.task.project.title} / {activity.task.title}
-                        </div>
-                      </div>
-                    </div>
-                    <span className="shrink-0 text-[11px] font-semibold text-[var(--text-muted)]">
-                      {new Date(activity.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
-
-      {!!secondaryCards.length && (
-        <section className="card mt-4">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">Workspace signals</h2>
-              <p className="panel-meta">Secondary metrics are grouped here to keep the overview scannable.</p>
-            </div>
-          </div>
-          <div className="compact-stat-grid">
-            {secondaryCards.map((card) => (
-              <div key={card.label} className="compact-stat">
-                <div className="compact-stat-label">{card.label}</div>
-                <div className="compact-stat-value">
-                  <AnimatedCounter value={card.value} />
-                </div>
-                <div className="mt-1 text-xs text-[var(--text-muted)]">{card.help}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <details className="dashboard-disclosure" onToggle={(event) => setAdditionalInsightsOpen(event.currentTarget.open)}>
-        <summary>Additional insights</summary>
-        <div className="dashboard-disclosure-body">
-          {additionalInsightsOpen && (
-          <div className="dashboard-section-grid mt-0">
-            <section className="card">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Status mix</h2>
-                  <p className="panel-meta">A stage-level breakdown of all work.</p>
-                </div>
-              </div>
-              {!stats?.taskStageBreakdown?.some((item) => item.value) ? (
-                <EmptyChartState label="No task data yet" />
-              ) : (
-                <StatusBarChart data={stats.taskStageBreakdown} />
-              )}
-            </section>
-
-            <section className="card">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Roles distribution</h2>
-                  <p className="panel-meta">Workspace access composition.</p>
-                </div>
-              </div>
-              {!stats?.rolesDistribution?.some((item) => item.value) ? (
-                <EmptyChartState label="No role data yet" />
-              ) : (
-                <RolesPieChart data={stats.rolesDistribution} />
-              )}
-            </section>
-          </div>
-          )}
+          <Link href="/dashboard/admin/projects" className="btn-secondary">
+            Organize campaigns
+            <ArrowRight size={15} />
+          </Link>
         </div>
-      </details>
+      )
+    }
 
-      {isAgency && (
-        <section className="card mt-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="icon-box h-11 w-11" style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed' }}>
-                <BriefcaseBusiness size={20} />
-              </div>
-              <div>
-                <h2 className="panel-title">Agency setup</h2>
-                <p className="panel-meta max-w-2xl">
-                  Create client categories, add campaigns under each category, then split every campaign into briefs.
-                </p>
-              </div>
-            </div>
-            <Link href="/dashboard/admin/projects" className="btn-secondary">
-              Organize campaigns
-              <ArrowRight size={15} />
-            </Link>
+    return <EmptyChartState label="Widget unavailable" />
+  }
+
+  return (
+    <div className="dashboard-page">
+      <section className="dashboard-hero">
+        <div className="min-w-0">
+          <div className="dashboard-hero-kicker">
+            <Sparkles size={13} />
+            {companyCopy.workspaceLabel}
           </div>
-        </section>
-      )}
+          <h1 className="page-heading mt-4">
+            <span suppressHydrationWarning>{greeting}</span>, {user?.name?.split(' ')[0] || 'there'}
+          </h1>
+          <p className="page-sub max-w-2xl">{workspaceMessage}</p>
+        </div>
+
+        <div className="dashboard-hero-actions">
+          <Link href="/dashboard/admin/projects" className="btn-secondary">
+            <FolderKanban size={16} />
+            {companyCopy.projectPluralLabel}
+          </Link>
+          <Link href="/dashboard/admin/tasks" className="btn-primary">
+            <Plus size={16} />
+            New {companyCopy.taskLabel}
+          </Link>
+        </div>
+      </section>
+
+      <EnterpriseDashboardBuilder renderWidget={renderDashboardWidget} />
     </div>
   )
 }
