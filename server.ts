@@ -4,6 +4,8 @@ import next from 'next'
 import { Server as SocketIOServer } from 'socket.io'
 import { getToken } from 'next-auth/jwt'
 import { emitPresence } from './src/lib/realtime-server'
+import { logger } from './src/modules/shared/logger'
+import { startBackgroundJobWorkers } from './src/modules/jobs/job-worker'
 
 const dev = process.env.NODE_ENV !== 'production'
 const hostname = 'localhost'
@@ -65,7 +67,7 @@ io.use(async (socket, nextHandler) => {
 
     return nextHandler()
   } catch (error) {
-    console.error('Socket auth failed:', error)
+    logger.error('realtime.socket_auth_failed', error)
     return nextHandler(new Error('Unauthorized'))
   }
 })
@@ -125,7 +127,8 @@ io.on('connection', (socket) => {
 })
 
 app.prepare().then(() => {
+  void startBackgroundJobWorkers()
   httpServer.listen(port, () => {
-    console.log(`TASKIT server ready at http://${hostname}:${port}`)
+    logger.info('server.ready', { url: `http://${hostname}:${port}` })
   })
 })

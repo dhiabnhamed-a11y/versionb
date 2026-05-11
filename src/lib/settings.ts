@@ -1289,16 +1289,22 @@ export async function buildWorkspaceStatsExport(companyId: string) {
     },
     teamPerformance,
     activityLogs: {
-      taskActivity: taskActivities.map((activity) => ({
-        id: activity.id,
-        action: activity.action,
-        createdAt: activity.createdAt.toISOString(),
-        user: {
-          ...activity.user,
-          role: toPublicWorkspaceRole(activity.user.role),
-        },
-        task: activity.task,
-      })),
+      taskActivity: taskActivities.flatMap((activity) => {
+        if (!activity.user || !activity.task) return []
+
+        return [
+          {
+            id: activity.id,
+            action: activity.action,
+            createdAt: activity.createdAt.toISOString(),
+            user: {
+              ...activity.user,
+              role: toPublicWorkspaceRole(activity.user.role),
+            },
+            task: activity.task,
+          },
+        ]
+      }),
       adminActions: adminActions.map((action) => ({
         id: action.id,
         action: action.action,

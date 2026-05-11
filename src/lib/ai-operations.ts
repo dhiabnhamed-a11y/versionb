@@ -1259,9 +1259,9 @@ export async function buildGroundedOperationalAnswer(input: {
       generatedAt: now.toISOString(),
       recentActivity: compactList(context.activities, 5).map((activity) => ({
         action: activity.action,
-        task: activity.task.title,
-        project: activity.task.project.title,
-        user: activity.user.name,
+        task: activity.task?.title ?? 'Workspace activity',
+        project: activity.task?.project?.title ?? context.company?.name ?? 'Workspace',
+        user: activity.user?.name ?? 'System',
         createdAt: activity.createdAt.toISOString(),
       })),
       memory: {

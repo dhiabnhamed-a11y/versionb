@@ -26,9 +26,18 @@ type Command = {
   description: string
   href?: string
   assistantPrompt?: string
-  group: 'Navigate' | 'Create' | 'Review' | 'Operate'
+  group: 'Search' | 'Navigate' | 'Create' | 'Review' | 'Operate'
   keywords: string[]
   icon: ComponentType<LucideProps>
+}
+
+type SearchResult = {
+  id: string
+  entityType: string
+  entityId: string
+  title: string
+  subtitle?: string | null
+  href?: string | null
 }
 
 type CommandPaletteProps = {
@@ -174,7 +183,9 @@ export default function CommandPalette({
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [searchResults, setSearchResults] = useState<SearchResult[]>([])
   const inputRef = useRef<HTMLInputElement | null>(null)
+  const searchEnabled = open && normalize(query).length >= 2
 
   const commands = useMemo(() => {
     if (isSuperAdmin) {
@@ -209,15 +220,50 @@ export default function CommandPalette({
     return canManageWorkspace ? [...baseCommands, settingsCommand] : baseCommands
   }, [canManageWorkspace, isEmployee, isSuperAdmin])
 
+  useEffect(() => {
+    if (!searchEnabled) return
+
+    const controller = new AbortController()
+    const timer = window.setTimeout(() => {
+      void fetch(`/api/search?q=${encodeURIComponent(query)}`, { cache: 'no-store', signal: controller.signal })
+        .then((response) => (response.ok ? response.json() : { items: [] }))
+        .then((body) => setSearchResults(Array.isArray(body.items) ? body.items : []))
+        .catch((error) => {
+          if ((error as Error).name !== 'AbortError') setSearchResults([])
+        })
+    }, 120)
+
+    return () => {
+      controller.abort()
+      window.clearTimeout(timer)
+    }
+  }, [query, searchEnabled])
+
+  const entityCommands = useMemo(() => {
+    if (!searchEnabled) return []
+
+    return searchResults.map((result) => ({
+      id: `entity:${result.entityType}:${result.entityId}`,
+      label: result.title,
+      description: result.subtitle || result.entityType,
+        href: result.href || undefined,
+      group: 'Search' as const,
+      keywords: [result.entityType, result.title, result.subtitle ?? ''],
+      icon: Search,
+    }))
+  }, [searchEnabled, searchResults])
+
   const filteredCommands = useMemo(() => {
     const needle = normalize(query)
     if (!needle) return commands
 
-    return commands.filter((command) => {
+    const staticMatches = commands.filter((command) => {
       const haystack = [command.label, command.description, command.group, ...command.keywords].join(' ').toLowerCase()
       return haystack.includes(needle)
     })
-  }, [commands, query])
+
+    return [...entityCommands, ...staticMatches]
+  }, [commands, entityCommands, query])
 
   useEffect(() => {
     if (!open) return
@@ -291,7 +337,7 @@ export default function CommandPalette({
       acc[command.group].push(command)
       return acc
     },
-    { Navigate: [], Create: [], Review: [], Operate: [] }
+    { Search: [], Navigate: [], Create: [], Review: [], Operate: [] }
   )
 
   return (

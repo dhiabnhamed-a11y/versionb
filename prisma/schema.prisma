@@ -21,34 +21,36 @@ model User {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  company                  Company?              @relation("CompanyMembers", fields: [companyId], references: [id])
-  ownedCompany             Company?              @relation("CompanyOwner")
-  managedProjects          Project[]             @relation("ProjectManager")
-  assignedTasks            Task[]                @relation("TaskAssignee")
+  company                  Company?                @relation("CompanyMembers", fields: [companyId], references: [id])
+  ownedCompany             Company?                @relation("CompanyOwner")
+  managedProjects          Project[]               @relation("ProjectManager")
+  assignedTasks            Task[]                  @relation("TaskAssignee")
   activities               Activity[]
-  sentAlerts               Alert[]               @relation("AlertSender")
-  receivedAlerts           Alert[]               @relation("AlertRecipient")
+  sentAlerts               Alert[]                 @relation("AlertSender")
+  receivedAlerts           Alert[]                 @relation("AlertRecipient")
   pushTokens               PushToken[]
-  createdInvites           Invite[]              @relation("InviteCreatedBy")
-  redeemedInvites          Invite[]              @relation("InviteUsedBy")
-  reviewedAccessRequests   AccessRequest[]       @relation("AccessRequestReviewedBy")
-  reviewedCompanies        Company[]             @relation("CompanyReviewedBy")
+  createdInvites           Invite[]                @relation("InviteCreatedBy")
+  redeemedInvites          Invite[]                @relation("InviteUsedBy")
+  reviewedAccessRequests   AccessRequest[]         @relation("AccessRequestReviewedBy")
+  reviewedCompanies        Company[]               @relation("CompanyReviewedBy")
   taskSubmissions          TaskSubmission[]
-  projectMediaUploads      ProjectMedia[]        @relation("ProjectMediaUploadedBy")
+  projectMediaUploads      ProjectMedia[]          @relation("ProjectMediaUploadedBy")
   comments                 Comment[]
-  calendarEvents           CalendarEvent[]       @relation("CalendarEventCreatedBy")
-  adminActions             AdminActionLog[]      @relation("AdminActionActor")
-  targetedAdminActions     AdminActionLog[]      @relation("AdminActionTarget")
-  createdInvoices          Invoice[]             @relation("InvoiceCreatedBy")
-  clientActivities         ClientActivity[]      @relation("ClientActivityActor")
-  createdBriefs            Brief[]               @relation("BriefCreatedBy")
-  uploadedDeliverableFiles DeliverableFile[]     @relation("DeliverableFileUploadedBy")
-  approvalDecisions        ApprovalDecision[]    @relation("ApprovalDecisionDecidedBy")
-  deliverableActivities    DeliverableActivity[] @relation("DeliverableActivityActor")
-  assignedSubtasks         Subtask[]             @relation("SubtaskAssignee")
+  calendarEvents           CalendarEvent[]         @relation("CalendarEventCreatedBy")
+  adminActions             AdminActionLog[]        @relation("AdminActionActor")
+  targetedAdminActions     AdminActionLog[]        @relation("AdminActionTarget")
+  createdInvoices          Invoice[]               @relation("InvoiceCreatedBy")
+  clientActivities         ClientActivity[]        @relation("ClientActivityActor")
+  createdBriefs            Brief[]                 @relation("BriefCreatedBy")
+  uploadedDeliverableFiles DeliverableFile[]       @relation("DeliverableFileUploadedBy")
+  approvalDecisions        ApprovalDecision[]      @relation("ApprovalDecisionDecidedBy")
+  deliverableActivities    DeliverableActivity[]   @relation("DeliverableActivityActor")
+  assignedSubtasks         Subtask[]               @relation("SubtaskAssignee")
   aiConversations          AiConversation[]
   aiMemories               AiMemory[]
   dashboardDesign          UserDashboardDesign?
+  auditLogs                AuditLog[]              @relation("AuditLogActor")
+  notificationPreferences  NotificationPreference?
 }
 
 model Company {
@@ -67,28 +69,34 @@ model Company {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  owner               User                  @relation("CompanyOwner", fields: [ownerId], references: [id])
-  reviewedBy          User?                 @relation("CompanyReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  members             User[]                @relation("CompanyMembers")
-  rooms               Room[]
-  projectCategories   ProjectCategory[]
-  projects            Project[]
-  invites             Invite[]
-  accessRequests      AccessRequest[]
-  calendarEvents      CalendarEvent[]
-  settings            CompanySettings?
-  adminActionLogs     AdminActionLog[]
-  clients             Client[]
-  clientActivities    ClientActivity[]
+  owner                User                  @relation("CompanyOwner", fields: [ownerId], references: [id])
+  reviewedBy           User?                 @relation("CompanyReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  members              User[]                @relation("CompanyMembers")
+  rooms                Room[]
+  projectCategories    ProjectCategory[]
+  projects             Project[]
+  invites              Invite[]
+  accessRequests       AccessRequest[]
+  calendarEvents       CalendarEvent[]
+  settings             CompanySettings?
+  adminActionLogs      AdminActionLog[]
+  clients              Client[]
+  clientActivities     ClientActivity[]
   clientPortalComments ClientPortalComment[]
-  invoices            Invoice[]
-  briefs              Brief[]
-  deliverables        Deliverable[]
-  workflowTemplates   WorkflowTemplate[]
-  ApprovalDecision    ApprovalDecision[]
-  DeliverableActivity DeliverableActivity[]
-  aiConversations     AiConversation[]
-  aiMemories          AiMemory[]
+  invoices             Invoice[]
+  briefs               Brief[]
+  deliverables         Deliverable[]
+  workflowTemplates    WorkflowTemplate[]
+  ApprovalDecision     ApprovalDecision[]
+  DeliverableActivity  DeliverableActivity[]
+  aiConversations      AiConversation[]
+  aiMemories           AiMemory[]
+  activities           Activity[]
+  auditLogs            AuditLog[]
+  alerts               Alert[]
+  jobRuns              JobRun[]
+  searchIndexes        SearchIndex[]
+  analyticsMetrics     AnalyticsMetric[]
 
   @@index([status, createdAt])
   @@index([name, registrationNumber, status])
@@ -111,13 +119,13 @@ model Client {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  company    Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  projects   Project[]
-  invoices   Invoice[]
-  activities ClientActivity[]
+  company        Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  projects       Project[]
+  invoices       Invoice[]
+  activities     ClientActivity[]
   portalComments ClientPortalComment[]
-  briefs     Brief[]
-  approvals  ApprovalDecision[]
+  briefs         Brief[]
+  approvals      ApprovalDecision[]
 
   @@index([companyId, status, createdAt])
   @@index([companyId, companyName])
@@ -365,19 +373,19 @@ model Project {
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
 
-  company        Company              @relation(fields: [companyId], references: [id])
-  room           Room?                @relation(fields: [roomId], references: [id], onDelete: SetNull)
-  category       ProjectCategory?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
-  client         Client?              @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  manager        User?                @relation("ProjectManager", fields: [managerId], references: [id])
-  tasks          Task[]
-  invoices       Invoice[]            @relation("InvoiceCampaign")
-  briefs         Brief[]
-  deliverables   Deliverable[]
-  cameraMedia    ProjectCameraMedia[]
-  projectMedia   ProjectMedia[]
-  cameras        ProjectCamera[]
-  calendarEvents CalendarEvent[]
+  company              Company               @relation(fields: [companyId], references: [id])
+  room                 Room?                 @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  category             ProjectCategory?      @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  client               Client?               @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  manager              User?                 @relation("ProjectManager", fields: [managerId], references: [id])
+  tasks                Task[]
+  invoices             Invoice[]             @relation("InvoiceCampaign")
+  briefs               Brief[]
+  deliverables         Deliverable[]
+  cameraMedia          ProjectCameraMedia[]
+  projectMedia         ProjectMedia[]
+  cameras              ProjectCamera[]
+  calendarEvents       CalendarEvent[]
   clientPortalComments ClientPortalComment[]
 
   @@index([companyId, roomId])
@@ -518,15 +526,15 @@ model Deliverable {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  company      Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  campaign     Project               @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  brief        Brief                 @relation(fields: [briefId], references: [id], onDelete: Cascade)
-  tasks        Task[]
-  files        DeliverableFile[]
-  revisions    DeliverableRevision[]
-  approvals    ApprovalDecision[]
-  activities   DeliverableActivity[]
-  invoiceItems InvoiceItem[]
+  company              Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  campaign             Project               @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  brief                Brief                 @relation(fields: [briefId], references: [id], onDelete: Cascade)
+  tasks                Task[]
+  files                DeliverableFile[]
+  revisions            DeliverableRevision[]
+  approvals            ApprovalDecision[]
+  activities           DeliverableActivity[]
+  invoiceItems         InvoiceItem[]
   clientPortalComments ClientPortalComment[]
 
   @@index([companyId, campaignId, status, createdAt])
@@ -734,28 +742,161 @@ model TaskSubmission {
 }
 
 model Activity {
-  id        String   @id @default(cuid())
-  taskId    String
-  userId    String
-  action    String
-  createdAt DateTime @default(now())
+  id         String   @id @default(cuid())
+  companyId  String?
+  entityType String   @default("task")
+  entityId   String?
+  taskId     String?
+  userId     String?
+  action     String
+  metadata   Json?
+  source     String?
+  createdAt  DateTime @default(now())
 
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id])
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  task    Task?    @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([companyId, entityType, entityId, createdAt])
+  @@index([taskId, createdAt])
+  @@index([userId, createdAt])
+  @@index([action, createdAt])
 }
 
 model Alert {
-  id          String   @id @default(cuid())
-  type        String // URGENT_TASK, DEADLINE_WARNING, MANAGER_CALL
-  title       String
-  message     String
-  senderId    String
-  recipientId String
-  read        Boolean  @default(false)
-  createdAt   DateTime @default(now())
+  id            String    @id @default(cuid())
+  companyId     String?
+  type          String // URGENT_TASK, DEADLINE_WARNING, MANAGER_CALL
+  title         String
+  message       String
+  senderId      String
+  recipientId   String
+  read          Boolean   @default(false)
+  readAt        DateTime?
+  priority      String    @default("NORMAL") // LOW, NORMAL, HIGH, CRITICAL
+  channel       String    @default("in_app") // in_app, email, push, slack
+  deliveryState String    @default("READY") // READY, QUEUED, SENT, FAILED, SUPPRESSED
+  entityType    String?
+  entityId      String?
+  metadata      Json?
+  scheduledFor  DateTime?
+  createdAt     DateTime  @default(now())
 
-  sender    User @relation("AlertSender", fields: [senderId], references: [id])
-  recipient User @relation("AlertRecipient", fields: [recipientId], references: [id])
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  sender    User     @relation("AlertSender", fields: [senderId], references: [id])
+  recipient User     @relation("AlertRecipient", fields: [recipientId], references: [id])
+
+  @@index([recipientId, read, createdAt])
+  @@index([companyId, createdAt])
+  @@index([companyId, entityType, entityId])
+  @@index([priority, deliveryState, scheduledFor])
+}
+
+model NotificationPreference {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  digestMode    String   @default("realtime") // realtime, daily, weekly
+  quietHours    Json?
+  channels      Json?
+  mutedEntities Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  companyId  String?
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  metadata   Json?
+  requestId  String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actor   User?    @relation("AuditLogActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([companyId, entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+}
+
+model JobRun {
+  id          String    @id @default(cuid())
+  companyId   String?
+  queue       String
+  name        String
+  status      String    @default("QUEUED") // QUEUED, DEFERRED, ACTIVE, COMPLETED, FAILED, DEAD_LETTER
+  attempts    Int       @default(0)
+  maxAttempts Int       @default(3)
+  externalId  String?
+  entityType  String?
+  entityId    String?
+  payload     Json?
+  result      Json?
+  error       String?
+  runAt       DateTime?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([queue, status, runAt])
+  @@index([companyId, status, createdAt])
+  @@index([entityType, entityId])
+  @@index([externalId])
+}
+
+model SearchIndex {
+  id         String   @id @default(cuid())
+  companyId  String
+  entityType String
+  entityId   String
+  title      String
+  subtitle   String?
+  content    String?
+  href       String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, entityType, entityId])
+  @@index([companyId, entityType])
+  @@index([companyId, updatedAt])
+  @@index([companyId, title])
+}
+
+model AnalyticsMetric {
+  id          String    @id @default(cuid())
+  companyId   String
+  key         String
+  scope       String    @default("workspace")
+  periodStart DateTime?
+  periodEnd   DateTime?
+  value       Json
+  computedAt  DateTime  @default(now())
+  expiresAt   DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, key, scope, periodStart, periodEnd])
+  @@index([companyId, key, computedAt])
+  @@index([expiresAt])
 }
 
 model CalendarEvent {
