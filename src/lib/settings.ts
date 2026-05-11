@@ -9,13 +9,7 @@ import {
   type DashboardCardShadow,
   type DashboardDesignConfig,
   type DashboardDesignDensity,
-  type DashboardGlassLevel,
-  type DashboardIconStyle,
-  type DashboardLayoutMode,
-  type DashboardLayoutPreset,
   type DashboardSidebarSide,
-  type DashboardSidebarStyle,
-  type DashboardWidgetConfig,
 } from '@/lib/dashboard-design'
 
 export const SETTINGS_ADMIN_ROLES = ['OWNER', 'MANAGER'] as const
@@ -232,36 +226,6 @@ function sanitizeBrandName(value: string) {
   return text
 }
 
-function sanitizeShortText(value: string, label: string, fallback: string, max = 80) {
-  const text = value.replace(/\s+/g, ' ').trim().slice(0, max)
-  if (!text) return fallback
-  if (/[<>]/.test(text)) {
-    throw new SettingsAccessError(`${label} cannot contain markup.`)
-  }
-
-  return text
-}
-
-function sanitizeHiddenNavigationHrefs(value: string[]) {
-  return value
-    .map((href) => href.trim())
-    .filter((href) => href.startsWith('/dashboard/') && href.length <= 160 && !/[<>"'{};]/.test(href))
-    .slice(0, 40)
-}
-
-function sanitizeDashboardWidgets(widgets: DashboardWidgetConfig[]) {
-  return widgets.map((widget, index) => ({
-    id: sanitizeShortText(widget.id, 'Widget id', DEFAULT_DASHBOARD_DESIGN_CONFIG.dashboard.widgets[index]?.id ?? `widget-${index}`, 80),
-    type: widget.type,
-    title: sanitizeShortText(widget.title, 'Widget title', DEFAULT_DASHBOARD_DESIGN_CONFIG.dashboard.widgets[index]?.title ?? 'Widget', 80),
-    visible: Boolean(widget.visible),
-    collapsed: Boolean(widget.collapsed),
-    colSpan: clampNumber(widget.colSpan, 1, 4, DEFAULT_DASHBOARD_DESIGN_CONFIG.dashboard.widgets[index]?.colSpan ?? 2) as 1 | 2 | 3 | 4,
-    rowSpan: clampNumber(widget.rowSpan, 1, 3, DEFAULT_DASHBOARD_DESIGN_CONFIG.dashboard.widgets[index]?.rowSpan ?? 1) as 1 | 2 | 3,
-    order: clampNumber(widget.order, 0, 100, index),
-  }))
-}
-
 function sanitizeLogoDataUrl(value: string | null) {
   if (!value) return null
   if (value.length > USER_LOGO_MAX_CHARS) {
@@ -326,8 +290,6 @@ function sanitizeDashboardDesignConfig(input: unknown): DashboardDesignConfig {
     layout: {
       sidebarWidth: clampNumber(design.layout.sidebarWidth, 220, 360, DEFAULT_DASHBOARD_DESIGN_CONFIG.layout.sidebarWidth),
       sidebarSide: sanitizeEnum<DashboardSidebarSide>(design.layout.sidebarSide, ['left', 'right'] as const, 'Sidebar side'),
-      sidebarStyle: sanitizeEnum<DashboardSidebarStyle>(design.layout.sidebarStyle, ['solid', 'glass', 'floating'] as const, 'Sidebar style'),
-      layoutMode: sanitizeEnum<DashboardLayoutMode>(design.layout.layoutMode, ['contained', 'fluid', 'focus'] as const, 'Layout mode'),
       contentWidth: clampNumber(design.layout.contentWidth, 900, 1600, DEFAULT_DASHBOARD_DESIGN_CONFIG.layout.contentWidth),
       density: sanitizeEnum<DashboardDesignDensity>(design.layout.density, ['compact', 'comfortable', 'spacious'] as const, 'Density'),
       navRadius: clampNumber(design.layout.navRadius, 0, 24, DEFAULT_DASHBOARD_DESIGN_CONFIG.layout.navRadius),
@@ -342,21 +304,6 @@ function sanitizeDashboardDesignConfig(input: unknown): DashboardDesignConfig {
     cards: {
       shadow: sanitizeEnum<DashboardCardShadow>(design.cards.shadow, ['none', 'soft', 'strong'] as const, 'Card shadow'),
       borderWidth: clampNumber(design.cards.borderWidth, 0, 3, DEFAULT_DASHBOARD_DESIGN_CONFIG.cards.borderWidth),
-      glassLevel: sanitizeEnum<DashboardGlassLevel>(design.cards.glassLevel, ['none', 'soft', 'strong'] as const, 'Glass level'),
-      style: sanitizeEnum(design.cards.style, ['flat', 'elevated', 'glass'] as const, 'Card style'),
-    },
-    motion: {
-      intensity: sanitizeEnum(design.motion.intensity, ['reduced', 'balanced', 'expressive'] as const, 'Animation intensity'),
-    },
-    icons: {
-      style: sanitizeEnum<DashboardIconStyle>(design.icons.style, ['line', 'duotone', 'solid'] as const, 'Icon style'),
-    },
-    navigation: {
-      hiddenHrefs: sanitizeHiddenNavigationHrefs(design.navigation.hiddenHrefs),
-    },
-    dashboard: {
-      preset: sanitizeEnum<DashboardLayoutPreset>(design.dashboard.preset, ['executive', 'operations', 'focus'] as const, 'Dashboard preset'),
-      widgets: sanitizeDashboardWidgets(design.dashboard.widgets),
     },
   }
 }
@@ -482,22 +429,6 @@ function compileDashboardDesignJson(design: Record<string, unknown>) {
 
   const button = buttonColors(noCodeDesign.buttons.style, noCodeDesign)
   const densityValues = densityPadding(noCodeDesign.layout.density)
-  const glassBlur =
-    noCodeDesign.cards.style === 'glass' || noCodeDesign.cards.glassLevel === 'strong'
-      ? '24px'
-      : noCodeDesign.cards.glassLevel === 'soft'
-      ? '14px'
-      : '0px'
-  const cardBackground =
-    noCodeDesign.cards.style === 'glass'
-      ? 'color-mix(in srgb, var(--bg-card) 78%, transparent)'
-      : noCodeDesign.cards.style === 'flat'
-      ? 'var(--bg-card)'
-      : 'linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 96%, white 4%), var(--bg-card))'
-  const motionDuration =
-    noCodeDesign.motion.intensity === 'reduced' ? '80ms' : noCodeDesign.motion.intensity === 'expressive' ? '320ms' : '180ms'
-  const dashboardGap =
-    noCodeDesign.layout.density === 'compact' ? '0.85rem' : noCodeDesign.layout.density === 'spacious' ? '1.35rem' : '1rem'
   const shellBackground =
     noCodeDesign.background.style === 'gradient'
       ? `linear-gradient(135deg, ${noCodeDesign.background.gradientFrom} 0%, ${noCodeDesign.background.gradientTo} 100%)`
@@ -542,13 +473,7 @@ function compileDashboardDesignJson(design: Record<string, unknown>) {
     `  --font-sans: ${noCodeDesign.typography.fontFamily};`,
     `  --shadow-card: ${cardShadowValue(noCodeDesign.cards.shadow)};`,
     `  --user-sidebar-width: ${noCodeDesign.layout.sidebarWidth}px;`,
-    `  --user-content-max-width: ${
-      noCodeDesign.layout.layoutMode === 'fluid'
-        ? 'min(100%, 1920px)'
-        : noCodeDesign.layout.layoutMode === 'focus'
-        ? `${Math.min(noCodeDesign.layout.contentWidth, 1080)}px`
-        : `${noCodeDesign.layout.contentWidth}px`
-    };`,
+    `  --user-content-max-width: ${noCodeDesign.layout.contentWidth}px;`,
     `  --user-button-bg: ${button.background};`,
     `  --user-button-color: ${button.color};`,
     `  --user-button-border: ${button.border};`,
@@ -557,10 +482,6 @@ function compileDashboardDesignJson(design: Record<string, unknown>) {
     `  --user-button-height: ${noCodeDesign.buttons.height}px;`,
     `  --user-button-weight: ${noCodeDesign.buttons.fontWeight};`,
     `  --user-card-border-width: ${noCodeDesign.cards.borderWidth}px;`,
-    `  --user-card-background: ${cardBackground};`,
-    `  --user-card-backdrop-blur: ${glassBlur};`,
-    `  --user-motion-duration: ${motionDuration};`,
-    `  --user-dashboard-gap: ${dashboardGap};`,
     `  --user-shell-background: ${shellBackground};`,
   ]
   appendVariable(variableLines, '--accent', sanitizeCssColor(theme.primaryColor ?? theme.accentColor ?? design.primaryColor, 'Primary color'))
@@ -615,35 +536,10 @@ function compileDashboardDesignJson(design: Record<string, unknown>) {
     '.dashboard-app-shell[data-user-design="active"] .dashboard-shell-body, .dashboard-app-shell[data-user-design="active"] .dashboard-page { max-width: var(--user-content-max-width) !important; }',
     `.dashboard-app-shell[data-user-design="active"] .dashboard-shell-body { padding-block: ${densityValues.shell}; }`,
     `.dashboard-app-shell[data-user-design="active"] .card, .dashboard-app-shell[data-user-design="active"] .dashboard-hero, .dashboard-app-shell[data-user-design="active"] .stat-card { border-width: var(--user-card-border-width); }`,
-    '.dashboard-app-shell[data-user-design="active"] .card, .dashboard-app-shell[data-user-design="active"] .dashboard-hero, .dashboard-app-shell[data-user-design="active"] .stat-card, .dashboard-app-shell[data-user-design="active"] .enterprise-widget-card {',
-    '  background: var(--user-card-background);',
-    '  backdrop-filter: blur(var(--user-card-backdrop-blur));',
-    '  -webkit-backdrop-filter: blur(var(--user-card-backdrop-blur));',
-    '}',
     `.dashboard-app-shell[data-user-design="active"] .card { padding: ${densityValues.card}; }`,
-    '.dashboard-app-shell[data-user-design="active"] .enterprise-dashboard-grid { gap: var(--user-dashboard-gap); }',
     `.dashboard-app-shell[data-user-design="active"] .sidebar-link, .dashboard-app-shell[data-user-design="active"] .sidebar-command-trigger { min-height: ${densityValues.linkHeight}; border-radius: var(--radius-sm); }`,
     `.dashboard-app-shell[data-user-design="active"] .stat-card { min-height: ${densityValues.statHeight}; }`,
     `.dashboard-app-shell[data-user-design="active"] .page-heading, .dashboard-app-shell[data-user-design="active"] .panel-title { font-weight: ${noCodeDesign.typography.headingWeight}; }`,
-    '.dashboard-app-shell[data-user-design="active"] .sidebar { border-radius: 0; }',
-    ...(noCodeDesign.layout.sidebarStyle === 'floating'
-      ? [
-          '@media (min-width: 901px) {',
-          '  .dashboard-app-shell[data-user-design="active"] { gap: 0.85rem; padding: 0.85rem; }',
-          '  .dashboard-app-shell[data-user-design="active"] .sidebar { border-radius: var(--radius-lg); border: 1px solid var(--sidebar-border); height: calc(100dvh - 1.7rem); }',
-          '  .dashboard-app-shell[data-user-design="active"] .dash-header { border-radius: var(--radius-lg); border: 1px solid var(--border); top: 0.85rem; }',
-          '}',
-        ]
-      : []),
-    ...(noCodeDesign.layout.sidebarStyle === 'glass'
-      ? [
-          '.dashboard-app-shell[data-user-design="active"] .sidebar {',
-          '  background: color-mix(in srgb, var(--sidebar-bg) 78%, transparent);',
-          '  backdrop-filter: blur(24px);',
-          '  -webkit-backdrop-filter: blur(24px);',
-          '}',
-        ]
-      : []),
     '.dashboard-app-shell[data-user-design="active"] .btn-primary, .dashboard-app-shell[data-user-design="active"] .dashboard-shell-header a[href="/dashboard/admin/tasks"] {',
     '  min-height: var(--user-button-height) !important;',
     '  border-radius: var(--user-button-radius) !important;',
@@ -654,7 +550,6 @@ function compileDashboardDesignJson(design: Record<string, unknown>) {
     '}',
     '.dashboard-app-shell[data-user-design="active"] .btn-primary:hover, .dashboard-app-shell[data-user-design="active"] .dashboard-shell-header a[href="/dashboard/admin/tasks"]:hover { background: var(--user-button-hover-bg) !important; }',
     '.dashboard-app-shell[data-user-design="active"] .btn-secondary, .dashboard-app-shell[data-user-design="active"] .input, .dashboard-app-shell[data-user-design="active"] .command-trigger { border-radius: var(--user-button-radius) !important; }',
-    '.dashboard-app-shell[data-user-design="active"] *, .dashboard-app-shell[data-user-design="active"] *::before, .dashboard-app-shell[data-user-design="active"] *::after { transition-duration: var(--user-motion-duration); }',
     ...sideRules,
   ]
 

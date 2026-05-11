@@ -8,7 +8,6 @@ import { usePathname } from 'next/navigation'
 import AlertReceiver from '@/components/alerts/AlertReceiver'
 import AiOperationsAssistant from '@/components/dashboard/AiOperationsAssistant'
 import CommandPalette from '@/components/dashboard/CommandPalette'
-import DashboardCustomizationStudio from '@/components/dashboard/DashboardCustomizationStudio'
 import NotificationDropdown from '@/components/dashboard/NotificationDropdown'
 import WorkspaceThemeProvider from '@/components/dashboard/WorkspaceThemeProvider'
 import PushNotificationBootstrap from '@/components/pwa/PushNotificationBootstrap'
@@ -16,7 +15,6 @@ import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
 import { normalizeDashboardDesignConfig } from '@/lib/dashboard-design'
 import { isRealtimeAlertsEnabled } from '@/lib/socket-client'
 import type { UserDashboardDesignSettings, WorkspaceThemeSettings } from '@/lib/settings'
-import { useDashboardDesignStore } from '@/stores/dashboard-design-store'
 import logo from '@/app/logo.png'
 import {
   LayoutDashboard,
@@ -38,7 +36,6 @@ import {
   Settings,
   ReceiptText,
   Building2,
-  SlidersHorizontal,
 } from 'lucide-react'
 
 export default function DashboardLayoutClient({
@@ -56,8 +53,6 @@ export default function DashboardLayoutClient({
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [commandOpen, setCommandOpen] = useState(false)
   const [userDesign, setUserDesign] = useState(initialUserDesign)
-  const setDesignStore = useDashboardDesignStore((state) => state.setDesign)
-  const setStudioOpen = useDashboardDesignStore((state) => state.setStudioOpen)
   const realtimeEnabled = useSyncExternalStore(
     () => () => undefined,
     () => isRealtimeAlertsEnabled(),
@@ -72,27 +67,20 @@ export default function DashboardLayoutClient({
   const companyType = normalizeCompanyType(user?.companyType)
   const companyCopy = getCompanyTypeCopy(companyType)
   useEffect(() => {
-    setDesignStore(initialUserDesign)
-  }, [initialUserDesign, setDesignStore])
-
-  useEffect(() => {
     function handleUserDesign(event: Event) {
       const nextDesign = (event as CustomEvent<UserDashboardDesignSettings>).detail
-      if (nextDesign) {
-        setUserDesign(nextDesign)
-        setDesignStore(nextDesign)
-      }
+      if (nextDesign) setUserDesign(nextDesign)
     }
 
     window.addEventListener('taskit:user-dashboard-design', handleUserDesign)
     return () => window.removeEventListener('taskit:user-dashboard-design', handleUserDesign)
-  }, [setDesignStore])
+  }, [])
 
   const dashboardDesignConfig = normalizeDashboardDesignConfig(userDesign.designJson)
   const brandName = dashboardDesignConfig.brand.name || 'TASKIT'
   const brandLogo = dashboardDesignConfig.brand.logoDataUrl || logo
   const hasCustomLogo = Boolean(dashboardDesignConfig.brand.logoDataUrl)
-  const links = (isSuperAdmin
+  const links = isSuperAdmin
     ? [{ href: '/dashboard/super-admin', label: 'Company approvals', icon: ShieldCheck }]
     : isEmployee
     ? [
@@ -120,8 +108,7 @@ export default function DashboardLayoutClient({
         { href: '/dashboard/admin/calendar', label: 'Calendar', icon: CalendarDays },
         { href: '/dashboard/admin/employees', label: 'Team', icon: Users },
         { href: '/dashboard/admin/alerts', label: 'Send Alert', icon: Bell },
-      ])
-    .filter((link) => !dashboardDesignConfig.navigation.hiddenHrefs.includes(link.href))
+      ]
   const workspaceNavLabel = isSuperAdmin
     ? 'Approval center'
     :
@@ -338,17 +325,6 @@ export default function DashboardLayoutClient({
               </Link>
             )}
             {canOpenSettings && (
-              <button
-                type="button"
-                onClick={() => setStudioOpen(true)}
-                className="inline-flex h-10 items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-3 text-[13px] font-semibold text-[var(--text-primary)] shadow-sm transition hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-[.98] md:px-3.5"
-                aria-label="Open customization studio"
-              >
-                <SlidersHorizontal size={15} />
-                <span className="hidden md:inline">Customize</span>
-              </button>
-            )}
-            {canOpenSettings && (
               <Link
                 href="/dashboard/settings"
                 className="inline-flex h-10 items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-3 text-[13px] font-semibold text-[var(--text-primary)] shadow-sm transition hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-[.98] md:px-3.5"
@@ -391,7 +367,6 @@ export default function DashboardLayoutClient({
       </div>
 
       {user?.id && realtimeEnabled && !isSuperAdmin && <AlertReceiver userId={user.id} />}
-      <DashboardCustomizationStudio />
       <AiOperationsAssistant disabled={isSuperAdmin} />
     </div>
   )
