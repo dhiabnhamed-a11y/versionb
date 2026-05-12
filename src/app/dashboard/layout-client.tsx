@@ -13,7 +13,8 @@ import WorkspaceThemeProvider from '@/components/dashboard/WorkspaceThemeProvide
 import LanguageSwitcher from '@/components/i18n/LanguageSwitcher'
 import { LocaleProvider, useLocale } from '@/components/i18n/LocaleProvider'
 import PushNotificationBootstrap from '@/components/pwa/PushNotificationBootstrap'
-import { getCompanyTypeCopy, isAgencyCompanyType, isContentCreationCompanyType, normalizeCompanyType } from '@/lib/company-types'
+import { getLocalizedCompanyCopy } from '@/lib/company-copy-i18n'
+import { isAgencyCompanyType, isContentCreationCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { normalizeDashboardDesignConfig } from '@/lib/dashboard-design'
 import { isRealtimeAlertsEnabled } from '@/lib/socket-client'
 import type { UserDashboardDesignSettings, WorkspaceThemeSettings } from '@/lib/settings'
@@ -60,7 +61,7 @@ function DashboardLayoutChrome({
   initialThemeSettings,
   initialUserDesign,
 }: DashboardLayoutClientProps) {
-  const { t, direction } = useLocale()
+  const { t, direction, locale } = useLocale()
   const { data: session } = useSession()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -79,7 +80,7 @@ function DashboardLayoutChrome({
   const canManageWorkspace = user?.role === 'OWNER' || user?.role === 'MANAGER'
   const canOpenSettings = !isSuperAdmin
   const companyType = normalizeCompanyType(user?.companyType)
-  const companyCopy = getCompanyTypeCopy(companyType)
+  const companyCopy = getLocalizedCompanyCopy(companyType, t)
   const isAgencyWorkspace = isAgencyCompanyType(companyType)
   const isContentCreationWorkspace = isContentCreationCompanyType(companyType)
   useEffect(() => {
@@ -161,7 +162,7 @@ function DashboardLayoutChrome({
       {sidebarOpen && (
         <button
           type="button"
-          aria-label="Close menu"
+          aria-label={t('nav.closeMenu')}
           className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
@@ -176,7 +177,7 @@ function DashboardLayoutChrome({
               >
                 <Image
                   src={brandLogo}
-                  alt={`${brandName} logo`}
+                  alt={`${brandName} ${t('nav.logoAlt')}`}
                   width={dashboardDesignConfig.brand.logoSize}
                   height={dashboardDesignConfig.brand.logoSize}
                   unoptimized={hasCustomLogo}
@@ -198,8 +199,8 @@ function DashboardLayoutChrome({
               type="button"
               className="sidebar-collapse-btn"
               onClick={() => setSidebarCollapsed((current) => !current)}
-              aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-              title={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              aria-label={sidebarCollapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')}
+              title={sidebarCollapsed ? t('nav.expandSidebar') : t('nav.collapseSidebar')}
             >
               {sidebarCollapsed ? <PanelLeftOpen size={16} /> : <PanelLeftClose size={16} />}
             </button>
@@ -210,10 +211,10 @@ function DashboardLayoutChrome({
             type="button"
             onClick={() => setCommandOpen(true)}
             className="sidebar-command-trigger"
-            aria-label="Open command palette"
-            title="Command palette"
+            aria-label={t('nav.commandPalette')}
+            title={t('nav.commandPalette')}
           >
-            <Search size={15} />
+            <Search size={20} />
             <span className="sidebar-link-label">{t('nav.commandSearch')}</span>
             <kbd className="sidebar-kbd">K</kbd>
           </button>
@@ -230,9 +231,9 @@ function DashboardLayoutChrome({
                 className={`sidebar-link ${isActive ? 'active' : ''}`}
                 onClick={() => setSidebarOpen(false)}
               >
-                <Icon size={18} strokeWidth={isActive ? 2.5 : 2} />
+                <Icon size={20} strokeWidth={2} />
                 <span className="sidebar-link-label">{link.label}</span>
-                {link.label === 'Send Alert' && (
+                {link.href.endsWith('/alerts') && !isEmployee && (
                   <span
                     className="sidebar-live-badge ml-auto inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[9px] font-bold tracking-wide"
                     style={{
@@ -242,7 +243,7 @@ function DashboardLayoutChrome({
                     }}
                   >
                     <span className="h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse" />
-                    LIVE
+                    {t('nav.live')}
                   </span>
                 )}
               </Link>
@@ -287,6 +288,7 @@ function DashboardLayoutChrome({
               type="button"
               onClick={() => setSidebarOpen(true)}
               className="mobile-menu-btn -ml-1 flex items-center justify-center rounded-lg p-2"
+              aria-label={t('nav.openMenu')}
               style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border)' }}
             >
               <Menu size={20} className="text-[var(--text-primary)]" />
@@ -305,7 +307,7 @@ function DashboardLayoutChrome({
             type="button"
             onClick={() => setCommandOpen(true)}
             className="command-trigger mx-4 hidden h-11 min-w-0 flex-1 max-w-xl items-center gap-3 rounded-2xl px-4 text-left text-[14px] text-[var(--text-muted)] shadow-sm ring-1 ring-[var(--border)] backdrop-blur transition lg:flex"
-            aria-label="Open command palette"
+            aria-label={t('nav.commandPalette')}
           >
             <Search size={16} />
             <span className="min-w-0 flex-1 truncate font-medium">{t('nav.searchPlaceholder')}</span>
@@ -316,7 +318,7 @@ function DashboardLayoutChrome({
             {!isSuperAdmin && !isEmployee && (
               <Link href="/dashboard/admin/tasks" className="hidden h-10 items-center gap-2 rounded-2xl bg-[var(--accent)] px-4 text-[13px] font-semibold text-white shadow-sm transition hover:bg-[var(--accent-hover)] active:scale-[.98] sm:inline-flex">
                 <Plus size={15} />
-                {t('action.newBrief')}
+                {isAgencyWorkspace ? t('action.newBrief') : t('action.newTask')}
               </Link>
             )}
             {!isSuperAdmin && <LanguageSwitcher compact />}
@@ -324,7 +326,7 @@ function DashboardLayoutChrome({
               <Link
                 href="/dashboard/settings"
                 className="inline-flex h-10 items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-3 text-[13px] font-semibold text-[var(--text-primary)] shadow-sm transition hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-[.98] md:px-3.5"
-                aria-label="Settings"
+                aria-label={t('nav.settings')}
               >
                 <Settings size={15} />
                 <span className="hidden md:inline">{t('nav.settings')}</span>
@@ -352,7 +354,7 @@ function DashboardLayoutChrome({
               className="rounded-full border px-2.5 py-1 text-[11px] font-medium tabular-nums"
               style={{ borderColor: 'var(--border)', background: 'var(--bg-card)', color: 'var(--text-muted)' }}
             >
-              {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+              {new Date().toLocaleDateString(locale === 'fr' ? 'fr-FR' : locale === 'ar' ? 'ar' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
             </div>
           </div>
         </header>

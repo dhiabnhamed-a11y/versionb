@@ -1,0 +1,86 @@
+/* REDLINE 00 - TASKIT design tokens: centralize color, spacing, type, and radius decisions for the dashboard redesign. */
+html:root {
+  --color-canvas: #f7f8fa;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f3f5f8;
+  --color-border: #e2e7ee;
+  --color-border-strong: #d3dbe6;
+  --color-text: #0b1628;
+  --color-text-soft: #2e4060;
+  --color-text-muted: #64748b;
+  --color-teal: #0f766e;
+  --color-teal-strong: #0d9488;
+  --color-teal-soft: #ecfdf5;
+  --color-blue: #0369a1;
+  --color-amber: #d97706;
+  --color-red: #dc2626;
+  --color-green: #059669;
+
+  --bg-primary: var(--color-canvas);
+  --bg-secondary: #eef1f5;
+  --bg-card: var(--color-surface);
+  --bg-elevated: var(--color-surface-muted);
+  --border: var(--color-border);
+  --border-light: var(--color-border-strong);
+  --text-primary: var(--color-text);
+  --text-secondary: var(--color-text-soft);
+  --text-muted: var(--color-text-muted);
+  --accent: var(--color-blue);
+  --accent-hover: #0284c7;
+  --accent-subtle: rgba(3, 105, 161, 0.07);
+  --accent-ring: rgba(8, 145, 178, 0.32);
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-card: 24px;
+  --space-section: 32px;
+
+  --type-display-size: 28px;
+  --type-display-line: 34px;
+  --type-display-weight: 500;
+  --type-heading-size: 20px;
+  --type-heading-line: 28px;
+  --type-heading-weight: 500;
+  --type-label-size: 13px;
+  --type-label-line: 18px;
+  --type-label-weight: 500;
+  --type-body-size: 15px;
+  --type-body-line: 24px;
+  --type-body-weight: 400;
+
+  --radius-xs: 6px;
+  --radius-sm: 8px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --radius-pill: 999px;
+}
+
+html[data-theme='dark'],
+html.dark,
+body[data-theme='dark'] {
+  --color-canvas: #0b1220;
+  --color-surface: #111827;
+  --color-surface-muted: #1f2937;
+  --color-border: #334155;
+  --color-border-strong: #475569;
+  --color-text: #f8fafc;
+  --color-text-soft: #cbd5e1;
+  --color-text-muted: #94a3b8;
+  --color-teal-soft: rgba(15, 118, 110, 0.18);
+  --bg-primary: var(--color-canvas);
+  --bg-secondary: #141d2c;
+  --bg-card: var(--color-surface);
+  --bg-elevated: var(--color-surface-muted);
+  --border: var(--color-border);
+  --border-light: var(--color-border-strong);
+  --text-primary: var(--color-text);
+  --text-secondary: var(--color-text-soft);
+  --text-muted: var(--color-text-muted);
+}

@@ -1,33 +1,30 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useSession } from 'next-auth/react'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { useLocale } from '@/components/i18n/LocaleProvider'
-import { getCompanyTypeCopy, isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
+import { getLocalizedCompanyCopy } from '@/lib/company-copy-i18n'
+import { isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
+import type { TranslationKey } from '@/lib/i18n'
 import {
   AlertTriangle,
   ArrowRight,
-  ArrowUpRight,
-  Bell,
-  BrainCircuit,
+  BarChart3,
+  Bot,
   BriefcaseBusiness,
   Building2,
   CheckCircle2,
   CheckSquare,
-  CircleDollarSign,
+  ChevronDown,
   ClipboardList,
   FolderKanban,
-  Gauge,
-  GitBranch,
-  Plus,
   ShieldCheck,
-  Sparkles,
-  TimerReset,
   UploadCloud,
   Users,
+  X,
   Zap,
 } from 'lucide-react'
 
@@ -65,31 +62,7 @@ interface Stats {
     tasks: number
     completedTasks: number
   }
-  comparison?: {
-    thisWeek: { users: number; activeUsers: number; projects: number; tasks: number; completedTasks: number }
-    lastWeek: { users: number; activeUsers: number; projects: number; tasks: number; completedTasks: number }
-  }
 }
-
-const DASHBOARD_REALTIME_EVENTS = [
-  'task_created',
-  'task_updated',
-  'task_deleted',
-  'task_submission_created',
-  'project_created',
-  'project_updated',
-  'room_created',
-  'project_category_created',
-  'client_created',
-  'client_updated',
-  'invoice_created',
-  'invoice_updated',
-  'invoice_deleted',
-  'comment_created',
-  'employee_invited',
-  'user_online',
-  'user_offline',
-] as const
 
 type IntelligenceTone = 'good' | 'watch' | 'risk' | 'critical' | 'neutral'
 
@@ -166,10 +139,107 @@ type OperationalCommandCenter = {
   }
 }
 
+type PipelineStageId = 'request' | 'scope' | 'planning' | 'work' | 'review' | 'approval' | 'delivery' | 'invoice'
+
+type PipelineStage = {
+  id: PipelineStageId
+  label: string
+  count: number
+  state: string
+  tone: IntelligenceTone
+}
+
+type PipelineCluster = {
+  id: 'intake' | 'execution' | 'closure'
+  label: string
+  stages: PipelineStage[]
+  total: number
+}
+
+type LocalizedRisk = {
+  id: string
+  title: string
+  impact: string
+  why: string
+  action: string
+  severity: Exclude<IntelligenceTone, 'good' | 'neutral'>
+  href?: string
+}
+
+type LocalizedAgent = {
+  id: string
+  agent: string
+  status: string
+  tone: IntelligenceTone
+  signal: string
+  reasoning: string
+  recommendedAction: string
+  href?: string
+}
+
+type HealthComponent = {
+  id: string
+  label: string
+  score: number
+}
+
+const DASHBOARD_REALTIME_EVENTS = [
+  'task_created',
+  'task_updated',
+  'task_deleted',
+  'task_submission_created',
+  'project_created',
+  'project_updated',
+  'room_created',
+  'project_category_created',
+  'client_created',
+  'client_updated',
+  'invoice_created',
+  'invoice_updated',
+  'invoice_deleted',
+  'comment_created',
+  'employee_invited',
+  'user_online',
+  'user_offline',
+] as const
+
+const PIPELINE_STAGE_IDS: PipelineStageId[] = [
+  'request',
+  'scope',
+  'planning',
+  'work',
+  'review',
+  'approval',
+  'delivery',
+  'invoice',
+]
+
+const PIPELINE_LABEL_KEYS: Record<PipelineStageId, TranslationKey> = {
+  request: 'pipeline.clientRequest',
+  scope: 'pipeline.scope',
+  planning: 'pipeline.planning',
+  work: 'pipeline.work',
+  review: 'pipeline.review',
+  approval: 'pipeline.approval',
+  delivery: 'pipeline.delivery',
+  invoice: 'pipeline.invoice',
+}
+
+const PIPELINE_STATE_KEYS: Record<PipelineStageId, TranslationKey> = {
+  request: 'pipeline.needsTriage',
+  scope: 'pipeline.approvedBriefs',
+  planning: 'pipeline.readyWork',
+  work: 'pipeline.inProduction',
+  review: 'pipeline.internalReview',
+  approval: 'pipeline.waiting',
+  delivery: 'pipeline.readyToDeliver',
+  invoice: 'pipeline.revenueWorkflow',
+}
+
 function ChartLoadingState({ label = 'Loading chart' }: { label?: string }) {
   return (
-    <div className="flex h-[250px] items-center justify-center rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)]">
-      <div className="loading-shimmer h-4 w-36 rounded-full" aria-label={label} />
+    <div className="taskit-empty-state" aria-label={label}>
+      <div className="loading-shimmer h-4 w-36 rounded-full" />
     </div>
   )
 }
@@ -197,6 +267,34 @@ const RolesPieChart = dynamic(
     loading: () => <ChartLoadingState label="Loading roles chart" />,
   }
 )
+
+function clampScore(value: number) {
+  if (!Number.isFinite(value)) return 0
+  return Math.max(0, Math.min(100, Math.round(value)))
+}
+
+function numberFromText(value: string | undefined) {
+  const match = value?.match(/-?\d+(\.\d+)?/)
+  return match ? Number(match[0]) : 0
+}
+
+function localeForDate(locale: string) {
+  if (locale === 'fr') return 'fr-FR'
+  if (locale === 'ar') return 'ar'
+  return 'en-US'
+}
+
+function formatMoney(value: number, currency: string, locale: string) {
+  try {
+    return new Intl.NumberFormat(localeForDate(locale), {
+      style: 'currency',
+      currency: currency || 'USD',
+      maximumFractionDigits: 0,
+    }).format(value)
+  } catch {
+    return `${currency || 'USD'} ${Math.round(value).toLocaleString(localeForDate(locale))}`
+  }
+}
 
 function AnimatedCounter({ value, duration = 800 }: { value: number; duration?: number }) {
   const [display, setDisplay] = useState(0)
@@ -229,43 +327,6 @@ function AnimatedCounter({ value, duration = 800 }: { value: number; duration?: 
   return <span className="tabular-nums">{display}</span>
 }
 
-function GrowthBadge({ value }: { value: number }) {
-  const isPositive = value >= 0
-
-  return (
-    <span
-      className="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black tabular-nums"
-      style={{
-        background: isPositive ? 'rgba(5,150,105,0.1)' : 'rgba(220,38,38,0.08)',
-        color: isPositive ? '#047857' : '#dc2626',
-      }}
-    >
-      <ArrowUpRight size={11} style={{ transform: isPositive ? 'none' : 'rotate(90deg)' }} />
-      {isPositive ? '+' : ''}
-      {value}%
-    </span>
-  )
-}
-
-function EmptyChartState({ label }: { label: string }) {
-  return (
-    <div className="flex h-[220px] items-center justify-center rounded-[var(--radius-md)] border border-dashed border-[var(--border)] bg-[var(--bg-elevated)] text-sm font-semibold text-[var(--text-muted)]">
-      {label}
-    </div>
-  )
-}
-
-const metricIcons: Record<string, typeof Gauge> = {
-  'delivery-risk': Gauge,
-  'approval-latency': ShieldCheck,
-  'cash-exposure': CircleDollarSign,
-  'utilization-pressure': Users,
-  'client-health': Building2,
-  'automation-health': GitBranch,
-  'sla-violations': TimerReset,
-  'revenue-forecast': CircleDollarSign,
-}
-
 function ToneBadge({ tone }: { tone: IntelligenceTone }) {
   const { t } = useLocale()
   const toneKey = {
@@ -276,247 +337,550 @@ function ToneBadge({ tone }: { tone: IntelligenceTone }) {
     neutral: 'tone.neutral',
   } as const
 
-  return <span className={`ops-tone-badge ops-tone-${tone}`}>{t(toneKey[tone])}</span>
+  return <span className={`taskit-tone-badge taskit-tone-${tone}`}>{t(toneKey[tone])}</span>
 }
 
-function CommandCenterSkeleton() {
+function EmptyChartState({ label }: { label: string }) {
   return (
-    <section className="ops-command-grid" aria-label="Loading command center">
-      <div className="card">
-        <div className="loading-shimmer h-5 w-44 rounded-full" />
-        <div className="loading-shimmer mt-5 h-11 w-32 rounded-[10px]" />
-        <div className="loading-shimmer mt-5 h-4 w-full rounded-full" />
-        <div className="loading-shimmer mt-3 h-4 w-4/5 rounded-full" />
-      </div>
-      <div className="card">
-        <div className="loading-shimmer h-5 w-36 rounded-full" />
-        <div className="mt-5 grid gap-3">
-          {[...Array(3)].map((_, index) => (
-            <div key={index} className="loading-shimmer h-16 rounded-[var(--radius-sm)]" />
-          ))}
-        </div>
-      </div>
-    </section>
+    <div className="taskit-empty-state">
+      <p className="taskit-body">{label}</p>
+    </div>
   )
 }
 
-function MetricCard({ metric }: { metric: CommandCenterMetric }) {
-  const Icon = metricIcons[metric.id] ?? Gauge
-  const content = (
-    <>
-      <div className="ops-signal-head">
-        <span className="ops-signal-icon">
-          <Icon size={16} />
-        </span>
-        <ToneBadge tone={metric.tone} />
-      </div>
-      <div className="ops-signal-value">{metric.value}</div>
-      <div className="ops-signal-label">{metric.label}</div>
-      <p className="ops-signal-detail">{metric.detail}</p>
-    </>
-  )
+function localizeRisk(
+  risk: OperationalRisk,
+  data: OperationalCommandCenter,
+  t: (key: TranslationKey) => string,
+  locale: string
+): LocalizedRisk {
+  const firstNumber = numberFromText(risk.impact)
 
-  if (metric.href) {
-    return (
-      <Link href={metric.href} className={`ops-signal-card ops-signal-${metric.tone}`}>
-        {content}
-      </Link>
-    )
+  if (risk.id === 'approval-blockers') {
+    return {
+      ...risk,
+      title: t('risk.approval.title'),
+      impact: `${firstNumber} ${t('risk.approval.impact')}`,
+      why: t('risk.approval.why'),
+      action: t('risk.approval.action'),
+    }
   }
 
-  return <article className={`ops-signal-card ops-signal-${metric.tone}`}>{content}</article>
+  if (risk.id === 'cash-collection-risk') {
+    return {
+      ...risk,
+      title: t('risk.cash.title'),
+      impact: `${formatMoney(data.financial.overdueTotal, data.financial.currency, locale)} ${t('risk.cash.impact')}`,
+      why: t('risk.cash.why'),
+      action: t('risk.cash.action'),
+    }
+  }
+
+  if (risk.id === 'capacity-pressure') {
+    return {
+      ...risk,
+      title: t('risk.capacity.title'),
+      impact: `${firstNumber} ${t('risk.capacity.impact')}`,
+      why: t('risk.capacity.why'),
+      action: t('risk.capacity.action'),
+    }
+  }
+
+  if (risk.id === 'client-health-risk') {
+    return {
+      ...risk,
+      title: t('risk.clientHealth.title'),
+      impact: `${firstNumber} ${t('risk.clientHealth.impact')}`,
+      why: t('risk.clientHealth.why'),
+      action: t('risk.clientHealth.action'),
+    }
+  }
+
+  if (risk.id === 'automation-observability') {
+    return {
+      ...risk,
+      title: t('risk.automation.title'),
+      impact: `${firstNumber} ${t('risk.automation.impact')}`,
+      why: t('risk.automation.why'),
+      action: t('risk.automation.action'),
+    }
+  }
+
+  if (risk.id === 'margin-instrumentation') {
+    return {
+      ...risk,
+      title: t('risk.margin.title'),
+      impact: t('risk.margin.impact'),
+      why: t('risk.margin.why'),
+      action: t('risk.margin.action'),
+    }
+  }
+
+  if (risk.id === 'operational-memory-quality') {
+    return {
+      ...risk,
+      title: t('risk.memory.title'),
+      impact: t('risk.memory.impact'),
+      why: t('risk.memory.why'),
+      action: t('risk.memory.action'),
+    }
+  }
+
+  return {
+    ...risk,
+    title: t('risk.delivery.title'),
+    impact: `${firstNumber} ${t('risk.delivery.impact')}`,
+    why: t('risk.delivery.why'),
+    action: t('risk.delivery.action'),
+  }
 }
 
-function OperationalCommandCenterPanel({ data }: { data: OperationalCommandCenter }) {
+function localizeAgent(
+  agent: AgentSignal,
+  data: OperationalCommandCenter,
+  topRisk: LocalizedRisk | undefined,
+  t: (key: TranslationKey) => string
+): LocalizedAgent {
+  if (agent.id === 'executive') {
+    return {
+      ...agent,
+      agent: t('agent.executive.name'),
+      status: `${data.briefing.healthScore}% ${t('agent.statusHealth')}`,
+      signal: topRisk?.title ?? t('agent.signalPortfolioStable'),
+      reasoning: topRisk?.why ?? t('agent.reasoningExecutiveStable'),
+      recommendedAction: topRisk?.action ?? t('agent.actionKeepCurrent'),
+    }
+  }
+
+  if (agent.id === 'operations') {
+    const count = numberFromText(agent.status)
+    return {
+      ...agent,
+      agent: t('agent.operations.name'),
+      status: `${count} ${t('agent.statusAtRisk')}`,
+      signal: count ? agent.signal : t('agent.signalDeliveryHealthy'),
+      reasoning: t('agent.reasoningOperations'),
+      recommendedAction: count ? t('agent.actionOpenRiskiest') : t('agent.actionKeepCurrent'),
+    }
+  }
+
+  if (agent.id === 'approval') {
+    const count = numberFromText(agent.status)
+    return {
+      ...agent,
+      agent: t('agent.approval.name'),
+      status: `${count} ${t('agent.statusOverdue')}`,
+      signal: count ? agent.signal : t('agent.signalApprovalClear'),
+      reasoning: t('agent.reasoningApproval'),
+      recommendedAction: count ? t('agent.actionEscalateApproval') : t('agent.actionApprovalSameDay'),
+    }
+  }
+
+  if (agent.id === 'finance') {
+    const visible = data.financial.financeVisible
+    return {
+      ...agent,
+      agent: t('agent.finance.name'),
+      status: visible ? agent.status : t('agent.statusRestricted'),
+      signal: visible ? agent.signal : t('agent.signalFinanceHidden'),
+      reasoning: visible ? t('agent.reasoningFinanceVisible') : t('agent.reasoningFinanceHidden'),
+      recommendedAction: visible ? t('agent.actionChaseInvoices') : t('agent.actionAskFinance'),
+    }
+  }
+
+  if (agent.id === 'resource-planning') {
+    const count = numberFromText(agent.status)
+    return {
+      ...agent,
+      agent: t('agent.resource.name'),
+      status: `${count} ${t('agent.statusOverloaded')}`,
+      signal: count ? agent.signal : t('agent.signalCapacityBalanced'),
+      reasoning: t('agent.reasoningResource'),
+      recommendedAction: count ? t('agent.actionRebalanceCapacity') : t('agent.actionReviewCapacity'),
+    }
+  }
+
+  if (agent.id === 'client-success') {
+    const count = numberFromText(agent.status)
+    return {
+      ...agent,
+      agent: t('agent.client.name'),
+      status: `${count} ${t('agent.statusWeak')}`,
+      signal: count ? agent.signal : t('agent.signalClientHealthy'),
+      reasoning: t('agent.reasoningClient'),
+      recommendedAction: count ? t('agent.actionScheduleCheckIn') : t('agent.actionKeepClientUpdates'),
+    }
+  }
+
+  if (agent.id === 'creative-director') {
+    const count = numberFromText(agent.status)
+    return {
+      ...agent,
+      agent: t('agent.creative.name'),
+      status: `${count} ${t('agent.statusRevisionHeavy')}`,
+      signal: count ? agent.signal : t('agent.signalReviewNormal'),
+      reasoning: t('agent.reasoningCreative'),
+      recommendedAction: count ? t('agent.actionReviewRevisions') : t('agent.actionKeepReviewNotes'),
+    }
+  }
+
+  if (agent.id === 'automation') {
+    const count = numberFromText(agent.status)
+    return {
+      ...agent,
+      agent: t('agent.automation.name'),
+      status: `${count} ${t('agent.statusFailed')}`,
+      signal: count ? agent.signal : t('agent.signalAutomationPending'),
+      reasoning: t('agent.reasoningAutomation'),
+      recommendedAction: count ? t('agent.actionInspectFailedJobs') : t('agent.actionUseJobHistory'),
+    }
+  }
+
+  return agent
+}
+
+function stageStateKey(stage: OperatingLoopStage | undefined, id: PipelineStageId) {
+  if (!stage) return PIPELINE_STATE_KEYS[id]
+  if (id === 'request' && stage.count === 0) return 'pipeline.quiet'
+  if (id === 'review' && stage.count === 0) return 'pipeline.clear'
+  if (id === 'approval' && stage.tone === 'risk') return 'pipeline.overdue'
+  if (id === 'delivery' && stage.count === 0) return 'pipeline.synced'
+  if (id === 'invoice' && stage.state.toLowerCase().includes('restricted')) return 'pipeline.restricted'
+  return PIPELINE_STATE_KEYS[id]
+}
+
+function buildPipelineClusters(
+  data: OperationalCommandCenter | null,
+  t: (key: TranslationKey) => string
+): PipelineCluster[] {
+  const stages = PIPELINE_STAGE_IDS.map((id) => {
+    const source = data?.operatingLoop.find((stage) => stage.id === id)
+    return {
+      id,
+      label: t(PIPELINE_LABEL_KEYS[id]),
+      count: source?.count ?? 0,
+      state: t(stageStateKey(source, id)),
+      tone: source?.tone ?? 'neutral',
+    }
+  })
+
+  const clusterDefinitions: Array<{ id: PipelineCluster['id']; label: string; stageIds: PipelineStageId[] }> = [
+    { id: 'intake', label: t('overview.clusterIntake'), stageIds: ['request', 'scope', 'planning'] },
+    { id: 'execution', label: t('overview.clusterExecution'), stageIds: ['work', 'review', 'approval'] },
+    { id: 'closure', label: t('overview.clusterClosure'), stageIds: ['delivery', 'invoice'] },
+  ]
+
+  return clusterDefinitions.map((cluster) => {
+    const clusterStages = stages.filter((stage) => cluster.stageIds.includes(stage.id))
+    return {
+      id: cluster.id,
+      label: cluster.label,
+      stages: clusterStages,
+      total: clusterStages.reduce((sum, stage) => sum + stage.count, 0),
+    }
+  })
+}
+
+function buildHealthComponents(stats: Stats | null, data: OperationalCommandCenter | null, t: (key: TranslationKey) => string) {
+  const deliveryRisk = numberFromText(data?.metrics.find((metric) => metric.id === 'delivery-risk')?.value)
+  const approvalRisk = numberFromText(data?.metrics.find((metric) => metric.id === 'approval-latency')?.value)
+  const clientRisk = numberFromText(data?.metrics.find((metric) => metric.id === 'client-health')?.value)
+  const marginScore =
+    data?.financial.marginVisibility === 'instrumented'
+      ? 90
+      : data?.financial.marginVisibility === 'partial'
+        ? 68
+        : data?.financial.financeVisible
+          ? 48
+          : 60
+
+  return [
+    {
+      id: 'delivery',
+      label: t('overview.healthDeliveryCadence'),
+      score: clampScore(100 - deliveryRisk * 18 - (stats?.overdueTasks ?? 0) * 3),
+    },
+    {
+      id: 'approval',
+      label: t('overview.healthApprovalRate'),
+      score: clampScore(100 - approvalRisk * 16),
+    },
+    {
+      id: 'margin',
+      label: t('overview.healthMarginHealth'),
+      score: clampScore(marginScore),
+    },
+    {
+      id: 'completion',
+      label: t('overview.healthBriefCompletion'),
+      score: clampScore(stats?.completionRate ?? 0),
+    },
+    {
+      id: 'client-response',
+      label: t('overview.healthClientResponseTime'),
+      score: clampScore(100 - clientRisk * 14),
+    },
+  ] satisfies HealthComponent[]
+}
+
+function agentStatusLabel(tone: IntelligenceTone, t: (key: TranslationKey) => string) {
+  if (tone === 'critical') return t('overview.agentStatusCritical')
+  if (tone === 'risk' || tone === 'watch') return t('overview.agentStatusWarning')
+  if (tone === 'good') return t('overview.agentStatusHealthy')
+  return t('overview.agentStatusMonitor')
+}
+
+function formatActivityAction(action: string, t: (key: TranslationKey) => string) {
+  if (action === 'Task created') return t('activity.taskCreated')
+  if (action === 'Task deleted') return t('activity.taskDeleted')
+  if (/^Invoice .+ created$/.test(action)) return t('activity.invoiceCreated')
+  if (/^Invoice .+ marked paid$/.test(action)) return t('activity.invoicePaid')
+  if (/^Invoice .+ updated$/.test(action)) return t('activity.invoiceUpdated')
+  if (/^Invoice .+ deleted$/.test(action)) return t('activity.invoiceDeleted')
+  return t('activity.updatedRecord')
+}
+
+function localizedRoleLabel(role: string, t: (key: TranslationKey) => string) {
+  const normalized = role.trim().toUpperCase()
+  if (normalized === 'OWNER') return t('role.owner')
+  if (normalized === 'MANAGER') return t('role.manager')
+  if (normalized === 'EMPLOYEE' || normalized === 'WORKER') return t('role.employee')
+  if (normalized === 'SUPER ADMIN' || normalized === 'SUPER_ADMIN') return t('role.superAdmin')
+  return role
+}
+
+function PipelineClusterCard({
+  cluster,
+  expanded,
+  onToggle,
+}: {
+  cluster: PipelineCluster
+  expanded: boolean
+  onToggle: () => void
+}) {
   const { t } = useLocale()
-  const primaryMetrics = data.metrics.slice(0, 8)
-  const primaryAgents = data.agentSignals.slice(0, 5)
-  const primaryRisks = data.risks.slice(0, 4)
-  const graphCoverage = data.graph.coverage.filter((item) => item.count > 0).slice(0, 6)
+  const maxStageCount = Math.max(...cluster.stages.map((stage) => stage.count), 1)
+
+  return (
+    <article className="taskit-cluster-card">
+      <button
+        type="button"
+        className="taskit-cluster-button"
+        aria-expanded={expanded}
+        aria-label={expanded ? t('overview.collapseCluster') : t('overview.expandCluster')}
+        onClick={onToggle}
+      >
+        <div className="taskit-row-main">
+          <span className="taskit-label">{cluster.label}</span>
+          <span className="taskit-body">{t('overview.clusterTotal')}</span>
+        </div>
+        <div className="taskit-row-main text-right">
+          <span className="taskit-cluster-total tabular-nums">{cluster.total}</span>
+          <ChevronDown size={20} aria-hidden style={{ transform: expanded ? 'rotate(180deg)' : undefined }} />
+        </div>
+      </button>
+
+      {expanded && (
+        <div className="taskit-stage-list">
+          {cluster.stages.map((stage) => (
+            <div key={stage.id} className="taskit-stage-row">
+              <div className="taskit-row-main">
+                <span className="taskit-label">{stage.label}</span>
+                <span className="taskit-body">{stage.state}</span>
+              </div>
+              <div className="taskit-row-main" style={{ minWidth: 112 }}>
+                <span className="taskit-stage-count tabular-nums">{stage.count}</span>
+                <div className="taskit-progress-track" aria-hidden>
+                  <span className="taskit-progress-fill" style={{ width: `${Math.max(6, (stage.count / maxStageCount) * 100)}%` }} />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </article>
+  )
+}
+
+function HealthScoreCard({
+  score,
+  tone,
+  components,
+}: {
+  score: number
+  tone: IntelligenceTone
+  components: HealthComponent[]
+}) {
+  const { t } = useLocale()
+  const [tooltipOpen, setTooltipOpen] = useState(false)
+
+  return (
+    <article className="taskit-card taskit-health-score-card">
+      <div className="taskit-card-header">
+        <div className="taskit-row-main">
+          <span className="taskit-label">{t('overview.healthScore')}</span>
+          <h2 className="taskit-heading">
+            <span className="tabular-nums">{score}</span> / 100
+          </h2>
+        </div>
+        <div className="taskit-tooltip-wrap">
+          <button
+            type="button"
+            className="taskit-help-button"
+            aria-label={t('overview.healthTooltipTitle')}
+            aria-expanded={tooltipOpen}
+            onClick={() => setTooltipOpen((current) => !current)}
+          >
+            ?
+          </button>
+          {tooltipOpen && (
+            <div className="taskit-tooltip" role="tooltip">
+              <div className="taskit-row-main">
+                <strong className="taskit-heading">{t('overview.healthTooltipTitle')}</strong>
+                <p className="taskit-body">{t('overview.healthTooltipIntro')}</p>
+              </div>
+              <div className="taskit-health-components mt-4">
+                {components.map((component) => (
+                  <div key={component.id} className="taskit-health-row">
+                    <div className="taskit-row-main">
+                      <span className="taskit-body">{component.label}</span>
+                      <div className="taskit-health-meter" aria-hidden>
+                        <span style={{ width: `${component.score}%` }} />
+                      </div>
+                    </div>
+                    <span className="taskit-label tabular-nums">{component.score}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className={`taskit-health-score ops-health-${tone}`}>
+        <span className="taskit-health-number tabular-nums">{score}</span>
+        <ToneBadge tone={tone} />
+      </div>
+    </article>
+  )
+}
+
+function AgentDrawer({
+  open,
+  agents,
+  tone,
+  onClose,
+}: {
+  open: boolean
+  agents: LocalizedAgent[]
+  tone: IntelligenceTone
+  onClose: () => void
+}) {
+  const { t } = useLocale()
+
+  useEffect(() => {
+    if (!open) return
+
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') onClose()
+    }
+
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [open, onClose])
+
+  if (!open) return null
 
   return (
     <>
-      <section className="ops-command-grid">
-        <section className="card ops-briefing-panel">
-          <div className="ops-panel-heading">
-            <div>
-              <div className="dashboard-hero-kicker">
-                <BrainCircuit size={13} />
-                {t('ops.executiveCommandCenter')}
-              </div>
-              <h2 className="ops-briefing-title">{data.briefing.title}</h2>
-            </div>
-            <div className={`ops-health-score ops-health-${data.briefing.tone}`}>
-              <span>{data.briefing.healthScore}</span>
-              <small>{t('ops.health')}</small>
-            </div>
+      <button type="button" className="taskit-drawer-backdrop" aria-label={t('action.close')} onClick={onClose} />
+      <aside className="taskit-agent-drawer" aria-label={t('overview.agentDrawerTitle')}>
+        <div className="taskit-drawer-header">
+          <div className="taskit-row-main">
+            <span className="taskit-label">{t('overview.agentStatus')}</span>
+            <h2 className="taskit-heading">{t('overview.agentDrawerTitle')}</h2>
+            <p className="taskit-body">{t('overview.agentDrawerMeta')}</p>
           </div>
-
-          <p className="ops-briefing-summary">{data.briefing.summary}</p>
-          <div className="ops-focus-row">
-            <Sparkles size={16} />
-            <span>{data.briefing.focus}</span>
-          </div>
-
-          <div className="ops-action-list">
-            {data.briefing.recommendedActions.slice(0, 4).map((action) => (
-              <div key={action} className="ops-action-item">
-                <CheckCircle2 size={15} />
-                <span>{action}</span>
-              </div>
-            ))}
-          </div>
-
-          <div className="ops-loop-track">
-            {data.operatingLoop.map((stage) => (
-              <div key={stage.id} className={`ops-loop-node ops-loop-${stage.tone}`} title={stage.state}>
-                <span>{stage.label}</span>
-                <strong>{stage.count}</strong>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        <aside className="card ops-agent-panel">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">{t('ops.aiAgents')}</h2>
-              <p className="panel-meta">{t('ops.aiAgentsMeta')}</p>
-            </div>
-            <ToneBadge tone={data.briefing.tone} />
-          </div>
-
-          <div className="ops-agent-list">
-            {primaryAgents.map((agent) => {
-              const body = (
-                <>
-                  <div className="ops-agent-topline">
-                    <span>{agent.agent}</span>
-                    <ToneBadge tone={agent.tone} />
-                  </div>
-                  <strong>{agent.signal}</strong>
-                  <p>{agent.reasoning}</p>
-                  <div className="ops-agent-action">
-                    <ArrowRight size={14} />
-                    {agent.recommendedAction}
-                  </div>
-                </>
-              )
-
-              return agent.href ? (
-                <Link key={agent.id} href={agent.href} className="ops-agent-row">
-                  {body}
-                </Link>
-              ) : (
-                <div key={agent.id} className="ops-agent-row">
-                  {body}
-                </div>
-              )
-            })}
-          </div>
-        </aside>
-      </section>
-
-      <section className="ops-signal-grid">
-        {primaryMetrics.map((metric) => (
-          <MetricCard key={metric.id} metric={metric} />
-        ))}
-      </section>
-
-      <section className="dashboard-section-grid">
-        <div className="card">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">{t('ops.riskQueue')}</h2>
-              <p className="panel-meta">{t('ops.riskQueueMeta')}</p>
-            </div>
-          </div>
-          {!primaryRisks.length ? (
-            <div className="ops-empty-state">
-              <CheckCircle2 size={22} />
-              {t('ops.noActiveRisks')}
+          <button type="button" className="taskit-icon-button" aria-label={t('action.close')} onClick={onClose}>
+            <X size={20} />
+          </button>
+        </div>
+        <div className="taskit-drawer-body">
+          <ToneBadge tone={tone} />
+          {!agents.length ? (
+            <div className="taskit-empty-state">
+              <p className="taskit-body">{t('overview.noAgentSignals')}</p>
             </div>
           ) : (
-            <div className="ops-risk-list">
-              {primaryRisks.map((risk) => {
+            <div className="taskit-agent-list">
+              {agents.map((agent) => {
                 const body = (
                   <>
-                    <div className="ops-risk-header">
-                      <span className="ops-risk-type">{risk.type}</span>
-                      <ToneBadge tone={risk.severity} />
+                    <div className="taskit-row-between">
+                      <span className="taskit-label">{agent.agent}</span>
+                      <ToneBadge tone={agent.tone} />
                     </div>
-                    <strong>{risk.title}</strong>
-                    <p>{risk.impact}</p>
-                    <small>{risk.why}</small>
-                    <div className="ops-agent-action">
-                      <ArrowRight size={14} />
-                      {risk.action}
+                    <div className="taskit-row-main">
+                      <strong className="taskit-heading">{agent.signal}</strong>
+                      <p className="taskit-body">{agent.reasoning}</p>
+                      <div className="taskit-body">
+                        <ArrowRight size={16} aria-hidden style={{ display: 'inline', marginInlineEnd: 8 }} />
+                        {agent.recommendedAction}
+                      </div>
                     </div>
                   </>
                 )
 
-                return risk.href ? (
-                  <Link key={risk.id} href={risk.href} className="ops-risk-row">
+                return agent.href ? (
+                  <Link key={agent.id} href={agent.href} className="taskit-agent-row" onClick={onClose}>
                     {body}
                   </Link>
                 ) : (
-                  <div key={risk.id} className="ops-risk-row">
+                  <article key={agent.id} className="taskit-agent-row">
                     {body}
-                  </div>
+                  </article>
                 )
               })}
             </div>
           )}
         </div>
-
-        <div className="card">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">{t('ops.operationalGraph')}</h2>
-              <p className="panel-meta">{t('ops.operationalGraphMeta')}</p>
-            </div>
-          </div>
-          <div className="ops-graph-score">
-            <div>
-              <span>{data.graph.nodes}</span>
-              <small>{t('ops.nodes')}</small>
-            </div>
-            <div>
-              <span>{data.graph.edges}</span>
-              <small>{t('ops.edges')}</small>
-            </div>
-          </div>
-          <div className="ops-graph-coverage">
-            {graphCoverage.map((item) => (
-              <div key={item.label}>
-                <span>{item.label}</span>
-                <strong>{item.count}</strong>
-              </div>
-            ))}
-          </div>
-          <div className="ops-focus-row mt-4">
-            <CircleDollarSign size={16} />
-            <span>{data.financial.marginNote}</span>
-          </div>
-        </div>
-      </section>
+      </aside>
     </>
   )
 }
 
+function GraphCoverageLabel({ label }: { label: string }) {
+  const { t } = useLocale()
+  const lower = label.toLowerCase()
+  if (lower === 'clients') return <>{t('nav.clients')}</>
+  if (lower === 'campaigns') return <>{t('entity.campaigns')}</>
+  if (lower === 'briefs') return <>{t('entity.briefs')}</>
+  if (lower === 'deliverables') return <>{t('entity.deliverables')}</>
+  if (lower === 'tasks') return <>{t('entity.tasks')}</>
+  if (lower === 'invoices') return <>{t('nav.invoices')}</>
+  return <>{label}</>
+}
+
 export default function AdminDashboard() {
   const { data: session } = useSession()
+  const { locale, t } = useLocale()
   const [stats, setStats] = useState<Stats | null>(null)
   const [commandCenter, setCommandCenter] = useState<OperationalCommandCenter | null>(null)
   const [loading, setLoading] = useState(true)
+  const [expandedClusters, setExpandedClusters] = useState<Record<PipelineCluster['id'], boolean>>({
+    intake: false,
+    execution: false,
+    closure: false,
+  })
   const [additionalInsightsOpen, setAdditionalInsightsOpen] = useState(false)
+  const [agentDrawerOpen, setAgentDrawerOpen] = useState(false)
 
   const loadStats = useCallback(async () => {
     const [analyticsResponse, commandCenterResponse] = await Promise.all([
       fetch('/api/analytics', { cache: 'no-store' }),
       fetch('/api/operations/command-center', { cache: 'no-store' }),
     ])
-    const data = (await analyticsResponse.json()) as Stats
+    const data = analyticsResponse.ok ? ((await analyticsResponse.json()) as Stats) : null
     const commandData = commandCenterResponse.ok
       ? ((await commandCenterResponse.json()) as OperationalCommandCenter)
       : null
@@ -533,7 +897,7 @@ export default function AdminDashboard() {
         fetch('/api/analytics', { cache: 'no-store' }),
         fetch('/api/operations/command-center', { cache: 'no-store' }),
       ])
-      const data = (await analyticsResponse.json()) as Stats
+      const data = analyticsResponse.ok ? ((await analyticsResponse.json()) as Stats) : null
       const commandData = commandCenterResponse.ok
         ? ((await commandCenterResponse.json()) as OperationalCommandCenter)
         : null
@@ -554,466 +918,478 @@ export default function AdminDashboard() {
 
   const user = session?.user as { name?: string; companyType?: string | null }
   const companyType = normalizeCompanyType(stats?.companyType ?? user?.companyType)
-  const companyCopy = getCompanyTypeCopy(companyType)
+  const entityCopy = getLocalizedCompanyCopy(companyType, t)
   const isAgency = isAgencyCompanyType(companyType)
   const isIndustry = companyType === 'INDUSTRY'
+  const dateLocale = localeForDate(locale)
+  const formattedToday = new Intl.DateTimeFormat(dateLocale, {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date())
 
-  const statCards = stats
-    ? [
-        ...(isIndustry
-          ? [
-              {
-                label: companyCopy.groupPluralLabel,
-                value: stats.roomCount,
-                icon: Building2,
-                color: '#2142ff',
-                bg: 'rgba(33,66,255,0.09)',
-                help: 'Operational spaces',
-                growth: 0,
-              },
-            ]
-          : isAgency
-            ? [
-              {
-                label: 'Deliverables',
-                value: stats.submissionCount,
-                icon: UploadCloud,
-                color: '#7c3aed',
-                bg: 'rgba(124,58,237,0.08)',
-                help: 'Files uploaded',
-                growth: stats.growth?.completedTasks ?? 0,
-              },
-            ]
-          : []),
-        {
-          label: 'Users',
-          value: stats.totalUsers,
-          icon: Users,
-          color: '#0369a1',
-          bg: 'rgba(3,105,161,0.09)',
-          help: 'All members',
-          growth: stats.growth?.users ?? 0,
-        },
-        {
-          label: 'Active',
-          value: stats.activeUsers,
-          icon: Zap,
-          color: '#0f766e',
-          bg: 'rgba(15,118,110,0.1)',
-          help: 'This week',
-          growth: stats.growth?.activeUsers ?? 0,
-        },
-        {
-          label: companyCopy.projectPluralLabel,
-          value: stats.totalProjects,
-          icon: FolderKanban,
-          color: '#7c3aed',
-          bg: 'rgba(124,58,237,0.08)',
-          help: 'Total projects',
-          growth: stats.growth?.projects ?? 0,
-        },
-        {
-          label: companyCopy.taskPluralLabel,
-          value: stats.totalTasks,
-          icon: ClipboardList,
-          color: '#0f766e',
-          bg: 'rgba(15,118,110,0.1)',
-          help: 'Total work items',
-          growth: stats.growth?.tasks ?? 0,
-        },
-        {
-          label: 'Completed',
-          value: stats.doneTasks,
-          icon: CheckCircle2,
-          color: '#059669',
-          bg: 'rgba(5,150,105,0.09)',
-          help: 'Finished work',
-          growth: stats.growth?.completedTasks ?? 0,
-        },
-        {
-          label: 'In progress',
-          value: stats.inProgressTasks,
-          icon: Zap,
-          color: '#d97706',
-          bg: 'rgba(217,119,6,0.1)',
-          help: 'Currently active',
-          growth: 0,
-        },
-        {
-          label: 'Overdue',
-          value: stats.overdueTasks,
-          icon: AlertTriangle,
-          color: '#dc2626',
-          bg: 'rgba(220,38,38,0.08)',
-          help: 'Needs attention',
-          growth: 0,
-        },
-        {
-          label: 'Team',
-          value: stats.totalEmployees,
-          icon: Users,
-          color: '#0e7490',
-          bg: 'rgba(14,116,144,0.09)',
-          help: 'Employees',
-          growth: stats.growth?.users ?? 0,
-        },
-      ]
-    : []
+  const localizedRisks = useMemo(
+    () => commandCenter?.risks.slice(0, 4).map((risk) => localizeRisk(risk, commandCenter, t, locale)) ?? [],
+    [commandCenter, locale, t]
+  )
+  const topRisk = localizedRisks[0]
+  const localizedAgents = useMemo(
+    () => commandCenter?.agentSignals.map((agent) => localizeAgent(agent, commandCenter, topRisk, t)) ?? [],
+    [commandCenter, topRisk, t]
+  )
+  const pipelineClusters = useMemo(() => buildPipelineClusters(commandCenter, t), [commandCenter, t])
+  const healthComponents = useMemo(() => buildHealthComponents(stats, commandCenter, t), [stats, commandCenter, t])
+  const healthTone = commandCenter?.briefing.tone ?? 'neutral'
+  const healthScore = commandCenter?.briefing.healthScore ?? stats?.completionRate ?? 0
+  const agentStatus = agentStatusLabel(healthTone, t)
+
+  const urgentSentence =
+    topRisk?.action ??
+    (stats?.overdueTasks ? t('overview.todayOverdueTasks') : loading ? t('overview.loadingPriority') : t('overview.noUrgentItem'))
+
+  const localizedActivitySeries =
+    stats?.activitySeries?.map((item) => ({
+      ...item,
+      label: new Intl.DateTimeFormat(dateLocale, { weekday: 'short' }).format(new Date(item.date)),
+    })) ?? []
+
+  const localizedStageBreakdown =
+    stats?.taskStageBreakdown?.map((item) => {
+      const name =
+        item.stage === 'DONE'
+          ? t('overview.completed')
+          : item.stage === 'IN_PROGRESS'
+            ? t('overview.inProgress')
+            : item.stage === 'REVIEW'
+              ? t('pipeline.review')
+              : t('pipeline.planning')
+      return { ...item, name }
+    }) ?? []
+
+  const localizedRoleDistribution =
+    stats?.rolesDistribution?.map((item) => ({
+      ...item,
+      name: localizedRoleLabel(item.name, t),
+    })) ?? []
 
   const completionRate = stats?.totalTasks ? Math.round((stats.doneTasks / stats.totalTasks) * 100) : 0
-  const greeting = new Date().getHours() < 12 ? 'Good morning' : new Date().getHours() < 18 ? 'Good afternoon' : 'Good evening'
-
-  const workspaceMessage = isIndustry
-    ? `Track rooms, ${companyCopy.projectPluralLabel.toLowerCase()}, and ${companyCopy.taskPluralLabel.toLowerCase()} from one operational view.`
-    : isAgency
-      ? 'Track client campaigns, briefs, uploaded deliverables, and team execution from one studio view.'
-      : `Track ${companyCopy.projectPluralLabel.toLowerCase()}, ${companyCopy.taskPluralLabel.toLowerCase()}, and team execution from one clean workspace.`
-
-  const priorityStatLabels = new Set([
-    isIndustry ? companyCopy.groupPluralLabel : isAgency ? 'Deliverables' : companyCopy.projectPluralLabel,
-    companyCopy.taskPluralLabel,
-    'Completed',
-    'Overdue',
-  ])
-  const overviewCards = statCards.filter((card) => priorityStatLabels.has(card.label)).slice(0, 4)
-  const secondaryCards = statCards.filter((card) => !priorityStatLabels.has(card.label))
   const teamRows = stats?.performance ? [...stats.performance].sort((a, b) => b.score - a.score).slice(0, 5) : []
   const recentRows = stats?.recentActivity?.slice(0, 4) ?? []
   const breakdownItems = stats
     ? [
-        { label: 'Completed', value: stats.doneTasks, color: '#059669', icon: CheckCircle2 },
-        { label: 'In progress', value: stats.inProgressTasks, color: '#d97706', icon: Zap },
-        { label: 'Overdue', value: stats.overdueTasks, color: '#dc2626', icon: AlertTriangle },
+        { label: t('overview.completed'), value: stats.doneTasks, color: '#059669', icon: CheckCircle2 },
+        { label: t('overview.inProgress'), value: stats.inProgressTasks, color: '#d97706', icon: Zap },
+        { label: t('overview.overdue'), value: stats.overdueTasks, color: '#dc2626', icon: AlertTriangle },
       ]
     : []
 
+  const workspaceSignalCards = stats
+    ? [
+        ...(isIndustry
+          ? [
+              {
+                label: entityCopy.groupPluralLabel,
+                value: stats.roomCount,
+                icon: Building2,
+                detail: t('overview.operationalSpaces'),
+              },
+            ]
+          : isAgency
+            ? [
+                {
+                  label: t('entity.deliverables'),
+                  value: stats.submissionCount,
+                  icon: UploadCloud,
+                  detail: t('overview.filesUploaded'),
+                },
+              ]
+            : []),
+        { label: t('nav.team'), value: stats.totalEmployees, icon: Users, detail: t('overview.employees') },
+        { label: t('overview.total'), value: stats.totalUsers, icon: Users, detail: t('overview.allMembers') },
+        { label: t('overview.activeThisWeek'), value: stats.activeUsers, icon: Zap, detail: t('overview.activeThisWeek') },
+        { label: entityCopy.projectPluralLabel, value: stats.totalProjects, icon: FolderKanban, detail: t('overview.totalProjects') },
+        { label: entityCopy.taskPluralLabel, value: stats.totalTasks, icon: ClipboardList, detail: t('overview.totalTasks') },
+        { label: t('overview.completed'), value: stats.doneTasks, icon: CheckCircle2, detail: t('overview.finishedWork') },
+        { label: t('overview.inProgress'), value: stats.inProgressTasks, icon: Zap, detail: t('overview.currentlyActive') },
+        { label: t('overview.overdue'), value: stats.overdueTasks, icon: AlertTriangle, detail: t('overview.needsAttention') },
+      ]
+    : []
+
+  const graphCoverage = commandCenter?.graph.coverage.filter((item) => item.count > 0).slice(0, 6) ?? []
+
   return (
-    <div className="dashboard-page">
-      <section className="dashboard-hero">
-        <div className="min-w-0">
-          <div className="dashboard-hero-kicker">
-            <Sparkles size={13} />
-            {companyCopy.workspaceLabel}
-          </div>
-          <h1 className="page-heading mt-4">
-            <span suppressHydrationWarning>{greeting}</span>, {user?.name?.split(' ')[0] || 'there'}
+    <div className="dashboard-page taskit-overview">
+      {/* REDLINE 02 - Greeting becomes a two-line daily briefing: user/date, then the one action that matters today. */}
+      <section className="taskit-overview-header">
+        <div className="taskit-overview-header-copy">
+          <span className="taskit-label">{t('overview.contextLabel')}</span>
+          <h1 className="taskit-display">
+            {user?.name?.split(' ')[0] || 'TASKIT'} - <span suppressHydrationWarning>{formattedToday}</span>
           </h1>
-          <p className="page-sub max-w-2xl">{workspaceMessage}</p>
+          <p className="taskit-body">{urgentSentence}</p>
         </div>
 
-        <div className="dashboard-hero-actions">
-          <Link href="/dashboard/admin/projects" className="btn-secondary">
-            <FolderKanban size={16} />
-            {companyCopy.projectPluralLabel}
-          </Link>
-          <Link href="/dashboard/admin/tasks" className="btn-primary">
-            <Plus size={16} />
-            New {companyCopy.taskLabel}
+        <div className="taskit-overview-header-actions">
+          <button
+            type="button"
+            className={`taskit-agent-status-button taskit-agent-status-${healthTone}`}
+            onClick={() => setAgentDrawerOpen(true)}
+          >
+            <Bot size={20} />
+            <span>{t('overview.agentStatus')}</span>
+            <strong>{agentStatus}</strong>
+          </button>
+          <Link href="/dashboard/admin/projects" className="taskit-secondary-action">
+            <FolderKanban size={20} />
+            {t('action.viewProjects')}
           </Link>
         </div>
       </section>
 
-      {commandCenter ? <OperationalCommandCenterPanel data={commandCenter} /> : loading ? <CommandCenterSkeleton /> : null}
-
-      {loading ? (
-        <div className="dashboard-stat-grid">
-          {[...Array(4)].map((_, index) => (
-            <div key={index} className="stat-card loading-shimmer" aria-label="Loading overview metric">
-              <div className="h-10 w-10 rounded-[10px] bg-white/70" />
-              <div className="mt-5 h-8 w-20 rounded-[8px] bg-white/70" />
-              <div className="mt-3 h-3 w-28 rounded-full bg-white/70" />
+      {/* REDLINE 03 - Tier 1 only: critical alert, priority action, and health score. Agent details are intentionally absent here. */}
+      <section className="taskit-tier-one-grid" aria-label={t('overview.commandBriefing')}>
+        <article className="taskit-card taskit-critical-card">
+          <div className="taskit-card-header">
+            <div className="taskit-row-main">
+              <span className="taskit-label">{topRisk ? t('overview.criticalAlert') : t('overview.commandBriefing')}</span>
+              <h2 className="taskit-heading">{topRisk?.title ?? t('overview.stableOperations')}</h2>
             </div>
+            <ToneBadge tone={topRisk?.severity ?? healthTone} />
+          </div>
+
+          <p className="taskit-body">{topRisk?.impact ?? t('overview.summaryDefault')}</p>
+
+          <div className="taskit-alert-list">
+            <div className="taskit-alert-row">
+              <div className="taskit-row-main">
+                <span className="taskit-label">{t('overview.priorityAction')}</span>
+                <span className="taskit-body">{topRisk?.action ?? urgentSentence}</span>
+              </div>
+              {topRisk?.href && (
+                <Link href={topRisk.href} className="taskit-secondary-action">
+                  <ArrowRight size={20} />
+                </Link>
+              )}
+            </div>
+            {!!localizedRisks.length && (
+              <div className="taskit-action-list">
+                {localizedRisks.slice(0, 3).map((risk) => (
+                  <div key={risk.id} className="taskit-action-row">
+                    <ShieldCheck size={20} aria-hidden />
+                    <div className="taskit-row-main">
+                      <span className="taskit-body">{risk.action}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </article>
+
+        <HealthScoreCard score={healthScore} tone={healthTone} components={healthComponents} />
+      </section>
+
+      {/* REDLINE 05 - Eight pipeline stages are grouped into three expandable clusters for progressive disclosure. */}
+      <section className="taskit-card" aria-label={t('overview.pipelineKpis')}>
+        <div className="taskit-card-header">
+          <div className="taskit-row-main">
+            <span className="taskit-label">{t('overview.pipelineKpis')}</span>
+            <h2 className="taskit-heading">{t('overview.pipelineMeta')}</h2>
+          </div>
+        </div>
+
+        <div className="taskit-pipeline-grid">
+          {pipelineClusters.map((cluster) => (
+            <PipelineClusterCard
+              key={cluster.id}
+              cluster={cluster}
+              expanded={expandedClusters[cluster.id]}
+              onToggle={() => setExpandedClusters((current) => ({ ...current, [cluster.id]: !current[cluster.id] }))}
+            />
           ))}
         </div>
-      ) : (
-        <div className="dashboard-stat-grid">
-          {overviewCards.map((card, index) => {
-            const Icon = card.icon
-            return (
-              <article key={card.label} className="stat-card animate-fade-in" style={{ animationDelay: `${index * 45}ms` }}>
-                <div className="stat-card-header">
-                  <span className="stat-card-label">{card.label}</span>
-                  <div className="stat-card-icon" style={{ background: card.bg }}>
-                    <Icon size={18} style={{ color: card.color }} />
-                  </div>
-                </div>
-                <div className="stat-card-value" style={{ color: card.color }}>
-                  <AnimatedCounter value={card.value} />
-                </div>
-                <div className="stat-card-delta">
-                  <span>{card.help}</span>
-                  <GrowthBadge value={card.growth} />
-                </div>
-              </article>
-            )
-          })}
-        </div>
-      )}
+      </section>
 
-      <div className="dashboard-section-grid">
-        <section className="card">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">Activity over time</h2>
-              <p className="panel-meta">Created and completed work across the last 7 days.</p>
+      <section className="taskit-detail-grid">
+        <article className="taskit-card">
+          <div className="taskit-card-header">
+            <div className="taskit-row-main">
+              <span className="taskit-label">{t('overview.activityOverTime')}</span>
+              <h2 className="taskit-heading">{t('overview.activityMeta')}</h2>
             </div>
-            <span className="rounded-full bg-[var(--bg-elevated)] px-3 py-1 text-[11px] font-bold text-[var(--text-muted)]">
-              This week vs last week
-            </span>
+            <span className="taskit-tone-badge taskit-tone-neutral">{t('overview.thisWeekVsLastWeek')}</span>
           </div>
-          {!stats?.activitySeries?.some((item) => item.created || item.completed) ? (
-            <EmptyChartState label="No activity trend yet" />
+          {!localizedActivitySeries.some((item) => item.created || item.completed) ? (
+            <EmptyChartState label={t('overview.noActivityTrend')} />
           ) : (
-            <ActivityLineChart data={stats.activitySeries} />
+            <ActivityLineChart data={localizedActivitySeries} createdLabel={t('chart.created')} completedLabel={t('chart.completed')} />
           )}
-        </section>
+        </article>
 
-        <section className="card">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">{isAgency ? 'Brief breakdown' : 'Task breakdown'}</h2>
-              <p className="panel-meta">A quick read on what is finished, active, or late.</p>
+        <article className="taskit-card">
+          <div className="taskit-card-header">
+            <div className="taskit-row-main">
+              <span className="taskit-label">{isAgency ? t('overview.briefBreakdown') : t('overview.taskBreakdown')}</span>
+              <h2 className="taskit-heading">{t('overview.breakdownMeta')}</h2>
             </div>
           </div>
 
-          <div className="mb-5 rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)] p-4">
-            <div className="mb-3 flex items-center justify-between gap-3">
-              <span className="text-sm font-semibold text-[var(--text-primary)]">Overall completion</span>
-              <span className="text-2xl font-bold text-[var(--accent)]">{completionRate}%</span>
+          <div className="taskit-metric-row">
+            <div className="taskit-row-main">
+              <span className="taskit-label">{t('overview.overallCompletion')}</span>
+              <span className="taskit-heading tabular-nums">{completionRate}%</span>
             </div>
-            <div className="progress-bar">
-              <div className="progress-fill" style={{ width: `${completionRate}%` }} />
+            <div className="taskit-progress-track" style={{ minWidth: 112 }} aria-hidden>
+              <span className="taskit-progress-fill" style={{ width: `${completionRate}%` }} />
             </div>
           </div>
 
           {stats && stats.totalTasks > 0 ? (
-            <div className="metric-list">
+            <div className="taskit-metric-list">
               {breakdownItems.map((item) => {
                 const Icon = item.icon
                 const pct = stats.totalTasks ? Math.round((item.value / stats.totalTasks) * 100) : 0
                 return (
-                  <div key={item.label} className="metric-row">
-                    <div className="metric-row-header">
-                      <span className="metric-label">
-                        <Icon size={15} style={{ color: item.color }} />
+                  <div key={item.label} className="taskit-metric-row">
+                    <div className="taskit-row-main">
+                      <span className="taskit-body">
+                        <Icon size={20} aria-hidden style={{ color: item.color, display: 'inline', marginInlineEnd: 8 }} />
                         {item.label}
                       </span>
-                      <span className="metric-value" style={{ color: item.color }}>
-                        {item.value} <span className="font-medium text-[var(--text-muted)]">({pct}%)</span>
-                      </span>
+                      <div className="taskit-progress-track" aria-hidden>
+                        <span className="taskit-progress-fill" style={{ width: `${pct}%`, background: item.color }} />
+                      </div>
                     </div>
-                    <div className="progress-bar">
-                      <div className="progress-fill" style={{ width: `${pct}%`, background: item.color }} />
-                    </div>
+                    <span className="taskit-label tabular-nums">{item.value} ({pct}%)</span>
                   </div>
                 )
               })}
             </div>
           ) : (
-            <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] bg-white px-5 py-8 text-center">
-              <CheckSquare size={28} style={{ opacity: 0.35, margin: '0 auto 10px', color: 'var(--text-muted)' }} />
-              <p className="text-sm font-semibold text-[var(--text-primary)]">No {companyCopy.taskPluralLabel.toLowerCase()} yet</p>
-              <p className="mx-auto mt-1 max-w-xs text-sm leading-6 text-[var(--text-muted)]">
-                Create a {companyCopy.projectLabel.toLowerCase()} first, then split it into clear {companyCopy.taskPluralLabel.toLowerCase()}.
-              </p>
+            <div className="taskit-empty-state">
+              <div className="taskit-row-main">
+                <CheckSquare size={20} aria-hidden />
+                <p className="taskit-heading">{t('overview.noTasksYet')}</p>
+                <p className="taskit-body">{t('overview.noTasksYetDescription')}</p>
+              </div>
             </div>
           )}
 
-          <div className="dashboard-action-row mt-5">
-            <Link href="/dashboard/admin/tasks" className="btn-secondary">
-              <CheckSquare size={15} />
-              View {companyCopy.taskPluralLabel}
+          <div className="taskit-overview-header-actions">
+            <Link href="/dashboard/admin/tasks" className="taskit-secondary-action">
+              <CheckSquare size={20} />
+              {t('action.viewTasks')}
             </Link>
-            <Link href="/dashboard/admin/alerts" className="btn-primary">
-              <Bell size={15} />
-              Send alert
+            <Link href="/dashboard/admin/alerts" className="taskit-secondary-action">
+              <AlertTriangle size={20} />
+              {t('action.sendAlert')}
             </Link>
           </div>
-        </section>
-      </div>
+        </article>
+      </section>
 
-      <div className="dashboard-section-grid">
-        <section className="card">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">Team performance</h2>
-              <p className="panel-meta">Top contributors by completed work.</p>
+      <section className="taskit-detail-grid">
+        <article className="taskit-card">
+          <div className="taskit-card-header">
+            <div className="taskit-row-main">
+              <span className="taskit-label">{t('overview.teamPerformance')}</span>
+              <h2 className="taskit-heading">{t('overview.teamMeta')}</h2>
             </div>
-            <Link href="/dashboard/admin/employees" className="btn-secondary btn-sm">
-              Team
-              <ArrowRight size={14} />
+            <Link href="/dashboard/admin/employees" className="taskit-secondary-action">
+              <Users size={20} />
+              {t('nav.team')}
             </Link>
           </div>
 
           {!teamRows.length ? (
-            <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] bg-[var(--bg-elevated)] px-5 py-10 text-center">
-              <Users size={30} style={{ opacity: 0.34, margin: '0 auto 10px', color: 'var(--text-muted)' }} />
-              <p className="text-sm font-semibold text-[var(--text-primary)]">No team members yet</p>
-              <p className="mx-auto mt-1 max-w-sm text-sm leading-6 text-[var(--text-muted)]">
-                Invite employees to start seeing workload, progress, and completion trends here.
-              </p>
+            <div className="taskit-empty-state">
+              <div className="taskit-row-main">
+                <Users size={20} aria-hidden />
+                <p className="taskit-heading">{t('overview.noTeamMembers')}</p>
+                <p className="taskit-body">{t('overview.noTeamMembersMeta')}</p>
+              </div>
             </div>
           ) : (
-            <div className="activity-list">
+            <div className="taskit-activity-list">
               {teamRows.map((employee, index) => (
-                <div key={employee.name} className="team-card">
-                  <div className="team-row-header">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <div className="icon-box h-8 w-8 rounded-full text-xs font-bold text-[var(--accent)]" style={{ background: 'var(--accent-subtle)' }}>
-                        {index + 1}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="truncate text-sm font-semibold text-[var(--text-primary)]">{employee.name}</div>
-                        <div className="text-xs text-[var(--text-muted)]">
-                          {employee.done}/{employee.total} complete
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-sm font-bold" style={{ color: employee.score >= 80 ? '#059669' : employee.score >= 50 ? '#d97706' : '#dc2626' }}>
-                      {employee.score}%
+                <div key={employee.name} className="taskit-activity-row">
+                  <div className="taskit-row-main">
+                    <span className="taskit-label">{index + 1}. {employee.name}</span>
+                    <span className="taskit-body">{employee.done}/{employee.total} {t('overview.completed').toLowerCase()}</span>
+                    <div className="taskit-progress-track" aria-hidden>
+                      <span
+                        className="taskit-progress-fill"
+                        style={{
+                          width: `${employee.score}%`,
+                          background: employee.score >= 80 ? '#059669' : employee.score >= 50 ? '#d97706' : '#dc2626',
+                        }}
+                      />
                     </div>
                   </div>
-                  <div className="progress-bar mt-3">
-                    <div
-                      className="progress-fill"
-                      style={{
-                        width: `${employee.score}%`,
-                        background: employee.score >= 80 ? '#059669' : employee.score >= 50 ? '#d97706' : '#dc2626',
-                      }}
-                    />
-                  </div>
+                  <span className="taskit-heading tabular-nums">{employee.score}%</span>
                 </div>
               ))}
             </div>
           )}
-        </section>
+        </article>
 
-        <section className="card">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">Recent activity</h2>
-              <p className="panel-meta">Newest task and project movement.</p>
+        <article className="taskit-card">
+          <div className="taskit-card-header">
+            <div className="taskit-row-main">
+              <span className="taskit-label">{t('overview.recentActivity')}</span>
+              <h2 className="taskit-heading">{t('overview.recentMeta')}</h2>
             </div>
-            <Link href="/dashboard/admin/tasks" className="btn-secondary btn-sm">
-              View tasks
-              <ArrowRight size={14} />
+            <Link href="/dashboard/admin/tasks" className="taskit-secondary-action">
+              <ArrowRight size={20} />
             </Link>
           </div>
 
           {!recentRows.length ? (
-            <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--border)] bg-[var(--bg-elevated)] px-5 py-10 text-center text-sm font-semibold text-[var(--text-muted)]">
-              No activity logged yet
+            <div className="taskit-empty-state">
+              <p className="taskit-body">{t('overview.noActivityLogged')}</p>
             </div>
           ) : (
-            <div className="activity-list">
+            <div className="taskit-activity-list">
               {recentRows.map((activity) => (
-                <div key={activity.id} className="activity-card">
-                  <div className="activity-row">
-                    <div className="flex min-w-0 items-start gap-3">
-                      <div className="icon-box h-9 w-9 rounded-full text-xs font-bold text-[var(--accent)]" style={{ background: 'var(--accent-subtle)' }}>
-                        {activity.user.name.charAt(0)}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-semibold text-[var(--text-primary)]">{activity.user.name}</span>
-                          <span className="text-xs font-medium text-[var(--text-muted)]">{activity.action}</span>
-                        </div>
-                        <div className="mt-1 truncate text-xs text-[var(--text-muted)]">
-                          {activity.task.project.title} / {activity.task.title}
-                        </div>
-                      </div>
-                    </div>
-                    <span className="shrink-0 text-[11px] font-semibold text-[var(--text-muted)]">
-                      {new Date(activity.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                <div key={activity.id} className="taskit-activity-row">
+                  <div className="taskit-row-main">
+                    <span className="taskit-label">{activity.user.name}</span>
+                    <span className="taskit-body">{formatActivityAction(activity.action, t)}</span>
+                    <span className="taskit-body">
+                      {activity.task.project.title} / {activity.task.title}
                     </span>
                   </div>
+                  <span className="taskit-label" suppressHydrationWarning>
+                    {new Date(activity.createdAt).toLocaleDateString(dateLocale, { month: 'short', day: 'numeric' })}
+                  </span>
                 </div>
               ))}
             </div>
           )}
-        </section>
-      </div>
+        </article>
+      </section>
 
-      {!!secondaryCards.length && (
-        <section className="card mt-4">
-          <div className="panel-header">
-            <div>
-              <h2 className="panel-title">Workspace signals</h2>
-              <p className="panel-meta">Secondary metrics are grouped here to keep the overview scannable.</p>
-            </div>
+      <section className="taskit-card">
+        <div className="taskit-card-header">
+          <div className="taskit-row-main">
+            <span className="taskit-label">{t('overview.workspaceSignals')}</span>
+            <h2 className="taskit-heading">{t('overview.workspaceSignalsMeta')}</h2>
           </div>
-          <div className="compact-stat-grid">
-            {secondaryCards.map((card) => (
-              <div key={card.label} className="compact-stat">
-                <div className="compact-stat-label">{card.label}</div>
-                <div className="compact-stat-value">
-                  <AnimatedCounter value={card.value} />
-                </div>
-                <div className="mt-1 text-xs text-[var(--text-muted)]">{card.help}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      <details className="dashboard-disclosure" onToggle={(event) => setAdditionalInsightsOpen(event.currentTarget.open)}>
-        <summary>Additional insights</summary>
-        <div className="dashboard-disclosure-body">
-          {additionalInsightsOpen && (
-          <div className="dashboard-section-grid mt-0">
-            <section className="card">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Status mix</h2>
-                  <p className="panel-meta">A stage-level breakdown of all work.</p>
-                </div>
-              </div>
-              {!stats?.taskStageBreakdown?.some((item) => item.value) ? (
-                <EmptyChartState label="No task data yet" />
-              ) : (
-                <StatusBarChart data={stats.taskStageBreakdown} />
-              )}
-            </section>
-
-            <section className="card">
-              <div className="panel-header">
-                <div>
-                  <h2 className="panel-title">Roles distribution</h2>
-                  <p className="panel-meta">Workspace access composition.</p>
-                </div>
-              </div>
-              {!stats?.rolesDistribution?.some((item) => item.value) ? (
-                <EmptyChartState label="No role data yet" />
-              ) : (
-                <RolesPieChart data={stats.rolesDistribution} />
-              )}
-            </section>
-          </div>
-          )}
         </div>
+        <div className="compact-stat-grid">
+          {workspaceSignalCards.map((card) => {
+            const Icon = card.icon
+            return (
+              <div key={card.label} className="compact-stat">
+                <div className="taskit-row-main">
+                  <span className="taskit-label">
+                    <Icon size={20} aria-hidden style={{ display: 'inline', marginInlineEnd: 8 }} />
+                    {card.label}
+                  </span>
+                  <span className="taskit-heading tabular-nums">
+                    <AnimatedCounter value={card.value} />
+                  </span>
+                  <span className="taskit-body">{card.detail}</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
+      <details className="taskit-card taskit-disclosure" onToggle={(event) => setAdditionalInsightsOpen(event.currentTarget.open)}>
+        <summary className="taskit-cluster-button">
+          <span className="taskit-heading">{t('overview.additionalInsights')}</span>
+          <ChevronDown size={20} aria-hidden />
+        </summary>
+        {additionalInsightsOpen && (
+          <div className="taskit-insight-grid">
+            <article className="taskit-card">
+              <div className="taskit-card-header">
+                <div className="taskit-row-main">
+                  <span className="taskit-label">{t('overview.statusMix')}</span>
+                  <h2 className="taskit-heading">{t('overview.statusMixMeta')}</h2>
+                </div>
+              </div>
+              {!localizedStageBreakdown.some((item) => item.value) ? (
+                <EmptyChartState label={t('overview.noTaskData')} />
+              ) : (
+                <StatusBarChart data={localizedStageBreakdown} valueLabel={t('chart.tasks')} />
+              )}
+            </article>
+
+            <article className="taskit-card">
+              <div className="taskit-card-header">
+                <div className="taskit-row-main">
+                  <span className="taskit-label">{t('overview.rolesDistribution')}</span>
+                  <h2 className="taskit-heading">{t('overview.rolesMeta')}</h2>
+                </div>
+              </div>
+              {!localizedRoleDistribution.some((item) => item.value) ? (
+                <EmptyChartState label={t('overview.noRoleData')} />
+              ) : (
+                <RolesPieChart data={localizedRoleDistribution} />
+              )}
+            </article>
+          </div>
+        )}
       </details>
 
-      {isAgency && (
-        <section className="card mt-4">
-          <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-start gap-3">
-              <div className="icon-box h-11 w-11" style={{ background: 'rgba(124,58,237,0.1)', color: '#7c3aed' }}>
-                <BriefcaseBusiness size={20} />
+      {commandCenter && (
+        <section className="taskit-detail-grid">
+          <article className="taskit-card">
+            <div className="taskit-card-header">
+              <div className="taskit-row-main">
+                <span className="taskit-label">{t('overview.operationalGraph')}</span>
+                <h2 className="taskit-heading">{t('overview.operationalGraphMeta')}</h2>
               </div>
-              <div>
-                <h2 className="panel-title">Agency setup</h2>
-                <p className="panel-meta max-w-2xl">
-                  Create client categories, add campaigns under each category, then split every campaign into briefs.
-                </p>
-              </div>
+              <BarChart3 size={20} aria-hidden />
             </div>
-            <Link href="/dashboard/admin/projects" className="btn-secondary">
-              Organize campaigns
-              <ArrowRight size={15} />
-            </Link>
-          </div>
+            <div className="taskit-graph-list">
+              <div className="taskit-graph-row">
+                <span className="taskit-label">{t('overview.nodes')}</span>
+                <span className="taskit-heading tabular-nums">{commandCenter.graph.nodes}</span>
+              </div>
+              <div className="taskit-graph-row">
+                <span className="taskit-label">{t('overview.edges')}</span>
+                <span className="taskit-heading tabular-nums">{commandCenter.graph.edges}</span>
+              </div>
+              {graphCoverage.map((item) => (
+                <div key={item.label} className="taskit-graph-row">
+                  <span className="taskit-body">
+                    <GraphCoverageLabel label={item.label} />
+                  </span>
+                  <span className="taskit-label tabular-nums">{item.count}</span>
+                </div>
+              ))}
+            </div>
+          </article>
+
+          {isAgency && (
+            <article className="taskit-card">
+              <div className="taskit-card-header">
+                <div className="taskit-row-main">
+                  <span className="taskit-label">{t('overview.agencySetup')}</span>
+                  <h2 className="taskit-heading">{t('overview.agencySetupMeta')}</h2>
+                </div>
+                <BriefcaseBusiness size={20} aria-hidden />
+              </div>
+              <Link href="/dashboard/admin/projects" className="taskit-secondary-action">
+                <ArrowRight size={20} />
+                {t('overview.organizeCampaigns')}
+              </Link>
+            </article>
+          )}
         </section>
       )}
+
+      {/* REDLINE 06 - The right drawer preserves every AI agent signal while keeping load state calm. */}
+      <AgentDrawer
+        open={agentDrawerOpen}
+        agents={localizedAgents}
+        tone={healthTone}
+        onClose={() => setAgentDrawerOpen(false)}
+      />
     </div>
   )
 }

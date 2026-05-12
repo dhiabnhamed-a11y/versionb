@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "./design-tokens.css";
  
 /* ============================================================
    AGENCY STUDIO — Enhanced Design System
@@ -264,7 +265,7 @@ textarea:focus-visible {
   background: var(--bg-card);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
-  padding: clamp(1rem, 2vw, 1.5rem);
+  padding: var(--space-card);
   box-shadow: var(--shadow-card);
   transition: border-color var(--t-normal), box-shadow var(--t-slow), transform var(--t-normal);
 }
@@ -453,11 +454,11 @@ textarea:focus-visible {
   gap: 0.65rem;
   min-height: 40px;
   margin-bottom: 0.85rem;
-  border-radius: 12px;
+  border-radius: var(--radius-sm);
   padding: 0.55rem 0.7rem;
   text-align: left;
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .sidebar-kbd,
@@ -478,25 +479,37 @@ textarea:focus-visible {
 .sidebar-link {
   display: flex;
   align-items: center;
-  gap: 0.7rem;
-  min-height: 44px;
-  border-radius: 10px;
+  gap: 12px;
+  min-height: 40px;
+  border-radius: var(--radius-sm);
   border: 1px solid transparent;
-  padding: 0.6rem 0.75rem;
+  border-left: 3px solid transparent;
+  padding: 0 12px;
   color: var(--sidebar-text);
-  font-size: 0.875rem;
-  font-weight: 650;
+  font-size: 14px;
+  font-weight: 500;
   text-decoration: none;
   transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast), transform var(--t-fast);
 }
 .sidebar-link:hover { background: var(--sidebar-hover); color: var(--sidebar-text-active); transform: translateX(1px); }
 .sidebar-link.active {
-  background: var(--sidebar-active-bg);
-  border-color: var(--sidebar-active-border);
+  background: var(--color-teal-soft);
+  border-color: transparent;
+  border-left-color: var(--color-teal);
   color: var(--sidebar-text-active);
-  box-shadow: inset 2px 0 0 var(--accent), 0 0 24px rgba(141, 215, 255, 0.08);
+  box-shadow: none;
 }
-.sidebar-link svg { width: 17px; height: 17px; flex-shrink: 0; stroke-width: 2; }
+.sidebar-link svg { width: 20px; height: 20px; flex-shrink: 0; stroke-width: 2; }
+
+.sidebar nav,
+.sidebar nav * {
+  font-weight: 500 !important;
+}
+
+.sidebar-section-label {
+  font-size: 13px !important;
+  line-height: 18px;
+}
 
 .sidebar-footer {
   border-top: 1px solid var(--sidebar-border);
@@ -626,7 +639,9 @@ html[dir="rtl"] .sidebar-link:hover {
 }
 
 html[dir="rtl"] .sidebar-link.active {
-  box-shadow: inset -2px 0 0 var(--accent), 0 0 24px rgba(141, 215, 255, 0.08);
+  border-left-color: transparent;
+  border-right: 3px solid var(--color-teal);
+  box-shadow: none;
 }
 
 html[dir="rtl"] .command-trigger,
@@ -2009,6 +2024,425 @@ html[dir="rtl"] textarea {
   font-weight: 800;
 }
 
+/* ============================================================
+   TASKIT OVERVIEW REDESIGN
+   ============================================================ */
+/* REDLINE 01 - Overview type scale: every new overview surface uses Display, Heading, Label, or Body tokens only. */
+.taskit-overview {
+  display: grid;
+  gap: var(--space-section);
+  color: var(--text-primary);
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-weight);
+  line-height: var(--type-body-line);
+}
+
+.taskit-display,
+.taskit-heading,
+.taskit-label,
+.taskit-body,
+.taskit-overview button,
+.taskit-overview a {
+  letter-spacing: 0;
+}
+
+.taskit-display {
+  color: var(--text-primary);
+  font-size: var(--type-display-size);
+  font-weight: var(--type-display-weight);
+  line-height: var(--type-display-line);
+}
+
+.taskit-heading {
+  color: var(--text-primary);
+  font-size: var(--type-heading-size);
+  font-weight: var(--type-heading-weight);
+  line-height: var(--type-heading-line);
+}
+
+.taskit-label {
+  color: var(--text-muted);
+  font-size: var(--type-label-size);
+  font-weight: var(--type-label-weight);
+  line-height: var(--type-label-line);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.taskit-body {
+  color: var(--text-secondary);
+  font-size: var(--type-body-size);
+  font-weight: var(--type-body-weight);
+  line-height: var(--type-body-line);
+}
+
+/* REDLINE 02 - Top briefing bar: replaces static greeting with name, date, and today's highest-priority sentence. */
+.taskit-overview-header {
+  display: grid;
+  gap: var(--space-6);
+  align-items: start;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--bg-card);
+  padding: var(--space-card);
+  box-shadow: var(--shadow-card);
+}
+
+.taskit-overview-header-copy {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.taskit-overview-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.taskit-secondary-action,
+.taskit-agent-status-button,
+.taskit-icon-button,
+.taskit-cluster-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 40px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  padding: 0 var(--space-4);
+  font-size: var(--type-label-size);
+  font-weight: var(--type-label-weight);
+  line-height: var(--type-label-line);
+  text-decoration: none;
+  transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast), transform var(--t-fast);
+}
+
+.taskit-secondary-action:hover,
+.taskit-agent-status-button:hover,
+.taskit-icon-button:hover,
+.taskit-cluster-button:hover {
+  border-color: var(--color-teal);
+  color: var(--color-teal);
+  background: var(--bg-elevated);
+}
+
+.taskit-agent-status-button strong {
+  font-size: var(--type-label-size);
+  font-weight: var(--type-label-weight);
+  line-height: var(--type-label-line);
+}
+
+.taskit-agent-status-good strong { color: var(--success); }
+.taskit-agent-status-watch strong,
+.taskit-agent-status-risk strong { color: var(--warning); }
+.taskit-agent-status-critical strong { color: var(--danger); }
+.taskit-agent-status-neutral strong { color: var(--text-muted); }
+
+.taskit-card {
+  display: grid;
+  gap: var(--space-6);
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: var(--space-card);
+  box-shadow: var(--shadow-card);
+}
+
+.taskit-card-header,
+.taskit-row-between {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.taskit-tier-one-grid,
+.taskit-detail-grid,
+.taskit-insight-grid {
+  display: grid;
+  gap: var(--space-section);
+}
+
+/* REDLINE 03 - Tier 1 hierarchy: alert briefing and health score sit above pipeline and agent content. */
+.taskit-critical-card {
+  border-left: 3px solid var(--color-teal);
+}
+
+.taskit-alert-list,
+.taskit-action-list,
+.taskit-metric-list,
+.taskit-activity-list,
+.taskit-stage-list,
+.taskit-agent-list,
+.taskit-health-components,
+.taskit-graph-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.taskit-alert-row,
+.taskit-action-row,
+.taskit-metric-row,
+.taskit-activity-row,
+.taskit-stage-row,
+.taskit-agent-row,
+.taskit-health-row,
+.taskit-graph-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  padding: var(--space-4);
+}
+
+.taskit-action-row,
+.taskit-agent-row {
+  justify-content: flex-start;
+}
+
+.taskit-row-main {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.taskit-tone-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 24px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  padding: 0 var(--space-2);
+  font-size: var(--type-label-size);
+  font-weight: var(--type-label-weight);
+  line-height: var(--type-label-line);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.taskit-tone-good { border-color: rgba(5,150,105,0.28); background: rgba(5,150,105,0.1); color: var(--success); }
+.taskit-tone-watch { border-color: rgba(217,119,6,0.28); background: rgba(217,119,6,0.1); color: var(--warning); }
+.taskit-tone-risk { border-color: rgba(234,88,12,0.28); background: rgba(234,88,12,0.1); color: #ea580c; }
+.taskit-tone-critical { border-color: rgba(220,38,38,0.28); background: rgba(220,38,38,0.1); color: var(--danger); }
+.taskit-tone-neutral { border-color: var(--border); background: var(--bg-elevated); color: var(--text-muted); }
+
+/* REDLINE 04 - Health tooltip: the score now explains its five component metrics instead of floating without context. */
+.taskit-health-score-card {
+  align-content: start;
+}
+
+.taskit-health-score {
+  display: grid;
+  gap: var(--space-2);
+  align-content: center;
+  min-height: 132px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  padding: var(--space-6);
+}
+
+.taskit-health-number {
+  color: var(--text-primary);
+  font-size: var(--type-display-size);
+  font-weight: var(--type-display-weight);
+  line-height: var(--type-display-line);
+}
+
+.taskit-tooltip-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.taskit-help-button {
+  display: inline-flex;
+  width: 28px;
+  height: 28px;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-muted);
+  font-size: var(--type-label-size);
+  font-weight: var(--type-label-weight);
+  line-height: var(--type-label-line);
+}
+
+.taskit-tooltip {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--space-2));
+  z-index: 20;
+  width: min(320px, calc(100vw - 48px));
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: var(--space-card);
+  box-shadow: var(--shadow-float);
+}
+
+html[dir="rtl"] .taskit-tooltip {
+  right: auto;
+  left: 0;
+}
+
+.taskit-health-meter {
+  overflow: hidden;
+  width: 96px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-secondary);
+}
+
+.taskit-health-meter span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-teal);
+}
+
+/* REDLINE 05 - Pipeline KPIs: collapse eight stages into Intake, Execution, and Closure clusters by default. */
+.taskit-pipeline-grid {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.taskit-cluster-card {
+  display: grid;
+  gap: var(--space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--bg-card);
+  padding: var(--space-card);
+  box-shadow: var(--shadow-card);
+}
+
+.taskit-cluster-button {
+  width: 100%;
+  min-height: auto;
+  align-items: flex-start;
+  justify-content: space-between;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+}
+
+html[dir="rtl"] .taskit-cluster-button {
+  text-align: right;
+}
+
+.taskit-cluster-total {
+  color: var(--text-primary);
+  font-size: var(--type-display-size);
+  font-weight: var(--type-display-weight);
+  line-height: var(--type-display-line);
+}
+
+.taskit-stage-count {
+  color: var(--text-primary);
+  font-size: var(--type-heading-size);
+  font-weight: var(--type-heading-weight);
+  line-height: var(--type-heading-line);
+}
+
+.taskit-progress-track {
+  overflow: hidden;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-secondary);
+}
+
+.taskit-progress-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--color-teal);
+}
+
+.taskit-empty-state {
+  display: grid;
+  min-height: 160px;
+  place-items: center;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  padding: var(--space-card);
+  text-align: center;
+}
+
+/* REDLINE 06 - Agent drawer: agent signals are present but collapsed so they no longer compete with tier-one content. */
+.taskit-drawer-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  background: rgba(2, 6, 23, 0.42);
+  backdrop-filter: blur(8px);
+}
+
+.taskit-agent-drawer {
+  position: fixed;
+  inset: 0 0 0 auto;
+  z-index: 100;
+  display: grid;
+  width: min(420px, 100vw);
+  grid-template-rows: auto minmax(0, 1fr);
+  border-left: 1px solid var(--border);
+  background: var(--bg-card);
+  box-shadow: var(--shadow-float);
+}
+
+html[dir="rtl"] .taskit-agent-drawer {
+  inset: 0 auto 0 0;
+  border-right: 1px solid var(--border);
+  border-left: 0;
+}
+
+.taskit-drawer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  border-bottom: 1px solid var(--border);
+  padding: var(--space-card);
+}
+
+.taskit-drawer-body {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  overflow-y: auto;
+  padding: var(--space-card);
+}
+
+.taskit-overview .compact-stat {
+  padding: var(--space-card);
+}
+
+.taskit-disclosure {
+  gap: var(--space-6);
+}
+
+.taskit-disclosure > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.taskit-disclosure > summary::-webkit-details-marker {
+  display: none;
+}
+
 .mobile-menu-btn {
   min-width: 44px;
   min-height: 44px;
@@ -2476,6 +2910,11 @@ html[dir="rtl"] textarea {
   .dashboard-section-grid { grid-template-columns: minmax(0,1.35fr) minmax(300px,0.65fr); }
   .dashboard-hero { grid-template-columns: minmax(0,1fr) auto; align-items: center; }
   .ops-command-grid { grid-template-columns: minmax(0,1.22fr) minmax(320px,0.78fr); }
+  .taskit-overview-header { grid-template-columns: minmax(0,1fr) auto; }
+  .taskit-tier-one-grid { grid-template-columns: minmax(0,1.35fr) minmax(280px,0.65fr); }
+  .taskit-detail-grid { grid-template-columns: minmax(0,1.35fr) minmax(300px,0.65fr); }
+  .taskit-insight-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .taskit-pipeline-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
 }
 @media (min-width: 901px) {
   .mobile-menu-btn { display: none !important; }
@@ -2494,6 +2933,8 @@ html[dir="rtl"] textarea {
   .dashboard-action-grid, .form-split { grid-template-columns: 1fr; }
   .dashboard-header-actions, .dashboard-header-actions > *, .dashboard-hero-actions, .dashboard-hero-actions > * { width: 100%; }
   .dashboard-item-side { width: 100%; align-items: stretch; }
+  .taskit-overview-header-actions,
+  .taskit-overview-header-actions > * { width: 100%; }
 }
  
 @media (max-width: 760px) {
