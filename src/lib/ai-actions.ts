@@ -11,6 +11,12 @@ import {
   serializeInvoice,
   type InvoiceItemInput,
 } from '@/lib/invoices'
+import {
+  resolveIntent,
+  type AiAmbiguityPanelPayload,
+  type IntentRecordCandidate,
+  type ResolvedIntent,
+} from '@/lib/ai-intent'
 import type { AiCitation, AiSessionUser } from '@/lib/ai-operations'
 
 type AiActionResult = {
@@ -21,6 +27,8 @@ type AiActionResult = {
   citations?: AiCitation[]
   quickActions?: string[]
   facts?: Record<string, unknown>
+  ambiguity?: AiAmbiguityPanelPayload
+  resolvedIntent?: ResolvedIntent
 }
 
 type WorkspaceLookups = {
@@ -496,6 +504,99 @@ async function loadLookups(companyId: string): Promise<WorkspaceLookups> {
   ])
 
   return { clients, projects, categories, managers, invoices, briefs, deliverables, tasks, rooms }
+}
+
+function compactDetails(values: Array<string | null | undefined>) {
+  return values.map((value) => cleanText(value ?? '')).filter(Boolean).join(' / ')
+}
+
+function recordsFromLookups(lookups: WorkspaceLookups): IntentRecordCandidate[] {
+  return [
+    ...lookups.clients.map((client) => ({
+      id: client.id,
+      entity: 'client' as const,
+      label: client.companyName,
+      details: compactDetails([client.email, client.address]) || 'Client',
+      aliases: [client.email ?? ''],
+    })),
+    ...lookups.projects.map((project) => ({
+      id: project.id,
+      entity: 'campaign' as const,
+      label: project.title,
+      details: compactDetails([project.clientName]) || 'Campaign',
+      aliases: [project.clientName ?? ''],
+    })),
+    ...lookups.invoices.map((invoice) => ({
+      id: invoice.id,
+      entity: 'invoice' as const,
+      label: `${invoice.invoiceNumber} - ${invoice.clientName}`,
+      details: compactDetails([invoice.status, formatActionMoney(Number(invoice.total), invoice.currency), formatActionDate(invoice.dueDate)]),
+      aliases: [invoice.invoiceNumber, invoice.clientName],
+    })),
+    ...lookups.briefs.map((brief) => ({
+      id: brief.id,
+      entity: 'brief' as const,
+      label: brief.title,
+      details: `Campaign: ${brief.campaign.title}`,
+      aliases: [brief.campaign.title],
+    })),
+    ...lookups.deliverables.map((deliverable) => ({
+      id: deliverable.id,
+      entity: 'deliverable' as const,
+      label: deliverable.title,
+      details: `Campaign: ${deliverable.campaign.title}`,
+      aliases: [deliverable.campaign.title],
+    })),
+    ...lookups.tasks.map((task) => ({
+      id: task.id,
+      entity: 'task' as const,
+      label: task.title,
+      details: `Campaign: ${task.project.title}`,
+      aliases: [task.project.title],
+    })),
+  ]
+}
+
+function actionKindFromResolvedIntent(intent: ResolvedIntent): string | null {
+  if (intent.type === 'CREATE_RECORD' && intent.entity) return intent.entity
+  if (intent.type === 'DELETE_RECORD' && intent.entity) return `delete_${intent.entity}`
+  if (intent.type === 'MARK_PAID') return 'mark_invoice_paid'
+  if (intent.type === 'SEND_ALERT') {
+    const canonicalInput = typeof intent.params.canonicalInput === 'string' ? intent.params.canonicalInput : intent.normalizedInput
+    return /payment|invoice|deadline|due|paiement|facture|دفع|سداد|فاتورة/.test(canonicalInput) ? 'payment_alerts' : null
+  }
+  return null
+}
+
+function isPotentialActionIntent(intent: ResolvedIntent) {
+  return intent.type === 'CREATE_RECORD' || intent.type === 'UPDATE_RECORD' || intent.type === 'DELETE_RECORD' || intent.type === 'MARK_PAID' || intent.type === 'SEND_ALERT'
+}
+
+function canonicalPromptForAction(intent: ResolvedIntent, fallback: string) {
+  return typeof intent.params.canonicalInput === 'string' && intent.params.canonicalInput.trim()
+    ? intent.params.canonicalInput
+    : fallback
+}
+
+function ambiguityActionAnswer(intent: ResolvedIntent): AiActionResult {
+  const panel = intent.ambiguityPanel
+  if (!panel) return { handled: false, resolvedIntent: intent }
+
+  return {
+    handled: true,
+    intent: intent.type.toLowerCase(),
+    confidence: 'medium',
+    answer: panel.question,
+    citations: [],
+    quickActions: [],
+    facts: {
+      ambiguous: true,
+      entity: intent.entity,
+      options: panel.options.map((option) => ({ id: option.id, label: option.label })),
+    },
+    ambiguity: panel,
+    resolvedIntent: intent,
+  }
 }
 
 function missingDetailsAnswer(kind: string, details: string[]) {
@@ -1290,23 +1391,81 @@ export async function executeAiWorkspaceAction(input: {
   message: string
   user: AiSessionUser
 }): Promise<AiActionResult> {
-  const kind = getActionKind(input.message)
-  if (!kind) return { handled: false }
-  if (kind === 'delete') return missingTargetAnswer('delete', 'record type', ['invoice', 'client', 'campaign/project', 'brief', 'deliverable', 'task'])
-  if (!input.user.companyId) return missingDetailsAnswer(kind, ['an active workspace'])
+  const initialIntent = resolveIntent(input.message)
+  const fallbackKind = getActionKind(input.message)
+  if (!fallbackKind && !isPotentialActionIntent(initialIntent)) return { handled: false, resolvedIntent: initialIntent }
 
-  if (kind === 'client') return createClient({ message: input.message, user: input.user })
-  if (kind === 'payment_alerts') return sendPaymentDeadlineAlerts({ user: input.user })
+  try {
+    const initialKind = actionKindFromResolvedIntent(initialIntent) ?? fallbackKind
+    if (initialKind === 'delete') {
+      return {
+        ...missingTargetAnswer('delete', 'record type', ['invoice', 'client', 'campaign/project', 'brief', 'deliverable', 'task']),
+        resolvedIntent: initialIntent,
+      }
+    }
+    if (!input.user.companyId) {
+      return {
+        ...missingDetailsAnswer(initialKind ?? 'action', ['an active workspace']),
+        resolvedIntent: initialIntent,
+      }
+    }
 
-  const lookups = await loadLookups(input.user.companyId)
-  if (kind === 'mark_invoice_paid') return markInvoicePaid({ message: input.message, user: input.user, lookups })
-  if (kind.startsWith('delete_')) {
-    const deleteKind = kind.replace('delete_', '') as DeletableKind
-    return deleteWorkspaceRecord({ message: input.message, user: input.user, lookups, kind: deleteKind })
+    const lookups = await loadLookups(input.user.companyId)
+    const resolvedIntent = resolveIntent(input.message, { records: recordsFromLookups(lookups) })
+    if (resolvedIntent.ambiguityPanel) return ambiguityActionAnswer(resolvedIntent)
+
+    const kind = actionKindFromResolvedIntent(resolvedIntent) ?? fallbackKind
+    const actionMessage = canonicalPromptForAction(resolvedIntent, input.message)
+
+    if (!kind) return { handled: false, resolvedIntent }
+    if (kind === 'delete') {
+      return {
+        ...missingTargetAnswer('delete', 'record type', ['invoice', 'client', 'campaign/project', 'brief', 'deliverable', 'task']),
+        resolvedIntent,
+      }
+    }
+    if (kind === 'client') {
+      const result = await createClient({ message: actionMessage, user: input.user })
+      return { ...result, resolvedIntent }
+    }
+    if (kind === 'payment_alerts') {
+      const result = await sendPaymentDeadlineAlerts({ user: input.user })
+      return { ...result, resolvedIntent }
+    }
+    if (kind === 'mark_invoice_paid') {
+      const result = await markInvoicePaid({ message: actionMessage, user: input.user, lookups })
+      return { ...result, resolvedIntent }
+    }
+    if (kind.startsWith('delete_')) {
+      const deleteKind = kind.replace('delete_', '') as DeletableKind
+      const result = await deleteWorkspaceRecord({ message: actionMessage, user: input.user, lookups, kind: deleteKind })
+      return { ...result, resolvedIntent }
+    }
+    if (kind === 'campaign') {
+      const result = await createCampaign({ message: actionMessage, user: input.user, lookups })
+      return { ...result, resolvedIntent }
+    }
+    if (kind === 'brief') {
+      const result = await createBrief({ message: actionMessage, user: input.user, lookups })
+      return { ...result, resolvedIntent }
+    }
+    if (kind === 'invoice') {
+      const result = await createInvoice({ message: actionMessage, user: input.user, lookups })
+      return { ...result, resolvedIntent }
+    }
+
+    return { handled: false, resolvedIntent }
+  } catch (error) {
+    console.warn('[ai-actions] Action execution failed:', error)
+    return {
+      handled: true,
+      intent: 'action_error',
+      confidence: 'low',
+      answer: 'I could not complete that workspace action because the action resolver hit an internal error.',
+      citations: [],
+      quickActions: ['Detect operational risks', 'Analyze delayed projects'],
+      facts: { error: error instanceof Error ? error.message : 'Unknown action error' },
+      resolvedIntent: initialIntent,
+    }
   }
-  if (kind === 'campaign') return createCampaign({ message: input.message, user: input.user, lookups })
-  if (kind === 'brief') return createBrief({ message: input.message, user: input.user, lookups })
-  if (kind === 'invoice') return createInvoice({ message: input.message, user: input.user, lookups })
-
-  return { handled: false }
 }

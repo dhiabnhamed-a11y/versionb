@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { executeAiWorkspaceAction } from '@/lib/ai-actions'
+import type { AiAmbiguityPanelPayload, AILanguage, ResolvedIntent } from '@/lib/ai-intent'
 
 export type AiMessageInput = {
   role: 'user' | 'assistant'
@@ -28,6 +29,10 @@ export type AiGroundedAnswer = {
   citations: AiCitation[]
   quickActions: string[]
   facts: Record<string, unknown>
+  language?: AILanguage
+  dir?: 'ltr' | 'rtl'
+  resolvedIntent?: ResolvedIntent
+  ambiguity?: AiAmbiguityPanelPayload
   policy: {
     role: string
     scope: 'workspace' | 'assigned-work' | 'none'
@@ -1233,6 +1238,10 @@ export async function buildGroundedOperationalAnswer(input: {
         ...(action.facts ?? {}),
         generatedAt: new Date().toISOString(),
       },
+      language: action.resolvedIntent?.language,
+      dir: action.resolvedIntent?.language === 'ar' ? 'rtl' : 'ltr',
+      resolvedIntent: action.resolvedIntent,
+      ambiguity: action.ambiguity,
       policy: {
         role,
         scope: isEmployee(input.user) ? 'assigned-work' : 'workspace',

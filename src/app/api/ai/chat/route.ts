@@ -72,7 +72,13 @@ export async function POST(req: NextRequest) {
     memory,
     user,
   })
-  const polished = await polishGroundedAnswerWithOpenAi({ question: message, messages, grounded, memory, locale })
+  const polished = grounded.ambiguity
+    ? {
+        answer: grounded.answer,
+        model: 'deterministic-grounded-engine',
+        usedModel: false,
+      }
+    : await polishGroundedAnswerWithOpenAi({ question: message, messages, grounded, memory, locale })
   const memoryWrite = await persistAiTurn({
     user,
     conversationId,
@@ -93,6 +99,21 @@ export async function POST(req: NextRequest) {
       policy: grounded.policy,
       model: polished.model,
       usedModel: polished.usedModel,
+      language: grounded.language ?? locale,
+      dir: grounded.dir ?? (locale === 'ar' ? 'rtl' : 'ltr'),
+      intentResolution: grounded.resolvedIntent
+        ? {
+            type: grounded.resolvedIntent.type,
+            entity: grounded.resolvedIntent.entity,
+            entityId: grounded.resolvedIntent.entityId,
+            entityName: grounded.resolvedIntent.entityName,
+            confidence: grounded.resolvedIntent.confidence,
+            language: grounded.resolvedIntent.language,
+            ambiguous: grounded.resolvedIntent.ambiguous,
+            alternatives: grounded.resolvedIntent.alternatives ?? [],
+          }
+        : null,
+      ambiguity: grounded.ambiguity ?? null,
       locale,
       memory: {
         available: memory.memoryAvailable && memoryWrite.memoryAvailable,

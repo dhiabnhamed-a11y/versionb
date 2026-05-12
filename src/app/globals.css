@@ -1076,6 +1076,65 @@ html[dir="rtl"] textarea {
   color: #8dd7ff;
 }
 
+.ai-assistant-ambiguity-panel {
+  display: grid;
+  gap: 0.55rem;
+  max-width: 92%;
+  border: 1px solid rgba(141,215,255,0.18);
+  border-radius: 12px;
+  background: rgba(141,215,255,0.07);
+  padding: 0.68rem;
+}
+
+.ai-assistant-ambiguity-title {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: #f7f8fb;
+  font-size: 0.78rem;
+  font-weight: 950;
+  line-height: 1.35;
+}
+
+.ai-assistant-ambiguity-options {
+  display: grid;
+  gap: 0.42rem;
+}
+
+.ai-assistant-ambiguity-options button {
+  display: grid;
+  gap: 0.14rem;
+  min-height: 44px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px;
+  background: rgba(255,255,255,0.055);
+  color: #dfe5ee;
+  padding: 0.48rem 0.56rem;
+  text-align: start;
+}
+
+.ai-assistant-ambiguity-options button:hover {
+  border-color: rgba(141,215,255,0.28);
+  background: rgba(141,215,255,0.1);
+}
+
+.ai-assistant-ambiguity-options button span {
+  overflow: hidden;
+  font-size: 0.78rem;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-assistant-ambiguity-options button small {
+  overflow: hidden;
+  color: #8f9aaa;
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .ai-assistant-model {
   color: #687284;
   font-size: 0.65rem;

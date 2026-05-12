@@ -14,7 +14,9 @@ import {
   Sparkles,
   X,
 } from 'lucide-react'
+import { AmbiguityPanel } from '@/components/dashboard/AmbiguityPanel'
 import { useLocale } from '@/components/i18n/LocaleProvider'
+import type { AiAmbiguityOption, AiAmbiguityPanelPayload } from '@/lib/ai-intent'
 import type { AppLocale } from '@/lib/i18n'
 
 type AssistantMessage = {
@@ -29,6 +31,7 @@ type AssistantMessage = {
   }>
   quickActions?: string[]
   model?: string
+  ambiguity?: AiAmbiguityPanelPayload | null
 }
 
 type AssistantResponse = {
@@ -45,6 +48,9 @@ type AssistantResponse = {
   }
   model: string
   usedModel: boolean
+  language?: AppLocale
+  dir?: 'ltr' | 'rtl'
+  ambiguity?: AiAmbiguityPanelPayload | null
   memory?: {
     available: boolean
     recalled: number
@@ -727,6 +733,11 @@ function FormattedAssistantContent({ content }: { content: string }) {
   return <div className="ai-assistant-rich-content">{blocks}</div>
 }
 
+function ambiguitySelectionPrompt(payload: AiAmbiguityPanelPayload, option: AiAmbiguityOption) {
+  const entity = payload.entity === 'campaign' ? 'campaign' : payload.entity ?? 'record'
+  return `${payload.rawInput}\n${entity} id: ${option.id}`
+}
+
 export default function AiOperationsAssistant({ disabled = false }: { disabled?: boolean }) {
   const { t, locale, direction } = useLocale()
   const [open, setOpen] = useState(false)
@@ -840,6 +851,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
             citations: data.citations ?? [],
             quickActions: data.quickActions ?? [],
             model: data.model,
+            ambiguity: data.ambiguity ?? null,
           },
         ])
       } catch (error) {
@@ -1044,6 +1056,16 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
                 <div className="ai-assistant-message-body">
                   {message.role === 'assistant' ? <FormattedAssistantContent content={message.content} /> : message.content}
                 </div>
+                {message.role === 'assistant' && message.ambiguity ? (
+                  <AmbiguityPanel
+                    payload={message.ambiguity}
+                    onSelect={(option) =>
+                      void sendChatPrompt(ambiguitySelectionPrompt(message.ambiguity!, option), {
+                        displayContent: option.label,
+                      })
+                    }
+                  />
+                ) : null}
                 {message.citations?.length ? (
                   <div className="ai-assistant-citations">
                     <ClipboardList size={13} />
