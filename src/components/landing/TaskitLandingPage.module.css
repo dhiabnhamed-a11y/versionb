@@ -77,20 +77,27 @@
 }
 
 .logoMark {
-  display: grid;
+  position: relative;
+  display: block;
   width: 32px;
   height: 32px;
   flex: 0 0 auto;
-  place-items: center;
   border-radius: 8px;
-  background: linear-gradient(135deg, var(--landing-blue-2), var(--landing-blue));
-  color: #fff;
+  overflow: hidden;
+  background: #05070d;
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.28);
 }
 
 .logoMarkCompact {
   width: 24px;
   height: 24px;
   border-radius: 6px;
+}
+
+.logoImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .navLinks {

@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
+import NextImage from 'next/image'
+import logo from '@/app/logo.png'
 import {
   AlertTriangle,
   ArrowRight,
@@ -14,7 +16,7 @@ import {
   Download,
   FileText,
   Grid3X3,
-  Image,
+  Image as ImageIcon,
   Layers3,
   Megaphone,
   Monitor,
@@ -60,7 +62,7 @@ const sidebarItems = [
   { label: 'Automation', icon: Layers3 },
   { label: 'Teams', icon: UsersRound },
   { label: 'Finance', icon: CircleDollarSign },
-  { label: 'Media', icon: Image },
+  { label: 'Media', icon: ImageIcon },
   { label: 'Reports', icon: BarChart3 },
   { label: 'Settings', icon: Settings },
 ]
@@ -127,8 +129,15 @@ function cx(...classes: Array<string | false | null | undefined>) {
 
 function LogoMark({ compact = false }: { compact?: boolean }) {
   return (
-    <span className={cx(styles.logoMark, compact && styles.logoMarkCompact)} aria-hidden="true">
-      <Grid3X3 size={compact ? 14 : 18} />
+    <span className={cx(styles.logoMark, compact && styles.logoMarkCompact)}>
+      <NextImage
+        src={logo}
+        alt=""
+        aria-hidden="true"
+        className={styles.logoImage}
+        sizes={compact ? '24px' : '32px'}
+        priority={!compact}
+      />
     </span>
   )
 }
