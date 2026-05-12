@@ -15,6 +15,8 @@ export const AGENCY_MEDIA_LIMITS = {
   chunk: 8 * 1024 * 1024,
 } as const
 
+export const DASHBOARD_DESIGN_IMAGE_LIMIT = 10 * 1024 * 1024
+
 let configured = false
 
 export function configureCloudinary() {
@@ -72,6 +74,14 @@ export function formatBytes(bytes: number) {
 
 function folderFor(companyId: string, projectId: string) {
   return `tasked/digital-agency/${companyId}/projects/${projectId}`
+}
+
+function safeFolderSegment(value: string) {
+  return value.replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 80) || 'unknown'
+}
+
+function dashboardDesignFolder(companyId: string | null | undefined, userId: string) {
+  return `tasked/dashboard-design/${safeFolderSegment(companyId ?? 'personal')}/users/${safeFolderSegment(userId)}`
 }
 
 function uploadOptions(input: {
@@ -143,6 +153,67 @@ export async function uploadAgencyMediaBuffer(input: {
     )
     stream.on('error', (error) => reject(uploadError(error, 'Cloudinary upload stream failed.')))
     stream.end(input.buffer)
+  })
+}
+
+export function validateDashboardDesignImageFile(input: { mimeType: string; size: number }) {
+  const normalized = input.mimeType.toLowerCase()
+  if (!IMAGE_TYPES.has(normalized)) {
+    return { ok: false as const, error: 'Upload a PNG, JPG, WebP, GIF, or AVIF background image.' }
+  }
+
+  if (input.size <= 0) {
+    return { ok: false as const, error: 'Background image cannot be empty.' }
+  }
+
+  if (input.size > DASHBOARD_DESIGN_IMAGE_LIMIT) {
+    return {
+      ok: false as const,
+      error: `Background image must be ${formatBytes(DASHBOARD_DESIGN_IMAGE_LIMIT)} or smaller.`,
+    }
+  }
+
+  return { ok: true as const }
+}
+
+export async function uploadDashboardDesignImageBuffer(input: {
+  buffer: Buffer
+  companyId?: string | null
+  userId: string
+  fileName: string
+}) {
+  configureCloudinary()
+
+  return new Promise<UploadApiResponse>((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: dashboardDesignFolder(input.companyId, input.userId),
+        resource_type: 'image',
+        use_filename: true,
+        unique_filename: true,
+        overwrite: false,
+        quality_analysis: true,
+        context: {
+          app: 'tasked',
+          asset_kind: 'dashboard_background',
+          user_id: input.userId,
+          company_id: input.companyId ?? '',
+          original_filename: input.fileName,
+        },
+        eager: [{ width: 2400, crop: 'limit', quality: 'auto', fetch_format: 'auto' }],
+      },
+      (error, result) => (error || !result ? reject(uploadError(error, 'Cloudinary background upload failed.')) : resolve(result))
+    )
+    stream.on('error', (error) => reject(uploadError(error, 'Cloudinary background upload stream failed.')))
+    stream.end(input.buffer)
+  })
+}
+
+export function getDashboardDesignImageUrl(result: UploadApiResponse) {
+  return cloudinary.url(result.public_id, {
+    secure: true,
+    resource_type: 'image',
+    transformation: [{ width: 2400, crop: 'limit', quality: 'auto', fetch_format: 'auto' }],
   })
 }
 

@@ -8,6 +8,7 @@ import {
   Download,
   Image as ImageIcon,
   Languages,
+  Loader2,
   Palette,
   PaintBucket,
   PanelLeft,
@@ -15,7 +16,9 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Type,
+  UploadCloud,
   Users,
+  X,
 } from 'lucide-react'
 
 import LanguageSwitcher from '@/components/i18n/LanguageSwitcher'
@@ -196,6 +199,50 @@ function RangeField({
   )
 }
 
+function previewChannel(value: number) {
+  return Math.max(0, Math.min(255, Math.round(value)))
+}
+
+function previewHexToRgb(hex: string) {
+  const normalized = /^#[0-9a-f]{6}$/i.test(hex) ? hex.slice(1) : '000000'
+  return {
+    r: Number.parseInt(normalized.slice(0, 2), 16),
+    g: Number.parseInt(normalized.slice(2, 4), 16),
+    b: Number.parseInt(normalized.slice(4, 6), 16),
+  }
+}
+
+function previewRgba(hex: string, alpha: number) {
+  const color = previewHexToRgb(hex)
+  return `rgba(${previewChannel(color.r)}, ${previewChannel(color.g)}, ${previewChannel(color.b)}, ${alpha})`
+}
+
+function cssImageUrl(value: string) {
+  return `url(${JSON.stringify(value)})`
+}
+
+function dashboardBackgroundPreviewStyle(design: DashboardDesignConfig) {
+  if (design.background.style === 'image' && design.background.imageUrl) {
+    const overlay = previewRgba(design.background.imageOverlayColor, design.background.imageOverlayOpacity / 100)
+    return {
+      backgroundImage: `linear-gradient(0deg, ${overlay}, ${overlay}), ${cssImageUrl(design.background.imageUrl)}`,
+      backgroundPosition: 'center',
+      backgroundRepeat: 'no-repeat',
+      backgroundSize: 'cover',
+    }
+  }
+
+  if (design.background.style === 'gradient') {
+    return {
+      background: `linear-gradient(135deg, ${design.background.gradientFrom}, ${design.background.gradientTo})`,
+    }
+  }
+
+  return {
+    background: design.palette.background,
+  }
+}
+
 function DesignGroup({
   icon: Icon,
   title,
@@ -281,6 +328,7 @@ export default function SettingsClient({
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
   const [savingAppearance, setSavingAppearance] = useState(false)
   const [savingDesign, setSavingDesign] = useState(false)
+  const [uploadingBackground, setUploadingBackground] = useState(false)
   const [resettingDesign, setResettingDesign] = useState(false)
   const [changingUserId, setChangingUserId] = useState<string | null>(null)
   const [exportFormat, setExportFormat] = useState<'json' | 'csv' | 'pdf'>('pdf')
@@ -366,6 +414,51 @@ export default function SettingsClient({
     }
     reader.onerror = () => showFeedback('error', 'Logo image could not be loaded.')
     reader.readAsDataURL(file)
+  }
+
+  async function uploadBackgroundImage(file: File | null) {
+    if (!file) return
+    if (!file.type.startsWith('image/')) {
+      showFeedback('error', 'Choose an image file for the dashboard background.')
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      showFeedback('error', 'Background image must be 10MB or smaller.')
+      return
+    }
+
+    setUploadingBackground(true)
+    setFeedback(null)
+
+    const formData = new FormData()
+    formData.set('file', file)
+
+    try {
+      const response = await fetch('/api/settings/design/background', {
+        method: 'POST',
+        body: formData,
+      })
+      const data = (await response.json().catch(() => ({}))) as {
+        image?: { url: string; publicId: string }
+        error?: string
+      }
+
+      if (!response.ok || !data.image) {
+        showFeedback('error', getErrorMessage(data, 'Failed to upload background image.'))
+        return
+      }
+
+      updateDesignSection('background', {
+        style: 'image',
+        imageUrl: data.image.url,
+        imagePublicId: data.image.publicId,
+      })
+      showFeedback('success', 'Background uploaded to Cloudinary. Save design to make it live.')
+    } catch (error) {
+      showFeedback('error', error instanceof Error ? error.message : 'Failed to upload background image.')
+    } finally {
+      setUploadingBackground(false)
+    }
   }
 
   async function saveDashboardDesign() {
@@ -629,8 +722,8 @@ export default function SettingsClient({
                 <div className="grid gap-4 sm:grid-cols-3">
                   <div>
                     <span className="mb-2 block text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-muted)]">Style</span>
-                    <div className="grid grid-cols-2 gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-card)] p-1">
-                      {(['solid', 'gradient'] as const).map((style) => (
+                    <div className="grid grid-cols-3 gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-card)] p-1">
+                      {(['solid', 'gradient', 'image'] as const).map((style) => (
                         <button
                           key={style}
                           type="button"
@@ -649,6 +742,72 @@ export default function SettingsClient({
                   <ColorField label="Gradient start" value={designDraft.background.gradientFrom} onChange={(value) => updateDesignSection('background', { gradientFrom: value })} />
                   <ColorField label="Gradient end" value={designDraft.background.gradientTo} onChange={(value) => updateDesignSection('background', { gradientTo: value })} />
                 </div>
+
+                <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_220px]">
+                  <label className="block">
+                    <span className="mb-2 block text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-muted)]">Background image</span>
+                    <input
+                      className="input text-xs"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif,image/avif"
+                      disabled={uploadingBackground}
+                      onChange={(event) => {
+                        const file = event.currentTarget.files?.[0] ?? null
+                        event.currentTarget.value = ''
+                        void uploadBackgroundImage(file)
+                      }}
+                    />
+                  </label>
+                  <div
+                    className="min-h-24 overflow-hidden rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-card)]"
+                    style={dashboardBackgroundPreviewStyle(designDraft)}
+                    aria-label="Background image preview"
+                  />
+                </div>
+
+                {designDraft.background.imageUrl && (
+                  <div className="mt-4 grid gap-4 sm:grid-cols-2">
+                    <ColorField
+                      label="Image overlay"
+                      value={designDraft.background.imageOverlayColor}
+                      onChange={(value) => updateDesignSection('background', { imageOverlayColor: value })}
+                    />
+                    <RangeField
+                      label="Image dim"
+                      value={designDraft.background.imageOverlayOpacity}
+                      min={0}
+                      max={85}
+                      suffix="%"
+                      onChange={(value) => updateDesignSection('background', { imageOverlayOpacity: value })}
+                    />
+                    <div className="flex flex-wrap items-end gap-2 sm:col-span-2">
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        onClick={() => updateDesignSection('background', { style: 'image' })}
+                        disabled={uploadingBackground}
+                      >
+                        {uploadingBackground ? <Loader2 size={15} className="animate-spin" /> : <UploadCloud size={15} />}
+                        Use image
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-secondary btn-sm"
+                        onClick={() =>
+                          updateDesignSection('background', {
+                            style: 'solid',
+                            imageUrl: null,
+                            imagePublicId: null,
+                          })
+                        }
+                        disabled={uploadingBackground}
+                      >
+                        <X size={15} />
+                        Remove image
+                      </button>
+                    </div>
+                  </div>
+                )}
               </DesignGroup>
 
               <DesignGroup icon={Type} title="Typography">
@@ -744,10 +903,7 @@ export default function SettingsClient({
               <div
                 className="overflow-hidden rounded-[18px] border"
                 style={{
-                  background:
-                    designDraft.background.style === 'gradient'
-                      ? `linear-gradient(135deg, ${designDraft.background.gradientFrom}, ${designDraft.background.gradientTo})`
-                      : designDraft.palette.background,
+                  ...dashboardBackgroundPreviewStyle(designDraft),
                   borderColor: designDraft.palette.border,
                   color: designDraft.palette.text,
                   fontFamily: designDraft.typography.fontFamily,

@@ -1,7 +1,7 @@
 export type DashboardDesignDensity = 'compact' | 'comfortable' | 'spacious'
 export type DashboardButtonStyle = 'solid' | 'soft' | 'outline' | 'minimal'
 export type DashboardCardShadow = 'none' | 'soft' | 'strong'
-export type DashboardBackgroundStyle = 'solid' | 'gradient'
+export type DashboardBackgroundStyle = 'solid' | 'gradient' | 'image'
 export type DashboardSidebarSide = 'left' | 'right'
 
 export type DashboardDesignConfig = {
@@ -34,6 +34,10 @@ export type DashboardDesignConfig = {
     style: DashboardBackgroundStyle
     gradientFrom: string
     gradientTo: string
+    imageUrl: string | null
+    imagePublicId: string | null
+    imageOverlayColor: string
+    imageOverlayOpacity: number
   }
   typography: {
     fontFamily: string
@@ -91,6 +95,10 @@ export const DEFAULT_DASHBOARD_DESIGN_CONFIG: DashboardDesignConfig = {
     style: 'solid',
     gradientFrom: '#f7f8fa',
     gradientTo: '#eef1f5',
+    imageUrl: null,
+    imagePublicId: null,
+    imageOverlayColor: '#000000',
+    imageOverlayOpacity: 18,
   },
   typography: {
     fontFamily: 'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -176,9 +184,22 @@ export function normalizeDashboardDesignConfig(value: unknown): DashboardDesignC
       info: stringValue(palette.info, defaults.palette.info),
     },
     background: {
-      style: enumValue(background.style, ['solid', 'gradient'] as const, defaults.background.style),
+      style: enumValue(background.style, ['solid', 'gradient', 'image'] as const, defaults.background.style),
       gradientFrom: stringValue(background.gradientFrom, defaults.background.gradientFrom),
       gradientTo: stringValue(background.gradientTo, defaults.background.gradientTo),
+      imageUrl: nullableString(background.imageUrl ?? background.pictureUrl ?? background.photoUrl, defaults.background.imageUrl),
+      imagePublicId: nullableString(
+        background.imagePublicId ?? background.cloudinaryPublicId,
+        defaults.background.imagePublicId
+      ),
+      imageOverlayColor: stringValue(
+        background.imageOverlayColor ?? background.overlayColor,
+        defaults.background.imageOverlayColor
+      ),
+      imageOverlayOpacity: numberValue(
+        background.imageOverlayOpacity ?? background.overlayOpacity,
+        defaults.background.imageOverlayOpacity
+      ),
     },
     typography: {
       fontFamily: stringValue(typography.fontFamily, defaults.typography.fontFamily),

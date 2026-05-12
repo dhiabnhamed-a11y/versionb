@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useSyncExternalStore, type CSSProperties } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import Link from 'next/link'
 import Image from 'next/image'
@@ -133,39 +133,11 @@ function DashboardLayoutChrome({
   const roleLabel = isSuperAdmin ? t('role.superAdmin') : user?.role === 'OWNER' ? t('role.owner') : user?.role === 'MANAGER' ? t('role.manager') : t('role.employee')
   const badgeClass = isSuperAdmin ? 'badge-owner' : user?.role === 'OWNER' ? 'badge-owner' : user?.role === 'MANAGER' ? 'badge-manager' : 'badge-employee'
   const workspaceLabel = isSuperAdmin ? t('nav.superAdminConsole') : companyCopy.workspaceLabel
-  const initialThemeStyle = {
-    '--accent': '#8dd7ff',
-    '--primary': '#8dd7ff',
-    '--accent-hover': '#b8e7ff',
-    '--accent-gradient': 'linear-gradient(135deg, #8dd7ff 0%, #c8b6ff 52%, #f6d98f 100%)',
-    '--bg-primary': '#080a0f',
-    '--bg': '#080a0f',
-    '--bg-secondary': '#0d1118',
-    '--bg-card': '#11141b',
-    '--bg-elevated': '#171b24',
-    '--border': 'rgba(255,255,255,0.1)',
-    '--border-light': 'rgba(255,255,255,0.16)',
-    '--text-primary': '#f7f8fb',
-    '--text-secondary': '#c9d0dd',
-    '--text-muted': '#8f9aaa',
-    '--text-light': '#5d6675',
-    '--sidebar-bg': '#090b11',
-    '--sidebar': '#090b11',
-    '--sidebar-surface': 'rgba(255,255,255,0.055)',
-    '--sidebar-border': 'rgba(255,255,255,0.09)',
-    '--sidebar-text': '#a8b1c1',
-    '--sidebar-text-active': '#ffffff',
-    '--sidebar-hover': 'rgba(255,255,255,0.07)',
-    '--sidebar-active-bg': 'rgba(141,215,255,0.1)',
-    '--sidebar-active-border': 'rgba(141,215,255,0.26)',
-  } as CSSProperties
-
   return (
     <div
       className={`dashboard-app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}
       data-user-design={userDesign.enabled && userDesign.compiledCss ? 'active' : undefined}
       dir={direction}
-      style={initialThemeStyle}
     >
       {userDesign.enabled && userDesign.compiledCss && (
         <style id="taskit-user-dashboard-design" dangerouslySetInnerHTML={{ __html: userDesign.compiledCss }} />

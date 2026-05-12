@@ -88,6 +88,7 @@ const USER_DESIGN_MAX_CHARS = 80_000
 const USER_DESIGN_BUILDER_MAX_CHARS = 320_000
 const USER_LOGO_MAX_CHARS = 240_000
 const IMAGE_DATA_URL_PATTERN = /^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i
+const CLOUDINARY_IMAGE_HOST = 'res.cloudinary.com'
 const FONT_FAMILY_OPTIONS = new Set([
   DEFAULT_DASHBOARD_DESIGN_CONFIG.typography.fontFamily,
   'Arial, Helvetica, sans-serif',
@@ -243,6 +244,39 @@ function sanitizeLogoDataUrl(value: string | null) {
   return value
 }
 
+function sanitizeBackgroundImageUrl(value: string | null) {
+  if (!value) return null
+
+  const text = value.trim()
+  if (text.length > 1200 || CSS_FORBIDDEN_PATTERN.test(text)) {
+    throw new SettingsAccessError('Background image URL is not safe to save.')
+  }
+
+  let url: URL
+  try {
+    url = new URL(text)
+  } catch {
+    throw new SettingsAccessError('Background image URL must be a valid Cloudinary URL.')
+  }
+
+  if (url.protocol !== 'https:' || url.hostname !== CLOUDINARY_IMAGE_HOST || !url.pathname.includes('/image/upload/')) {
+    throw new SettingsAccessError('Background image must be uploaded to Cloudinary.')
+  }
+
+  return url.toString()
+}
+
+function sanitizeCloudinaryPublicId(value: string | null) {
+  if (!value) return null
+  const text = value.trim()
+  if (!text) return null
+  if (text.length > 240 || /[<>{};\\]/.test(text) || CSS_FORBIDDEN_PATTERN.test(text)) {
+    throw new SettingsAccessError('Background image identifier is not safe to save.')
+  }
+
+  return text
+}
+
 function sanitizeFontFamily(value: string) {
   const text = sanitizeCssValue(value, 'Font family') ?? DEFAULT_DASHBOARD_DESIGN_CONFIG.typography.fontFamily
   if (!FONT_FAMILY_OPTIONS.has(text)) {
@@ -282,9 +316,18 @@ function sanitizeDashboardDesignConfig(input: unknown): DashboardDesignConfig {
       info: sanitizeHexColor(design.palette.info, 'Info color'),
     },
     background: {
-      style: sanitizeEnum(design.background.style, ['solid', 'gradient'] as const, 'Background style'),
+      style: sanitizeEnum(design.background.style, ['solid', 'gradient', 'image'] as const, 'Background style'),
       gradientFrom: sanitizeHexColor(design.background.gradientFrom, 'Background gradient start'),
       gradientTo: sanitizeHexColor(design.background.gradientTo, 'Background gradient end'),
+      imageUrl: sanitizeBackgroundImageUrl(design.background.imageUrl),
+      imagePublicId: sanitizeCloudinaryPublicId(design.background.imagePublicId),
+      imageOverlayColor: sanitizeHexColor(design.background.imageOverlayColor, 'Background image overlay color'),
+      imageOverlayOpacity: clampNumber(
+        design.background.imageOverlayOpacity,
+        0,
+        85,
+        DEFAULT_DASHBOARD_DESIGN_CONFIG.background.imageOverlayOpacity
+      ),
     },
     typography: {
       fontFamily: sanitizeFontFamily(design.typography.fontFamily),
@@ -394,6 +437,23 @@ function cardShadowValue(shadow: DashboardCardShadow) {
   return '0 1px 2px rgba(11,22,40,0.05), 0 10px 30px rgba(11,22,40,0.06)'
 }
 
+function cssUrl(value: string) {
+  return `url(${JSON.stringify(value)})`
+}
+
+function dashboardShellBackground(design: DashboardDesignConfig) {
+  if (design.background.style === 'image' && design.background.imageUrl) {
+    const overlay = rgba(design.background.imageOverlayColor, design.background.imageOverlayOpacity / 100)
+    return `linear-gradient(0deg, ${overlay}, ${overlay}), ${cssUrl(design.background.imageUrl)}`
+  }
+
+  if (design.background.style === 'gradient') {
+    return `linear-gradient(135deg, ${design.background.gradientFrom} 0%, ${design.background.gradientTo} 100%)`
+  }
+
+  return design.palette.background
+}
+
 function densityPadding(density: DashboardDesignDensity) {
   if (density === 'compact') {
     return {
@@ -434,10 +494,8 @@ function compileDashboardDesignJson(design: Record<string, unknown>) {
 
   const button = buttonColors(noCodeDesign.buttons.style, noCodeDesign)
   const densityValues = densityPadding(noCodeDesign.layout.density)
-  const shellBackground =
-    noCodeDesign.background.style === 'gradient'
-      ? `linear-gradient(135deg, ${noCodeDesign.background.gradientFrom} 0%, ${noCodeDesign.background.gradientTo} 100%)`
-      : noCodeDesign.palette.background
+  const hasImageBackground = noCodeDesign.background.style === 'image' && Boolean(noCodeDesign.background.imageUrl)
+  const shellBackground = dashboardShellBackground(noCodeDesign)
 
   const variableLines: string[] = [
     `  --accent: ${noCodeDesign.palette.primary};`,
@@ -488,6 +546,10 @@ function compileDashboardDesignJson(design: Record<string, unknown>) {
     `  --user-button-weight: ${noCodeDesign.buttons.fontWeight};`,
     `  --user-card-border-width: ${noCodeDesign.cards.borderWidth}px;`,
     `  --user-shell-background: ${shellBackground};`,
+    `  --user-shell-background-size: ${hasImageBackground ? 'cover' : 'auto'};`,
+    `  --user-shell-background-position: ${hasImageBackground ? 'center' : '0 0'};`,
+    `  --user-shell-background-repeat: ${hasImageBackground ? 'no-repeat' : 'repeat'};`,
+    `  --user-shell-background-attachment: ${hasImageBackground ? 'fixed' : 'scroll'};`,
   ]
   appendVariable(variableLines, '--accent', sanitizeCssColor(theme.primaryColor ?? theme.accentColor ?? design.primaryColor, 'Primary color'))
   appendVariable(variableLines, '--primary', sanitizeCssColor(theme.primaryColor ?? theme.accentColor ?? design.primaryColor, 'Primary color'))
@@ -533,14 +595,31 @@ function compileDashboardDesignJson(design: Record<string, unknown>) {
 
   const ruleLines: string[] = [
     '.dashboard-app-shell[data-user-design="active"] {',
-    '  background: var(--user-shell-background);',
+    '  background: var(--user-shell-background) !important;',
+    '  background-size: var(--user-shell-background-size) !important;',
+    '  background-position: var(--user-shell-background-position) !important;',
+    '  background-repeat: var(--user-shell-background-repeat) !important;',
+    '  background-attachment: var(--user-shell-background-attachment) !important;',
     `  font-size: ${noCodeDesign.typography.baseSize}px;`,
     `  font-weight: ${noCodeDesign.typography.bodyWeight};`,
     '}',
     '.dashboard-app-shell[data-user-design="active"] .sidebar:not(.collapsed) { width: var(--user-sidebar-width); }',
     '.dashboard-app-shell[data-user-design="active"] .dashboard-shell-body, .dashboard-app-shell[data-user-design="active"] .dashboard-page { max-width: var(--user-content-max-width) !important; }',
     `.dashboard-app-shell[data-user-design="active"] .dashboard-shell-body { padding-block: ${densityValues.shell}; }`,
-    `.dashboard-app-shell[data-user-design="active"] .card, .dashboard-app-shell[data-user-design="active"] .dashboard-hero, .dashboard-app-shell[data-user-design="active"] .stat-card { border-width: var(--user-card-border-width); }`,
+    '.dashboard-app-shell[data-user-design="active"] .dash-header { background: color-mix(in srgb, var(--bg-primary) 88%, transparent) !important; border-color: var(--border) !important; }',
+    '.dashboard-app-shell[data-user-design="active"] .command-trigger { background: color-mix(in srgb, var(--bg-card) 86%, transparent) !important; border-color: var(--border) !important; }',
+    '.dashboard-app-shell[data-user-design="active"] .sidebar { background: linear-gradient(180deg, rgba(255,255,255,0.035), transparent 24rem), var(--sidebar-bg) !important; }',
+    '.dashboard-app-shell[data-user-design="active"] .card, .dashboard-app-shell[data-user-design="active"] .dashboard-hero, .dashboard-app-shell[data-user-design="active"] .stat-card, .dashboard-app-shell[data-user-design="active"] .ops-signal-card, .dashboard-app-shell[data-user-design="active"] .dashboard-disclosure {',
+    '  background: var(--bg-card) !important;',
+    '  border-color: var(--border) !important;',
+    '  box-shadow: var(--shadow-card) !important;',
+    '  border-width: var(--user-card-border-width) !important;',
+    '}',
+    '.dashboard-app-shell[data-user-design="active"] .ops-briefing-panel { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 38%), var(--bg-card) !important; }',
+    '.dashboard-app-shell[data-user-design="active"] .metric-row, .dashboard-app-shell[data-user-design="active"] .compact-stat, .dashboard-app-shell[data-user-design="active"] .activity-card, .dashboard-app-shell[data-user-design="active"] .team-card, .dashboard-app-shell[data-user-design="active"] .ops-agent-row, .dashboard-app-shell[data-user-design="active"] .ops-risk-row, .dashboard-app-shell[data-user-design="active"] .ops-focus-row, .dashboard-app-shell[data-user-design="active"] .ops-loop-node, .dashboard-app-shell[data-user-design="active"] .ops-health-score, .dashboard-app-shell[data-user-design="active"] .ops-signal-icon, .dashboard-app-shell[data-user-design="active"] .ops-empty-state, .dashboard-app-shell[data-user-design="active"] .ops-graph-score > div, .dashboard-app-shell[data-user-design="active"] .ops-graph-coverage > div, .dashboard-app-shell[data-user-design="active"] .dashboard-hero-kicker {',
+    '  background: var(--bg-elevated) !important;',
+    '  border-color: var(--border) !important;',
+    '}',
     `.dashboard-app-shell[data-user-design="active"] .card { padding: ${densityValues.card}; }`,
     `.dashboard-app-shell[data-user-design="active"] .sidebar-link, .dashboard-app-shell[data-user-design="active"] .sidebar-command-trigger { min-height: ${densityValues.linkHeight}; border-radius: var(--radius-sm); }`,
     `.dashboard-app-shell[data-user-design="active"] .stat-card { min-height: ${densityValues.statHeight}; }`,
