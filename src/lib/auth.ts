@@ -99,6 +99,7 @@ export async function validateCredentialsForLogin(email: string, password: strin
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  trustHost: true,
   providers: [
     Credentials({
       name: 'credentials',

@@ -4,6 +4,7 @@ import { isSocialProviderSlug } from '@/modules/integrations/core/provider-regis
 import { badRequest, normalizeError } from '@/modules/shared/errors'
 import { prepareOAuthStart } from '@/modules/integrations/services/oauth.service'
 import { logger } from '@/modules/shared/logger'
+import { logOAuthUrlResolution, resolveOAuthOrigin } from '@/lib/oauth-origin'
 
 function safeReturnTo(value: string | null) {
   if (!value) return '/dashboard/admin/social-analytics'
@@ -33,6 +34,16 @@ export async function GET(req: NextRequest, ctx: RouteContext<'/api/integrations
     const user = await requireSessionUser()
     const { provider } = await ctx.params
     if (!isSocialProviderSlug(provider)) throw badRequest('Unsupported social provider.')
+
+    const originResolution = resolveOAuthOrigin({ req })
+    logOAuthUrlResolution('integrations.oauth_start_origin', {
+      provider,
+      source: originResolution.source,
+      requestOrigin: originResolution.requestOrigin,
+      resolvedOrigin: originResolution.origin,
+      configuredOrigin: originResolution.configuredOrigin,
+      allowedOrigins: originResolution.allowedOrigins,
+    })
 
     const prepared = await prepareOAuthStart({
       req,

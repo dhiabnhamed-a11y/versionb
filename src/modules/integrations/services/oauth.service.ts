@@ -1,4 +1,5 @@
 import type { NextRequest } from 'next/server'
+import { buildOAuthCallbackUrl, logOAuthUrlResolution, resolveOAuthOrigin } from '@/lib/oauth-origin'
 import { getSocialProvider } from '@/modules/integrations/core/provider-registry'
 import type { SocialProviderSlug } from '@/modules/integrations/core/types'
 import { badRequest } from '@/modules/shared/errors'
@@ -18,19 +19,23 @@ import { enqueueSocialIntegrationJob } from '@/modules/integrations/jobs/social-
 import { recordIntegrationActivity } from '@/modules/integrations/security/audit'
 import { logger } from '@/modules/shared/logger'
 
-function getBaseUrl(req: NextRequest) {
-  const configured = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || process.env.NEXTAUTH_URL
-  if (configured) return configured.replace(/\/$/, '')
-  if (req.nextUrl.origin && req.nextUrl.origin !== 'null') return req.nextUrl.origin.replace(/\/$/, '')
-
-  const proto = req.headers.get('x-forwarded-proto') ?? 'http'
-  const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host')
-  if (!host) throw badRequest('Unable to resolve application URL for OAuth.')
-  return `${proto}://${host}`
-}
-
 export function oauthRedirectUri(req: NextRequest, providerSlug: SocialProviderSlug) {
-  return `${getBaseUrl(req)}/api/integrations/oauth/${providerSlug}/callback`
+  const { url, resolution } = buildOAuthCallbackUrl({
+    req,
+    path: `/api/integrations/oauth/${providerSlug}/callback`,
+  })
+
+  logOAuthUrlResolution('integrations.oauth_redirect_uri_resolved', {
+    provider: providerSlug,
+    redirectUri: url,
+    source: resolution.source,
+    requestOrigin: resolution.requestOrigin,
+    configuredOrigin: resolution.configuredOrigin,
+    nextauthUrlPresent: Boolean(process.env.NEXTAUTH_URL),
+    authUrlPresent: Boolean(process.env.AUTH_URL),
+  })
+
+  return url
 }
 
 function safeReturnTo(value: string | null) {
@@ -150,7 +155,8 @@ export async function completeOAuthCallback(input: {
 
   if (provider.capabilities.webhooks) {
     try {
-      const callbackUrl = `${getBaseUrl(input.req)}/api/integrations/webhooks/${input.providerSlug}`
+      const callbackOrigin = resolveOAuthOrigin({ req: input.req })
+      const callbackUrl = new URL(`/api/integrations/webhooks/${input.providerSlug}`, callbackOrigin.origin).toString()
       const registration = await provider.registerWebhooks({ tokens, account: profile, callbackUrl, context: { ...context, accountId: account.id } })
       await recordIntegrationActivity({
         companyId: state.companyId,
