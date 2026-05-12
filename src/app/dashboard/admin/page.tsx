@@ -11,14 +11,20 @@ import {
   ArrowRight,
   ArrowUpRight,
   Bell,
+  BrainCircuit,
   BriefcaseBusiness,
   Building2,
   CheckCircle2,
   CheckSquare,
+  CircleDollarSign,
   ClipboardList,
   FolderKanban,
+  Gauge,
+  GitBranch,
   Plus,
+  ShieldCheck,
   Sparkles,
+  TimerReset,
   UploadCloud,
   Users,
   Zap,
@@ -73,10 +79,91 @@ const DASHBOARD_REALTIME_EVENTS = [
   'project_updated',
   'room_created',
   'project_category_created',
+  'client_created',
+  'client_updated',
+  'invoice_created',
+  'invoice_updated',
+  'invoice_deleted',
+  'comment_created',
   'employee_invited',
   'user_online',
   'user_offline',
 ] as const
+
+type IntelligenceTone = 'good' | 'watch' | 'risk' | 'critical' | 'neutral'
+
+type CommandCenterMetric = {
+  id: string
+  label: string
+  value: string
+  detail: string
+  tone: IntelligenceTone
+  href?: string
+}
+
+type OperationalRisk = {
+  id: string
+  type: string
+  severity: Exclude<IntelligenceTone, 'good' | 'neutral'>
+  title: string
+  impact: string
+  why: string
+  action: string
+  href?: string
+}
+
+type AgentSignal = {
+  id: string
+  agent: string
+  status: string
+  tone: IntelligenceTone
+  signal: string
+  reasoning: string
+  recommendedAction: string
+  href?: string
+}
+
+type OperatingLoopStage = {
+  id: string
+  label: string
+  count: number
+  state: string
+  tone: IntelligenceTone
+}
+
+type OperationalCommandCenter = {
+  briefing: {
+    generatedAt: string
+    title: string
+    summary: string
+    focus: string
+    healthScore: number
+    tone: IntelligenceTone
+    recommendedActions: string[]
+  }
+  metrics: CommandCenterMetric[]
+  risks: OperationalRisk[]
+  agentSignals: AgentSignal[]
+  operatingLoop: OperatingLoopStage[]
+  graph: {
+    nodes: number
+    edges: number
+    coverage: { label: string; count: number }[]
+  }
+  financial: {
+    financeVisible: boolean
+    currency: string
+    revenueThisMonth: number
+    outstandingTotal: number
+    overdueTotal: number
+    dueSoonTotal: number
+    draftPipeline: number
+    revenueForecast30Days: number
+    collectionRiskScore: number
+    marginVisibility: 'instrumented' | 'partial' | 'missing'
+    marginNote: string
+  }
+}
 
 function ChartLoadingState({ label = 'Loading chart' }: { label?: string }) {
   return (
@@ -167,15 +254,271 @@ function EmptyChartState({ label }: { label: string }) {
   )
 }
 
+const toneLabel: Record<IntelligenceTone, string> = {
+  good: 'Healthy',
+  watch: 'Watch',
+  risk: 'Risk',
+  critical: 'Critical',
+  neutral: 'Monitor',
+}
+
+const metricIcons: Record<string, typeof Gauge> = {
+  'delivery-risk': Gauge,
+  'approval-latency': ShieldCheck,
+  'cash-exposure': CircleDollarSign,
+  'utilization-pressure': Users,
+  'client-health': Building2,
+  'automation-health': GitBranch,
+  'sla-violations': TimerReset,
+  'revenue-forecast': CircleDollarSign,
+}
+
+function ToneBadge({ tone }: { tone: IntelligenceTone }) {
+  return <span className={`ops-tone-badge ops-tone-${tone}`}>{toneLabel[tone]}</span>
+}
+
+function CommandCenterSkeleton() {
+  return (
+    <section className="ops-command-grid" aria-label="Loading command center">
+      <div className="card">
+        <div className="loading-shimmer h-5 w-44 rounded-full" />
+        <div className="loading-shimmer mt-5 h-11 w-32 rounded-[10px]" />
+        <div className="loading-shimmer mt-5 h-4 w-full rounded-full" />
+        <div className="loading-shimmer mt-3 h-4 w-4/5 rounded-full" />
+      </div>
+      <div className="card">
+        <div className="loading-shimmer h-5 w-36 rounded-full" />
+        <div className="mt-5 grid gap-3">
+          {[...Array(3)].map((_, index) => (
+            <div key={index} className="loading-shimmer h-16 rounded-[var(--radius-sm)]" />
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function MetricCard({ metric }: { metric: CommandCenterMetric }) {
+  const Icon = metricIcons[metric.id] ?? Gauge
+  const content = (
+    <>
+      <div className="ops-signal-head">
+        <span className="ops-signal-icon">
+          <Icon size={16} />
+        </span>
+        <ToneBadge tone={metric.tone} />
+      </div>
+      <div className="ops-signal-value">{metric.value}</div>
+      <div className="ops-signal-label">{metric.label}</div>
+      <p className="ops-signal-detail">{metric.detail}</p>
+    </>
+  )
+
+  if (metric.href) {
+    return (
+      <Link href={metric.href} className={`ops-signal-card ops-signal-${metric.tone}`}>
+        {content}
+      </Link>
+    )
+  }
+
+  return <article className={`ops-signal-card ops-signal-${metric.tone}`}>{content}</article>
+}
+
+function OperationalCommandCenterPanel({ data }: { data: OperationalCommandCenter }) {
+  const primaryMetrics = data.metrics.slice(0, 8)
+  const primaryAgents = data.agentSignals.slice(0, 5)
+  const primaryRisks = data.risks.slice(0, 4)
+  const graphCoverage = data.graph.coverage.filter((item) => item.count > 0).slice(0, 6)
+
+  return (
+    <>
+      <section className="ops-command-grid">
+        <section className="card ops-briefing-panel">
+          <div className="ops-panel-heading">
+            <div>
+              <div className="dashboard-hero-kicker">
+                <BrainCircuit size={13} />
+                Executive command center
+              </div>
+              <h2 className="ops-briefing-title">{data.briefing.title}</h2>
+            </div>
+            <div className={`ops-health-score ops-health-${data.briefing.tone}`}>
+              <span>{data.briefing.healthScore}</span>
+              <small>health</small>
+            </div>
+          </div>
+
+          <p className="ops-briefing-summary">{data.briefing.summary}</p>
+          <div className="ops-focus-row">
+            <Sparkles size={16} />
+            <span>{data.briefing.focus}</span>
+          </div>
+
+          <div className="ops-action-list">
+            {data.briefing.recommendedActions.slice(0, 4).map((action) => (
+              <div key={action} className="ops-action-item">
+                <CheckCircle2 size={15} />
+                <span>{action}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className="ops-loop-track">
+            {data.operatingLoop.map((stage) => (
+              <div key={stage.id} className={`ops-loop-node ops-loop-${stage.tone}`} title={stage.state}>
+                <span>{stage.label}</span>
+                <strong>{stage.count}</strong>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <aside className="card ops-agent-panel">
+          <div className="panel-header">
+            <div>
+              <h2 className="panel-title">AI operations agents</h2>
+              <p className="panel-meta">Role-specific signals from live workspace records.</p>
+            </div>
+            <ToneBadge tone={data.briefing.tone} />
+          </div>
+
+          <div className="ops-agent-list">
+            {primaryAgents.map((agent) => {
+              const body = (
+                <>
+                  <div className="ops-agent-topline">
+                    <span>{agent.agent}</span>
+                    <ToneBadge tone={agent.tone} />
+                  </div>
+                  <strong>{agent.signal}</strong>
+                  <p>{agent.reasoning}</p>
+                  <div className="ops-agent-action">
+                    <ArrowRight size={14} />
+                    {agent.recommendedAction}
+                  </div>
+                </>
+              )
+
+              return agent.href ? (
+                <Link key={agent.id} href={agent.href} className="ops-agent-row">
+                  {body}
+                </Link>
+              ) : (
+                <div key={agent.id} className="ops-agent-row">
+                  {body}
+                </div>
+              )
+            })}
+          </div>
+        </aside>
+      </section>
+
+      <section className="ops-signal-grid">
+        {primaryMetrics.map((metric) => (
+          <MetricCard key={metric.id} metric={metric} />
+        ))}
+      </section>
+
+      <section className="dashboard-section-grid">
+        <div className="card">
+          <div className="panel-header">
+            <div>
+              <h2 className="panel-title">Risk queue</h2>
+              <p className="panel-meta">Prioritized operational risks with reason and next action.</p>
+            </div>
+          </div>
+          {!primaryRisks.length ? (
+            <div className="ops-empty-state">
+              <CheckCircle2 size={22} />
+              No active risks above the command-center threshold.
+            </div>
+          ) : (
+            <div className="ops-risk-list">
+              {primaryRisks.map((risk) => {
+                const body = (
+                  <>
+                    <div className="ops-risk-header">
+                      <span className="ops-risk-type">{risk.type}</span>
+                      <ToneBadge tone={risk.severity} />
+                    </div>
+                    <strong>{risk.title}</strong>
+                    <p>{risk.impact}</p>
+                    <small>{risk.why}</small>
+                    <div className="ops-agent-action">
+                      <ArrowRight size={14} />
+                      {risk.action}
+                    </div>
+                  </>
+                )
+
+                return risk.href ? (
+                  <Link key={risk.id} href={risk.href} className="ops-risk-row">
+                    {body}
+                  </Link>
+                ) : (
+                  <div key={risk.id} className="ops-risk-row">
+                    {body}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </div>
+
+        <div className="card">
+          <div className="panel-header">
+            <div>
+              <h2 className="panel-title">Operational graph</h2>
+              <p className="panel-meta">Connected records powering memory, search, automation, and AI context.</p>
+            </div>
+          </div>
+          <div className="ops-graph-score">
+            <div>
+              <span>{data.graph.nodes}</span>
+              <small>nodes</small>
+            </div>
+            <div>
+              <span>{data.graph.edges}</span>
+              <small>edges</small>
+            </div>
+          </div>
+          <div className="ops-graph-coverage">
+            {graphCoverage.map((item) => (
+              <div key={item.label}>
+                <span>{item.label}</span>
+                <strong>{item.count}</strong>
+              </div>
+            ))}
+          </div>
+          <div className="ops-focus-row mt-4">
+            <CircleDollarSign size={16} />
+            <span>{data.financial.marginNote}</span>
+          </div>
+        </div>
+      </section>
+    </>
+  )
+}
+
 export default function AdminDashboard() {
   const { data: session } = useSession()
   const [stats, setStats] = useState<Stats | null>(null)
+  const [commandCenter, setCommandCenter] = useState<OperationalCommandCenter | null>(null)
   const [loading, setLoading] = useState(true)
   const [additionalInsightsOpen, setAdditionalInsightsOpen] = useState(false)
 
   const loadStats = useCallback(async () => {
-    const data = (await fetch('/api/analytics', { cache: 'no-store' }).then((response) => response.json())) as Stats
+    const [analyticsResponse, commandCenterResponse] = await Promise.all([
+      fetch('/api/analytics', { cache: 'no-store' }),
+      fetch('/api/operations/command-center', { cache: 'no-store' }),
+    ])
+    const data = (await analyticsResponse.json()) as Stats
+    const commandData = commandCenterResponse.ok
+      ? ((await commandCenterResponse.json()) as OperationalCommandCenter)
+      : null
     setStats(data)
+    setCommandCenter(commandData)
     setLoading(false)
   }, [])
 
@@ -183,9 +526,17 @@ export default function AdminDashboard() {
     let active = true
 
     void (async () => {
-      const data = (await fetch('/api/analytics', { cache: 'no-store' }).then((response) => response.json())) as Stats
+      const [analyticsResponse, commandCenterResponse] = await Promise.all([
+        fetch('/api/analytics', { cache: 'no-store' }),
+        fetch('/api/operations/command-center', { cache: 'no-store' }),
+      ])
+      const data = (await analyticsResponse.json()) as Stats
+      const commandData = commandCenterResponse.ok
+        ? ((await commandCenterResponse.json()) as OperationalCommandCenter)
+        : null
       if (!active) return
       setStats(data)
+      setCommandCenter(commandData)
       setLoading(false)
     })()
 
@@ -358,6 +709,8 @@ export default function AdminDashboard() {
           </Link>
         </div>
       </section>
+
+      {commandCenter ? <OperationalCommandCenterPanel data={commandCenter} /> : loading ? <CommandCenterSkeleton /> : null}
 
       {loading ? (
         <div className="dashboard-stat-grid">
