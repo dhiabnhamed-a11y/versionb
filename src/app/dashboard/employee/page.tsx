@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { formatDate, formatTimeAgo } from '@/lib/utils'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
-import { getCompanyTypeCopy, getDeliverableTypeLabel, normalizeCompanyType } from '@/lib/company-types'
+import { getCompanyTypeCopy, getDeliverableTypeLabel, isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { ListTodo, Clock, FolderKanban, AlertTriangle, ArrowRight, CheckCircle2, Loader2, Link2, Upload } from 'lucide-react'
 import { MediaPlayer } from '@/components/media/MediaPlayer'
 
@@ -51,7 +51,7 @@ export default function EmployeeDashboard() {
   const { data: session } = useSession()
   const companyType = normalizeCompanyType((session?.user as { companyType?: string | null } | undefined)?.companyType)
   const companyCopy = getCompanyTypeCopy(companyType)
-  const isAgency = companyType === 'DIGITAL_AGENCY'
+  const isAgency = isAgencyCompanyType(companyType)
 
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)

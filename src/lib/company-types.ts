@@ -1,4 +1,4 @@
-export const COMPANY_TYPE_VALUES = ['INDUSTRY', 'DIGITAL_AGENCY', 'OTHER'] as const
+export const COMPANY_TYPE_VALUES = ['INDUSTRY', 'DIGITAL_AGENCY', 'CONTENT_CREATION_AGENCY', 'OTHER'] as const
 
 export type CompanyType = (typeof COMPANY_TYPE_VALUES)[number]
 
@@ -64,6 +64,27 @@ export const COMPANY_TYPE_CONFIG = {
     groupPluralLabel: 'Categories',
     workspaceLabel: 'Agency studio',
   },
+  CONTENT_CREATION_AGENCY: {
+    label: 'Content creation agency',
+    slug: 'content-creation-agency',
+    title: 'Plan content releases and track channel growth in one studio.',
+    description:
+      'For marketing agencies, creator teams, music labels, and media companies producing YouTube, Spotify, and social content.',
+    bullets: ['Plan YouTube and Spotify releases', 'Track social channel statistics', 'Collect audio, video, and creative deliverables'],
+    signupTitle: 'Run a content studio for music, video, and social channels.',
+    signupDescription:
+      'Use the agency campaign workflow for clients, briefs, uploads, and approvals, plus a social statistics page for YouTube, Spotify, and other channels.',
+    overviewTitle: 'Campaigns, briefs, creative uploads, and channel performance stay in one content studio.',
+    overviewDescription:
+      'Built for teams that produce music, video, and social content while watching audience growth across YouTube, Spotify, and social platforms.',
+    projectLabel: 'Campaign',
+    projectPluralLabel: 'Campaigns',
+    taskLabel: 'Brief',
+    taskPluralLabel: 'Briefs',
+    groupLabel: 'Category',
+    groupPluralLabel: 'Categories',
+    workspaceLabel: 'Content studio',
+  },
   OTHER: {
     label: 'Other',
     slug: 'other',
@@ -122,10 +143,21 @@ export function getCompanyTypeCopy(type?: CompanyType | null) {
   return COMPANY_TYPE_CONFIG[type]
 }
 
+export const AGENCY_COMPANY_TYPES = ['DIGITAL_AGENCY', 'CONTENT_CREATION_AGENCY'] as const satisfies readonly CompanyType[]
+
+export function isAgencyCompanyType(type?: CompanyType | string | null) {
+  return Boolean(type && AGENCY_COMPANY_TYPES.includes(normalizeCompanyType(type) as (typeof AGENCY_COMPANY_TYPES)[number]))
+}
+
+export function isContentCreationCompanyType(type?: CompanyType | string | null) {
+  return normalizeCompanyType(type) === 'CONTENT_CREATION_AGENCY'
+}
+
 export const DELIVERABLE_TYPE_OPTIONS = [
   { value: 'GENERAL', label: 'General work' },
   { value: 'IMAGE', label: 'Image' },
   { value: 'AFFICHE', label: 'Affiche / poster' },
+  { value: 'AUDIO', label: 'Audio / music' },
   { value: 'VIDEO', label: 'Video' },
   { value: 'OTHER', label: 'Other' },
 ] as const

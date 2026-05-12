@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType }
 import { useRouter } from 'next/navigation'
 import {
   ArrowRight,
+  BarChart3,
   BrainCircuit,
   Building2,
   CheckSquare,
@@ -47,6 +48,7 @@ type CommandPaletteProps = {
   canManageWorkspace: boolean
   isEmployee: boolean
   isSuperAdmin: boolean
+  hasSocialStats?: boolean
 }
 
 const baseCommands: Command[] = [
@@ -170,6 +172,16 @@ const settingsCommand: Command = {
   icon: Settings,
 }
 
+const socialStatsCommand: Command = {
+  id: 'social-stats',
+  label: 'Social stats',
+  description: 'Open YouTube, Spotify, and social performance',
+  href: '/dashboard/admin/social-analytics',
+  group: 'Navigate',
+  keywords: ['social', 'youtube', 'spotify', 'music', 'streams', 'views'],
+  icon: BarChart3,
+}
+
 function normalize(value: string) {
   return value.trim().toLowerCase()
 }
@@ -180,6 +192,7 @@ export default function CommandPalette({
   canManageWorkspace,
   isEmployee,
   isSuperAdmin,
+  hasSocialStats = false,
 }: CommandPaletteProps) {
   const { t } = useLocale()
   const router = useRouter()
@@ -226,6 +239,11 @@ export default function CommandPalette({
       label: t('nav.settings'),
       description: t('command.settings.description'),
     }
+    const localizedSocialStatsCommand = {
+      ...socialStatsCommand,
+      label: t('nav.socialStats'),
+      description: t('command.socialStats.description'),
+    }
 
     if (isSuperAdmin) {
       return [
@@ -256,8 +274,10 @@ export default function CommandPalette({
       ] satisfies Command[]
     }
 
-    return canManageWorkspace ? [...localizedBaseCommands, localizedSettingsCommand] : localizedBaseCommands
-  }, [canManageWorkspace, isEmployee, isSuperAdmin, t])
+    const workspaceCommands = hasSocialStats ? [localizedSocialStatsCommand, ...localizedBaseCommands] : localizedBaseCommands
+
+    return canManageWorkspace ? [...workspaceCommands, localizedSettingsCommand] : workspaceCommands
+  }, [canManageWorkspace, hasSocialStats, isEmployee, isSuperAdmin, t])
 
   useEffect(() => {
     if (!searchEnabled) return

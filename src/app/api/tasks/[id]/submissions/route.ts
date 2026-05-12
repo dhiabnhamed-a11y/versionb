@@ -8,7 +8,7 @@ import {
   uploadAgencyMediaBuffer,
   validateAgencyMediaFile,
 } from '@/lib/cloudinary'
-import { normalizeCompanyType } from '@/lib/company-types'
+import { isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { prisma } from '@/lib/db'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
@@ -138,7 +138,7 @@ export async function POST(req: NextRequest, context: RouteContext<'/api/tasks/[
   const extension = safeName.includes('.') ? safeName.slice(safeName.lastIndexOf('.')) : ''
   const storagePath = `${task.id}/${Date.now()}-${randomUUID().slice(0, 8)}${extension}`
   const contentType = file.type || 'application/octet-stream'
-  const isAgency = normalizeCompanyType(user.companyType) === 'DIGITAL_AGENCY'
+  const isAgency = isAgencyCompanyType(normalizeCompanyType(user.companyType))
 
   try {
     if (isAgency) {

@@ -13,7 +13,7 @@ import WorkspaceThemeProvider from '@/components/dashboard/WorkspaceThemeProvide
 import LanguageSwitcher from '@/components/i18n/LanguageSwitcher'
 import { LocaleProvider, useLocale } from '@/components/i18n/LocaleProvider'
 import PushNotificationBootstrap from '@/components/pwa/PushNotificationBootstrap'
-import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
+import { getCompanyTypeCopy, isAgencyCompanyType, isContentCreationCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { normalizeDashboardDesignConfig } from '@/lib/dashboard-design'
 import { isRealtimeAlertsEnabled } from '@/lib/socket-client'
 import type { UserDashboardDesignSettings, WorkspaceThemeSettings } from '@/lib/settings'
@@ -80,6 +80,8 @@ function DashboardLayoutChrome({
   const canOpenSettings = !isSuperAdmin
   const companyType = normalizeCompanyType(user?.companyType)
   const companyCopy = getCompanyTypeCopy(companyType)
+  const isAgencyWorkspace = isAgencyCompanyType(companyType)
+  const isContentCreationWorkspace = isContentCreationCompanyType(companyType)
   useEffect(() => {
     function handleUserDesign(event: Event) {
       const nextDesign = (event as CustomEvent<UserDashboardDesignSettings>).detail
@@ -100,7 +102,7 @@ function DashboardLayoutChrome({
     ? [
         {
           href: '/dashboard/employee',
-          label: companyType === 'DIGITAL_AGENCY' ? t('nav.myBriefs') : t('nav.myTasks'),
+          label: isAgencyWorkspace ? t('nav.myBriefs') : t('nav.myTasks'),
           icon: ListTodo,
         },
         { href: '/dashboard/employee/alerts', label: t('nav.alerts'), icon: Bell },
@@ -108,18 +110,21 @@ function DashboardLayoutChrome({
       ]
     : [
         { href: '/dashboard/admin', label: t('nav.overview'), icon: LayoutDashboard },
+        ...(isContentCreationWorkspace
+          ? [{ href: '/dashboard/admin/social-analytics', label: t('nav.socialStats'), icon: BarChart3 }]
+          : []),
         { href: '/dashboard/admin/clients', label: t('nav.clients'), icon: Building2 },
         {
           href: '/dashboard/admin/projects',
           label:
             companyType === 'INDUSTRY'
               ? `${companyCopy.groupPluralLabel} & ${companyCopy.projectPluralLabel}`
-              : companyType === 'DIGITAL_AGENCY'
+              : isAgencyWorkspace
                 ? t('nav.campaigns')
                 : t('nav.projects'),
           icon: FolderKanban,
         },
-        { href: '/dashboard/admin/tasks', label: companyType === 'DIGITAL_AGENCY' ? t('nav.briefs') : t('nav.tasks'), icon: CheckSquare },
+        { href: '/dashboard/admin/tasks', label: isAgencyWorkspace ? t('nav.briefs') : t('nav.tasks'), icon: CheckSquare },
         { href: '/dashboard/admin/invoices', label: t('nav.invoices'), icon: ReceiptText },
         { href: '/dashboard/admin/calendar', label: t('nav.calendar'), icon: CalendarDays },
         { href: '/dashboard/admin/employees', label: t('nav.team'), icon: Users },
@@ -128,7 +133,7 @@ function DashboardLayoutChrome({
   const workspaceNavLabel = isSuperAdmin
     ? t('nav.approvalCenter')
     :
-    companyType === 'INDUSTRY' ? t('nav.operationsGrid') : companyType === 'DIGITAL_AGENCY' ? t('nav.studioBoard') : t('nav.commandCenter')
+    companyType === 'INDUSTRY' ? t('nav.operationsGrid') : isAgencyWorkspace ? t('nav.studioBoard') : t('nav.commandCenter')
 
   const roleLabel = isSuperAdmin ? t('role.superAdmin') : user?.role === 'OWNER' ? t('role.owner') : user?.role === 'MANAGER' ? t('role.manager') : t('role.employee')
   const badgeClass = isSuperAdmin ? 'badge-owner' : user?.role === 'OWNER' ? 'badge-owner' : user?.role === 'MANAGER' ? 'badge-manager' : 'badge-employee'
@@ -150,6 +155,7 @@ function DashboardLayoutChrome({
         canManageWorkspace={canManageWorkspace}
         isEmployee={isEmployee}
         isSuperAdmin={isSuperAdmin}
+        hasSocialStats={isContentCreationWorkspace && !isEmployee}
       />
 
       {sidebarOpen && (

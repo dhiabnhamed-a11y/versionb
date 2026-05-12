@@ -8,6 +8,7 @@ import {
   DELIVERABLE_TYPE_OPTIONS,
   getCompanyTypeCopy,
   getDeliverableTypeLabel,
+  isAgencyCompanyType,
   normalizeCompanyType,
 } from '@/lib/company-types'
 import { Plus, CheckSquare, Trash2, Clock, FolderKanban, User, Loader2, ListTodo, Link2, Pencil, CheckCircle2, RotateCcw } from 'lucide-react'
@@ -68,7 +69,7 @@ export default function AdminTasksPage() {
   const { data: session } = useSession()
   const companyType = normalizeCompanyType((session?.user as { companyType?: string | null } | undefined)?.companyType)
   const companyCopy = getCompanyTypeCopy(companyType)
-  const isAgency = companyType === 'DIGITAL_AGENCY'
+  const isAgency = isAgencyCompanyType(companyType)
 
   const [tasks, setTasks] = useState<Task[]>([])
   const [projects, setProjects] = useState<Project[]>([])

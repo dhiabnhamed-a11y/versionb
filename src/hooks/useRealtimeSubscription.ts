@@ -21,6 +21,12 @@ const EVENT_TABLES: Partial<Record<RealtimeEventName, string[]>> = {
   employee_invited: ['Invite', 'User'],
   alert: ['Alert'],
   alert_read: ['Alert'],
+  social_account_connected: ['connected_accounts'],
+  social_account_disconnected: ['connected_accounts'],
+  social_sync_completed: ['sync_jobs'],
+  social_metrics_updated: ['analytics_snapshots', 'engagement_metrics', 'revenue_metrics', 'realtime_metrics'],
+  social_insight_created: ['ai_insights'],
+  social_webhook_processed: ['webhook_events'],
 }
 
 type RealtimeSubscriptionOptions =

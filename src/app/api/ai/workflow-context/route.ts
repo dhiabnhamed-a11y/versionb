@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import { normalizeCompanyType } from '@/lib/company-types'
+import { isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { canManageFinance, canManageWorkspace } from '@/modules/permissions/permissions'
 import { okJson, withApiError } from '@/modules/shared/api'
 import { requireSessionUser } from '@/modules/shared/session'
@@ -69,7 +69,7 @@ export async function GET() {
         orderBy: [{ updatedAt: 'desc' }, { title: 'asc' }],
         take: 150,
       }),
-      companyType === 'DIGITAL_AGENCY' && mayManageWorkspace
+      isAgencyCompanyType(companyType) && mayManageWorkspace
         ? prisma.projectCategory.findMany({
             where: { companyId },
             select: { id: true, name: true },

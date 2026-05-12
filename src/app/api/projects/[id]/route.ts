@@ -6,7 +6,7 @@ import { NO_STORE_HEADERS } from '@/lib/http'
 import { getProjectIfAllowed } from '@/lib/project-access'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
 import { getProjectCameraSupport, withProjectCameraDefaults } from '@/lib/project-camera-support'
-import { normalizeCompanyType } from '@/lib/company-types'
+import { isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { getProjectMediaSupport } from '@/lib/project-media-support'
 import {
   attachProjectAgencyFields,
@@ -54,7 +54,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
   const support = await getProjectCameraSupport()
   const mediaSupport = await getProjectMediaSupport()
-  const isAgency = normalizeCompanyType(user.companyType) === 'DIGITAL_AGENCY'
+  const isAgency = isAgencyCompanyType(normalizeCompanyType(user.companyType))
   const project = await prisma.project.findFirst({
     where: { id },
     select: {
@@ -218,8 +218,8 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
   const categorySupport = await getProjectCategorySupport()
   if (categoryId) {
-    if (normalizeCompanyType(user.companyType) !== 'DIGITAL_AGENCY') {
-      return NextResponse.json({ error: 'Categories are only available for digital agency workspaces.' }, { status: 403 })
+    if (!isAgencyCompanyType(normalizeCompanyType(user.companyType))) {
+      return NextResponse.json({ error: 'Categories are only available for agency workspaces.' }, { status: 403 })
     }
 
     if (!categorySupport.hasCategoryTable || !categorySupport.hasProjectCategoryColumns) {

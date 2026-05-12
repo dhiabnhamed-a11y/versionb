@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic'
 import { useSession } from 'next-auth/react'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { useLocale } from '@/components/i18n/LocaleProvider'
-import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
+import { getCompanyTypeCopy, isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import {
   AlertTriangle,
   ArrowRight,
@@ -555,7 +555,7 @@ export default function AdminDashboard() {
   const user = session?.user as { name?: string; companyType?: string | null }
   const companyType = normalizeCompanyType(stats?.companyType ?? user?.companyType)
   const companyCopy = getCompanyTypeCopy(companyType)
-  const isAgency = companyType === 'DIGITAL_AGENCY'
+  const isAgency = isAgencyCompanyType(companyType)
   const isIndustry = companyType === 'INDUSTRY'
 
   const statCards = stats

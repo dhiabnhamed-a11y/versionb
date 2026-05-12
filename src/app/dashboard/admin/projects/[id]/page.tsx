@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
-import { getCompanyTypeCopy, getDeliverableTypeLabel, normalizeCompanyType } from '@/lib/company-types'
+import { getCompanyTypeCopy, getDeliverableTypeLabel, isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { ArrowLeft, Camera, FolderKanban, User, Building2, Link2, Tags, UsersRound, ReceiptText } from 'lucide-react'
 import { ProjectCamera } from '@/components/camera/ProjectCamera'
 import { MediaPlayer } from '@/components/media/MediaPlayer'
@@ -74,7 +74,7 @@ export default function ProjectDetailPage() {
   const [notFound, setNotFound] = useState(false)
   const companyType = normalizeCompanyType((session?.user as { companyType?: string | null } | undefined)?.companyType)
   const companyCopy = getCompanyTypeCopy(companyType)
-  const isAgency = companyType === 'DIGITAL_AGENCY'
+  const isAgency = isAgencyCompanyType(companyType)
 
   const loadProject = useCallback(async (signal?: AbortSignal, options?: { showLoading?: boolean }) => {
     const showLoading = options?.showLoading ?? true

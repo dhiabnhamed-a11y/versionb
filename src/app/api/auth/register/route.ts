@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createOwnerSignup, isSignupRole } from '@/lib/onboarding'
+import type { CompanyType } from '@/lib/company-types'
 import { InviteFlowError, redeemInviteSignup } from '@/lib/invites'
 
 export async function POST(req: NextRequest) {
@@ -42,7 +43,7 @@ export async function POST(req: NextRequest) {
         country: country ?? '',
         industry: industry ?? '',
         registrationNumber: registrationNumber ?? '',
-        companyType: (companyType ?? 'OTHER').trim().toUpperCase() as 'INDUSTRY' | 'DIGITAL_AGENCY' | 'OTHER',
+        companyType: (companyType ?? 'OTHER').trim().toUpperCase() as CompanyType,
       })
 
       return NextResponse.json(

@@ -24,6 +24,12 @@ export const REALTIME_EVENTS = [
   'user_offline',
   'presence_snapshot',
   'workspace_event',
+  'social_account_connected',
+  'social_account_disconnected',
+  'social_sync_completed',
+  'social_metrics_updated',
+  'social_insight_created',
+  'social_webhook_processed',
 ] as const
 
 export type RealtimeEventName = (typeof REALTIME_EVENTS)[number]

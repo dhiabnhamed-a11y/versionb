@@ -6,7 +6,7 @@ import {
   validateAgencyMediaFile,
   uploadAgencyMediaBuffer,
 } from '@/lib/cloudinary'
-import { normalizeCompanyType } from '@/lib/company-types'
+import { isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { getProjectIfAllowed } from '@/lib/project-access'
@@ -46,8 +46,8 @@ function sanitizeFileName(fileName: string) {
 
 async function getAllowedAgencyProject(projectId: string, user: SessionUser) {
   if (!user.companyId) return { response: NextResponse.json({ error: 'No company found for this account' }, { status: 400 }) }
-  if (normalizeCompanyType(user.companyType) !== 'DIGITAL_AGENCY') {
-    return { response: NextResponse.json({ error: 'Media uploads are only available for digital agency workspaces.' }, { status: 403 }) }
+  if (!isAgencyCompanyType(normalizeCompanyType(user.companyType))) {
+    return { response: NextResponse.json({ error: 'Media uploads are only available for agency workspaces.' }, { status: 403 }) }
   }
 
   const project = await getProjectIfAllowed(projectId, user)

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
-import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
+import { getCompanyTypeCopy, isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { BarChart3, FolderKanban, Trophy, Zap, Target } from 'lucide-react'
 
@@ -17,6 +17,7 @@ export default function EmployeeProgressPage() {
   const { data: session } = useSession()
   const companyType = normalizeCompanyType((session?.user as { companyType?: string | null } | undefined)?.companyType)
   const companyCopy = getCompanyTypeCopy(companyType)
+  const isAgency = isAgencyCompanyType(companyType)
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -59,7 +60,7 @@ export default function EmployeeProgressPage() {
           <BarChart3 size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> My progress
         </h1>
         <p className="page-sub">
-          How you&apos;re moving work across {companyType === 'DIGITAL_AGENCY' ? 'campaigns' : companyCopy.projectPluralLabel.toLowerCase()}
+          How you&apos;re moving work across {isAgency ? 'campaigns' : companyCopy.projectPluralLabel.toLowerCase()}
         </p>
       </div>
 
@@ -96,7 +97,7 @@ export default function EmployeeProgressPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           <h2 className="font-display text-sm font-semibold tracking-tight text-[var(--text-muted)]">
-            By {companyType === 'DIGITAL_AGENCY' ? 'campaign' : companyCopy.projectLabel.toLowerCase()}
+            By {isAgency ? 'campaign' : companyCopy.projectLabel.toLowerCase()}
           </h2>
           {Object.entries(byProject).map(([projectName, projectTasks], i) => {
             const pDone = projectTasks.filter(t => t.stage === 'DONE').length

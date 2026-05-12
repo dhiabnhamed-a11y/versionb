@@ -16,6 +16,7 @@ import {
 } from 'lucide-react'
 import { AmbiguityPanel } from '@/components/dashboard/AmbiguityPanel'
 import { useLocale } from '@/components/i18n/LocaleProvider'
+import { isAgencyCompanyType } from '@/lib/company-types'
 import type { AiAmbiguityOption, AiAmbiguityPanelPayload } from '@/lib/ai-intent'
 import type { AppLocale } from '@/lib/i18n'
 
@@ -591,7 +592,7 @@ function optionDescription(context: WorkflowContext | null, source: WorkflowOpti
 function isWorkflowStepRequired(kind: WorkflowKind, step: WorkflowStep, context: WorkflowContext | null) {
   if (step.optional) return false
   if (kind === 'campaign' && (step.id === 'clientId' || step.id === 'categoryId')) {
-    return context?.companyType === 'DIGITAL_AGENCY'
+    return isAgencyCompanyType(context?.companyType)
   }
 
   return true

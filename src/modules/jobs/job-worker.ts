@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db'
 import { logger } from '@/modules/shared/logger'
 import { toJsonValue } from '@/modules/shared/json'
 import { isQueueConfigured } from '@/modules/jobs/job-queue'
+import { SOCIAL_INTEGRATIONS_QUEUE } from '@/modules/integrations/jobs/social-job-queue'
+import { processSocialIntegrationJob } from '@/modules/integrations/jobs/social-job-handlers'
 
 type RedisConnectionOptions = {
   host: string
@@ -86,26 +88,29 @@ async function ingestAnalyticsEvent(data: Record<string, unknown>) {
   return { counted: true, key }
 }
 
+async function processOperationsJob(name: string, data: Record<string, unknown>) {
+  if (name === 'analytics.ingest-event') {
+    return ingestAnalyticsEvent(data)
+  }
+
+  return { ignored: true, name }
+}
+
 export async function startBackgroundJobWorkers() {
   if (workerState.__taskitWorkersStarted || !isQueueConfigured()) return false
   workerState.__taskitWorkersStarted = true
 
   const { Worker } = await import('bullmq')
-  const worker = new Worker(
-    'operations',
-    async (job) => {
+  const startWorker = (queueName: string, processor: (name: string, data: Record<string, unknown>, attempts: number) => Promise<unknown>) => {
+    const worker = new Worker(
+      queueName,
+      async (job) => {
       const data = job.data as Record<string, unknown>
       const jobRunId = typeof data.jobRunId === 'string' ? data.jobRunId : undefined
       await markJobRun(jobRunId, 'ACTIVE', { attempts: job.attemptsMade + 1 })
 
       try {
-        if (job.name === 'analytics.ingest-event') {
-          const result = await ingestAnalyticsEvent(data)
-          await markJobRun(jobRunId, 'COMPLETED', { result, attempts: job.attemptsMade + 1 })
-          return result
-        }
-
-        const result = { ignored: true, name: job.name }
+        const result = await processor(job.name, data, job.attemptsMade + 1)
         await markJobRun(jobRunId, 'COMPLETED', { result, attempts: job.attemptsMade + 1 })
         return result
       } catch (error) {
@@ -117,17 +122,22 @@ export async function startBackgroundJobWorkers() {
         throw error
       }
     },
-    { connection: parseRedisConnection(redisUrl()), concurrency: Number(process.env.QUEUE_CONCURRENCY ?? 5) || 5 }
-  )
+      { connection: parseRedisConnection(redisUrl()), concurrency: Number(process.env.QUEUE_CONCURRENCY ?? 5) || 5 }
+    )
 
-  worker.on('failed', (job, error) => {
-    logger.error('queue.worker_job_failed', error, { queue: 'operations', jobId: job?.id, jobName: job?.name })
-  })
+    worker.on('failed', (job, error) => {
+      logger.error('queue.worker_job_failed', error, { queue: queueName, jobId: job?.id, jobName: job?.name })
+    })
 
-  worker.on('error', (error) => {
-    logger.error('queue.worker_error', error, { queue: 'operations' })
-  })
+    worker.on('error', (error) => {
+      logger.error('queue.worker_error', error, { queue: queueName })
+    })
 
-  logger.info('queue.worker_started', { queue: 'operations' })
+    logger.info('queue.worker_started', { queue: queueName })
+    return worker
+  }
+
+  startWorker('operations', processOperationsJob)
+  startWorker(SOCIAL_INTEGRATIONS_QUEUE, processSocialIntegrationJob)
   return true
 }

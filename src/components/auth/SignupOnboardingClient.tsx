@@ -7,7 +7,13 @@ import { motion } from 'framer-motion'
 import Image from 'next/image'
 import logo from '@/app/logo.png'
 import styles from './SignupOnboardingClient.module.css'
-import { COMPANY_TYPE_OPTIONS, getCompanyTypeCopy, normalizeCompanyType, type CompanyType } from '@/lib/company-types'
+import {
+  COMPANY_TYPE_OPTIONS,
+  getCompanyTypeCopy,
+  isAgencyCompanyType,
+  normalizeCompanyType,
+  type CompanyType,
+} from '@/lib/company-types'
 import {
   ArrowRight,
   BriefcaseBusiness,
@@ -19,6 +25,7 @@ import {
   Loader2,
   Lock,
   Mail,
+  Music2,
   ShieldCheck,
   Sparkles,
   User,
@@ -63,6 +70,17 @@ const companyTypePresentation = {
     audience: 'Design, content, social, and video teams',
     focus: 'Brief-to-upload delivery with faster approvals',
     flow: ['Campaigns', 'Briefs', 'Uploads'],
+  },
+  CONTENT_CREATION_AGENCY: {
+    icon: Music2,
+    eyebrow: 'Creator studios',
+    accent: '#be123c',
+    surface: 'rgba(244, 63, 94, 0.1)',
+    outline: 'rgba(244, 63, 94, 0.22)',
+    spotlight: 'rgba(251, 113, 133, 0.24)',
+    audience: 'Music, YouTube, Spotify, and social teams',
+    focus: 'Release planning with cross-channel performance',
+    flow: ['Campaigns', 'Briefs', 'Channel stats'],
   },
   OTHER: {
     icon: Layers3,
@@ -278,6 +296,8 @@ export default function SignupOnboardingClient({
       ? 'North Plant Operations'
       : selectedCompanyType === 'DIGITAL_AGENCY'
         ? 'Studio Nova'
+        : selectedCompanyType === 'CONTENT_CREATION_AGENCY'
+          ? 'Waveform Content Co.'
         : 'Acme Operations'
 
   const workflowPreviewStyle = {
@@ -647,8 +667,8 @@ export default function SignupOnboardingClient({
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                     {selectedCompanyType === 'INDUSTRY'
                       ? 'Your workspace will start with rooms, then projects inside each room, then tasks inside each project.'
-                      : selectedCompanyType === 'DIGITAL_AGENCY'
-                        ? 'Your workspace will start with campaign briefs, employee execution, and deliverable uploads for review.'
+                      : isAgencyCompanyType(selectedCompanyType)
+                        ? 'Your workspace will start with campaigns, briefs, employee execution, deliverable uploads, and channel performance tracking.'
                         : 'Your workspace will keep the same TASKIT interface you already use today.'}
                   </p>
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>

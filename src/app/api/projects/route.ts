@@ -1,7 +1,7 @@
 import { randomUUID } from 'crypto'
 import { NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
-import { normalizeCompanyType } from '@/lib/company-types'
+import { isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { auth } from '@/lib/auth'
 import { getDatabaseConfigHint, prisma } from '@/lib/db'
 import { NO_STORE_HEADERS } from '@/lib/http'
@@ -320,7 +320,7 @@ export async function GET() {
     }
 
     const normalizedProjects = projects.map(withProjectCameraDefaults) as unknown as Array<{ id: string } & Record<string, unknown>>
-    if (normalizeCompanyType(user.companyType) === 'DIGITAL_AGENCY') {
+    if (isAgencyCompanyType(normalizeCompanyType(user.companyType))) {
       return NextResponse.json(await attachProjectAgencyFields(normalizedProjects, user.companyId), { headers: NO_STORE_HEADERS })
     }
 
@@ -365,12 +365,13 @@ export async function POST(req: Request) {
       cameraType?: 'device' | 'external'
     }
     const companyType = normalizeCompanyType(user.companyType)
+    const isAgency = isAgencyCompanyType(companyType)
 
     if (companyType === 'INDUSTRY' && !roomId?.trim()) {
       return NextResponse.json({ error: 'Projects in industry workspaces must belong to a room.' }, { status: 400 })
     }
 
-    if (companyType === 'DIGITAL_AGENCY') {
+    if (isAgency) {
       if (!categorySupport.hasCategoryTable || !categorySupport.hasProjectCategoryColumns) {
         return NextResponse.json(
           { error: 'Project categories are not ready. Apply the latest database migration first.' },
@@ -379,7 +380,7 @@ export async function POST(req: Request) {
       }
 
       if (!categoryId?.trim()) {
-        return NextResponse.json({ error: 'Digital agency campaigns must belong to a category.' }, { status: 400 })
+        return NextResponse.json({ error: 'Agency campaigns must belong to a category.' }, { status: 400 })
       }
 
       const category = await findProjectCategory(user.companyId, categoryId)
@@ -422,9 +423,9 @@ export async function POST(req: Request) {
         companyId: user.companyId,
         roomId: roomId || undefined,
         managerId,
-        categoryId: companyType === 'DIGITAL_AGENCY' ? categoryId : undefined,
-        clientId: companyType === 'DIGITAL_AGENCY' ? selectedClient?.id : undefined,
-        clientName: companyType === 'DIGITAL_AGENCY' ? selectedClient?.companyName ?? (clientName?.trim() || undefined) : undefined,
+        categoryId: isAgency ? categoryId : undefined,
+        clientId: isAgency ? selectedClient?.id : undefined,
+        clientName: isAgency ? selectedClient?.companyName ?? (clientName?.trim() || undefined) : undefined,
         hasProjectCategoryColumns: categorySupport.hasProjectCategoryColumns,
         hasProjectClientColumn: categorySupport.hasProjectClientColumn,
       })
@@ -442,7 +443,7 @@ export async function POST(req: Request) {
           },
           select: getProjectCreateSelect(true),
         })
-        if (companyType === 'DIGITAL_AGENCY' && categoryId) {
+        if (isAgency && categoryId) {
           await updateProjectAgencyFields({
             projectId: project.id,
             companyId: user.companyId,
@@ -462,9 +463,9 @@ export async function POST(req: Request) {
           companyId: user.companyId,
           roomId: roomId || undefined,
           managerId,
-          categoryId: companyType === 'DIGITAL_AGENCY' ? categoryId : undefined,
-          clientId: companyType === 'DIGITAL_AGENCY' ? selectedClient?.id : undefined,
-          clientName: companyType === 'DIGITAL_AGENCY' ? selectedClient?.companyName ?? (clientName?.trim() || undefined) : undefined,
+          categoryId: isAgency ? categoryId : undefined,
+          clientId: isAgency ? selectedClient?.id : undefined,
+          clientName: isAgency ? selectedClient?.companyName ?? (clientName?.trim() || undefined) : undefined,
           hasProjectCategoryColumns: categorySupport.hasProjectCategoryColumns,
           hasProjectClientColumn: categorySupport.hasProjectClientColumn,
         })
@@ -480,7 +481,7 @@ export async function POST(req: Request) {
       campaignDescription: typeof normalizedProject.description === 'string' ? normalizedProject.description : description,
       createdById: typeof user === 'object' && 'id' in user && typeof user.id === 'string' ? user.id : null,
     })
-    if (companyType === 'DIGITAL_AGENCY') {
+    if (isAgency) {
       const [projectWithAgencyFields] = await attachProjectAgencyFields([normalizedProject], user.companyId)
       emitCompanyRealtime(user.companyId, 'project_created', { project: projectWithAgencyFields })
       return NextResponse.json(projectWithAgencyFields, { status: 201 })

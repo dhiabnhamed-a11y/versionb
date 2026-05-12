@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
 
-import { normalizeCompanyType } from '@/lib/company-types'
+import { isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { auth } from '@/lib/auth'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
 import {
@@ -27,7 +27,7 @@ export async function GET() {
     return NextResponse.json([])
   }
 
-  if (normalizeCompanyType(user.companyType) !== 'DIGITAL_AGENCY') {
+  if (!isAgencyCompanyType(normalizeCompanyType(user.companyType))) {
     return NextResponse.json([])
   }
 
@@ -54,8 +54,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  if (normalizeCompanyType(user.companyType) !== 'DIGITAL_AGENCY') {
-    return NextResponse.json({ error: 'Categories are only available for digital agency workspaces.' }, { status: 403 })
+  if (!isAgencyCompanyType(normalizeCompanyType(user.companyType))) {
+    return NextResponse.json({ error: 'Categories are only available for agency workspaces.' }, { status: 403 })
   }
 
   const support = await getProjectCategorySupport()

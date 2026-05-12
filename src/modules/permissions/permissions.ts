@@ -26,6 +26,7 @@ export type PermissionSubject =
   | 'notification'
   | 'analytics'
   | 'settings'
+  | 'integration'
   | 'automation'
   | 'ai'
   | 'audit'

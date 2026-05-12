@@ -7,7 +7,7 @@ import { useSearchParams } from 'next/navigation'
 import { Camera, ChevronRight, FolderKanban, Plus, Loader2, User, Building2, Tags, UsersRound, Pencil, Trash2 } from 'lucide-react'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 
-import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
+import { getCompanyTypeCopy, isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
 
 interface Project {
   id: string
@@ -76,7 +76,7 @@ export default function ProjectsPage() {
   const companyType = normalizeCompanyType((session?.user as { companyType?: string | null } | undefined)?.companyType)
   const companyCopy = getCompanyTypeCopy(companyType)
   const isIndustry = companyType === 'INDUSTRY'
-  const isAgency = companyType === 'DIGITAL_AGENCY'
+  const isAgency = isAgencyCompanyType(companyType)
 
   const [projects, setProjects] = useState<Project[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
