@@ -19,8 +19,10 @@ import { recordIntegrationActivity } from '@/modules/integrations/security/audit
 import { logger } from '@/modules/shared/logger'
 
 function getBaseUrl(req: NextRequest) {
-  const configured = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL
+  const configured = process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || process.env.NEXTAUTH_URL
   if (configured) return configured.replace(/\/$/, '')
+  if (req.nextUrl.origin && req.nextUrl.origin !== 'null') return req.nextUrl.origin.replace(/\/$/, '')
+
   const proto = req.headers.get('x-forwarded-proto') ?? 'http'
   const host = req.headers.get('x-forwarded-host') ?? req.headers.get('host')
   if (!host) throw badRequest('Unable to resolve application URL for OAuth.')
