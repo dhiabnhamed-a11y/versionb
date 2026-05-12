@@ -10,6 +10,8 @@ import AiOperationsAssistant from '@/components/dashboard/AiOperationsAssistant'
 import CommandPalette from '@/components/dashboard/CommandPalette'
 import NotificationDropdown from '@/components/dashboard/NotificationDropdown'
 import WorkspaceThemeProvider from '@/components/dashboard/WorkspaceThemeProvider'
+import LanguageSwitcher from '@/components/i18n/LanguageSwitcher'
+import { LocaleProvider, useLocale } from '@/components/i18n/LocaleProvider'
 import PushNotificationBootstrap from '@/components/pwa/PushNotificationBootstrap'
 import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
 import { normalizeDashboardDesignConfig } from '@/lib/dashboard-design'
@@ -38,15 +40,27 @@ import {
   Building2,
 } from 'lucide-react'
 
-export default function DashboardLayoutClient({
-  children,
-  initialThemeSettings,
-  initialUserDesign,
-}: {
+type DashboardLayoutClientProps = {
   children: React.ReactNode
   initialThemeSettings: WorkspaceThemeSettings
   initialUserDesign: UserDashboardDesignSettings
-}) {
+  initialLocale: string
+}
+
+export default function DashboardLayoutClient(props: DashboardLayoutClientProps) {
+  return (
+    <LocaleProvider initialLocale={props.initialLocale}>
+      <DashboardLayoutChrome {...props} />
+    </LocaleProvider>
+  )
+}
+
+function DashboardLayoutChrome({
+  children,
+  initialThemeSettings,
+  initialUserDesign,
+}: DashboardLayoutClientProps) {
+  const { t, direction } = useLocale()
   const { data: session } = useSession()
   const pathname = usePathname()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -81,42 +95,44 @@ export default function DashboardLayoutClient({
   const brandLogo = dashboardDesignConfig.brand.logoDataUrl || logo
   const hasCustomLogo = Boolean(dashboardDesignConfig.brand.logoDataUrl)
   const links = isSuperAdmin
-    ? [{ href: '/dashboard/super-admin', label: 'Company approvals', icon: ShieldCheck }]
+    ? [{ href: '/dashboard/super-admin', label: t('nav.companyApprovals'), icon: ShieldCheck }]
     : isEmployee
     ? [
         {
           href: '/dashboard/employee',
-          label: companyType === 'DIGITAL_AGENCY' ? 'My briefs' : 'My tasks',
+          label: companyType === 'DIGITAL_AGENCY' ? t('nav.myBriefs') : t('nav.myTasks'),
           icon: ListTodo,
         },
-        { href: '/dashboard/employee/alerts', label: 'Alerts', icon: Bell },
-        { href: '/dashboard/employee/progress', label: 'Progress', icon: BarChart3 },
+        { href: '/dashboard/employee/alerts', label: t('nav.alerts'), icon: Bell },
+        { href: '/dashboard/employee/progress', label: t('nav.progress'), icon: BarChart3 },
       ]
     : [
-        { href: '/dashboard/admin', label: 'Overview', icon: LayoutDashboard },
-        { href: '/dashboard/admin/clients', label: 'Clients', icon: Building2 },
+        { href: '/dashboard/admin', label: t('nav.overview'), icon: LayoutDashboard },
+        { href: '/dashboard/admin/clients', label: t('nav.clients'), icon: Building2 },
         {
           href: '/dashboard/admin/projects',
           label:
             companyType === 'INDUSTRY'
               ? `${companyCopy.groupPluralLabel} & ${companyCopy.projectPluralLabel}`
-              : companyCopy.projectPluralLabel,
+              : companyType === 'DIGITAL_AGENCY'
+                ? t('nav.campaigns')
+                : t('nav.projects'),
           icon: FolderKanban,
         },
-        { href: '/dashboard/admin/tasks', label: companyCopy.taskPluralLabel, icon: CheckSquare },
-        { href: '/dashboard/admin/invoices', label: 'Invoices', icon: ReceiptText },
-        { href: '/dashboard/admin/calendar', label: 'Calendar', icon: CalendarDays },
-        { href: '/dashboard/admin/employees', label: 'Team', icon: Users },
-        { href: '/dashboard/admin/alerts', label: 'Send Alert', icon: Bell },
+        { href: '/dashboard/admin/tasks', label: companyType === 'DIGITAL_AGENCY' ? t('nav.briefs') : t('nav.tasks'), icon: CheckSquare },
+        { href: '/dashboard/admin/invoices', label: t('nav.invoices'), icon: ReceiptText },
+        { href: '/dashboard/admin/calendar', label: t('nav.calendar'), icon: CalendarDays },
+        { href: '/dashboard/admin/employees', label: t('nav.team'), icon: Users },
+        { href: '/dashboard/admin/alerts', label: t('nav.sendAlert'), icon: Bell },
       ]
   const workspaceNavLabel = isSuperAdmin
-    ? 'Approval center'
+    ? t('nav.approvalCenter')
     :
-    companyType === 'INDUSTRY' ? 'Operations grid' : companyType === 'DIGITAL_AGENCY' ? 'Studio board' : 'Command center'
+    companyType === 'INDUSTRY' ? t('nav.operationsGrid') : companyType === 'DIGITAL_AGENCY' ? t('nav.studioBoard') : t('nav.commandCenter')
 
-  const roleLabel = isSuperAdmin ? 'Super Admin' : user?.role === 'OWNER' ? 'Owner' : user?.role === 'MANAGER' ? 'Manager' : 'Employee'
+  const roleLabel = isSuperAdmin ? t('role.superAdmin') : user?.role === 'OWNER' ? t('role.owner') : user?.role === 'MANAGER' ? t('role.manager') : t('role.employee')
   const badgeClass = isSuperAdmin ? 'badge-owner' : user?.role === 'OWNER' ? 'badge-owner' : user?.role === 'MANAGER' ? 'badge-manager' : 'badge-employee'
-  const workspaceLabel = isSuperAdmin ? 'Super Admin Console' : companyCopy.workspaceLabel
+  const workspaceLabel = isSuperAdmin ? t('nav.superAdminConsole') : companyCopy.workspaceLabel
   const initialThemeStyle = {
     '--accent': '#8dd7ff',
     '--primary': '#8dd7ff',
@@ -148,6 +164,7 @@ export default function DashboardLayoutClient({
     <div
       className={`dashboard-app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}
       data-user-design={userDesign.enabled && userDesign.compiledCss ? 'active' : undefined}
+      dir={direction}
       style={initialThemeStyle}
     >
       {userDesign.enabled && userDesign.compiledCss && (
@@ -219,11 +236,11 @@ export default function DashboardLayoutClient({
             title="Command palette"
           >
             <Search size={15} />
-            <span className="sidebar-link-label">Command search</span>
+            <span className="sidebar-link-label">{t('nav.commandSearch')}</span>
             <kbd className="sidebar-kbd">K</kbd>
           </button>
           <div className="sidebar-section-label mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.12em]" style={{ color: 'var(--text-light)' }}>
-            {isEmployee ? 'Your workspace' : workspaceNavLabel}
+            {isEmployee ? t('nav.yourWorkspace') : workspaceNavLabel}
           </div>
           {links.map((link) => {
             const isActive = pathname === link.href
@@ -279,7 +296,7 @@ export default function DashboardLayoutClient({
             style={{ fontSize: '12px', padding: '8px 12px' }}
           >
             <span className="flex items-center justify-center gap-2">
-              <LogOut size={14} /> <span className="sidebar-link-label">Sign out</span>
+              <LogOut size={14} /> <span className="sidebar-link-label">{t('action.signOut')}</span>
             </span>
           </button>
         </div>
@@ -301,7 +318,7 @@ export default function DashboardLayoutClient({
                 {workspaceLabel}
               </div>
               <div className="truncate text-sm font-semibold text-[var(--text-primary)]">
-                {isEmployee ? 'My workspace' : workspaceNavLabel}
+                {isEmployee ? t('nav.myWorkspace') : workspaceNavLabel}
               </div>
             </div>
           </div>
@@ -313,7 +330,7 @@ export default function DashboardLayoutClient({
             aria-label="Open command palette"
           >
             <Search size={16} />
-            <span className="min-w-0 flex-1 truncate font-medium">Search briefs, deliverables, comments...</span>
+            <span className="min-w-0 flex-1 truncate font-medium">{t('nav.searchPlaceholder')}</span>
             <kbd className="command-kbd">Cmd K</kbd>
           </button>
 
@@ -321,9 +338,10 @@ export default function DashboardLayoutClient({
             {!isSuperAdmin && !isEmployee && (
               <Link href="/dashboard/admin/tasks" className="hidden h-10 items-center gap-2 rounded-2xl bg-[var(--accent)] px-4 text-[13px] font-semibold text-white shadow-sm transition hover:bg-[var(--accent-hover)] active:scale-[.98] sm:inline-flex">
                 <Plus size={15} />
-                New brief
+                {t('action.newBrief')}
               </Link>
             )}
+            {!isSuperAdmin && <LanguageSwitcher compact />}
             {canOpenSettings && (
               <Link
                 href="/dashboard/settings"
@@ -331,7 +349,7 @@ export default function DashboardLayoutClient({
                 aria-label="Settings"
               >
                 <Settings size={15} />
-                <span className="hidden md:inline">Settings</span>
+                <span className="hidden md:inline">{t('nav.settings')}</span>
               </Link>
             )}
             {!isSuperAdmin && (
@@ -349,7 +367,7 @@ export default function DashboardLayoutClient({
                 }}
               />
               <Radio size={13} style={{ color: 'var(--accent)' }} />
-              <span>{isSuperAdmin ? 'Approval system active' : 'Workspace ready'}</span>
+              <span>{isSuperAdmin ? t('nav.approvalSystemActive') : t('nav.workspaceReady')}</span>
             </div>
             <div
               suppressHydrationWarning

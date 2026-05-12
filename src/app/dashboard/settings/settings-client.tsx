@@ -7,6 +7,7 @@ import {
   Database,
   Download,
   Image as ImageIcon,
+  Languages,
   Palette,
   PaintBucket,
   PanelLeft,
@@ -17,6 +18,8 @@ import {
   Users,
 } from 'lucide-react'
 
+import LanguageSwitcher from '@/components/i18n/LanguageSwitcher'
+import { useLocale } from '@/components/i18n/LocaleProvider'
 import {
   DEFAULT_DASHBOARD_DESIGN_CONFIG,
   normalizeDashboardDesignConfig,
@@ -43,10 +46,11 @@ type CurrentUser = {
   role: 'OWNER' | 'MANAGER'
 }
 
-type TabId = 'design' | 'appearance' | 'team' | 'export'
+type TabId = 'design' | 'language' | 'appearance' | 'team' | 'export'
 
 const TABS: { id: TabId; label: string; icon: typeof Palette }[] = [
   { id: 'design', label: 'My Design', icon: SlidersHorizontal },
+  { id: 'language', label: 'Language', icon: Languages },
   { id: 'appearance', label: 'Workspace Appearance', icon: Palette },
   { id: 'team', label: 'Team Management', icon: Users },
   { id: 'export', label: 'Data & Export', icon: Database },
@@ -268,6 +272,7 @@ export default function SettingsClient({
   currentUser: CurrentUser | null
   canManageWorkspace: boolean
 }) {
+  const { t } = useLocale()
   const [activeTab, setActiveTab] = useState<TabId>('design')
   const [appearance, setAppearance] = useState(initialAppearance)
   const [design, setDesign] = useState(initialDesign)
@@ -282,9 +287,14 @@ export default function SettingsClient({
   const [exporting, setExporting] = useState(false)
 
   const availableTabs = useMemo(
-    () => (canManageWorkspace ? TABS : TABS.filter((tab) => tab.id === 'design')),
+    () => (canManageWorkspace ? TABS : TABS.filter((tab) => tab.id === 'design' || tab.id === 'language')),
     [canManageWorkspace]
   )
+
+  function tabLabel(tab: { id: TabId; label: string }) {
+    if (tab.id === 'language') return t('language.label')
+    return tab.label
+  }
 
   const counts = useMemo(
     () => ({
@@ -490,9 +500,9 @@ export default function SettingsClient({
         <div>
           <h1 className="page-heading flex items-center gap-2.5">
             <ShieldCheck size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} />
-            Settings
+            {t('settings.title')}
           </h1>
-          <p className="page-sub">{canManageWorkspace ? 'Account design, workspace appearance, access, and exports.' : 'Account design for your dashboard.'}</p>
+          <p className="page-sub">{canManageWorkspace ? t('settings.subtitleAdmin') : t('settings.subtitleUser')}</p>
         </div>
       </div>
 
@@ -527,11 +537,28 @@ export default function SettingsClient({
               }}
             >
               <Icon size={16} />
-              {tab.label}
+              {tabLabel(tab)}
             </button>
           )
         })}
       </div>
+
+      {activeTab === 'language' && (
+        <section className="card">
+          <div className="panel-header">
+            <div>
+              <h2 className="panel-title">{t('settings.languageTitle')}</h2>
+              <p className="panel-meta">{t('settings.languageDescription')}</p>
+            </div>
+          </div>
+          <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)] p-4">
+            <LanguageSwitcher />
+            <p className="mt-3 max-w-2xl text-sm font-semibold leading-6 text-[var(--text-muted)]">
+              {t('language.workflowHint')}
+            </p>
+          </div>
+        </section>
+      )}
 
       {activeTab === 'design' && (
         <section className="card">

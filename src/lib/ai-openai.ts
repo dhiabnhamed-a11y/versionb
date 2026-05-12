@@ -1,4 +1,5 @@
 import type { AiGroundedAnswer, AiMemoryContext, AiMessageInput } from '@/lib/ai-operations'
+import { DEFAULT_LOCALE, type AppLocale } from '@/lib/i18n'
 
 type OpenAiResponsePayload = {
   output_text?: string
@@ -14,6 +15,12 @@ type OpenAiResponsePayload = {
 }
 
 const DEFAULT_MODEL = 'gpt-5.5'
+
+function languageName(locale: AppLocale) {
+  if (locale === 'fr') return 'French'
+  if (locale === 'ar') return 'Arabic'
+  return 'English'
+}
 
 function extractOutputText(payload: OpenAiResponsePayload) {
   if (payload.output_text?.trim()) return payload.output_text.trim()
@@ -33,6 +40,7 @@ export async function polishGroundedAnswerWithOpenAi(input: {
   grounded: AiGroundedAnswer
   messages?: AiMessageInput[]
   memory?: AiMemoryContext
+  locale?: AppLocale
 }) {
   const apiKey = process.env.OPENAI_API_KEY
   if (!apiKey) {
@@ -45,6 +53,7 @@ export async function polishGroundedAnswerWithOpenAi(input: {
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 10_000)
+  const locale = input.locale ?? DEFAULT_LOCALE
 
   try {
     const response = await fetch('https://api.openai.com/v1/responses', {
@@ -66,7 +75,10 @@ export async function polishGroundedAnswerWithOpenAi(input: {
           'Preserve specific counts, amounts, entity names, and limitations from the grounded answer. Do not replace them with vague wording.',
           'Prioritize actionable executive guidance over generic advice. Connect related signals such as approvals blocking delivery, overdue work creating campaign risk, and overdue invoices creating cash-flow risk only when those facts are present.',
           'Use supplied memory only when it is relevant and permitted. Treat memory as context, not proof of current live metrics.',
-          'Use concise sections when useful: Direct Answer, Key Insights, Risks, Recommendations, Suggested Next Actions.',
+          `Reply in ${languageName(locale)}. For Arabic, write natural right-to-left Arabic while keeping workspace entity names, invoice numbers, IDs, currencies, and quoted user-provided names exact.`,
+          'Use professional Markdown formatting with bold section titles, for example **Direct Answer**, **Key Insights**, **Risks**, **Recommendations**, and **Suggested Next Actions**.',
+          'Use short paragraphs, clear spacing, and concise bullet lists. Do not return dense walls of text.',
+          'For creation or alert actions, confirm exactly what was created or sent, show the important fields, and give the next operational step.',
           'Keep the answer concise, strategic, and operationally useful.',
         ].join('\n'),
         input: [
@@ -76,6 +88,7 @@ export async function polishGroundedAnswerWithOpenAi(input: {
               {
                 type: 'input_text',
                 text: JSON.stringify({
+                  locale,
                   question: input.question,
                   recentMessages: input.messages?.slice(-6) ?? [],
                   groundedAnswer: input.grounded.answer,

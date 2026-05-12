@@ -9,17 +9,18 @@ datasource db {
 }
 
 model User {
-  id            String   @id @default(cuid())
-  name          String
-  email         String   @unique
-  password      String
-  role          String   @default("EMPLOYEE") // SUPER_ADMIN, OWNER, MANAGER, EMPLOYEE
-  accountStatus String   @default("ACTIVE") // PENDING, ACTIVE, REJECTED, DISABLED
-  avatar        String?
-  authUserId    String?  @unique @db.Uuid
-  companyId     String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id              String   @id @default(cuid())
+  name            String
+  email           String   @unique
+  password        String
+  role            String   @default("EMPLOYEE") // SUPER_ADMIN, OWNER, MANAGER, EMPLOYEE
+  accountStatus   String   @default("ACTIVE") // PENDING, ACTIVE, REJECTED, DISABLED
+  avatar          String?
+  authUserId      String?  @unique @db.Uuid
+  companyId       String?
+  preferredLocale String   @default("en") // en, fr, ar
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   company                  Company?                @relation("CompanyMembers", fields: [companyId], references: [id])
   ownedCompany             Company?                @relation("CompanyOwner")

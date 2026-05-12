@@ -11,6 +11,7 @@ import {
   type DashboardDesignDensity,
   type DashboardSidebarSide,
 } from '@/lib/dashboard-design'
+import { DEFAULT_LOCALE, normalizeAppLocale, type AppLocale } from '@/lib/i18n'
 
 export const SETTINGS_ADMIN_ROLES = ['OWNER', 'MANAGER'] as const
 export const PUBLIC_WORKSPACE_ROLES = ['OWNER', 'MANAGER', 'WORKER'] as const
@@ -70,6 +71,10 @@ export const DEFAULT_USER_DASHBOARD_DESIGN: UserDashboardDesignSettings = {
   customCss: null,
   compiledCss: '',
   updatedAt: null,
+}
+
+export type UserLanguageSettings = {
+  locale: AppLocale
 }
 
 const HEX_COLOR_PATTERN = /^#[0-9a-f]{6}$/i
@@ -636,6 +641,33 @@ export async function getUserDashboardDesignSettings(userId?: string | null): Pr
     compiledCss: design.compiledCss,
     updatedAt: design.updatedAt.toISOString(),
   }
+}
+
+export async function getUserLanguageSettings(userId?: string | null): Promise<UserLanguageSettings> {
+  if (!userId) return { locale: DEFAULT_LOCALE }
+
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { preferredLocale: true },
+  })
+
+  return { locale: normalizeAppLocale(user?.preferredLocale) }
+}
+
+export async function updateUserLanguageSettings(
+  requester: SettingsSessionUser,
+  input: { locale?: string | null }
+): Promise<UserLanguageSettings> {
+  if (!requester.id) throw new SettingsAccessError('Unauthorized', 401)
+
+  const locale = normalizeAppLocale(input.locale)
+  const updated = await prisma.user.update({
+    where: { id: requester.id },
+    data: { preferredLocale: locale },
+    select: { preferredLocale: true },
+  })
+
+  return { locale: normalizeAppLocale(updated.preferredLocale) }
 }
 
 export async function updateUserDashboardDesign(

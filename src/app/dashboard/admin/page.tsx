@@ -5,6 +5,7 @@ import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { useSession } from 'next-auth/react'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import { useLocale } from '@/components/i18n/LocaleProvider'
 import { getCompanyTypeCopy, normalizeCompanyType } from '@/lib/company-types'
 import {
   AlertTriangle,
@@ -254,14 +255,6 @@ function EmptyChartState({ label }: { label: string }) {
   )
 }
 
-const toneLabel: Record<IntelligenceTone, string> = {
-  good: 'Healthy',
-  watch: 'Watch',
-  risk: 'Risk',
-  critical: 'Critical',
-  neutral: 'Monitor',
-}
-
 const metricIcons: Record<string, typeof Gauge> = {
   'delivery-risk': Gauge,
   'approval-latency': ShieldCheck,
@@ -274,7 +267,16 @@ const metricIcons: Record<string, typeof Gauge> = {
 }
 
 function ToneBadge({ tone }: { tone: IntelligenceTone }) {
-  return <span className={`ops-tone-badge ops-tone-${tone}`}>{toneLabel[tone]}</span>
+  const { t } = useLocale()
+  const toneKey = {
+    good: 'tone.good',
+    watch: 'tone.watch',
+    risk: 'tone.risk',
+    critical: 'tone.critical',
+    neutral: 'tone.neutral',
+  } as const
+
+  return <span className={`ops-tone-badge ops-tone-${tone}`}>{t(toneKey[tone])}</span>
 }
 
 function CommandCenterSkeleton() {
@@ -326,6 +328,7 @@ function MetricCard({ metric }: { metric: CommandCenterMetric }) {
 }
 
 function OperationalCommandCenterPanel({ data }: { data: OperationalCommandCenter }) {
+  const { t } = useLocale()
   const primaryMetrics = data.metrics.slice(0, 8)
   const primaryAgents = data.agentSignals.slice(0, 5)
   const primaryRisks = data.risks.slice(0, 4)
@@ -339,13 +342,13 @@ function OperationalCommandCenterPanel({ data }: { data: OperationalCommandCente
             <div>
               <div className="dashboard-hero-kicker">
                 <BrainCircuit size={13} />
-                Executive command center
+                {t('ops.executiveCommandCenter')}
               </div>
               <h2 className="ops-briefing-title">{data.briefing.title}</h2>
             </div>
             <div className={`ops-health-score ops-health-${data.briefing.tone}`}>
               <span>{data.briefing.healthScore}</span>
-              <small>health</small>
+              <small>{t('ops.health')}</small>
             </div>
           </div>
 
@@ -377,8 +380,8 @@ function OperationalCommandCenterPanel({ data }: { data: OperationalCommandCente
         <aside className="card ops-agent-panel">
           <div className="panel-header">
             <div>
-              <h2 className="panel-title">AI operations agents</h2>
-              <p className="panel-meta">Role-specific signals from live workspace records.</p>
+              <h2 className="panel-title">{t('ops.aiAgents')}</h2>
+              <p className="panel-meta">{t('ops.aiAgentsMeta')}</p>
             </div>
             <ToneBadge tone={data.briefing.tone} />
           </div>
@@ -424,14 +427,14 @@ function OperationalCommandCenterPanel({ data }: { data: OperationalCommandCente
         <div className="card">
           <div className="panel-header">
             <div>
-              <h2 className="panel-title">Risk queue</h2>
-              <p className="panel-meta">Prioritized operational risks with reason and next action.</p>
+              <h2 className="panel-title">{t('ops.riskQueue')}</h2>
+              <p className="panel-meta">{t('ops.riskQueueMeta')}</p>
             </div>
           </div>
           {!primaryRisks.length ? (
             <div className="ops-empty-state">
               <CheckCircle2 size={22} />
-              No active risks above the command-center threshold.
+              {t('ops.noActiveRisks')}
             </div>
           ) : (
             <div className="ops-risk-list">
@@ -469,18 +472,18 @@ function OperationalCommandCenterPanel({ data }: { data: OperationalCommandCente
         <div className="card">
           <div className="panel-header">
             <div>
-              <h2 className="panel-title">Operational graph</h2>
-              <p className="panel-meta">Connected records powering memory, search, automation, and AI context.</p>
+              <h2 className="panel-title">{t('ops.operationalGraph')}</h2>
+              <p className="panel-meta">{t('ops.operationalGraphMeta')}</p>
             </div>
           </div>
           <div className="ops-graph-score">
             <div>
               <span>{data.graph.nodes}</span>
-              <small>nodes</small>
+              <small>{t('ops.nodes')}</small>
             </div>
             <div>
               <span>{data.graph.edges}</span>
-              <small>edges</small>
+              <small>{t('ops.edges')}</small>
             </div>
           </div>
           <div className="ops-graph-coverage">

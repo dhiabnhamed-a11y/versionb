@@ -18,6 +18,7 @@ type AuthUserRecord = {
   role: string
   accountStatus: string
   companyId: string | null
+  preferredLocale: string
   company: {
     companyType: string
     status: string
@@ -31,6 +32,7 @@ type AuthSessionShape = {
   role: string
   accountStatus: string
   companyId: string | null
+  preferredLocale: string
   companyType: string | null
   companyStatus: string | null
 }
@@ -71,6 +73,7 @@ function buildAuthSessionUser(user: AuthUserRecord): AuthSessionShape {
     role: user.role,
     accountStatus: user.accountStatus,
     companyId: user.companyId,
+    preferredLocale: user.preferredLocale,
     companyType: user.company?.companyType ?? null,
     companyStatus: user.company?.status ?? null,
   }
@@ -123,6 +126,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.role = (user as AuthSessionShape).role
         token.accountStatus = (user as AuthSessionShape).accountStatus
         token.companyId = (user as AuthSessionShape).companyId
+        token.preferredLocale = (user as AuthSessionShape).preferredLocale
         token.companyType = (user as AuthSessionShape).companyType
         token.companyStatus = (user as AuthSessionShape).companyStatus
         return token
@@ -139,6 +143,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.role = authUser.role
         token.accountStatus = authUser.accountStatus
         token.companyId = authUser.companyId
+        token.preferredLocale = authUser.preferredLocale
         token.companyType = authUser.companyType
         token.companyStatus = authUser.companyStatus
       }
@@ -152,6 +157,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         ;(session.user as AuthSessionShape).role = token.role as string
         ;(session.user as AuthSessionShape).accountStatus = token.accountStatus as string
         ;(session.user as AuthSessionShape).companyId = token.companyId as string | null
+        ;(session.user as AuthSessionShape).preferredLocale = token.preferredLocale as string
         ;(session.user as AuthSessionShape).companyType = token.companyType as string | null
         ;(session.user as AuthSessionShape).companyStatus = token.companyStatus as string | null
       }

@@ -4,6 +4,7 @@ import { buildGroundedOperationalAnswer, type AiMessageInput } from '@/lib/ai-op
 import { polishGroundedAnswerWithOpenAi } from '@/lib/ai-openai'
 import { loadAiMemoryContext, persistAiTurn } from '@/lib/ai-memory'
 import { NO_STORE_HEADERS } from '@/lib/http'
+import { normalizeAppLocale } from '@/lib/i18n'
 
 type SessionUser = {
   id: string
@@ -17,6 +18,7 @@ type ChatBody = {
   message?: string
   messages?: AiMessageInput[]
   conversationId?: string
+  locale?: string
 }
 
 function cleanMessage(value: unknown) {
@@ -52,6 +54,7 @@ export async function POST(req: NextRequest) {
   const message = cleanMessage(body.message)
   const messages = cleanMessages(body.messages)
   const conversationId = cleanConversationId(body.conversationId)
+  const locale = normalizeAppLocale(body.locale)
 
   if (!message) {
     return NextResponse.json({ error: 'Message is required.' }, { status: 400 })
@@ -69,7 +72,7 @@ export async function POST(req: NextRequest) {
     memory,
     user,
   })
-  const polished = await polishGroundedAnswerWithOpenAi({ question: message, messages, grounded, memory })
+  const polished = await polishGroundedAnswerWithOpenAi({ question: message, messages, grounded, memory, locale })
   const memoryWrite = await persistAiTurn({
     user,
     conversationId,
@@ -90,6 +93,7 @@ export async function POST(req: NextRequest) {
       policy: grounded.policy,
       model: polished.model,
       usedModel: polished.usedModel,
+      locale,
       memory: {
         available: memory.memoryAvailable && memoryWrite.memoryAvailable,
         recalled: memory.memories.length,

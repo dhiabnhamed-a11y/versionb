@@ -19,6 +19,7 @@ import {
   X,
   type LucideProps,
 } from 'lucide-react'
+import { useLocale } from '@/components/i18n/LocaleProvider'
 
 type Command = {
   id: string
@@ -180,6 +181,7 @@ export default function CommandPalette({
   isEmployee,
   isSuperAdmin,
 }: CommandPaletteProps) {
+  const { t } = useLocale()
   const router = useRouter()
   const [query, setQuery] = useState('')
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -188,12 +190,49 @@ export default function CommandPalette({
   const searchEnabled = open && normalize(query).length >= 2
 
   const commands = useMemo(() => {
+    const localizedBaseCommands = baseCommands.map((command) => {
+      const copy: Partial<Pick<Command, 'label' | 'description'>> =
+        command.id === 'overview'
+          ? { label: t('nav.overview'), description: t('command.overview.description') }
+          : command.id === 'clients'
+            ? { label: t('nav.clients'), description: t('command.clients.description') }
+            : command.id === 'projects'
+              ? { label: t('nav.campaignsAndProjects'), description: t('command.projects.description') }
+              : command.id === 'briefs'
+                ? { label: t('nav.briefs'), description: t('command.briefs.description') }
+                : command.id === 'invoices'
+                  ? { label: t('nav.invoices'), description: t('command.invoices.description') }
+                  : command.id === 'new-client'
+                    ? { label: t('command.createClient'), description: t('command.createClient.description') }
+                    : command.id === 'new-brief'
+                      ? { label: t('command.createBrief'), description: t('command.createBrief.description') }
+                      : command.id === 'new-invoice'
+                        ? { label: t('command.createInvoice'), description: t('command.createInvoice.description') }
+                        : command.id === 'media-review'
+                          ? { label: t('command.mediaReview'), description: t('command.mediaReview.description') }
+                          : command.id === 'operations'
+                            ? { label: t('command.waitingApproval'), description: t('command.waitingApproval.description') }
+                            : command.id === 'ai-risks'
+                              ? { label: t('command.detectRisks'), description: t('command.detectRisks.description') }
+                              : command.id === 'ai-weekly-report'
+                                ? { label: t('command.weeklyReport'), description: t('command.weeklyReport.description') }
+                                : {}
+
+      return { ...command, ...copy }
+    })
+
+    const localizedSettingsCommand = {
+      ...settingsCommand,
+      label: t('nav.settings'),
+      description: t('command.settings.description'),
+    }
+
     if (isSuperAdmin) {
       return [
         {
           id: 'company-approvals',
-          label: 'Company approvals',
-          description: 'Review workspace access requests',
+          label: t('nav.companyApprovals'),
+          description: t('command.settings.description'),
           href: '/dashboard/super-admin',
           group: 'Operate',
           keywords: ['super', 'admin', 'approval', 'company'],
@@ -206,19 +245,19 @@ export default function CommandPalette({
       return [
         {
           id: 'my-briefs',
-          label: 'My briefs',
-          description: 'Open assigned briefs and production work',
+          label: t('nav.myBriefs'),
+          description: t('command.briefs.description'),
           href: '/dashboard/employee',
           group: 'Navigate',
           keywords: ['my', 'tasks', 'briefs', 'assigned'],
           icon: CheckSquare,
         },
-        settingsCommand,
+        localizedSettingsCommand,
       ] satisfies Command[]
     }
 
-    return canManageWorkspace ? [...baseCommands, settingsCommand] : baseCommands
-  }, [canManageWorkspace, isEmployee, isSuperAdmin])
+    return canManageWorkspace ? [...localizedBaseCommands, localizedSettingsCommand] : localizedBaseCommands
+  }, [canManageWorkspace, isEmployee, isSuperAdmin, t])
 
   useEffect(() => {
     if (!searchEnabled) return
@@ -339,6 +378,13 @@ export default function CommandPalette({
     },
     { Search: [], Navigate: [], Create: [], Review: [], Operate: [] }
   )
+  const groupLabels: Record<Command['group'], string> = {
+    Search: t('command.group.search'),
+    Navigate: t('command.group.navigate'),
+    Create: t('command.group.create'),
+    Review: t('command.group.review'),
+    Operate: t('command.group.operate'),
+  }
 
   return (
     <div className="command-palette-backdrop" role="presentation" onMouseDown={closePalette}>
@@ -358,7 +404,7 @@ export default function CommandPalette({
               setQuery(event.target.value)
               setSelectedIndex(0)
             }}
-            placeholder="Search clients, briefs, invoices, deliverables..."
+            placeholder={t('command.searchPlaceholder')}
             aria-label="Search commands"
           />
           <button type="button" onClick={closePalette} aria-label="Close command palette">
@@ -370,13 +416,13 @@ export default function CommandPalette({
           {filteredCommands.length === 0 ? (
             <div className="command-empty">
               <Sparkles size={18} />
-              No command found
+              {t('command.noCommand')}
             </div>
           ) : (
             (Object.keys(grouped) as Command['group'][]).map((group) =>
               grouped[group].length ? (
                 <div key={group} className="command-group">
-                  <div className="command-group-label">{group}</div>
+                  <div className="command-group-label">{groupLabels[group]}</div>
                   {grouped[group].map((command) => {
                     const absoluteIndex = filteredCommands.findIndex((item) => item.id === command.id)
                     const Icon = command.icon
@@ -408,9 +454,9 @@ export default function CommandPalette({
         </div>
 
         <footer className="command-palette-footer">
-          <span>Navigate with arrows</span>
-          <span>Enter to open</span>
-          <span>Esc to close</span>
+          <span>{t('command.navigateArrows')}</span>
+          <span>{t('command.enterOpen')}</span>
+          <span>{t('command.escClose')}</span>
         </footer>
       </section>
     </div>

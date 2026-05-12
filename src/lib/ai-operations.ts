@@ -380,14 +380,26 @@ async function loadWorkspaceContext(user: AiSessionUser) {
 }
 
 function detectIntent(question: string) {
-  const q = question.toLowerCase()
+  const q = question
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
 
-  if (/\b(create|make|add|draft|generate|start)\b/.test(q) && /\b(campaign|project|brief|invoice|bill)\b/.test(q)) return 'action'
-  if (q.includes('automation') || q.includes('workflow execution') || q.includes('reminder')) return 'automations'
+  if (
+    /\b(create|make|add|draft|generate|start|creer|ajouter|generer|demarrer)\b/.test(q) &&
+    /\b(campaign|project|brief|invoice|bill|client|customer|campagne|projet|facture)\b/.test(q)
+  ) return 'action'
+  if (q.includes('انشاء') || q.includes('إنشاء') || q.includes('فاتورة') || q.includes('عميل') || q.includes('حملة') || q.includes('مشروع')) return 'action'
+  if (q.includes('automation') || q.includes('workflow execution') || q.includes('reminder') || q.includes('alerte') || q.includes('تنبيه')) return 'automations'
   if (
     q.includes('invoice') ||
+    q.includes('facture') ||
+    q.includes('فاتورة') ||
     q.includes('revenue') ||
+    q.includes('revenu') ||
     q.includes('payment') ||
+    q.includes('paiement') ||
+    q.includes('دفع') ||
     q.includes('cash') ||
     q.includes('mrr') ||
     q.includes('profit') ||
@@ -396,22 +408,25 @@ function detectIntent(question: string) {
   ) {
     return 'finance'
   }
-  if (q.includes('client') || q.includes('follow-up') || q.includes('follow up') || q.includes('inactive') || q.includes('churn')) return 'clients'
+  if (q.includes('client') || q.includes('عميل') || q.includes('follow-up') || q.includes('follow up') || q.includes('inactive') || q.includes('inactif') || q.includes('churn')) return 'clients'
   if (
     q.includes('workload') ||
+    q.includes('charge') ||
     q.includes('productivity') ||
     q.includes('overloaded') ||
     q.includes('employee') ||
+    q.includes('equipe') ||
     q.includes('team member') ||
     q.includes('capacity') ||
     q.includes('burnout')
   ) {
     return 'workload'
   }
-  if (q.includes('approval') || q.includes('feedback') || q.includes('deliverable')) return 'approvals'
-  if (q.includes('remember') || q.includes('memory') || q.includes('what do you know about') || q.includes('what do you know')) return 'memory'
+  if (q.includes('approval') || q.includes('approbation') || q.includes('feedback') || q.includes('deliverable') || q.includes('موافقة')) return 'approvals'
+  if (q.includes('remember') || q.includes('memory') || q.includes('memoire') || q.includes('ذاكرة') || q.includes('what do you know about') || q.includes('what do you know')) return 'memory'
   if (
     q.includes('risk') ||
+    q.includes('risque') ||
     q.includes('bottleneck') ||
     q.includes('focus') ||
     q.includes('executive') ||
@@ -425,8 +440,8 @@ function detectIntent(question: string) {
   ) {
     return 'executive'
   }
-  if (q.includes('task') || q.includes('overdue')) return 'tasks'
-  if (q.includes('project') || q.includes('delayed')) return 'projects'
+  if (q.includes('task') || q.includes('tache') || q.includes('overdue') || q.includes('متأخر')) return 'tasks'
+  if (q.includes('project') || q.includes('projet') || q.includes('delayed') || q.includes('مشروع')) return 'projects'
 
   if (
     q.includes('hello') ||
@@ -1154,7 +1169,8 @@ function buildGeneralAnswer(role: string, financeVisible: boolean): AiGroundedAn
       financeVisible
         ? '- Analyze invoices, revenue, outstanding payments, cash-collection risk, and draft invoices when the client and amount are clear.'
         : '- Analyze assigned delivery work and project blockers; finance data is hidden for this role.',
-      '- Create campaign, brief, and invoice drafts when your role has permission and the request is specific.',
+      '- Create clients, campaigns, briefs, and invoice drafts through guided fields when your role has permission.',
+      '- Send direct in-app payment-deadline alerts for sent or overdue client invoices.',
       '',
       'Useful prompts',
       '- What should management focus on today?',
@@ -1162,6 +1178,8 @@ function buildGeneralAnswer(role: string, financeVisible: boolean): AiGroundedAn
       '- Which clients need follow-up?',
       '- Where is the team overloaded?',
       '- Create campaign "Spring Launch" for Acme under Social Media',
+      '- Create client',
+      '- Send payment deadline alerts',
       '',
       'Governance',
       'I will not invent metrics, clients, invoices, people, or events. If data is missing, I will say what is unavailable.',
@@ -1169,7 +1187,7 @@ function buildGeneralAnswer(role: string, financeVisible: boolean): AiGroundedAn
     intent: 'general',
     confidence: 'high',
     citations: [],
-    quickActions: ['Detect operational risks', 'Analyze delayed projects', 'Create campaign', 'Create brief', 'Create invoice'],
+    quickActions: ['Detect operational risks', 'Analyze delayed projects', 'Create client', 'Create campaign', 'Create brief', 'Create invoice', 'Send payment deadline alerts'],
     facts: {
       capabilities: ['analysis', 'summaries', 'risk detection', 'campaign creation', 'brief creation', 'invoice drafting'],
     },
