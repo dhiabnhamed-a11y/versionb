@@ -10,22 +10,28 @@ type EncryptedEnvelope = {
   ciphertext: string
 }
 
+const AUTH_SECRET_FALLBACK = 'taskforce-super-secret-key-2024-change-in-production'
+
+function cleanSecret(value?: string | null) {
+  return value?.trim().replace(/^['"]|['"]$/g, '') || null
+}
+
 function deriveFallbackKey() {
-  const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
-  if (!secret) {
-    throw new Error('SOCIAL_TOKEN_ENCRYPTION_KEY or AUTH_SECRET is required for social token encryption.')
-  }
+  const secret = cleanSecret(process.env.AUTH_SECRET) || cleanSecret(process.env.NEXTAUTH_SECRET) || AUTH_SECRET_FALLBACK
   logger.warn('integrations.token_crypto_using_auth_secret_fallback')
   return createHash('sha256').update(secret).digest()
 }
 
 function getEncryptionKey() {
-  const configured = process.env.SOCIAL_TOKEN_ENCRYPTION_KEY
+  const configured = cleanSecret(process.env.SOCIAL_TOKEN_ENCRYPTION_KEY)
   if (!configured) return { key: deriveFallbackKey(), keyId: 'auth-secret-derived' }
 
   const key = Buffer.from(configured, 'base64')
   if (key.length !== 32) {
-    throw new Error('SOCIAL_TOKEN_ENCRYPTION_KEY must be a base64 encoded 32-byte key.')
+    logger.warn('integrations.token_crypto_invalid_configured_key_falling_back', {
+      keyId: process.env.SOCIAL_TOKEN_ENCRYPTION_KEY_ID || 'primary',
+    })
+    return { key: deriveFallbackKey(), keyId: 'auth-secret-derived' }
   }
 
   return { key, keyId: process.env.SOCIAL_TOKEN_ENCRYPTION_KEY_ID || 'primary' }

@@ -33,8 +33,8 @@ export type OAuth2ProviderConfig = {
   authorizationUrl: string
   tokenUrl: string
   revokeUrl?: string
-  clientIdEnv: string
-  clientSecretEnv?: string
+  clientIdEnv: string | readonly string[]
+  clientSecretEnv?: string | readonly string[]
   clientIdParam?: string
   tokenAuth?: 'body' | 'basic'
   requiredScopes: readonly string[]
@@ -46,6 +46,26 @@ export type OAuth2ProviderConfig = {
 function expiresAtFromNow(expiresIn?: number | null) {
   if (!expiresIn) return null
   return new Date(Date.now() + Math.max(expiresIn - 60, 1) * 1000)
+}
+
+function envKeys(value: string | readonly string[]) {
+  return Array.isArray(value) ? value : [value]
+}
+
+function cleanEnvValue(value?: string | null) {
+  return value?.trim().replace(/^['"]|['"]$/g, '') || undefined
+}
+
+function resolveEnvValue(keys: string | readonly string[]) {
+  for (const key of envKeys(keys)) {
+    const value = cleanEnvValue(process.env[key])
+    if (value) return value
+  }
+  return undefined
+}
+
+function envLabel(keys: string | readonly string[]) {
+  return envKeys(keys).join(' or ')
 }
 
 export abstract class OAuth2SocialProvider implements SocialProvider {
@@ -66,10 +86,10 @@ export abstract class OAuth2SocialProvider implements SocialProvider {
   }
 
   protected credentials() {
-    const clientId = process.env[this.config.clientIdEnv]
-    if (!clientId) throw configurationMissing(this.slug, this.config.clientIdEnv)
-    const clientSecret = this.config.clientSecretEnv ? process.env[this.config.clientSecretEnv] : undefined
-    if (this.config.clientSecretEnv && !clientSecret) throw configurationMissing(this.slug, this.config.clientSecretEnv)
+    const clientId = resolveEnvValue(this.config.clientIdEnv)
+    if (!clientId) throw configurationMissing(this.slug, envLabel(this.config.clientIdEnv))
+    const clientSecret = this.config.clientSecretEnv ? resolveEnvValue(this.config.clientSecretEnv) : undefined
+    if (this.config.clientSecretEnv && !clientSecret) throw configurationMissing(this.slug, envLabel(this.config.clientSecretEnv))
     return { clientId, clientSecret }
   }
 

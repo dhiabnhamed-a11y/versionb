@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { create } from 'zustand'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import {
   Activity,
   AlertTriangle,
@@ -231,6 +232,7 @@ function StatCard({ label, value, help, icon: Icon, color }: { label: string; va
 
 export default function SocialAnalyticsClient() {
   const { tab, provider, days, setTab, setProvider, setDays } = useSocialAnalyticsStore()
+  const searchParams = useSearchParams()
   const [providers, setProviders] = useState<SocialProvider[]>([])
   const [dashboard, setDashboard] = useState<SocialDashboard | null>(null)
   const [loading, setLoading] = useState(true)
@@ -238,6 +240,8 @@ export default function SocialAnalyticsClient() {
   const [error, setError] = useState<string | null>(null)
 
   const effectiveProvider = tab === 'youtube' ? 'youtube' : tab === 'spotify' ? 'spotify' : provider
+  const oauthError = searchParams.get('integration_error')
+  const connectedProvider = searchParams.get('connected')
 
   const load = useCallback(async () => {
     setError(null)
@@ -338,9 +342,15 @@ export default function SocialAnalyticsClient() {
         </div>
       </section>
 
-      {error && (
+      {(oauthError || error) && (
         <section className="card border-red-200 bg-red-50 text-sm font-semibold text-red-700">
-          {error}
+          {oauthError ?? error}
+        </section>
+      )}
+
+      {!oauthError && connectedProvider && (
+        <section className="card border-emerald-200 bg-emerald-50 text-sm font-semibold text-emerald-700">
+          {connectedProvider} connected. Initial sync is running.
         </section>
       )}
 
@@ -619,7 +629,7 @@ export default function SocialAnalyticsClient() {
                           <strong className="text-sm text-[var(--text-primary)]">{item.displayName}</strong>
                           <div className="mt-1 text-xs text-[var(--text-muted)]">{item.requiredScopes.length + item.optionalScopes.length} OAuth scopes</div>
                         </div>
-                        <Link href={`/api/integrations/oauth/${item.slug}/start?returnTo=/dashboard/admin/social-analytics`} className="btn-primary btn-sm">
+                        <Link href={`/api/integrations/oauth/${item.slug}/start?returnTo=${encodeURIComponent('/dashboard/admin/social-analytics')}`} className="btn-primary btn-sm">
                           <Link2 size={14} />
                           {connectedProviderSlugs.has(item.slug) ? 'Add' : 'Connect'}
                         </Link>
