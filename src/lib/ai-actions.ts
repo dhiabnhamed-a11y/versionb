@@ -3,6 +3,7 @@ import { prisma } from '@/lib/db'
 import { logClientActivity, serializeClient } from '@/lib/clients'
 import { emitCompanyRealtime, emitUserRealtime } from '@/lib/realtime-server'
 import { ensureImportedBriefForCampaign } from '@/lib/creative-workflow'
+import { deleteClientGraph, deleteProjectGraph, deleteTasksById } from '@/lib/delete-graph'
 import {
   calculateInvoiceTotals,
   centsToDecimal,
@@ -26,7 +27,15 @@ type WorkspaceLookups = {
   clients: Array<{ id: string; companyName: string; email: string | null; address: string | null }>
   projects: Array<{ id: string; title: string; clientId: string | null; clientName: string | null }>
   categories: Array<{ id: string; name: string }>
+  managers: Array<{ id: string; name: string; role: string }>
+  invoices: Array<{ id: string; invoiceNumber: string; clientName: string; status: string; total: Prisma.Decimal; currency: string; dueDate: Date | null; paidAt: Date | null; createdAt: Date }>
+  briefs: Array<{ id: string; title: string; campaign: { title: string } }>
+  deliverables: Array<{ id: string; title: string; campaign: { title: string } }>
+  tasks: Array<{ id: string; title: string; project: { title: string } }>
+  rooms: Array<{ id: string; name: string }>
 }
+
+type DeletableKind = 'invoice' | 'client' | 'campaign' | 'brief' | 'deliverable' | 'task' | 'category' | 'room'
 
 const CREATE_WORDS = [
   'create',
@@ -55,8 +64,15 @@ const CAMPAIGN_WORDS = ['campaign', 'project', 'campagne', 'projet', 'حملة',
 const BRIEF_WORDS = ['brief', 'briefs', 'بريف', 'ملخص', 'ملخصات']
 const INVOICE_WORDS = ['invoice', 'bill', 'facture', 'factures', 'فاتورة', 'فواتير']
 const CLIENT_WORDS = ['client', 'customer', 'account', 'compte', 'عميل', 'عملاء', 'زبون']
+const TASK_WORDS = ['task', 'tasks', 'todo', 'mission', 'tache', 'taches', 'مهمة', 'مهام']
+const DELIVERABLE_WORDS = ['deliverable', 'deliverables', 'livrable', 'livrables', 'تسليم', 'تسليمات']
+const CATEGORY_WORDS = ['category', 'categories', 'categorie', 'categories', 'فئة', 'تصنيف']
+const ROOM_WORDS = ['room', 'rooms', 'workspace room', 'salle', 'espace', 'غرفة', 'مساحة']
 const ALERT_WORDS = ['alert', 'notify', 'remind', 'send message', 'alerte', 'notifier', 'rappeler', 'تنبيه', 'نبه', 'ذكر']
 const PAYMENT_WORDS = ['payment', 'invoice', 'due', 'deadline', 'paiement', 'facture', 'echeance', 'échéance', 'دفع', 'سداد', 'فاتورة', 'موعد']
+const DELETE_WORDS = ['delete', 'remove', 'erase', 'supprimer', 'effacer', 'retirer', 'حذف', 'احذف', 'مسح', 'امسح']
+const UPDATE_WORDS = ['mark', 'set', 'update', 'change', 'modifier', 'mettre', 'marquer', 'تحديث', 'حدث', 'غير']
+const PAID_WORDS = ['paid', 'payed', 'payment received', 'paye', 'payee', 'reglee', 'مدفوعة', 'مدفوع', 'تم الدفع']
 
 function normalizeRole(role?: string | null) {
   return role?.trim().toUpperCase() || 'EMPLOYEE'
@@ -168,6 +184,117 @@ function findBestByName<T extends { companyName?: string; title?: string; name?:
   )
 }
 
+function findById<T extends { id: string }>(items: T[], id: string | null | undefined) {
+  if (!id) return null
+  return items.find((item) => item.id === id.trim()) ?? null
+}
+
+type ResolvedTarget<T> =
+  | { status: 'found'; item: T }
+  | { status: 'missing'; examples: string[] }
+  | { status: 'ambiguous'; options: string[] }
+
+function normalizeRecordText(value: string) {
+  return normalizeForMatch(value).replace(/[^a-z0-9\u0600-\u06FF]+/gi, ' ').trim()
+}
+
+function compactLabels(labels: Array<string | null | undefined>) {
+  return labels.map((label) => cleanText(label ?? '')).filter(Boolean)
+}
+
+function scoreLabelAgainstMessage(message: string, label: string) {
+  const normalizedLabel = normalizeRecordText(label)
+  if (!normalizedLabel) return 0
+  if (message.includes(normalizedLabel)) return normalizedLabel.length + 25
+
+  const tokens = normalizedLabel.split(/\s+/).filter((token) => token.length > 2)
+  return tokens.reduce((score, token) => score + (message.includes(token) ? token.length : 0), 0)
+}
+
+function resolveTargetByText<T extends { id: string }>(
+  items: T[],
+  message: string,
+  getLabels: (item: T) => Array<string | null | undefined>
+): ResolvedTarget<T> {
+  if (items.length === 0) return { status: 'missing', examples: [] }
+
+  const normalizedMessage = normalizeRecordText(message)
+  const exactMatches = items
+    .map((item) => ({
+      item,
+      labelLength: Math.max(0, ...compactLabels(getLabels(item)).map((label) => normalizeRecordText(label).length)),
+      matched: compactLabels(getLabels(item)).some((label) => {
+        const normalizedLabel = normalizeRecordText(label)
+        return normalizedLabel.length > 1 && normalizedMessage.includes(normalizedLabel)
+      }),
+    }))
+    .filter((candidate) => candidate.matched)
+    .sort((a, b) => b.labelLength - a.labelLength)
+
+  if (exactMatches.length === 1) return { status: 'found', item: exactMatches[0].item }
+  if (exactMatches.length > 1 && exactMatches[0].labelLength > exactMatches[1].labelLength + 4) {
+    return { status: 'found', item: exactMatches[0].item }
+  }
+  if (exactMatches.length > 1) {
+    return { status: 'ambiguous', options: exactMatches.slice(0, 5).map((candidate) => compactLabels(getLabels(candidate.item))[0] ?? candidate.item.id) }
+  }
+
+  const scored = items
+    .map((item) => ({
+      item,
+      score: Math.max(0, ...compactLabels(getLabels(item)).map((label) => scoreLabelAgainstMessage(normalizedMessage, label))),
+    }))
+    .filter((candidate) => candidate.score >= 4)
+    .sort((a, b) => b.score - a.score)
+
+  if (scored.length === 0) return { status: 'missing', examples: items.slice(0, 5).map((item) => compactLabels(getLabels(item))[0] ?? item.id) }
+  if (scored.length > 1 && scored[0].score === scored[1].score) {
+    return { status: 'ambiguous', options: scored.slice(0, 5).map((candidate) => compactLabels(getLabels(candidate.item))[0] ?? candidate.item.id) }
+  }
+
+  return { status: 'found', item: scored[0].item }
+}
+
+function resolveTarget<T extends { id: string }>(
+  items: T[],
+  message: string,
+  idLabels: string[],
+  getLabels: (item: T) => Array<string | null | undefined>
+): ResolvedTarget<T> {
+  const requestedId = extractLabeledValue(message, idLabels)
+  if (requestedId) {
+    const item = findById(items, requestedId)
+    if (item) return { status: 'found', item }
+    return { status: 'missing', examples: items.slice(0, 5).map((candidate) => compactLabels(getLabels(candidate))[0] ?? candidate.id) }
+  }
+
+  return resolveTargetByText(items, message, getLabels)
+}
+
+function extractInvoiceNumber(message: string) {
+  const labeled = extractLabeledValue(message, ['invoice number', 'invoice no', 'number'])
+  if (labeled) return labeled.trim()
+  return message.match(/\bINV-\d{4}-\d{4}\b/i)?.[0] ?? null
+}
+
+function resolveInvoiceTarget(invoices: WorkspaceLookups['invoices'], message: string): ResolvedTarget<WorkspaceLookups['invoices'][number]> {
+  const requestedId = extractLabeledValue(message, ['invoice id', 'invoiceId', 'id'])
+  if (requestedId) {
+    const invoice = findById(invoices, requestedId)
+    if (invoice) return { status: 'found', item: invoice }
+    return { status: 'missing', examples: invoices.slice(0, 5).map((item) => `${item.invoiceNumber} - ${item.clientName}`) }
+  }
+
+  const invoiceNumber = extractInvoiceNumber(message)
+  if (invoiceNumber) {
+    const invoice = invoices.find((item) => item.invoiceNumber.toLowerCase() === invoiceNumber.toLowerCase())
+    if (invoice) return { status: 'found', item: invoice }
+    return { status: 'missing', examples: invoices.slice(0, 5).map((item) => `${item.invoiceNumber} - ${item.clientName}`) }
+  }
+
+  return resolveTargetByText(invoices, message, (invoice) => [invoice.invoiceNumber, invoice.clientName])
+}
+
 function extractTitle(message: string, kind: 'campaign' | 'project' | 'brief' | 'invoice') {
   const quoted = extractQuotedText(message)
   if (quoted) return sentenceCase(quoted)
@@ -264,9 +391,30 @@ function hasPaymentDeadlineAlertIntent(normalizedMessage: string) {
   return includesAny(normalizedMessage, ALERT_WORDS) && includesAny(normalizedMessage, PAYMENT_WORDS)
 }
 
+function hasMarkInvoicePaidIntent(normalizedMessage: string) {
+  return includesAny(normalizedMessage, UPDATE_WORDS) && includesAny(normalizedMessage, PAID_WORDS) && includesAny(normalizedMessage, INVOICE_WORDS)
+}
+
+function deleteKindFromMessage(normalizedMessage: string): DeletableKind | null {
+  if (includesAny(normalizedMessage, INVOICE_WORDS)) return 'invoice'
+  if (includesAny(normalizedMessage, CLIENT_WORDS)) return 'client'
+  if (includesAny(normalizedMessage, BRIEF_WORDS)) return 'brief'
+  if (includesAny(normalizedMessage, DELIVERABLE_WORDS)) return 'deliverable'
+  if (includesAny(normalizedMessage, TASK_WORDS)) return 'task'
+  if (includesAny(normalizedMessage, CATEGORY_WORDS)) return 'category'
+  if (includesAny(normalizedMessage, ROOM_WORDS)) return 'room'
+  if (includesAny(normalizedMessage, CAMPAIGN_WORDS)) return 'campaign'
+  return null
+}
+
 function getActionKind(message: string) {
   const lower = normalizeForMatch(message)
   if (hasPaymentDeadlineAlertIntent(lower)) return 'payment_alerts'
+  if (hasMarkInvoicePaidIntent(lower)) return 'mark_invoice_paid'
+  if (includesAny(lower, DELETE_WORDS)) {
+    const deleteKind = deleteKindFromMessage(lower)
+    return deleteKind ? `delete_${deleteKind}` : 'delete'
+  }
   if (!includesAny(lower, CREATE_WORDS)) return null
   if (includesAny(lower, INVOICE_WORDS)) return 'invoice'
   if (includesAny(lower, BRIEF_WORDS)) return 'brief'
@@ -276,7 +424,7 @@ function getActionKind(message: string) {
 }
 
 async function loadLookups(companyId: string): Promise<WorkspaceLookups> {
-  const [clients, projects, categories] = await Promise.all([
+  const [clients, projects, categories, managers, invoices, briefs, deliverables, tasks, rooms] = await Promise.all([
     prisma.client.findMany({
       where: { companyId },
       select: { id: true, companyName: true, email: true, address: true },
@@ -295,9 +443,59 @@ async function loadLookups(companyId: string): Promise<WorkspaceLookups> {
       orderBy: { createdAt: 'asc' },
       take: 50,
     }),
+    prisma.user.findMany({
+      where: {
+        companyId,
+        accountStatus: 'ACTIVE',
+        role: { in: ['OWNER', 'MANAGER'] },
+      },
+      select: { id: true, name: true, role: true },
+      orderBy: { name: 'asc' },
+      take: 80,
+    }),
+    prisma.invoice.findMany({
+      where: { companyId },
+      select: {
+        id: true,
+        invoiceNumber: true,
+        clientName: true,
+        status: true,
+        total: true,
+        currency: true,
+        dueDate: true,
+        paidAt: true,
+        createdAt: true,
+      },
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+      take: 150,
+    }),
+    prisma.brief.findMany({
+      where: { companyId },
+      select: { id: true, title: true, campaign: { select: { title: true } } },
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+      take: 150,
+    }),
+    prisma.deliverable.findMany({
+      where: { companyId },
+      select: { id: true, title: true, campaign: { select: { title: true } } },
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+      take: 150,
+    }),
+    prisma.task.findMany({
+      where: { project: { companyId } },
+      select: { id: true, title: true, project: { select: { title: true } } },
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+      take: 150,
+    }),
+    prisma.room.findMany({
+      where: { companyId },
+      select: { id: true, name: true },
+      orderBy: { name: 'asc' },
+      take: 100,
+    }),
   ])
 
-  return { clients, projects, categories }
+  return { clients, projects, categories, managers, invoices, briefs, deliverables, tasks, rooms }
 }
 
 function missingDetailsAnswer(kind: string, details: string[]) {
@@ -318,6 +516,66 @@ function missingDetailsAnswer(kind: string, details: string[]) {
     citations: [],
     quickActions: ['Create campaign', 'Create brief', 'Create invoice', 'Create client'],
     facts: { missing: details },
+  }
+}
+
+function forbiddenAdminActionAnswer(intent: string, action: string) {
+  return {
+    handled: true,
+    intent,
+    confidence: 'high' as const,
+    answer: [
+      '**Direct Answer**',
+      `I cannot ${action} for your current role.`,
+      '',
+      '**Access Required**',
+      '- This AI action is limited to workspace Owners and Managers.',
+    ].join('\n'),
+    citations: [],
+    quickActions: ['Analyze delayed projects', 'Find overdue invoices'],
+    facts: { forbidden: true },
+  }
+}
+
+function missingTargetAnswer(intent: string, subject: string, examples: string[] = []) {
+  return {
+    handled: true,
+    intent,
+    confidence: 'high' as const,
+    answer: [
+      '**Direct Answer**',
+      `I can ${intent.startsWith('delete') ? 'delete' : 'update'} that ${subject}, but I need a specific ${subject} name, number, or ID first.`,
+      '',
+      '**Required Field**',
+      `- ${subject} name, number, or ID`,
+      examples.length ? '' : '',
+      examples.length ? '**Available Examples**' : '',
+      ...examples.map((example) => `- ${example}`),
+    ].filter(Boolean).join('\n'),
+    citations: [],
+    quickActions: ['Find overdue invoices', 'Create invoice', 'Analyze delayed projects'],
+    facts: { missingTarget: subject, examples },
+  }
+}
+
+function ambiguousTargetAnswer(intent: string, subject: string, options: string[]) {
+  return {
+    handled: true,
+    intent,
+    confidence: 'high' as const,
+    answer: [
+      '**Direct Answer**',
+      `I found more than one ${subject} that could match your prompt.`,
+      '',
+      '**Choose One**',
+      ...options.map((option) => `- ${option}`),
+      '',
+      '**Next Step**',
+      `Send the exact ${subject} name, number, or ID and I will run the action.`,
+    ].join('\n'),
+    citations: [],
+    quickActions: ['Find overdue invoices', 'Analyze delayed projects'],
+    facts: { ambiguousTarget: subject, options },
   }
 }
 
@@ -342,9 +600,13 @@ async function createCampaign(input: {
   const title = extractTitle(input.message, 'campaign')
   if (!title || title.length < 3) return missingDetailsAnswer('campaign', ['a campaign name'])
 
-  const client = findBestByName(input.lookups.clients, input.message)
+  const clientId = extractLabeledValue(input.message, ['client id', 'clientId'])
+  const categoryId = extractLabeledValue(input.message, ['category id', 'categoryId'])
+  const managerId = extractLabeledValue(input.message, ['manager id', 'managerId'])
+  const client = findById(input.lookups.clients, clientId) ?? findBestByName(input.lookups.clients, input.message)
   const requestedClientName = extractLabeledValue(input.message, ['client', 'client name', 'customer', 'customer name'])
-  const category = findBestByName(input.lookups.categories, input.message) ?? (input.lookups.categories.length === 1 ? input.lookups.categories[0] : null)
+  const category = findById(input.lookups.categories, categoryId) ?? findBestByName(input.lookups.categories, input.message) ?? (input.lookups.categories.length === 1 ? input.lookups.categories[0] : null)
+  const manager = findById(input.lookups.managers, managerId)
   if (input.lookups.categories.length > 1 && !category) {
     return missingDetailsAnswer('campaign', [`one category (${input.lookups.categories.map((item) => item.name).slice(0, 5).join(', ')})`])
   }
@@ -357,7 +619,7 @@ async function createCampaign(input: {
       categoryId: category?.id ?? null,
       clientId: client?.id ?? null,
       clientName: client?.companyName ?? requestedClientName ?? null,
-      managerId: input.user.id,
+      managerId: manager?.id ?? input.user.id,
       hasCamera: false,
       cameraType: 'device',
     },
@@ -382,6 +644,7 @@ async function createCampaign(input: {
       `Campaign created: ${project.title}`,
       client ? `Client: ${client.companyName}` : requestedClientName ? `Client: ${requestedClientName}` : '',
       project.category?.name ? `Category: ${project.category.name}` : '',
+      manager ? `Manager: ${manager.name}` : '',
       '',
       'I also initialized the campaign brief so the team has a structured starting point.',
     ].filter(Boolean).join('\n'),
@@ -409,7 +672,8 @@ async function createBrief(input: {
     }
   }
 
-  const campaign = findBestByName(input.lookups.projects, input.message) ?? (input.lookups.projects.length === 1 ? input.lookups.projects[0] : null)
+  const campaignId = extractLabeledValue(input.message, ['campaign id', 'campaignId', 'project id', 'projectId'])
+  const campaign = findById(input.lookups.projects, campaignId) ?? findBestByName(input.lookups.projects, input.message) ?? (input.lookups.projects.length === 1 ? input.lookups.projects[0] : null)
   if (!campaign) return missingDetailsAnswer('brief', ['the campaign name'])
 
   const title = extractTitle(input.message, 'brief') || `${campaign.title} brief`
@@ -479,15 +743,18 @@ async function createInvoice(input: {
     }
   }
 
-  const client = findBestByName(input.lookups.clients, input.message)
-  const campaign = findBestByName(input.lookups.projects, input.message)
+  const clientId = extractLabeledValue(input.message, ['client id', 'clientId'])
+  const campaignId = extractLabeledValue(input.message, ['campaign id', 'campaignId', 'project id', 'projectId'])
+  const client = findById(input.lookups.clients, clientId) ?? findBestByName(input.lookups.clients, input.message)
+  const campaign = findById(input.lookups.projects, campaignId) ?? findBestByName(input.lookups.projects, input.message)
   const amount = extractMoney(input.message)
   if (!client && !campaign?.clientName) return missingDetailsAnswer('invoice', ['a client name'])
   if (!amount) return missingDetailsAnswer('invoice', ['an invoice amount such as "$1200"'])
 
   const clientName = client?.companyName ?? campaign?.clientName ?? ''
   const currency = extractCurrency(input.message)
-  const itemDescription = extractTitle(input.message, 'invoice') || `Services for ${campaign?.title ?? clientName}`
+  const itemDescription = extractLabeledValue(input.message, ['line item', 'item', 'description']) || extractTitle(input.message, 'invoice') || `Services for ${campaign?.title ?? clientName}`
+  const invoiceLocale = extractLabeledValue(input.message, ['invoice locale', 'locale', 'language'])
   const rawItems: InvoiceItemInput[] = [{ description: itemDescription, quantity: 1, unitPrice: amount }]
   const totals = calculateInvoiceTotals(rawItems, 0)
   if (totals.items.length === 0) return missingDetailsAnswer('invoice', ['a line-item description'])
@@ -506,6 +773,7 @@ async function createInvoice(input: {
       clientAddress: client?.address ?? null,
       status: 'draft',
       currency,
+      locale: invoiceLocale === 'ar' ? 'ar' : 'en',
       issueDate: new Date(),
       dueDate: dueDate ? new Date(dueDate) : null,
       notes: extractDescription(input.message),
@@ -575,6 +843,7 @@ async function createClient(input: {
   const country = extractLabeledValue(input.message, ['country'])
   const address = extractLabeledValue(input.message, ['address'])
   const notes = extractLabeledValue(input.message, ['notes', 'note'])
+  const status = extractLabeledValue(input.message, ['status'])?.toLowerCase() === 'inactive' ? 'inactive' : 'active'
 
   const client = await prisma.client.create({
     data: {
@@ -586,7 +855,7 @@ async function createClient(input: {
       country: country || null,
       address: address || null,
       notes: notes || null,
-      status: 'active',
+      status,
       activities: {
         create: {
           companyId: input.user.companyId,
@@ -626,6 +895,7 @@ async function createClient(input: {
       email ? `- Email: ${email.toLowerCase()}` : '',
       phone ? `- Phone: ${phone}` : '',
       country ? `- Country: ${country}` : '',
+      `- Status: ${status}`,
       '',
       'Suggested Next Actions',
       '- Create the first campaign for this client.',
@@ -797,18 +1067,243 @@ async function sendPaymentDeadlineAlerts(input: {
   }
 }
 
+async function markInvoicePaid(input: {
+  message: string
+  user: AiSessionUser
+  lookups: WorkspaceLookups
+}) {
+  if (!input.user.companyId) return missingDetailsAnswer('invoice payment', ['an active workspace'])
+  if (!canManageInvoices(input.user)) return forbiddenAdminActionAnswer('mark_invoice_paid', 'mark invoices as paid')
+  const companyId = input.user.companyId
+
+  const target = resolveInvoiceTarget(input.lookups.invoices, input.message)
+  if (target.status === 'missing') return missingTargetAnswer('mark_invoice_paid', 'invoice', target.examples)
+  if (target.status === 'ambiguous') return ambiguousTargetAnswer('mark_invoice_paid', 'invoice', target.options)
+
+  const existing = await prisma.invoice.findFirst({
+    where: { id: target.item.id, companyId },
+    include: {
+      items: { orderBy: { createdAt: 'asc' } },
+      client: { select: { id: true, companyName: true } },
+      campaign: { select: { id: true, title: true } },
+    },
+  })
+  if (!existing) return missingTargetAnswer('mark_invoice_paid', 'invoice', input.lookups.invoices.slice(0, 5).map((invoice) => `${invoice.invoiceNumber} - ${invoice.clientName}`))
+
+  if (existing.status === 'paid') {
+    return {
+      handled: true,
+      intent: 'mark_invoice_paid',
+      confidence: 'high' as const,
+      answer: [
+        '**Direct Answer**',
+        `${existing.invoiceNumber} is already marked paid.`,
+        '',
+        '**Invoice**',
+        `- Client: ${existing.clientName}`,
+        `- Total: ${formatActionMoney(Number(existing.total), existing.currency)}`,
+        existing.paidAt ? `- Paid at: ${formatActionDate(existing.paidAt)}` : '',
+      ].filter(Boolean).join('\n'),
+      citations: [{ type: 'invoice' as const, id: existing.id, label: `${existing.invoiceNumber} - ${existing.clientName}`, href: '/dashboard/admin/invoices' }],
+      quickActions: ['Find overdue invoices', 'Create invoice', 'Send payment deadline alerts'],
+      facts: { invoiceId: existing.id, invoiceNumber: existing.invoiceNumber, alreadyPaid: true },
+    }
+  }
+
+  const paidAt = new Date()
+  const invoice = await prisma.$transaction(async (tx) => {
+    const updated = await tx.invoice.update({
+      where: { id: existing.id },
+      data: {
+        status: 'paid',
+        paidAt,
+        sentAt: existing.sentAt ?? paidAt,
+      },
+      include: {
+        items: { orderBy: { createdAt: 'asc' } },
+        client: { select: { id: true, companyName: true } },
+        campaign: { select: { id: true, title: true } },
+      },
+    })
+
+    await tx.adminActionLog.create({
+      data: {
+        companyId,
+        actorId: input.user.id,
+        action: 'ai.invoice.mark_paid',
+        metadata: {
+          prompt: input.message.slice(0, 500),
+          invoiceId: existing.id,
+          invoiceNumber: existing.invoiceNumber,
+          previousStatus: existing.status,
+          nextStatus: 'paid',
+        },
+      },
+    })
+
+    return updated
+  })
+
+  const serialized = serializeInvoice(invoice)
+  emitCompanyRealtime(companyId, 'invoice_updated', { invoice: serialized })
+
+  return {
+    handled: true,
+    intent: 'mark_invoice_paid',
+    confidence: 'high' as const,
+    answer: [
+      '**Direct Answer**',
+      `Invoice marked paid: ${invoice.invoiceNumber}`,
+      '',
+      '**Payment Update**',
+      `- Client: ${invoice.clientName}`,
+      `- Total: ${formatActionMoney(Number(invoice.total), invoice.currency)}`,
+      `- Paid at: ${formatActionDate(invoice.paidAt)}`,
+      '',
+      '**Governance**',
+      '- The action was recorded in the admin action log.',
+    ].join('\n'),
+    citations: [{ type: 'invoice' as const, id: invoice.id, label: `${invoice.invoiceNumber} - ${invoice.clientName}`, href: '/dashboard/admin/invoices' }],
+    quickActions: ['Find overdue invoices', 'Create invoice', 'Send payment deadline alerts'],
+    facts: { invoiceId: invoice.id, invoiceNumber: invoice.invoiceNumber, status: invoice.status },
+  }
+}
+
+function resolveDeleteTarget(kind: DeletableKind, lookups: WorkspaceLookups, message: string): ResolvedTarget<{ id: string }> {
+  if (kind === 'invoice') return resolveInvoiceTarget(lookups.invoices, message)
+  if (kind === 'client') return resolveTarget(lookups.clients, message, ['client id', 'clientId', 'id'], (client) => [client.companyName, client.email])
+  if (kind === 'campaign') return resolveTarget(lookups.projects, message, ['campaign id', 'campaignId', 'project id', 'projectId', 'id'], (project) => [project.title, project.clientName])
+  if (kind === 'brief') return resolveTarget(lookups.briefs, message, ['brief id', 'briefId', 'id'], (brief) => [brief.title, brief.campaign.title])
+  if (kind === 'deliverable') return resolveTarget(lookups.deliverables, message, ['deliverable id', 'deliverableId', 'id'], (deliverable) => [deliverable.title, deliverable.campaign.title])
+  if (kind === 'task') return resolveTarget(lookups.tasks, message, ['task id', 'taskId', 'id'], (task) => [task.title, task.project.title])
+  if (kind === 'category') return resolveTarget(lookups.categories, message, ['category id', 'categoryId', 'id'], (category) => [category.name])
+  return resolveTarget(lookups.rooms, message, ['room id', 'roomId', 'id'], (room) => [room.name])
+}
+
+function deleteSubjectLabel(kind: DeletableKind) {
+  if (kind === 'campaign') return 'campaign/project'
+  return kind
+}
+
+function deleteTargetLabel(kind: DeletableKind, target: { id: string }, lookups: WorkspaceLookups) {
+  if (kind === 'invoice') {
+    const invoice = lookups.invoices.find((item) => item.id === target.id)
+    return invoice ? `${invoice.invoiceNumber} - ${invoice.clientName}` : target.id
+  }
+  if (kind === 'client') return lookups.clients.find((item) => item.id === target.id)?.companyName ?? target.id
+  if (kind === 'campaign') return lookups.projects.find((item) => item.id === target.id)?.title ?? target.id
+  if (kind === 'brief') return lookups.briefs.find((item) => item.id === target.id)?.title ?? target.id
+  if (kind === 'deliverable') return lookups.deliverables.find((item) => item.id === target.id)?.title ?? target.id
+  if (kind === 'task') return lookups.tasks.find((item) => item.id === target.id)?.title ?? target.id
+  if (kind === 'category') return lookups.categories.find((item) => item.id === target.id)?.name ?? target.id
+  return lookups.rooms.find((item) => item.id === target.id)?.name ?? target.id
+}
+
+async function deleteWorkspaceRecord(input: {
+  message: string
+  user: AiSessionUser
+  lookups: WorkspaceLookups
+  kind: DeletableKind
+}) {
+  if (!input.user.companyId) return missingDetailsAnswer(input.kind, ['an active workspace'])
+  if (!canManageOperations(input.user)) return forbiddenAdminActionAnswer(`delete_${input.kind}`, `delete ${deleteSubjectLabel(input.kind)} records`)
+  const companyId = input.user.companyId
+
+  const target = resolveDeleteTarget(input.kind, input.lookups, input.message)
+  const subject = deleteSubjectLabel(input.kind)
+  if (target.status === 'missing') return missingTargetAnswer(`delete_${input.kind}`, subject, target.examples)
+  if (target.status === 'ambiguous') return ambiguousTargetAnswer(`delete_${input.kind}`, subject, target.options)
+
+  const label = deleteTargetLabel(input.kind, target.item, input.lookups)
+
+  await prisma.$transaction(async (tx) => {
+    if (input.kind === 'invoice') {
+      await tx.invoiceItem.deleteMany({ where: { invoiceId: target.item.id } })
+      await tx.invoice.deleteMany({ where: { id: target.item.id, companyId } })
+    } else if (input.kind === 'client') {
+      await deleteClientGraph(tx, target.item.id)
+    } else if (input.kind === 'campaign') {
+      await deleteProjectGraph(tx, target.item.id)
+    } else if (input.kind === 'task') {
+      await deleteTasksById(tx, [target.item.id])
+    } else if (input.kind === 'brief') {
+      await tx.brief.deleteMany({ where: { id: target.item.id, companyId } })
+    } else if (input.kind === 'deliverable') {
+      await tx.deliverable.deleteMany({ where: { id: target.item.id, companyId } })
+    } else if (input.kind === 'category') {
+      await tx.projectCategory.deleteMany({ where: { id: target.item.id, companyId } })
+    } else {
+      await tx.room.deleteMany({ where: { id: target.item.id, companyId } })
+    }
+
+    await tx.adminActionLog.create({
+      data: {
+        companyId,
+        actorId: input.user.id,
+        action: `ai.delete.${input.kind}`,
+        metadata: {
+          prompt: input.message.slice(0, 500),
+          entityType: input.kind,
+          entityId: target.item.id,
+          label,
+        },
+      },
+    })
+  })
+
+  if (input.kind === 'invoice') {
+    emitCompanyRealtime(companyId, 'invoice_deleted', { invoiceId: target.item.id })
+  } else if (input.kind === 'client') {
+    emitCompanyRealtime(companyId, 'client_deleted', { clientId: target.item.id })
+  } else if (input.kind === 'campaign') {
+    emitCompanyRealtime(companyId, 'project_deleted', { projectId: target.item.id })
+  } else if (input.kind === 'task') {
+    emitCompanyRealtime(companyId, 'task_deleted', { taskId: target.item.id })
+  } else {
+    emitCompanyRealtime(companyId, 'workspace_event', {
+      type: `${input.kind}_deleted`,
+      entityType: input.kind,
+      entityId: target.item.id,
+      label,
+    })
+  }
+
+  return {
+    handled: true,
+    intent: `delete_${input.kind}`,
+    confidence: 'high' as const,
+    answer: [
+      '**Direct Answer**',
+      `${subject} deleted: ${label}`,
+      '',
+      '**Governance**',
+      '- The action was limited to this workspace.',
+      '- The deletion was recorded in the admin action log.',
+    ].join('\n'),
+    citations: [],
+    quickActions: ['Analyze delayed projects', 'Find overdue invoices', 'Create campaign', 'Create client'],
+    facts: { deleted: true, entityType: input.kind, entityId: target.item.id, label },
+  }
+}
+
 export async function executeAiWorkspaceAction(input: {
   message: string
   user: AiSessionUser
 }): Promise<AiActionResult> {
   const kind = getActionKind(input.message)
   if (!kind) return { handled: false }
+  if (kind === 'delete') return missingTargetAnswer('delete', 'record type', ['invoice', 'client', 'campaign/project', 'brief', 'deliverable', 'task'])
   if (!input.user.companyId) return missingDetailsAnswer(kind, ['an active workspace'])
 
   if (kind === 'client') return createClient({ message: input.message, user: input.user })
   if (kind === 'payment_alerts') return sendPaymentDeadlineAlerts({ user: input.user })
 
   const lookups = await loadLookups(input.user.companyId)
+  if (kind === 'mark_invoice_paid') return markInvoicePaid({ message: input.message, user: input.user, lookups })
+  if (kind.startsWith('delete_')) {
+    const deleteKind = kind.replace('delete_', '') as DeletableKind
+    return deleteWorkspaceRecord({ message: input.message, user: input.user, lookups, kind: deleteKind })
+  }
   if (kind === 'campaign') return createCampaign({ message: input.message, user: input.user, lookups })
   if (kind === 'brief') return createBrief({ message: input.message, user: input.user, lookups })
   if (kind === 'invoice') return createInvoice({ message: input.message, user: input.user, lookups })

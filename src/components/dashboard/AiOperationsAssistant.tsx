@@ -35,6 +35,7 @@ type AssistantResponse = {
   id: string
   conversationId?: string | null
   answer: string
+  intent?: string
   citations: AssistantMessage['citations']
   quickActions: string[]
   policy: {
@@ -62,6 +63,8 @@ type WorkflowStep = {
   multiline?: boolean
   inputMode?: React.HTMLAttributes<HTMLInputElement>['inputMode']
   defaultValue?: string
+  optionSource?: WorkflowOptionSource
+  emptyLabel?: string
 }
 
 type WorkflowDefinition = {
@@ -83,6 +86,30 @@ type ActiveWorkflow = {
   values: Record<string, string>
 }
 
+type WorkflowOptionSource = 'clients' | 'campaigns' | 'categories' | 'managers' | 'rooms' | 'currencies' | 'invoiceLocales' | 'clientStatuses'
+
+type WorkflowOption = {
+  value: string
+  label: string
+  description?: string | null
+  clientId?: string | null
+  clientName?: string | null
+}
+
+type WorkflowContext = {
+  companyType: string
+  canManageWorkspace: boolean
+  canManageFinance: boolean
+  clients: WorkflowOption[]
+  campaigns: WorkflowOption[]
+  categories: WorkflowOption[]
+  managers: WorkflowOption[]
+  rooms: WorkflowOption[]
+  currencies: WorkflowOption[]
+  invoiceLocales: WorkflowOption[]
+  clientStatuses: WorkflowOption[]
+}
+
 const starterPrompts = [
   'What should management focus on today?',
   'What is blocking the launch?',
@@ -94,6 +121,8 @@ const starterPrompts = [
   'Create campaign',
   'Create brief',
   'Create invoice',
+  'Mark invoice paid',
+  'Delete record',
   'Send payment deadline alerts',
   'Summarize pending approvals',
   'Which clients need follow-up?',
@@ -112,6 +141,8 @@ const quickActionLabels: Record<AppLocale, Record<string, string>> = {
     'Create campaign': 'Créer une campagne',
     'Create brief': 'Créer un brief',
     'Create invoice': 'Créer une facture',
+    'Mark invoice paid': 'Marquer une facture payée',
+    'Delete record': 'Supprimer un élément',
     'Send payment deadline alerts': 'Envoyer les alertes paiement',
     'Summarize pending approvals': 'Résumer les approbations',
     'Which clients need follow-up?': 'Quels clients relancer ?',
@@ -136,6 +167,8 @@ const quickActionLabels: Record<AppLocale, Record<string, string>> = {
     'Create campaign': 'إنشاء حملة',
     'Create brief': 'إنشاء بريف',
     'Create invoice': 'إنشاء فاتورة',
+    'Mark invoice paid': 'تحديد فاتورة كمدفوعة',
+    'Delete record': 'حذف عنصر',
     'Send payment deadline alerts': 'إرسال تنبيهات الدفع',
     'Summarize pending approvals': 'لخص الموافقات المعلقة',
     'Which clients need follow-up?': 'أي العملاء يحتاجون متابعة؟',
@@ -165,8 +198,9 @@ const workflowDefinitions: Record<AppLocale, Record<WorkflowKind, WorkflowDefini
       cancelled: '**Creation Cancelled**\nThe guided creation flow was cancelled.',
       steps: [
         { id: 'campaignName', label: 'Campaign name', placeholder: 'Example: Ramadan Launch 2026' },
-        { id: 'clientName', label: 'Client name', placeholder: 'Existing client name, or leave blank', optional: true },
-        { id: 'category', label: 'Category', placeholder: 'Example: Social Media, Branding, Production', optional: true },
+        { id: 'clientId', label: 'Client account', placeholder: 'Select a client...', optionSource: 'clients', emptyLabel: 'No clients yet. Create a client first.' },
+        { id: 'categoryId', label: 'Category', placeholder: 'Select a category...', optionSource: 'categories', emptyLabel: 'No categories yet. Create a campaign category first.' },
+        { id: 'managerId', label: 'Manager', placeholder: 'Current user', optional: true, optionSource: 'managers' },
         { id: 'description', label: 'Campaign description', placeholder: 'Goal, scope, channels, or notes', optional: true, multiline: true },
       ],
     },
@@ -181,7 +215,7 @@ const workflowDefinitions: Record<AppLocale, Record<WorkflowKind, WorkflowDefini
       optionalLabel: 'Optional',
       cancelled: '**Creation Cancelled**\nThe guided creation flow was cancelled.',
       steps: [
-        { id: 'campaignName', label: 'Campaign name', placeholder: 'Campaign this brief belongs to' },
+        { id: 'campaignId', label: 'Campaign', placeholder: 'Select a campaign...', optionSource: 'campaigns', emptyLabel: 'No campaigns found. Create a campaign first.' },
         { id: 'briefTitle', label: 'Brief title', placeholder: 'Example: Launch video brief' },
         { id: 'description', label: 'Brief details', placeholder: 'Objectives, audience, deliverables, constraints', optional: true, multiline: true },
       ],
@@ -197,9 +231,11 @@ const workflowDefinitions: Record<AppLocale, Record<WorkflowKind, WorkflowDefini
       optionalLabel: 'Optional',
       cancelled: '**Creation Cancelled**\nThe guided creation flow was cancelled.',
       steps: [
-        { id: 'clientName', label: 'Client or campaign name', placeholder: 'Existing client or campaign' },
+        { id: 'clientId', label: 'Client account', placeholder: 'Select a client...', optionSource: 'clients', emptyLabel: 'No clients found. Create a client first.' },
+        { id: 'campaignId', label: 'Campaign', placeholder: 'Optional campaign link', optional: true, optionSource: 'campaigns' },
         { id: 'amount', label: 'Amount', placeholder: '1200', inputMode: 'decimal' },
-        { id: 'currency', label: 'Currency', placeholder: 'USD, EUR, TND...', defaultValue: 'USD' },
+        { id: 'currency', label: 'Currency', placeholder: 'USD, EUR, TND...', defaultValue: 'USD', optionSource: 'currencies' },
+        { id: 'invoiceLocale', label: 'Invoice language', placeholder: 'English', defaultValue: 'en', optionSource: 'invoiceLocales' },
         { id: 'lineItem', label: 'Line item', placeholder: 'Example: Social media campaign management' },
         { id: 'dueDate', label: 'Due date', placeholder: 'YYYY-MM-DD, or leave blank', optional: true },
         { id: 'notes', label: 'Invoice notes', placeholder: 'Payment terms or client note', optional: true, multiline: true },
@@ -221,6 +257,7 @@ const workflowDefinitions: Record<AppLocale, Record<WorkflowKind, WorkflowDefini
         { id: 'email', label: 'Email', placeholder: 'client@example.com', optional: true, inputMode: 'email' },
         { id: 'phone', label: 'Phone', placeholder: '+216 ...', optional: true, inputMode: 'tel' },
         { id: 'country', label: 'Country', placeholder: 'Tunisia, France, UAE...', optional: true },
+        { id: 'status', label: 'Status', placeholder: 'Active', defaultValue: 'active', optionSource: 'clientStatuses' },
         { id: 'address', label: 'Address', placeholder: 'Billing or office address', optional: true },
         { id: 'notes', label: 'Notes', placeholder: 'Relationship context, billing terms, preferences', optional: true, multiline: true },
       ],
@@ -239,8 +276,9 @@ const workflowDefinitions: Record<AppLocale, Record<WorkflowKind, WorkflowDefini
       cancelled: '**Création annulée**\nLe flux guidé a été annulé.',
       steps: [
         { id: 'campaignName', label: 'Nom de la campagne', placeholder: 'Exemple : Lancement Ramadan 2026' },
-        { id: 'clientName', label: 'Nom du client', placeholder: 'Client existant, ou vide', optional: true },
-        { id: 'category', label: 'Catégorie', placeholder: 'Exemple : Social Media, Branding, Production', optional: true },
+        { id: 'clientId', label: 'Compte client', placeholder: 'Sélectionner un client...', optionSource: 'clients', emptyLabel: 'Aucun client. Créez d’abord un client.' },
+        { id: 'categoryId', label: 'Catégorie', placeholder: 'Sélectionner une catégorie...', optionSource: 'categories', emptyLabel: 'Aucune catégorie. Créez d’abord une catégorie.' },
+        { id: 'managerId', label: 'Manager', placeholder: 'Utilisateur actuel', optional: true, optionSource: 'managers' },
         { id: 'description', label: 'Description', placeholder: 'Objectif, périmètre, canaux ou notes', optional: true, multiline: true },
       ],
     },
@@ -255,7 +293,7 @@ const workflowDefinitions: Record<AppLocale, Record<WorkflowKind, WorkflowDefini
       optionalLabel: 'Optionnel',
       cancelled: '**Création annulée**\nLe flux guidé a été annulé.',
       steps: [
-        { id: 'campaignName', label: 'Nom de la campagne', placeholder: 'Campagne liée à ce brief' },
+        { id: 'campaignId', label: 'Campagne', placeholder: 'Sélectionner une campagne...', optionSource: 'campaigns', emptyLabel: 'Aucune campagne trouvée. Créez d’abord une campagne.' },
         { id: 'briefTitle', label: 'Titre du brief', placeholder: 'Exemple : Brief vidéo de lancement' },
         { id: 'description', label: 'Détails du brief', placeholder: 'Objectifs, audience, livrables, contraintes', optional: true, multiline: true },
       ],
@@ -271,9 +309,11 @@ const workflowDefinitions: Record<AppLocale, Record<WorkflowKind, WorkflowDefini
       optionalLabel: 'Optionnel',
       cancelled: '**Création annulée**\nLe flux guidé a été annulé.',
       steps: [
-        { id: 'clientName', label: 'Client ou campagne', placeholder: 'Client ou campagne existante' },
+        { id: 'clientId', label: 'Compte client', placeholder: 'Sélectionner un client...', optionSource: 'clients', emptyLabel: 'Aucun client trouvé. Créez d’abord un client.' },
+        { id: 'campaignId', label: 'Campagne', placeholder: 'Lien campagne optionnel', optional: true, optionSource: 'campaigns' },
         { id: 'amount', label: 'Montant', placeholder: '1200', inputMode: 'decimal' },
-        { id: 'currency', label: 'Devise', placeholder: 'USD, EUR, TND...', defaultValue: 'USD' },
+        { id: 'currency', label: 'Devise', placeholder: 'USD, EUR, TND...', defaultValue: 'USD', optionSource: 'currencies' },
+        { id: 'invoiceLocale', label: 'Langue facture', placeholder: 'English', defaultValue: 'en', optionSource: 'invoiceLocales' },
         { id: 'lineItem', label: 'Ligne de facture', placeholder: 'Exemple : Gestion campagne social media' },
         { id: 'dueDate', label: 'Échéance', placeholder: 'YYYY-MM-DD, ou vide', optional: true },
         { id: 'notes', label: 'Notes facture', placeholder: 'Conditions de paiement ou note client', optional: true, multiline: true },
@@ -295,6 +335,7 @@ const workflowDefinitions: Record<AppLocale, Record<WorkflowKind, WorkflowDefini
         { id: 'email', label: 'Email', placeholder: 'client@example.com', optional: true, inputMode: 'email' },
         { id: 'phone', label: 'Téléphone', placeholder: '+216 ...', optional: true, inputMode: 'tel' },
         { id: 'country', label: 'Pays', placeholder: 'Tunisie, France, UAE...', optional: true },
+        { id: 'status', label: 'Statut', placeholder: 'Actif', defaultValue: 'active', optionSource: 'clientStatuses' },
         { id: 'address', label: 'Adresse', placeholder: 'Adresse de facturation ou bureau', optional: true },
         { id: 'notes', label: 'Notes', placeholder: 'Contexte relation, paiement, préférences', optional: true, multiline: true },
       ],
@@ -313,8 +354,9 @@ const workflowDefinitions: Record<AppLocale, Record<WorkflowKind, WorkflowDefini
       cancelled: '**تم إلغاء الإنشاء**\nتم إلغاء التدفق الموجه.',
       steps: [
         { id: 'campaignName', label: 'اسم الحملة', placeholder: 'مثال: إطلاق رمضان 2026' },
-        { id: 'clientName', label: 'اسم العميل', placeholder: 'عميل موجود أو اتركه فارغاً', optional: true },
-        { id: 'category', label: 'الفئة', placeholder: 'مثال: Social Media, Branding, Production', optional: true },
+        { id: 'clientId', label: 'حساب العميل', placeholder: 'اختر عميلاً...', optionSource: 'clients', emptyLabel: 'لا يوجد عملاء. أنشئ عميلاً أولاً.' },
+        { id: 'categoryId', label: 'الفئة', placeholder: 'اختر فئة...', optionSource: 'categories', emptyLabel: 'لا توجد فئات. أنشئ فئة أولاً.' },
+        { id: 'managerId', label: 'المدير', placeholder: 'المستخدم الحالي', optional: true, optionSource: 'managers' },
         { id: 'description', label: 'وصف الحملة', placeholder: 'الهدف، النطاق، القنوات أو الملاحظات', optional: true, multiline: true },
       ],
     },
@@ -329,7 +371,7 @@ const workflowDefinitions: Record<AppLocale, Record<WorkflowKind, WorkflowDefini
       optionalLabel: 'اختياري',
       cancelled: '**تم إلغاء الإنشاء**\nتم إلغاء التدفق الموجه.',
       steps: [
-        { id: 'campaignName', label: 'اسم الحملة', placeholder: 'الحملة المرتبطة بهذا البريف' },
+        { id: 'campaignId', label: 'الحملة', placeholder: 'اختر حملة...', optionSource: 'campaigns', emptyLabel: 'لا توجد حملات. أنشئ حملة أولاً.' },
         { id: 'briefTitle', label: 'عنوان البريف', placeholder: 'مثال: بريف فيديو الإطلاق' },
         { id: 'description', label: 'تفاصيل البريف', placeholder: 'الأهداف، الجمهور، التسليمات، القيود', optional: true, multiline: true },
       ],
@@ -345,9 +387,11 @@ const workflowDefinitions: Record<AppLocale, Record<WorkflowKind, WorkflowDefini
       optionalLabel: 'اختياري',
       cancelled: '**تم إلغاء الإنشاء**\nتم إلغاء التدفق الموجه.',
       steps: [
-        { id: 'clientName', label: 'اسم العميل أو الحملة', placeholder: 'عميل أو حملة موجودة' },
+        { id: 'clientId', label: 'حساب العميل', placeholder: 'اختر عميلاً...', optionSource: 'clients', emptyLabel: 'لا يوجد عملاء. أنشئ عميلاً أولاً.' },
+        { id: 'campaignId', label: 'الحملة', placeholder: 'ربط اختياري بالحملة', optional: true, optionSource: 'campaigns' },
         { id: 'amount', label: 'المبلغ', placeholder: '1200', inputMode: 'decimal' },
-        { id: 'currency', label: 'العملة', placeholder: 'USD, EUR, TND...', defaultValue: 'USD' },
+        { id: 'currency', label: 'العملة', placeholder: 'USD, EUR, TND...', defaultValue: 'USD', optionSource: 'currencies' },
+        { id: 'invoiceLocale', label: 'لغة الفاتورة', placeholder: 'English', defaultValue: 'en', optionSource: 'invoiceLocales' },
         { id: 'lineItem', label: 'بند الفاتورة', placeholder: 'مثال: إدارة حملة سوشيال ميديا' },
         { id: 'dueDate', label: 'تاريخ الاستحقاق', placeholder: 'YYYY-MM-DD أو اتركه فارغاً', optional: true },
         { id: 'notes', label: 'ملاحظات الفاتورة', placeholder: 'شروط الدفع أو ملاحظة للعميل', optional: true, multiline: true },
@@ -369,6 +413,7 @@ const workflowDefinitions: Record<AppLocale, Record<WorkflowKind, WorkflowDefini
         { id: 'email', label: 'البريد الإلكتروني', placeholder: 'client@example.com', optional: true, inputMode: 'email' },
         { id: 'phone', label: 'الهاتف', placeholder: '+216 ...', optional: true, inputMode: 'tel' },
         { id: 'country', label: 'البلد', placeholder: 'تونس، فرنسا، الإمارات...', optional: true },
+        { id: 'status', label: 'الحالة', placeholder: 'نشط', defaultValue: 'active', optionSource: 'clientStatuses' },
         { id: 'address', label: 'العنوان', placeholder: 'عنوان الفوترة أو المكتب', optional: true },
         { id: 'notes', label: 'ملاحظات', placeholder: 'سياق العلاقة، شروط الدفع، التفضيلات', optional: true, multiline: true },
       ],
@@ -494,23 +539,77 @@ function initialWorkflowValues(definition: WorkflowDefinition) {
   )
 }
 
+function emptyWorkflowContext(): WorkflowContext {
+  return {
+    companyType: 'OTHER',
+    canManageWorkspace: false,
+    canManageFinance: false,
+    clients: [],
+    campaigns: [],
+    categories: [],
+    managers: [],
+    rooms: [],
+    currencies: [{ value: 'USD', label: 'USD' }],
+    invoiceLocales: [
+      { value: 'en', label: 'English' },
+      { value: 'ar', label: 'العربية' },
+    ],
+    clientStatuses: [
+      { value: 'active', label: 'Active' },
+      { value: 'inactive', label: 'Inactive' },
+    ],
+  }
+}
+
 function compactValue(value: string | undefined) {
   return value?.trim() ?? ''
 }
 
-function buildWorkflowPrompt(kind: WorkflowKind, values: Record<string, string>) {
+function optionsForStep(context: WorkflowContext | null, step: WorkflowStep) {
+  if (!context || !step.optionSource) return []
+  return context[step.optionSource] ?? []
+}
+
+function optionLabel(context: WorkflowContext | null, source: WorkflowOptionSource, value: string) {
+  if (!value) return ''
+  const option = context?.[source]?.find((item) => item.value === value)
+  return option?.label ?? value
+}
+
+function optionDescription(context: WorkflowContext | null, source: WorkflowOptionSource, value: string) {
+  if (!value) return ''
+  const option = context?.[source]?.find((item) => item.value === value)
+  return option?.description ?? ''
+}
+
+function isWorkflowStepRequired(kind: WorkflowKind, step: WorkflowStep, context: WorkflowContext | null) {
+  if (step.optional) return false
+  if (kind === 'campaign' && (step.id === 'clientId' || step.id === 'categoryId')) {
+    return context?.companyType === 'DIGITAL_AGENCY'
+  }
+
+  return true
+}
+
+function buildWorkflowPrompt(kind: WorkflowKind, values: Record<string, string>, context: WorkflowContext | null) {
   if (kind === 'campaign') {
     return [
       `Create campaign called "${compactValue(values.campaignName)}".`,
-      compactValue(values.clientName) ? `Client: ${compactValue(values.clientName)}.` : '',
-      compactValue(values.category) ? `Category: ${compactValue(values.category)}.` : '',
+      compactValue(values.clientId) ? `Client ID: ${compactValue(values.clientId)}.` : '',
+      compactValue(values.clientId) ? `Client: ${optionLabel(context, 'clients', compactValue(values.clientId))}.` : '',
+      compactValue(values.categoryId) ? `Category ID: ${compactValue(values.categoryId)}.` : '',
+      compactValue(values.categoryId) ? `Category: ${optionLabel(context, 'categories', compactValue(values.categoryId))}.` : '',
+      compactValue(values.managerId) ? `Manager ID: ${compactValue(values.managerId)}.` : '',
+      compactValue(values.managerId) ? `Manager: ${optionLabel(context, 'managers', compactValue(values.managerId))}.` : '',
       compactValue(values.description) ? `Description: ${compactValue(values.description)}` : '',
     ].filter(Boolean).join('\n')
   }
 
   if (kind === 'brief') {
     return [
-      `Create brief called "${compactValue(values.briefTitle)}" for campaign "${compactValue(values.campaignName)}".`,
+      `Create brief called "${compactValue(values.briefTitle)}".`,
+      compactValue(values.campaignId) ? `Campaign ID: ${compactValue(values.campaignId)}.` : '',
+      compactValue(values.campaignId) ? `Campaign: ${optionLabel(context, 'campaigns', compactValue(values.campaignId))}.` : '',
       compactValue(values.description) ? `Description: ${compactValue(values.description)}` : '',
     ].filter(Boolean).join('\n')
   }
@@ -519,7 +618,12 @@ function buildWorkflowPrompt(kind: WorkflowKind, values: Record<string, string>)
     const amount = compactValue(values.amount).replace(/[^\d.,]/g, '')
     const currency = compactValue(values.currency).toUpperCase() || 'USD'
     return [
-      `Create invoice for client "${compactValue(values.clientName)}" amount $${amount} ${currency}.`,
+      `Create invoice amount $${amount} ${currency}.`,
+      compactValue(values.clientId) ? `Client ID: ${compactValue(values.clientId)}.` : '',
+      compactValue(values.clientId) ? `Client: ${optionLabel(context, 'clients', compactValue(values.clientId))}.` : '',
+      compactValue(values.campaignId) ? `Campaign ID: ${compactValue(values.campaignId)}.` : '',
+      compactValue(values.campaignId) ? `Campaign: ${optionLabel(context, 'campaigns', compactValue(values.campaignId))}.` : '',
+      compactValue(values.invoiceLocale) ? `Invoice locale: ${compactValue(values.invoiceLocale)}.` : '',
       `Line item: ${compactValue(values.lineItem)}.`,
       compactValue(values.dueDate) ? `Due date: ${compactValue(values.dueDate)}.` : '',
       compactValue(values.notes) ? `Notes: ${compactValue(values.notes)}` : '',
@@ -532,17 +636,20 @@ function buildWorkflowPrompt(kind: WorkflowKind, values: Record<string, string>)
     compactValue(values.email) ? `Email: ${compactValue(values.email)}.` : '',
     compactValue(values.phone) ? `Phone: ${compactValue(values.phone)}.` : '',
     compactValue(values.country) ? `Country: ${compactValue(values.country)}.` : '',
+    compactValue(values.status) ? `Status: ${compactValue(values.status)}.` : '',
     compactValue(values.address) ? `Address: ${compactValue(values.address)}.` : '',
     compactValue(values.notes) ? `Notes: ${compactValue(values.notes)}` : '',
   ].filter(Boolean).join('\n')
 }
 
-function buildWorkflowSummary(locale: AppLocale, kind: WorkflowKind, values: Record<string, string>) {
+function buildWorkflowSummary(locale: AppLocale, kind: WorkflowKind, values: Record<string, string>, context: WorkflowContext | null) {
   const definition = workflowDefinitions[locale][kind]
   const lines = definition.steps
     .map((step) => {
       const value = compactValue(values[step.id])
-      return value ? `- ${step.label}: ${value}` : ''
+      const label = value && step.optionSource ? optionLabel(context, step.optionSource, value) : value
+      const description = value && step.optionSource ? optionDescription(context, step.optionSource, value) : ''
+      return value ? `- ${step.label}: ${label}${description ? ` (${description})` : ''}` : ''
     })
     .filter(Boolean)
 
@@ -627,6 +734,9 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
   const [loading, setLoading] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
   const [activeWorkflow, setActiveWorkflow] = useState<ActiveWorkflow | null>(null)
+  const [workflowContext, setWorkflowContext] = useState<WorkflowContext | null>(null)
+  const [workflowContextLoading, setWorkflowContextLoading] = useState(false)
+  const [workflowContextError, setWorkflowContextError] = useState<string | null>(null)
   const [messages, setMessages] = useState<AssistantMessage[]>([
     {
       id: 'welcome',
@@ -638,8 +748,32 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
   ])
   const scrollRef = useRef<HTMLDivElement | null>(null)
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
-  const workflowInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
+  const workflowInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null>(null)
   const workflowFocusKey = activeWorkflow ? `${activeWorkflow.kind}:${activeWorkflow.stepIndex}` : ''
+
+  const loadWorkflowContext = useCallback(async () => {
+    if (workflowContext) return workflowContext
+
+    setWorkflowContextLoading(true)
+    setWorkflowContextError(null)
+
+    try {
+      const response = await fetch('/api/ai/workflow-context', { cache: 'no-store' })
+      const data = (await response.json()) as WorkflowContext & { error?: string }
+      if (!response.ok) throw new Error(data.error ?? 'Workflow choices could not be loaded.')
+      const nextContext = { ...emptyWorkflowContext(), ...data }
+      setWorkflowContext(nextContext)
+      return nextContext
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Workflow choices could not be loaded.'
+      setWorkflowContextError(message)
+      const fallback = emptyWorkflowContext()
+      setWorkflowContext(fallback)
+      return fallback
+    } finally {
+      setWorkflowContextLoading(false)
+    }
+  }, [workflowContext])
 
   const latestQuickActions = useMemo(
     () => messages.findLast((message) => message.quickActions?.length)?.quickActions ?? starterPrompts,
@@ -695,6 +829,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
           throw new Error(data.error ?? 'Unable to run assistant.')
         }
         if (data.conversationId) setConversationId(data.conversationId)
+        if (data.intent?.startsWith('create_') || data.intent?.startsWith('delete_') || data.intent === 'mark_invoice_paid') setWorkflowContext(null)
 
         setMessages((current) => [
           ...current,
@@ -725,14 +860,23 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
   )
 
   const startWorkflow = useCallback(
-    (kind: WorkflowKind, sourcePrompt: string) => {
-      const definition = workflowDefinitions[locale][kind]
+    async (kind: WorkflowKind, sourcePrompt: string) => {
       setOpen(true)
       setInput('')
+      const context = await loadWorkflowContext()
+      const definition = workflowDefinitions[locale][kind]
+      const values = initialWorkflowValues(definition)
+      for (const step of definition.steps) {
+        if (!values[step.id] && step.optionSource) {
+          const options = optionsForStep(context, step)
+          if (options.length === 1 && isWorkflowStepRequired(kind, step, context)) values[step.id] = options[0].value
+        }
+      }
+
       setActiveWorkflow({
         kind,
         stepIndex: 0,
-        values: initialWorkflowValues(definition),
+        values,
       })
       setMessages((current) => [
         ...current,
@@ -750,7 +894,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
         },
       ])
     },
-    [locale]
+    [loadWorkflowContext, locale]
   )
 
   const submitPrompt = useCallback(
@@ -760,7 +904,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
 
       const workflowKind = detectWorkflowKind(message)
       if (workflowKind) {
-        startWorkflow(workflowKind, message)
+        void startWorkflow(workflowKind, message)
         return
       }
 
@@ -771,12 +915,12 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
 
   const completeWorkflow = useCallback(
     async (workflow: ActiveWorkflow) => {
-      const prompt = buildWorkflowPrompt(workflow.kind, workflow.values)
-      const displayContent = buildWorkflowSummary(locale, workflow.kind, workflow.values)
+      const prompt = buildWorkflowPrompt(workflow.kind, workflow.values, workflowContext)
+      const displayContent = buildWorkflowSummary(locale, workflow.kind, workflow.values, workflowContext)
       setActiveWorkflow(null)
       await sendChatPrompt(prompt, { displayContent })
     },
-    [locale, sendChatPrompt]
+    [locale, sendChatPrompt, workflowContext]
   )
 
   const advanceWorkflow = useCallback(
@@ -786,7 +930,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
       const definition = workflowDefinitions[locale][activeWorkflow.kind]
       const step = definition.steps[activeWorkflow.stepIndex]
       const currentValue = skip ? '' : compactValue(activeWorkflow.values[step.id])
-      if (!step.optional && !currentValue) return
+      if (isWorkflowStepRequired(activeWorkflow.kind, step, workflowContext) && !currentValue) return
 
       const nextWorkflow = {
         ...activeWorkflow,
@@ -806,7 +950,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
         stepIndex: activeWorkflow.stepIndex + 1,
       })
     },
-    [activeWorkflow, completeWorkflow, locale]
+    [activeWorkflow, completeWorkflow, locale, workflowContext]
   )
 
   const cancelWorkflow = useCallback(() => {
@@ -843,6 +987,9 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
   const workflowDefinition = activeWorkflow ? workflowDefinitions[locale][activeWorkflow.kind] : null
   const workflowStep = workflowDefinition && activeWorkflow ? workflowDefinition.steps[activeWorkflow.stepIndex] : null
   const workflowValue = workflowStep && activeWorkflow ? activeWorkflow.values[workflowStep.id] ?? '' : ''
+  const workflowOptions = workflowStep ? optionsForStep(workflowContext, workflowStep) : []
+  const showWorkflowSelect = Boolean(workflowStep?.optionSource && workflowOptions.length > 0)
+  const workflowStepRequired = Boolean(activeWorkflow && workflowStep && isWorkflowStepRequired(activeWorkflow.kind, workflowStep, workflowContext))
 
   return (
     <>
@@ -938,9 +1085,33 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
               </div>
               <label htmlFor={`ai-workflow-${workflowStep.id}`}>
                 <span>{workflowStep.label}</span>
-                {workflowStep.optional ? <em>{workflowDefinition.optionalLabel}</em> : null}
+                {!workflowStepRequired ? <em>{workflowDefinition.optionalLabel}</em> : null}
               </label>
-              {workflowStep.multiline ? (
+              {workflowContextError ? <div className="ai-assistant-workflow-hint">{workflowContextError}</div> : null}
+              {workflowContextLoading ? <div className="ai-assistant-workflow-hint">{t('ai.thinking')}</div> : null}
+              {showWorkflowSelect ? (
+                <select
+                  id={`ai-workflow-${workflowStep.id}`}
+                  ref={workflowInputRef as React.RefObject<HTMLSelectElement>}
+                  value={workflowValue}
+                  onChange={(event) =>
+                    setActiveWorkflow((current) =>
+                      current ? { ...current, values: { ...current.values, [workflowStep.id]: event.target.value } } : current
+                    )
+                  }
+                >
+                  <option value="">{!workflowStepRequired ? workflowDefinition.skipLabel : workflowStep.placeholder}</option>
+                  {workflowOptions.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}{option.description ? ` - ${option.description}` : ''}
+                    </option>
+                  ))}
+                </select>
+              ) : workflowStep.optionSource ? (
+                <div className="ai-assistant-workflow-empty">
+                  {workflowStep.emptyLabel ?? workflowStep.placeholder}
+                </div>
+              ) : workflowStep.multiline ? (
                 <textarea
                   id={`ai-workflow-${workflowStep.id}`}
                   ref={workflowInputRef as React.RefObject<HTMLTextAreaElement>}
@@ -986,12 +1157,12 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
                     {workflowDefinition.backLabel}
                   </button>
                 ) : null}
-                {workflowStep.optional ? (
+                {!workflowStepRequired ? (
                   <button type="button" className="ghost" onClick={() => void advanceWorkflow(true)}>
                     {workflowDefinition.skipLabel}
                   </button>
                 ) : null}
-                <button type="submit" className="primary" disabled={!workflowStep.optional && !workflowValue.trim()}>
+                <button type="submit" className="primary" disabled={workflowStepRequired && !workflowValue.trim()}>
                   {activeWorkflow.stepIndex >= workflowDefinition.steps.length - 1 ? <CheckCircle2 size={15} /> : <ChevronUp size={15} />}
                   {activeWorkflow.stepIndex >= workflowDefinition.steps.length - 1
                     ? workflowDefinition.createLabel

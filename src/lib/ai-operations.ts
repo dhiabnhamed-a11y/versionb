@@ -1170,6 +1170,8 @@ function buildGeneralAnswer(role: string, financeVisible: boolean): AiGroundedAn
         ? '- Analyze invoices, revenue, outstanding payments, cash-collection risk, and draft invoices when the client and amount are clear.'
         : '- Analyze assigned delivery work and project blockers; finance data is hidden for this role.',
       '- Create clients, campaigns, briefs, and invoice drafts through guided fields when your role has permission.',
+      '- Use live workspace choices such as clients, campaigns, categories, managers, currencies, and invoice language instead of guessing names.',
+      '- Let Owners and Managers mark specific invoices paid and delete identified workspace records by prompt.',
       '- Send direct in-app payment-deadline alerts for sent or overdue client invoices.',
       '',
       'Useful prompts',
@@ -1180,6 +1182,8 @@ function buildGeneralAnswer(role: string, financeVisible: boolean): AiGroundedAn
       '- Create campaign "Spring Launch" for Acme under Social Media',
       '- Create client',
       '- Send payment deadline alerts',
+      '- Mark invoice INV-2026-0001 paid',
+      '- Delete campaign "Spring Launch"',
       '',
       'Governance',
       'I will not invent metrics, clients, invoices, people, or events. If data is missing, I will say what is unavailable.',
@@ -1187,9 +1191,9 @@ function buildGeneralAnswer(role: string, financeVisible: boolean): AiGroundedAn
     intent: 'general',
     confidence: 'high',
     citations: [],
-    quickActions: ['Detect operational risks', 'Analyze delayed projects', 'Create client', 'Create campaign', 'Create brief', 'Create invoice', 'Send payment deadline alerts'],
+    quickActions: ['Detect operational risks', 'Analyze delayed projects', 'Create client', 'Create campaign', 'Create brief', 'Create invoice', 'Mark invoice paid', 'Delete record', 'Send payment deadline alerts'],
     facts: {
-      capabilities: ['analysis', 'summaries', 'risk detection', 'campaign creation', 'brief creation', 'invoice drafting'],
+      capabilities: ['analysis', 'summaries', 'risk detection', 'campaign creation', 'brief creation', 'invoice drafting', 'invoice payment updates', 'administrator deletion'],
     },
     policy: { role, scope: role === 'EMPLOYEE' ? 'assigned-work' : 'workspace', financeVisible },
   }

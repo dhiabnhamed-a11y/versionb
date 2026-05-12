@@ -1110,6 +1110,7 @@ html[dir="rtl"] textarea {
 
 .ai-assistant-composer textarea,
 .ai-assistant-workflow-composer input,
+.ai-assistant-workflow-composer select,
 .ai-assistant-workflow-composer textarea {
   min-height: 48px;
   max-height: 130px;
@@ -1124,7 +1125,8 @@ html[dir="rtl"] textarea {
   outline: none;
 }
 
-.ai-assistant-workflow-composer input {
+.ai-assistant-workflow-composer input,
+.ai-assistant-workflow-composer select {
   resize: none;
 }
 
@@ -1136,6 +1138,7 @@ html[dir="rtl"] textarea {
 
 .ai-assistant-composer textarea:focus,
 .ai-assistant-workflow-composer input:focus,
+.ai-assistant-workflow-composer select:focus,
 .ai-assistant-workflow-composer textarea:focus {
   border-color: rgba(141,215,255,0.38);
   box-shadow: 0 0 0 3px rgba(141,215,255,0.12);
@@ -1200,6 +1203,24 @@ html[dir="rtl"] textarea {
   font-size: 0.62rem;
   font-style: normal;
   font-weight: 900;
+}
+
+.ai-assistant-workflow-hint,
+.ai-assistant-workflow-empty {
+  border: 1px dashed rgba(255,255,255,0.12);
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  color: #8f9aaa;
+  padding: 0.65rem 0.72rem;
+  font-size: 0.74rem;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.ai-assistant-workflow-empty {
+  border-color: rgba(217,119,6,0.26);
+  background: rgba(217,119,6,0.07);
+  color: #f8c471;
 }
 
 .ai-assistant-workflow-actions {
@@ -1666,17 +1687,19 @@ html[dir="rtl"] textarea {
 }
 
 .ops-loop-track {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.75rem, 1fr));
   gap: var(--space-2);
   margin-top: var(--space-5);
-  overflow-x: auto;
-  padding-bottom: var(--space-1);
+  align-items: stretch;
 }
 
 .ops-loop-node {
   display: grid;
-  min-width: 8.25rem;
+  min-width: 0;
+  min-height: 5.1rem;
   gap: 0.35rem;
+  align-content: center;
   border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   background: var(--bg-elevated);

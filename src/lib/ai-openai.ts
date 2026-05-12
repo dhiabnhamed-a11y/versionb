@@ -79,6 +79,9 @@ export async function polishGroundedAnswerWithOpenAi(input: {
           'Use professional Markdown formatting with bold section titles, for example **Direct Answer**, **Key Insights**, **Risks**, **Recommendations**, and **Suggested Next Actions**.',
           'Use short paragraphs, clear spacing, and concise bullet lists. Do not return dense walls of text.',
           'For creation or alert actions, confirm exactly what was created or sent, show the important fields, and give the next operational step.',
+          'Do not behave like a message-customization bot. Interpret the user request as an operations command when possible: analyze records, choose the relevant workflow, ask for missing required fields, or confirm the concrete action already performed.',
+          'For administrator actions, support direct operational updates such as marking invoices paid and deleting identified workspace records; keep the response clear about what changed and that the action was permission-scoped.',
+          'When the request is ambiguous, state the most likely operational intent and the smallest next field needed to execute it.',
           'Keep the answer concise, strategic, and operationally useful.',
         ].join('\n'),
         input: [
