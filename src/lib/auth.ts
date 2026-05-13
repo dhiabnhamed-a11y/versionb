@@ -1,6 +1,7 @@
 import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
+import { createClient } from '@supabase/supabase-js'
 
 import { prisma } from '@/lib/db'
 import {
@@ -19,6 +20,7 @@ type AuthUserRecord = {
   role: string
   accountStatus: string
   companyId: string | null
+  authUserId: string | null
   preferredLocale: string
   company: {
     companyType: string
@@ -38,6 +40,16 @@ type AuthSessionShape = {
   companyStatus: string | null
 }
 
+type SupabasePasswordVerification =
+  | {
+      ok: true
+      authUserId: string | null
+    }
+  | {
+      ok: false
+      reason: string
+    }
+
 async function loadAuthUserByEmail(email: string) {
   return prisma.user.findUnique({
     where: { email: email.trim().toLowerCase() },
@@ -50,6 +62,45 @@ async function loadAuthUserByEmail(email: string) {
       },
     },
   }) as Promise<AuthUserRecord | null>
+}
+
+async function verifyPasswordWithSupabase(email: string, password: string): Promise<SupabasePasswordVerification> {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    return { ok: false, reason: 'missing_supabase_config' }
+  }
+
+  const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  })
+
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email.trim().toLowerCase(),
+    password,
+  })
+
+  if (error || !data.user) {
+    return { ok: false, reason: error?.message ?? 'supabase_user_missing' }
+  }
+
+  return { ok: true, authUserId: data.user.id ?? null }
+}
+
+async function repairPrismaPasswordHash(user: AuthUserRecord, password: string, authUserId: string | null) {
+  const passwordHash = await bcrypt.hash(password, 12)
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      password: passwordHash,
+      authUserId: user.authUserId ?? authUserId ?? undefined,
+    },
+  })
 }
 
 function getSafeAuthLogContext(email: string) {
@@ -84,19 +135,33 @@ export async function validateCredentialsForLogin(email: string, password: strin
     return { ok: false as const, error: 'Invalid email or password.' }
   }
 
-  const isValidPassword = await bcrypt.compare(password, user.password)
-  if (!isValidPassword) {
-    logger.warn('auth.credentials_rejected', {
+  const isValidPrismaPassword = await bcrypt.compare(password, user.password)
+  if (!isValidPrismaPassword) {
+    const supabaseVerification = await verifyPasswordWithSupabase(email, password)
+    if (!supabaseVerification.ok) {
+      logger.warn('auth.credentials_rejected', {
+        ...logContext,
+        reason: 'password_mismatch',
+        supabaseFallback: supabaseVerification.reason,
+        userId: user.id,
+        role: user.role,
+        accountStatus: user.accountStatus,
+        companyStatus: user.company?.status ?? null,
+        passwordHashPresent: Boolean(user.password),
+        passwordHashLength: user.password?.length ?? 0,
+      })
+      return { ok: false as const, error: 'Invalid email or password.' }
+    }
+
+    await repairPrismaPasswordHash(user, password, supabaseVerification.authUserId)
+    logger.warn('auth.prisma_password_hash_repaired', {
       ...logContext,
-      reason: 'password_mismatch',
       userId: user.id,
       role: user.role,
       accountStatus: user.accountStatus,
       companyStatus: user.company?.status ?? null,
-      passwordHashPresent: Boolean(user.password),
-      passwordHashLength: user.password?.length ?? 0,
+      authUserIdRepaired: !user.authUserId && Boolean(supabaseVerification.authUserId),
     })
-    return { ok: false as const, error: 'Invalid email or password.' }
   }
 
   const authUser = buildAuthSessionUser(user)
