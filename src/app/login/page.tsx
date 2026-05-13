@@ -9,6 +9,10 @@ import Image from 'next/image'
 import logo from '@/app/logo.png'
 import { Mail, Lock, ArrowRight, Loader2, Sparkles, Eye, EyeOff } from 'lucide-react'
 
+async function readLoginCheckData(response: Response) {
+  return (await response.json().catch(() => ({}))) as { error?: string }
+}
+
 function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -40,10 +44,15 @@ function LoginContent() {
       body: JSON.stringify({ email: email.trim(), password }),
     })
 
-    const loginCheckData = (await loginCheck.json()) as { error?: string }
+    const loginCheckData = await readLoginCheckData(loginCheck)
     if (!loginCheck.ok) {
       setLoading(false)
-      setError(loginCheckData.error || 'Invalid email or password')
+      setError(
+        loginCheckData.error ||
+          (loginCheck.status >= 500
+            ? 'Unable to verify credentials right now. Please try again shortly.'
+            : 'Invalid email or password')
+      )
       return
     }
 

@@ -1,21 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server'
 
 import { validateCredentialsForLogin } from '@/lib/auth'
+import { getDatabaseConfigHint } from '@/lib/db'
+import { logger } from '@/modules/shared/logger'
+
+type LoginCheckBody = {
+  email?: unknown
+  password?: unknown
+}
 
 export async function POST(req: NextRequest) {
-  const body = (await req.json()) as {
-    email?: string
-    password?: string
-  }
+  const body = (await req.json().catch(() => null)) as LoginCheckBody | null
+  const email = typeof body?.email === 'string' ? body.email.trim() : ''
+  const password = typeof body?.password === 'string' ? body.password : ''
 
-  if (!body.email?.trim() || !body.password) {
+  if (!email || !password) {
     return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 })
   }
 
-  const result = await validateCredentialsForLogin(body.email, body.password)
-  if (!result.ok) {
-    return NextResponse.json({ error: result.error }, { status: 401 })
-  }
+  try {
+    const result = await validateCredentialsForLogin(email, password)
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 401 })
+    }
 
-  return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    logger.error('auth.login_check_failed', error)
+
+    return NextResponse.json(
+      {
+        error: 'Unable to verify credentials right now. Please try again shortly.',
+        hint: process.env.NODE_ENV === 'production' ? undefined : getDatabaseConfigHint(),
+      },
+      { status: 503 }
+    )
+  }
 }
