@@ -19,7 +19,11 @@ function getAuthSecret() {
 
 export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
-  const token = await getToken({ req, secret: getAuthSecret() })
+  const token = await getToken({
+    req,
+    secret: getAuthSecret(),
+    secureCookie: req.nextUrl.protocol === 'https:' || process.env.VERCEL === '1',
+  })
   const user = token
     ? ({
         id: typeof token.id === 'string' ? token.id : undefined,
