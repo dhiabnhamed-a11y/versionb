@@ -1131,6 +1131,13 @@
   gap: 20px 28px;
 }
 
+.footerMeta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
 .footerLinks a,
 .footer p {
   color: var(--landing-muted);
@@ -1337,5 +1344,9 @@
 
   .footerLinks {
     justify-content: center;
+  }
+
+  .footerMeta {
+    align-items: center;
   }
 }

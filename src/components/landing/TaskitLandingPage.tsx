@@ -390,7 +390,10 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
           <a href="#cta">Privacy</a>
           <a href="#cta">Terms</a>
         </div>
-        <p>© 2026 TASKIT OS. All rights reserved.</p>
+        <div className={styles.footerMeta}>
+          <p>developped by Hamed Dhieb</p>
+          <p>© 2026 TASKIT OS. All rights reserved.</p>
+        </div>
       </footer>
     </main>
   )
