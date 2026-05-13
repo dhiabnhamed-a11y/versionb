@@ -1,6 +1,3 @@
-import { defineCloudflareConfig, type OpenNextConfig } from '@opennextjs/cloudflare'
+import { defineCloudflareConfig } from '@opennextjs/cloudflare'
 
-export default {
-  ...defineCloudflareConfig(),
-  buildCommand: 'prisma generate && next build',
-} satisfies OpenNextConfig
+export default defineCloudflareConfig()

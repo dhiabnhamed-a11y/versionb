@@ -106,12 +106,12 @@ export default function SendAlertPage() {
           <textarea className="input" placeholder="Alert details..." value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} required rows={3} />
         </div>
 
-        {error && <div style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)', borderRadius: '8px', padding: '10px 14px', color: '#f87171', fontSize: '13px' }}>{error}</div>}
+        {error && <div className="alert-banner alert-danger"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>{error}</div>}
 
         {success && (
-          <div style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.15)', borderRadius: '8px', padding: '12px 14px', color: '#10b981', fontSize: '13px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <div className="alert-banner alert-success">
             <CheckCircle2 size={16} />
-            <span><strong>Alert sent</strong> - the employee has been notified.</span>
+            <span><strong>Alert sent</strong> — the employee has been notified in real-time.</span>
           </div>
         )}
 

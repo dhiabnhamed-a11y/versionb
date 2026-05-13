@@ -104,7 +104,7 @@ export default function EmployeeProgressPage() {
             const pTotal = projectTasks.length
             const pPct = pTotal ? Math.round((pDone / pTotal) * 100) : 0
             return (
-              <div key={projectName} className="card animate-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
+              <div key={projectName} className="card card-interactive animate-fade-in" style={{ animationDelay: `${i * 50}ms` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div className="icon-box" style={{ width: '30px', height: '30px', background: 'var(--accent-gradient)' }}>
@@ -115,7 +115,7 @@ export default function EmployeeProgressPage() {
                       <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{pTotal} tasks</div>
                     </div>
                   </div>
-                  <div style={{ fontSize: '22px', fontWeight: '800', color: pPct >= 80 ? '#059669' : pPct >= 50 ? '#d97706' : 'var(--accent)', letterSpacing: '-0.02em' }}>{pPct}%</div>
+                  <div style={{ fontSize: '22px', fontWeight: '800', color: pPct >= 80 ? 'var(--success)' : pPct >= 50 ? 'var(--warning)' : 'var(--accent)', letterSpacing: '-0.02em' }}>{pPct}%</div>
                 </div>
                 <div className="progress-bar" style={{ height: '5px' }}>
                   <div className="progress-fill" style={{ width: `${pPct}%`, background: pPct >= 80 ? '#059669' : pPct >= 50 ? '#d97706' : '#0f766e' }} />
@@ -125,7 +125,7 @@ export default function EmployeeProgressPage() {
                     const count = projectTasks.filter(t => t.stage === stage).length
                     const colors: Record<string, string> = { TODO: '#64748b', IN_PROGRESS: '#0f766e', REVIEW: '#d97706', DONE: '#059669' }
                     const labels: Record<string,string> = { TODO: 'To Do', IN_PROGRESS: 'Active', REVIEW: 'Review', DONE: 'Done' }
-                    return <div key={stage} style={{ fontSize: '11px', color: 'var(--text-muted)' }}><span style={{ color: colors[stage], fontWeight: '700' }}>{count}</span> {labels[stage]}</div>
+                    return <div key={stage} style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'inline-flex', alignItems: 'center', gap: '4px' }}><span className="status-dot" style={{ width: '6px', height: '6px', background: colors[stage] }} /><span style={{ color: colors[stage], fontWeight: '700' }}>{count}</span> {labels[stage]}</div>
                   })}
                 </div>
               </div>

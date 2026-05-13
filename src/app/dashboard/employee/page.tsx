@@ -41,10 +41,16 @@ const EMPLOYEE_FLOW = ['TODO', 'IN_PROGRESS', 'REVIEW']
 const TASK_REALTIME_EVENTS = ['task_created', 'task_updated', 'task_deleted', 'task_submission_created'] as const
 const STAGE_LABELS: Record<string, string> = { TODO: 'To Do', IN_PROGRESS: 'In Progress', REVIEW: 'Review', DONE: 'Done' }
 const STAGE_COLORS: Record<string, string> = {
-  TODO: 'var(--text-muted)',
+  TODO: '#64748b',
   IN_PROGRESS: '#0f766e',
   REVIEW: '#d97706',
   DONE: '#059669',
+}
+const STAGE_BADGE_CLASSES: Record<string, string> = {
+  TODO: 'stage-badge stage-todo',
+  IN_PROGRESS: 'stage-badge stage-in-progress',
+  REVIEW: 'stage-badge stage-review',
+  DONE: 'stage-badge stage-done',
 }
 
 export default function EmployeeDashboard() {
@@ -173,25 +179,11 @@ export default function EmployeeDashboard() {
       </div>
 
       {overdue.length > 0 && (
-        <div
-          style={{
-            background: 'rgba(239,68,68,0.05)',
-            border: '1px solid rgba(239,68,68,0.15)',
-            borderRadius: '10px',
-            padding: '12px 14px',
-            marginBottom: '16px',
-            display: 'flex',
-            gap: '10px',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-          }}
-        >
-          <AlertTriangle size={16} style={{ color: '#ef4444', flexShrink: 0 }} />
+        <div className="alert-banner alert-danger" style={{ marginBottom: '16px' }}>
+          <AlertTriangle size={16} />
           <div>
-            <span style={{ fontSize: '13px', fontWeight: '600', color: '#f87171' }}>
-              {overdue.length} overdue {companyCopy.taskPluralLabel.toLowerCase()}
-            </span>
-            <span style={{ fontSize: '12px', color: 'var(--text-muted)', marginLeft: '6px' }}>update as soon as possible</span>
+            <strong>{overdue.length} overdue {companyCopy.taskPluralLabel.toLowerCase()}</strong>
+            <span style={{ marginLeft: '6px', fontWeight: 500, opacity: 0.85 }}>— update as soon as possible</span>
           </div>
         </div>
       )}
@@ -215,7 +207,7 @@ export default function EmployeeDashboard() {
             const latestRejected = latestActivity?.action.startsWith('Review rejected:')
 
             return (
-              <div key={task.id} className="card animate-fade-in" style={{ animationDelay: `${index * 40}ms`, border: isOverdue ? '1px solid rgba(239,68,68,0.2)' : undefined }}>
+              <div key={task.id} className="card card-interactive animate-fade-in" style={{ animationDelay: `${index * 40}ms`, border: isOverdue ? '1px solid var(--danger-border)' : undefined }}>
                 <div className="dashboard-item-row">
                   <div className="dashboard-item-main">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
@@ -230,7 +222,7 @@ export default function EmployeeDashboard() {
                       )}
                       <h3 style={{ minWidth: 0, overflowWrap: 'anywhere', fontSize: '14px', fontWeight: '600' }}>{task.title}</h3>
                       {isOverdue && (
-                        <span style={{ fontSize: '10px', color: '#ef4444', background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', padding: '1px 6px', borderRadius: '3px', fontWeight: '700' }}>
+                        <span className="overdue-tag">
                           OVERDUE
                         </span>
                       )}
@@ -250,8 +242,8 @@ export default function EmployeeDashboard() {
                   </div>
 
                   <div className="dashboard-item-side">
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'var(--bg-elevated)', borderRadius: '6px', padding: '4px 10px', border: `1px solid ${STAGE_COLORS[task.stage]}20` }}>
-                      <span style={{ fontSize: '11px', fontWeight: '600', color: STAGE_COLORS[task.stage] }}>{STAGE_LABELS[task.stage]}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span className={STAGE_BADGE_CLASSES[task.stage]}>{STAGE_LABELS[task.stage]}</span>
                     </div>
                     {canAdvance && (
                       <button onClick={() => advanceStage(task)} disabled={updating === task.id} className="btn-primary" style={{ fontSize: '11px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -354,14 +346,12 @@ export default function EmployeeDashboard() {
 
                 {latestActivity && (
                   <div
+                    className={latestRejected ? 'rejected-banner' : ''}
                     style={{
                       marginTop: '10px',
                       fontSize: '11px',
-                      color: latestRejected ? '#b91c1c' : 'var(--text-muted)',
-                      background: latestRejected ? 'rgba(220,38,38,0.05)' : 'transparent',
-                      border: latestRejected ? '1px solid rgba(220,38,38,0.14)' : 'none',
-                      borderRadius: latestRejected ? '8px' : 0,
-                      padding: latestRejected ? '9px 10px' : 0,
+                      color: latestRejected ? undefined : 'var(--text-muted)',
+                      padding: latestRejected ? undefined : 0,
                       display: 'flex',
                       gap: '6px',
                       alignItems: 'center',
@@ -411,7 +401,8 @@ export default function EmployeeDashboard() {
               </div>
 
               {uploadError && (
-                <div style={{ borderRadius: '8px', border: '1px solid rgba(220,38,38,0.18)', background: 'rgba(220,38,38,0.05)', padding: '10px 12px', color: '#b91c1c', fontSize: '12px' }}>
+                <div className="alert-banner alert-danger">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                   {uploadError}
                 </div>
               )}

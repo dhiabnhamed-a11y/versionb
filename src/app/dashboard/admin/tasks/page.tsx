@@ -59,10 +59,16 @@ const STAGES = ['TODO', 'IN_PROGRESS', 'REVIEW', 'DONE']
 const TASK_REALTIME_EVENTS = ['task_created', 'task_updated', 'task_deleted', 'task_submission_created', 'project_created'] as const
 const STAGE_LABELS: Record<string, string> = { TODO: 'To Do', IN_PROGRESS: 'In Progress', REVIEW: 'Review', DONE: 'Done' }
 const STAGE_COLORS: Record<string, string> = {
-  TODO: 'var(--text-muted)',
+  TODO: '#64748b',
   IN_PROGRESS: '#0f766e',
   REVIEW: '#d97706',
   DONE: '#059669',
+}
+const STAGE_BADGE_CLASSES: Record<string, string> = {
+  TODO: 'stage-badge stage-todo',
+  IN_PROGRESS: 'stage-badge stage-in-progress',
+  REVIEW: 'stage-badge stage-review',
+  DONE: 'stage-badge stage-done',
 }
 
 export default function AdminTasksPage() {
@@ -274,7 +280,8 @@ export default function AdminTasksPage() {
       </div>
 
       {actionError && (
-        <div className="mb-4 rounded-[var(--radius-sm)] border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+        <div className="alert-banner alert-danger mb-4">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
           {actionError}
         </div>
       )}
@@ -296,11 +303,12 @@ export default function AdminTasksPage() {
           {filtered.map((task, index) => (
             <div
               key={task.id}
-              className="card animate-fade-in"
+              className={`card card-interactive animate-fade-in${task.stage === 'REVIEW' ? ' review-card' : ''}`}
               style={{
                 animationDelay: `${index * 30}ms`,
                 padding: '16px 18px',
-                borderColor: task.stage === 'REVIEW' ? 'rgba(217,119,6,0.28)' : undefined,
+                position: 'relative',
+                overflow: 'hidden',
               }}
             >
               <div className="dashboard-item-row">
@@ -341,8 +349,8 @@ export default function AdminTasksPage() {
                 </div>
                 <div className="dashboard-item-side">
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: '11px', color: STAGE_COLORS[task.stage], fontWeight: '600', marginBottom: '4px' }}>{STAGE_LABELS[task.stage]}</div>
-                    <div style={{ width: '80px' }}>
+                    <span className={STAGE_BADGE_CLASSES[task.stage]}>{STAGE_LABELS[task.stage]}</span>
+                    <div style={{ width: '80px', marginTop: '6px' }}>
                       <div className="progress-bar">
                         <div className="progress-fill" style={{ width: `${task.progress}%` }} />
                       </div>
@@ -353,7 +361,7 @@ export default function AdminTasksPage() {
                       <button
                         type="button"
                         onClick={() => handleAcceptReview(task)}
-                        className="btn-primary btn-sm"
+                        className="btn-success btn-sm"
                         disabled={reviewSaving}
                         style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                       >
@@ -499,11 +507,11 @@ export default function AdminTasksPage() {
                     paddingTop: '10px',
                     borderTop: '1px solid var(--border)',
                     fontSize: '11px',
-                    color: task.activities[0].action.startsWith('Review rejected:') ? '#b91c1c' : 'var(--text-muted)',
                     display: 'flex',
                     gap: '6px',
                     alignItems: 'center',
                   }}
+                  className={task.activities[0].action.startsWith('Review rejected:') ? 'rejected-banner' : ''}
                 >
                   <Clock size={11} />
                   <span>
@@ -661,7 +669,8 @@ export default function AdminTasksPage() {
               </div>
 
               {reviewError && (
-                <div style={{ borderRadius: '8px', border: '1px solid rgba(220,38,38,0.18)', background: 'rgba(220,38,38,0.05)', padding: '10px 12px', color: '#b91c1c', fontSize: '12px' }}>
+                <div className="alert-banner alert-danger">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
                   {reviewError}
                 </div>
               )}

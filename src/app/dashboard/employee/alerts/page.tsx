@@ -85,7 +85,7 @@ export default function EmployeeAlertsPage() {
       <div style={{ marginBottom: '24px' }}>
         <h1 className="page-heading flex flex-wrap items-center gap-2">
           <Bell size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> Alerts
-          {unread > 0 && <span style={{ fontSize: '12px', background: 'rgba(239,68,68,0.15)', color: '#f87171', borderRadius: '4px', padding: '2px 8px', fontWeight: '700' }}>{unread} new</span>}
+          {unread > 0 && <span className="alert-banner alert-danger" style={{ fontSize: '12px', padding: '2px 10px', borderRadius: '6px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}><span className="status-dot status-dot-danger" style={{ width: '6px', height: '6px' }} />{unread} new</span>}
         </h1>
         <p className="page-sub">Notifications from your leads</p>
       </div>
@@ -103,7 +103,7 @@ export default function EmployeeAlertsPage() {
             const cfg = typeConfig[alert.type] || typeConfig.URGENT_TASK
             const Icon = cfg.icon
             return (
-              <div key={alert.id} className="animate-fade-in" style={{ animationDelay: `${i * 40}ms`, background: alert.read ? 'var(--bg-card)' : cfg.bg, border: `1px solid ${alert.read ? 'var(--border)' : cfg.border}`, borderRadius: '12px', padding: '16px', transition: 'all 0.2s' }}>
+              <div key={alert.id} className="card-interactive animate-fade-in" style={{ animationDelay: `${i * 40}ms`, background: alert.read ? 'var(--bg-card)' : cfg.bg, border: `1px solid ${alert.read ? 'var(--border)' : cfg.border}`, borderRadius: '12px', padding: '16px', transition: 'all 0.2s', borderLeft: alert.read ? undefined : `3px solid ${cfg.color}` }}>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                   <div className="icon-box" style={{ width: '36px', height: '36px', background: cfg.bg, border: `1px solid ${cfg.border}` }}>
                     <Icon size={16} style={{ color: cfg.color }} />
@@ -111,8 +111,8 @@ export default function EmployeeAlertsPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)' }}>{cfg.label}</span>
-                        {!alert.read && <span style={{ width: '6px', height: '6px', background: '#ef4444', borderRadius: '50%' }} />}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: cfg.color }}><span className="status-dot" style={{ width: '6px', height: '6px', background: cfg.color, boxShadow: `0 0 0 3px ${cfg.border}` }} />{cfg.label}</span>
+                        {!alert.read && <span style={{ width: '6px', height: '6px', background: '#ef4444', borderRadius: '50%', animation: 'pulse 2s infinite' }} />}
                       </div>
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)', flexShrink: 0 }}>{formatTimeAgo(alert.createdAt)}</span>
                     </div>
@@ -121,7 +121,7 @@ export default function EmployeeAlertsPage() {
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>From <strong style={{ color: 'var(--text-secondary)' }}>{alert.sender?.name}</strong></span>
                       {!alert.read && (
-                        <button onClick={() => markRead(alert.id)} style={{ fontSize: '11px', color: 'var(--accent-hover)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <button onClick={() => markRead(alert.id)} className="btn-sm" style={{ fontSize: '11px', color: 'var(--success)', background: 'rgba(5,150,105,0.06)', border: '1px solid var(--success-border)', borderRadius: '6px', cursor: 'pointer', fontWeight: '650', display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px' }}>
                           <CheckCircle2 size={12} /> Mark read
                         </button>
                       )}
