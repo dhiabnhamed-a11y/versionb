@@ -89,12 +89,28 @@ const USER_DESIGN_BUILDER_MAX_CHARS = 320_000
 const USER_LOGO_MAX_CHARS = 240_000
 const IMAGE_DATA_URL_PATTERN = /^data:image\/(png|jpe?g|webp|gif);base64,[a-z0-9+/=]+$/i
 const CLOUDINARY_IMAGE_HOST = 'res.cloudinary.com'
+const DESIGN_STUDIO_FONT_FAMILIES = [
+  'Geist',
+  'Instrument Sans',
+  'DM Sans',
+  'Manrope',
+  'Space Grotesk',
+  'Inter',
+  'JetBrains Mono',
+  'IBM Plex Mono',
+]
+
+function designStudioFontStack(font: string) {
+  return `'${font}', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`
+}
+
 const FONT_FAMILY_OPTIONS = new Set([
   DEFAULT_DASHBOARD_DESIGN_CONFIG.typography.fontFamily,
   'Arial, Helvetica, sans-serif',
   'Georgia, "Times New Roman", serif',
   '"Trebuchet MS", Arial, sans-serif',
   '"Courier New", Courier, monospace',
+  ...DESIGN_STUDIO_FONT_FAMILIES.map(designStudioFontStack),
 ])
 
 function normalizeUpper(value?: string | null) {
