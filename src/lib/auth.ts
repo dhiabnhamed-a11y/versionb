@@ -9,6 +9,7 @@ import {
   getRoleHomePath,
   isAuthorizedSuperAdminIdentity,
 } from '@/lib/security'
+import { logger } from '@/modules/shared/logger'
 
 type AuthUserRecord = {
   id: string
@@ -65,6 +66,16 @@ async function loadAuthUserById(id: string) {
   }) as Promise<AuthUserRecord | null>
 }
 
+function getSafeAuthLogContext(email: string) {
+  const normalizedEmail = email.trim().toLowerCase()
+  const [, domain = 'unknown'] = normalizedEmail.split('@')
+
+  return {
+    emailDomain: domain,
+    emailLength: normalizedEmail.length,
+  }
+}
+
 function buildAuthSessionUser(user: AuthUserRecord): AuthSessionShape {
   return {
     id: user.id,
@@ -80,20 +91,47 @@ function buildAuthSessionUser(user: AuthUserRecord): AuthSessionShape {
 }
 
 export async function validateCredentialsForLogin(email: string, password: string) {
+  const logContext = getSafeAuthLogContext(email)
   const user = await loadAuthUserByEmail(email)
   if (!user) {
+    logger.warn('auth.credentials_rejected', { ...logContext, reason: 'user_not_found' })
     return { ok: false as const, error: 'Invalid email or password.' }
   }
 
   const isValidPassword = await bcrypt.compare(password, user.password)
   if (!isValidPassword) {
+    logger.warn('auth.credentials_rejected', {
+      ...logContext,
+      reason: 'password_mismatch',
+      userId: user.id,
+      role: user.role,
+      accountStatus: user.accountStatus,
+      companyStatus: user.company?.status ?? null,
+      passwordHashPresent: Boolean(user.password),
+      passwordHashLength: user.password?.length ?? 0,
+    })
     return { ok: false as const, error: 'Invalid email or password.' }
   }
 
   const authUser = buildAuthSessionUser(user)
   if (!canAuthenticateAuthState(authUser)) {
+    logger.warn('auth.credentials_blocked', {
+      ...logContext,
+      userId: user.id,
+      role: user.role,
+      accountStatus: user.accountStatus,
+      companyStatus: user.company?.status ?? null,
+    })
     return { ok: false as const, error: getAuthBlockReason(authUser) }
   }
+
+  logger.info('auth.credentials_accepted', {
+    ...logContext,
+    userId: user.id,
+    role: user.role,
+    accountStatus: user.accountStatus,
+    companyStatus: user.company?.status ?? null,
+  })
 
   return { ok: true as const, user: authUser }
 }
@@ -110,12 +148,17 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       async authorize(credentials) {
         if (!credentials?.email || !credentials?.password) return null
 
-        const result = await validateCredentialsForLogin(credentials.email as string, credentials.password as string)
-        if (!result.ok) {
+        try {
+          const result = await validateCredentialsForLogin(credentials.email as string, credentials.password as string)
+          if (!result.ok) {
+            return null
+          }
+
+          return result.user
+        } catch (error) {
+          logger.error('auth.credentials_authorize_failed', error, getSafeAuthLogContext(credentials.email as string))
           return null
         }
-
-        return result.user
       },
     }),
   ],

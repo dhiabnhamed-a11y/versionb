@@ -4,6 +4,9 @@ import { validateCredentialsForLogin } from '@/lib/auth'
 import { getDatabaseConfigHint } from '@/lib/db'
 import { logger } from '@/modules/shared/logger'
 
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
+
 type LoginCheckBody = {
   email?: unknown
   password?: unknown
