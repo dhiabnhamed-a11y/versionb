@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from 'react'
 import { signIn } from 'next-auth/react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
@@ -22,7 +22,6 @@ function getSignInErrorMessage(error?: string | null) {
 }
 
 function LoginContent() {
-  const router = useRouter()
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -66,13 +65,17 @@ function LoginContent() {
       return
     }
 
-    const res = await signIn('credentials', { email: trimmedEmail, password, redirect: false }).catch(() => null)
-    setLoading(false)
+    const res = await signIn('credentials', {
+      email: trimmedEmail,
+      password,
+      redirect: false,
+      callbackUrl: '/dashboard',
+    }).catch(() => null)
     if (!res || res.error) {
+      setLoading(false)
       setError(getSignInErrorMessage(res?.error))
     } else {
-      router.push('/dashboard')
-      router.refresh()
+      window.location.assign(res.url || '/dashboard')
     }
   }
 

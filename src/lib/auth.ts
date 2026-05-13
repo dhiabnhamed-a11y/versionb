@@ -52,20 +52,6 @@ async function loadAuthUserByEmail(email: string) {
   }) as Promise<AuthUserRecord | null>
 }
 
-async function loadAuthUserById(id: string) {
-  return prisma.user.findUnique({
-    where: { id },
-    include: {
-      company: {
-        select: {
-          companyType: true,
-          status: true,
-        },
-      },
-    },
-  }) as Promise<AuthUserRecord | null>
-}
-
 function getSafeAuthLogContext(email: string) {
   const normalizedEmail = email.trim().toLowerCase()
   const [, domain = 'unknown'] = normalizedEmail.split('@')
@@ -174,22 +160,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.companyType = (user as AuthSessionShape).companyType
         token.companyStatus = (user as AuthSessionShape).companyStatus
         return token
-      }
-
-      if (token.id) {
-        const freshUser = await loadAuthUserById(token.id as string)
-        if (!freshUser) {
-          return {}
-        }
-
-        const authUser = buildAuthSessionUser(freshUser)
-        token.email = freshUser.email
-        token.role = authUser.role
-        token.accountStatus = authUser.accountStatus
-        token.companyId = authUser.companyId
-        token.preferredLocale = authUser.preferredLocale
-        token.companyType = authUser.companyType
-        token.companyStatus = authUser.companyStatus
       }
 
       return token

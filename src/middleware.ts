@@ -1,6 +1,7 @@
+import { getToken } from 'next-auth/jwt'
+import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
-import { auth } from '@/lib/auth'
 import { canAuthenticateAuthState, getRoleHomePath, isAuthorizedSuperAdminIdentity } from '@/lib/security'
 
 type SessionUser = {
@@ -12,9 +13,23 @@ type SessionUser = {
   companyStatus?: string | null
 }
 
-export default auth((req) => {
+function getAuthSecret() {
+  return process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'taskforce-super-secret-key-2024-change-in-production'
+}
+
+export default async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
-  const user = req.auth?.user as SessionUser | undefined
+  const token = await getToken({ req, secret: getAuthSecret() })
+  const user = token
+    ? ({
+        id: typeof token.id === 'string' ? token.id : undefined,
+        email: typeof token.email === 'string' ? token.email : null,
+        role: typeof token.role === 'string' ? token.role : null,
+        companyId: typeof token.companyId === 'string' ? token.companyId : null,
+        accountStatus: typeof token.accountStatus === 'string' ? token.accountStatus : null,
+        companyStatus: typeof token.companyStatus === 'string' ? token.companyStatus : null,
+      } satisfies SessionUser)
+    : undefined
   const isLoggedIn = Boolean(user?.email)
   const isApprovedSession = user ? canAuthenticateAuthState(user) : false
   const isSuperAdmin = user ? isAuthorizedSuperAdminIdentity(user) : false
@@ -54,7 +69,7 @@ export default auth((req) => {
   }
 
   return NextResponse.next()
-})
+}
 
 export const config = {
   matcher: ['/((?!api|_next/static|_next/image|favicon.ico|sounds).*)'],
