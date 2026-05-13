@@ -10,28 +10,36 @@ type EncryptedEnvelope = {
   ciphertext: string
 }
 
-const AUTH_SECRET_FALLBACK = 'taskforce-super-secret-key-2024-change-in-production'
-
 function cleanSecret(value?: string | null) {
   return value?.trim().replace(/^['"]|['"]$/g, '') || null
 }
 
-function deriveFallbackKey() {
-  const secret = cleanSecret(process.env.AUTH_SECRET) || cleanSecret(process.env.NEXTAUTH_SECRET) || AUTH_SECRET_FALLBACK
-  logger.warn('integrations.token_crypto_using_auth_secret_fallback')
+function getAuthDerivedSecret() {
+  const secret = cleanSecret(process.env.AUTH_SECRET) || cleanSecret(process.env.NEXTAUTH_SECRET)
+  if (!secret) {
+    logger.error('integrations.token_crypto_missing_key_material')
+    throw new Error('SOCIAL_TOKEN_ENCRYPTION_KEY, AUTH_SECRET, or NEXTAUTH_SECRET must be set before encrypting social tokens.')
+  }
+
+  return secret
+}
+
+function deriveAuthSecretKey() {
+  const secret = getAuthDerivedSecret()
+  logger.warn('integrations.token_crypto_using_auth_secret_derived_key')
   return createHash('sha256').update(secret).digest()
 }
 
 function getEncryptionKey() {
   const configured = cleanSecret(process.env.SOCIAL_TOKEN_ENCRYPTION_KEY)
-  if (!configured) return { key: deriveFallbackKey(), keyId: 'auth-secret-derived' }
+  if (!configured) return { key: deriveAuthSecretKey(), keyId: 'auth-secret-derived' }
 
   const key = Buffer.from(configured, 'base64')
   if (key.length !== 32) {
     logger.warn('integrations.token_crypto_invalid_configured_key_falling_back', {
       keyId: process.env.SOCIAL_TOKEN_ENCRYPTION_KEY_ID || 'primary',
     })
-    return { key: deriveFallbackKey(), keyId: 'auth-secret-derived' }
+    return { key: deriveAuthSecretKey(), keyId: 'auth-secret-derived' }
   }
 
   return { key, keyId: process.env.SOCIAL_TOKEN_ENCRYPTION_KEY_ID || 'primary' }

@@ -23,7 +23,6 @@ export type OAuthCookiePayload = {
 }
 
 const STATE_TTL_MS = 10 * 60 * 1000
-const AUTH_SECRET_FALLBACK = 'taskforce-super-secret-key-2024-change-in-production'
 
 function cleanSecret(value?: string | null) {
   return value?.trim().replace(/^['"]|['"]$/g, '') || null
@@ -33,8 +32,8 @@ function signingSecret() {
   const secret = cleanSecret(process.env.AUTH_SECRET) || cleanSecret(process.env.NEXTAUTH_SECRET)
   if (secret) return secret
 
-  logger.warn('integrations.oauth_state_using_auth_secret_fallback')
-  return AUTH_SECRET_FALLBACK
+  logger.error('integrations.oauth_state_missing_auth_secret')
+  throw new Error('AUTH_SECRET or NEXTAUTH_SECRET must be set before social OAuth can be used.')
 }
 
 function sign(value: string) {

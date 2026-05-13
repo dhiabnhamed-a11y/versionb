@@ -127,6 +127,16 @@ function buildAuthSessionUser(user: AuthUserRecord): AuthSessionShape {
   }
 }
 
+function getAuthSecret() {
+  const secret = process.env.AUTH_SECRET?.trim() || process.env.NEXTAUTH_SECRET?.trim()
+  if (!secret) {
+    logger.error('auth.secret_missing')
+    return undefined
+  }
+
+  return secret
+}
+
 export async function validateCredentialsForLogin(email: string, password: string) {
   const logContext = getSafeAuthLogContext(email)
   const user = await loadAuthUserByEmail(email)
@@ -248,7 +258,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: '/login',
   },
   session: { strategy: 'jwt' },
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'taskforce-super-secret-key-2024-change-in-production',
+  secret: getAuthSecret(),
 })
 
 export function getSessionHomePath(session: { user?: { role?: string | null } | null }) {
