@@ -9,10 +9,6 @@ import Image from 'next/image'
 import logo from '@/app/logo.png'
 import { Mail, Lock, ArrowRight, Loader2, Sparkles, Eye, EyeOff } from 'lucide-react'
 
-async function readLoginCheckData(response: Response) {
-  return (await response.json().catch(() => ({}))) as { error?: string }
-}
-
 function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -38,27 +34,9 @@ function LoginContent() {
     setLoading(true)
     setError('')
 
-    const loginCheck = await fetch('/api/auth/login-check', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email.trim(), password }),
-    })
-
-    const loginCheckData = await readLoginCheckData(loginCheck)
-    if (!loginCheck.ok) {
-      setLoading(false)
-      setError(
-        loginCheckData.error ||
-          (loginCheck.status >= 500
-            ? 'Unable to verify credentials right now. Please try again shortly.'
-            : 'Invalid email or password')
-      )
-      return
-    }
-
-    const res = await signIn('credentials', { email, password, redirect: false })
+    const res = await signIn('credentials', { email: email.trim(), password, redirect: false }).catch(() => null)
     setLoading(false)
-    if (res?.error) {
+    if (!res || res.error) {
       setError('Invalid email or password')
     } else {
       router.push('/dashboard')
