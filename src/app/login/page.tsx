@@ -9,6 +9,18 @@ import Image from 'next/image'
 import logo from '@/app/logo.png'
 import { Mail, Lock, ArrowRight, Loader2, Sparkles, Eye, EyeOff } from 'lucide-react'
 
+async function readLoginCheckData(response: Response) {
+  return (await response.json().catch(() => ({}))) as { error?: string }
+}
+
+function getSignInErrorMessage(error?: string | null) {
+  if (error === 'Configuration') {
+    return 'Sign in is not configured correctly on the server. Check the production database and auth environment variables.'
+  }
+
+  return 'Invalid email or password'
+}
+
 function LoginContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -34,10 +46,30 @@ function LoginContent() {
     setLoading(true)
     setError('')
 
-    const res = await signIn('credentials', { email: email.trim(), password, redirect: false }).catch(() => null)
+    const trimmedEmail = email.trim()
+    const loginCheck = await fetch('/api/auth/login-check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: trimmedEmail, password }),
+    }).catch(() => null)
+
+    if (!loginCheck) {
+      setLoading(false)
+      setError('Unable to reach the sign-in service. Please try again.')
+      return
+    }
+
+    const loginCheckData = await readLoginCheckData(loginCheck)
+    if (!loginCheck.ok) {
+      setLoading(false)
+      setError(loginCheckData.error || getSignInErrorMessage(loginCheck.status >= 500 ? 'Configuration' : null))
+      return
+    }
+
+    const res = await signIn('credentials', { email: trimmedEmail, password, redirect: false }).catch(() => null)
     setLoading(false)
     if (!res || res.error) {
-      setError('Invalid email or password')
+      setError(getSignInErrorMessage(res?.error))
     } else {
       router.push('/dashboard')
       router.refresh()

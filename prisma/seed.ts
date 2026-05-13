@@ -10,6 +10,7 @@ async function main() {
   const owner = await prisma.user.upsert({
     where: { email: 'owner@taskforce.com' },
     update: {
+      password: ownerPw,
       role: 'OWNER',
       accountStatus: 'ACTIVE',
     },
@@ -51,6 +52,7 @@ async function main() {
   const manager = await prisma.user.upsert({
     where: { email: 'manager@taskforce.com' },
     update: {
+      password: mgPw,
       role: 'MANAGER',
       accountStatus: 'ACTIVE',
       companyId: company.id,
@@ -69,6 +71,7 @@ async function main() {
   const emp1 = await prisma.user.upsert({
     where: { email: 'emp1@taskforce.com' },
     update: {
+      password: empPw,
       role: 'EMPLOYEE',
       accountStatus: 'ACTIVE',
       companyId: company.id,
@@ -85,6 +88,7 @@ async function main() {
   const emp2 = await prisma.user.upsert({
     where: { email: 'emp2@taskforce.com' },
     update: {
+      password: empPw,
       role: 'EMPLOYEE',
       accountStatus: 'ACTIVE',
       companyId: company.id,
@@ -105,6 +109,7 @@ async function main() {
     await prisma.user.upsert({
       where: { email: superAdminEmail.toLowerCase() },
       update: {
+        password: superAdminPw,
         role: 'SUPER_ADMIN',
         accountStatus: 'ACTIVE',
         companyId: null,
