@@ -7,7 +7,8 @@
   },
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "prisma generate && next build",
+    "build": "opennextjs-cloudflare build",
+    "deploy": "opennextjs-cloudflare build && wrangler deploy",
     "start": "NODE_ENV=production tsx server.ts",
     "lint": "eslint",
     "db:migrate": "prisma migrate dev --name init",
@@ -45,6 +46,7 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@opennextjs/cloudflare": "^1.19.6",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
@@ -55,6 +57,7 @@
     "jsx-ast-utils": "^2.4.1",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "wrangler": "^4.90.1"
   }
 }
