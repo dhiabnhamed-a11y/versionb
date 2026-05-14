@@ -18,7 +18,9 @@ import {
   ReceiptText,
   RefreshCw,
   ShieldCheck,
+  Sparkles,
   TrendingUp,
+  Wand2,
   WalletCards,
 } from 'lucide-react'
 import { useLocale } from '@/components/i18n/LocaleProvider'
@@ -155,7 +157,7 @@ const tabs: Array<{ id: FinanceTab; label: string }> = [
   { id: 'expenses', label: 'Expenses' },
   { id: 'payroll', label: 'Payroll' },
   { id: 'treasury', label: 'Treasury' },
-  { id: 'ledger', label: 'Ledger' },
+  { id: 'ledger', label: 'Accounting' },
 ]
 
 async function fetchJson<T>(url: string): Promise<T> {
@@ -212,7 +214,7 @@ function LoadingBlock() {
   return (
     <div className="taskit-empty-state">
       <Loader2 size={20} className="animate-spin text-[var(--accent)]" />
-      <p className="taskit-body">Loading finance records</p>
+      <p className="taskit-body">Reading your financial workspace</p>
     </div>
   )
 }
@@ -226,10 +228,72 @@ function EmptyBlock({ title, body }: { title: string; body: string }) {
   )
 }
 
+function PremiumEmptyState({
+  icon: Icon,
+  title,
+  body,
+  bullets,
+  actionLabel,
+  onAction,
+  actionHref,
+  busy = false,
+}: {
+  icon: typeof Sparkles
+  title: string
+  body: string
+  bullets: string[]
+  actionLabel?: string
+  onAction?: () => void
+  actionHref?: string
+  busy?: boolean
+}) {
+  const actionContent = (
+    <>
+      {busy ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
+      {actionLabel}
+    </>
+  )
+
+  return (
+    <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-5">
+      <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
+        <div className="min-w-0">
+          <div className="mb-3 inline-flex h-11 w-11 items-center justify-center rounded-lg border border-[var(--border)] bg-[var(--bg-card)] text-[var(--accent)]">
+            <Icon size={22} aria-hidden />
+          </div>
+          <h3 className="taskit-heading">{title}</h3>
+          <p className="taskit-body mt-2 max-w-2xl">{body}</p>
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
+            {bullets.map((item) => (
+              <div key={item} className="flex items-center gap-2 text-sm font-medium text-[var(--text-secondary)]">
+                <CheckCircle2 size={15} className="text-[var(--success)]" aria-hidden />
+                <span>{item}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+        {actionLabel && (
+          actionHref ? (
+            <Link href={actionHref} className="btn-primary shrink-0">
+              {actionContent}
+            </Link>
+          ) : (
+            <button type="button" className="btn-primary shrink-0" onClick={onAction} disabled={busy}>
+              {actionContent}
+            </button>
+          )
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function AdminFinancePage() {
   const { locale } = useLocale()
   const [activeTab, setActiveTab] = useState<FinanceTab>('command')
   const [refreshing, setRefreshing] = useState(false)
+  const [initializing, setInitializing] = useState(false)
+  const [setupMessage, setSetupMessage] = useState<string | null>(null)
 
   const cfo = useSWR<CfoBrief>('/api/finance/cfo/brief', fetchJson)
   const invoices = useSWR<ApiList<Invoice> & { summary?: { total?: number; count?: number } }>('/api/invoices?pageSize=50', fetchJson)
@@ -317,6 +381,37 @@ export default function AdminFinancePage() {
   }
 
   const primaryCurrency = invoiceItems[0]?.currency || treasuryAccountItems[0]?.currency || expenseItems[0]?.currency || payrollItems[0]?.currency || 'USD'
+  const workspaceActivated = accountItems.length > 0
+  const financialHealthScore = Math.max(
+    42,
+    Math.min(
+      98,
+      Math.round(
+        58 +
+          (workspaceActivated ? 16 : 0) +
+          (invoiceItems.length ? 8 : 0) +
+          (treasuryAccountItems.length ? 8 : 0) +
+          (metrics.openApprovals === 0 ? 5 : -Math.min(metrics.openApprovals * 3, 12)) -
+          (metrics.overdueReceivables > 0 ? 9 : 0)
+      )
+    )
+  )
+
+  async function initializeWorkspace() {
+    setInitializing(true)
+    setSetupMessage(null)
+    try {
+      const response = await fetch('/api/finance/setup/recommended', { method: 'POST' })
+      const body = await response.json().catch(() => null)
+      if (!response.ok) throw new Error(body?.error || 'Financial workspace could not be initialized.')
+      setSetupMessage(body?.message || 'Your financial workspace is ready.')
+      await refreshAll()
+    } catch (error) {
+      setSetupMessage(error instanceof Error ? error.message : 'Financial workspace could not be initialized.')
+    } finally {
+      setInitializing(false)
+    }
+  }
 
   return (
     <div className="dashboard-page" style={{ maxWidth: '1180px' }}>
@@ -346,7 +441,47 @@ export default function AdminFinancePage() {
         </div>
       )}
 
+      {!loading && !workspaceActivated && (
+        <section className="taskit-card mb-6">
+          <div className="taskit-card-header">
+            <div className="taskit-row-main">
+              <span className="taskit-label">Financial setup assistant</span>
+              <h2 className="taskit-heading">Welcome to TASKIT Financial Operations</h2>
+            </div>
+            <Sparkles size={22} aria-hidden style={{ color: 'var(--accent)' }} />
+          </div>
+          <PremiumEmptyState
+            icon={Landmark}
+            title="Your financial workspace is ready to be initialized"
+            body="TASKIT can configure the recommended financial foundation for an agency or service business in under two minutes, then connect it to invoices, payroll, spending, cash, and profitability intelligence."
+            bullets={[
+              'Accounting structure',
+              'Payroll foundations',
+              'Treasury workspace',
+              'Expense categories',
+              'Tax-ready accounts',
+              'Profitability tracking',
+            ]}
+            actionLabel="Initialize Financial Workspace"
+            onAction={initializeWorkspace}
+            busy={initializing}
+          />
+          {setupMessage && (
+            <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-4 text-sm font-semibold text-[var(--text-primary)]">
+              {setupMessage}
+            </div>
+          )}
+        </section>
+      )}
+
       <section className="dashboard-stat-grid">
+        <article className="stat-card">
+          <span className="stat-card-label">Financial health</span>
+          <strong className="stat-card-value">{financialHealthScore}%</strong>
+          <span className="stat-card-delta">
+            <Sparkles size={14} /> {workspaceActivated ? 'Operating foundation active' : 'Foundation ready to initialize'}
+          </span>
+        </article>
         <article className="stat-card">
           <span className="stat-card-label">Cash position</span>
           <strong className="stat-card-value">{formatMoney(metrics.cashBalance, primaryCurrency, locale)}</strong>
@@ -448,11 +583,11 @@ export default function AdminFinancePage() {
                 <strong className="taskit-heading">{formatMoney(metrics.draftPipeline, primaryCurrency, locale)}</strong>
               </div>
               <div className="taskit-metric-row">
-                <span className="taskit-body">Posted journal entries</span>
+                <span className="taskit-body">Posted financial events</span>
                 <strong className="taskit-heading">{metrics.postedJournals}</strong>
               </div>
               <div className="taskit-metric-row">
-                <span className="taskit-body">Chart accounts</span>
+                <span className="taskit-body">Financial foundation</span>
                 <strong className="taskit-heading">{accountItems.length}</strong>
               </div>
             </div>
@@ -564,7 +699,12 @@ export default function AdminFinancePage() {
             <ClipboardCheck size={22} aria-hidden />
           </div>
           {!approvalItems.length ? (
-            <EmptyBlock title="No finance approvals" body="New approval chains will appear here once created." />
+            <PremiumEmptyState
+              icon={ClipboardCheck}
+              title="Financial decisions are flowing clearly"
+              body="Approvals for spending, payroll, transfers, and invoice exceptions will appear here with decision context and audit history."
+              bullets={['Expense approvals', 'Payroll approvals', 'Transfer reviews', 'Invoice controls']}
+            />
           ) : (
             <div className="taskit-activity-list">
               {approvalItems.map((flow) => (
@@ -594,7 +734,14 @@ export default function AdminFinancePage() {
             <ReceiptText size={22} aria-hidden />
           </div>
           {!expenseItems.length ? (
-            <EmptyBlock title="No expenses" body="Submitted expenses will appear here with vendor, project, and approval status." />
+            <PremiumEmptyState
+              icon={BadgeDollarSign}
+              title="Track operational spending intelligently"
+              body="TASKIT will connect expenses to clients, projects, approvals, treasury, and profitability so spending is understood in context."
+              bullets={['Project-linked spending', 'Recurring costs', 'Reimbursements', 'Profitability impact']}
+              actionLabel="Start Expense Tracking"
+              onAction={() => setActiveTab('command')}
+            />
           ) : (
             <div className="taskit-activity-list">
               {expenseItems.map((expense) => (
@@ -625,7 +772,15 @@ export default function AdminFinancePage() {
             <Banknote size={22} aria-hidden />
           </div>
           {!payrollItems.length ? (
-            <EmptyBlock title="No payroll runs" body="Payroll runs will appear here after processing." />
+            <PremiumEmptyState
+              icon={Banknote}
+              title="Start managing team compensation"
+              body="TASKIT Payroll is prepared for salaries, bonuses, deductions, overtime, approvals, compensation history, and ledger-ready posting."
+              bullets={['Salaries and hourly pay', 'Bonuses and deductions', 'Approval workflow', 'Payroll analytics']}
+              actionLabel={workspaceActivated ? undefined : 'Configure Payroll System'}
+              onAction={initializeWorkspace}
+              busy={initializing}
+            />
           ) : (
             <div className="taskit-activity-list">
               {payrollItems.map((run) => (
@@ -659,7 +814,15 @@ export default function AdminFinancePage() {
               <WalletCards size={22} aria-hidden />
             </div>
             {!treasuryAccountItems.length ? (
-              <EmptyBlock title="No treasury accounts" body="Bank, cash, wallet, and processor accounts will appear here." />
+              <PremiumEmptyState
+                icon={WalletCards}
+                title="Activate treasury operations"
+                body="Connect cash, bank, wallet, and payment processor balances into one operational view for runway, liquidity, and scheduled payments."
+                bullets={['Cash accounts', 'Bank balances', 'Internal transfers', 'Payment schedules']}
+                actionLabel="Generate Treasury Workspace"
+                onAction={initializeWorkspace}
+                busy={initializing}
+              />
             ) : (
               <div className="taskit-activity-list">
                 {treasuryAccountItems.map((account) => (
@@ -685,7 +848,12 @@ export default function AdminFinancePage() {
               <ArrowRight size={22} aria-hidden />
             </div>
             {!treasuryTransactionItems.length ? (
-              <EmptyBlock title="No treasury transactions" body="Transfers and payment schedules will appear here." />
+              <PremiumEmptyState
+                icon={ArrowRight}
+                title="Payment activity will appear here"
+                body="Scheduled payments, transfers, collections, and reconciliation signals will populate this timeline as your cash operations grow."
+                bullets={['Scheduled payments', 'Internal transfers', 'Collections', 'Reconciliation signals']}
+              />
             ) : (
               <div className="taskit-activity-list">
                 {treasuryTransactionItems.map((transaction) => (
@@ -714,13 +882,18 @@ export default function AdminFinancePage() {
           <article className="taskit-card">
             <div className="taskit-card-header">
               <div className="taskit-row-main">
-                <span className="taskit-label">Double-entry ledger</span>
-                <h2 className="taskit-heading">Journal entries</h2>
+                <span className="taskit-label">Accounting activity</span>
+                <h2 className="taskit-heading">Financial event history</h2>
               </div>
               <FileSpreadsheet size={22} aria-hidden />
             </div>
             {!journalItems.length ? (
-              <EmptyBlock title="No journal entries" body="Posted and pending entries from accounting workflows will appear here." />
+              <PremiumEmptyState
+                icon={FileSpreadsheet}
+                title="Financial history will build automatically"
+                body="As invoices, payroll, expenses, treasury movements, and approvals become active, TASKIT will preserve a clear financial event trail."
+                bullets={['Invoice activity', 'Payroll posting', 'Expense impact', 'Treasury movements']}
+              />
             ) : (
               <div className="taskit-activity-list">
                 {journalItems.map((entry) => (
@@ -729,7 +902,7 @@ export default function AdminFinancePage() {
                       <span className="taskit-label">{entry.entryNumber}</span>
                       <span className="taskit-body">{entry.sourceType} / {formatDate(entry.transactionDate, locale)}</span>
                       <span className="taskit-body">
-                        Debit {formatMoney(entry.totalDebit, entry.currency, locale)} / Credit {formatMoney(entry.totalCredit, entry.currency, locale)}
+                        Balanced movement {formatMoney(entry.totalDebit, entry.currency, locale)}
                       </span>
                     </div>
                     <ToneBadge value={entry.status} />
@@ -742,13 +915,21 @@ export default function AdminFinancePage() {
           <article className="taskit-card">
             <div className="taskit-card-header">
               <div className="taskit-row-main">
-                <span className="taskit-label">Chart of accounts</span>
-                <h2 className="taskit-heading">Account structure</h2>
+                <span className="taskit-label">Accounting foundation</span>
+                <h2 className="taskit-heading">Financial structure</h2>
               </div>
               <CheckCircle2 size={22} aria-hidden />
             </div>
             {!accountItems.length ? (
-              <EmptyBlock title="No accounts" body="Create accounts through the finance API to activate ledger posting." />
+              <PremiumEmptyState
+                icon={Landmark}
+                title="Your accounting structure has not been configured yet"
+                body="TASKIT can generate the recommended operating structure for revenue, payroll, treasury, expenses, taxes, and profitability without exposing accounting setup complexity."
+                bullets={['Operational accounts', 'Revenue accounts', 'Payroll accounts', 'Treasury accounts', 'Tax-ready structure', 'Profitability categories']}
+                actionLabel="Generate Recommended Structure"
+                onAction={initializeWorkspace}
+                busy={initializing}
+              />
             ) : (
               <div className="taskit-activity-list">
                 {accountItems.slice(0, 12).map((account) => (
