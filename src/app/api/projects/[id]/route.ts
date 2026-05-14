@@ -5,6 +5,12 @@ import { deleteProjectGraph } from '@/lib/delete-graph'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import { getProjectIfAllowed } from '@/lib/project-access'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
+import { getRequestId, REQUEST_ID_HEADER } from '@/modules/shared/api'
+import { logger } from '@/modules/shared/logger'
+import { rateLimitRequest } from '@/modules/shared/rate-limit'
+import { canManageProjects } from '@/modules/projects/policy'
+import { isValidProjectId } from '@/modules/projects/validation'
+import type { ProjectSessionUser } from '@/modules/projects/types'
 import { getProjectCameraSupport, withProjectCameraDefaults } from '@/lib/project-camera-support'
 import { isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { getProjectMediaSupport } from '@/lib/project-media-support'
@@ -15,12 +21,8 @@ import {
   updateProjectAgencyFields,
 } from '@/lib/project-category-support'
 
-type SessionUser = {
-  id: string
-  role: string
-  companyId?: string | null
-  companyType?: string | null
-}
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 type UpdateProjectBody = {
   title?: string
@@ -34,19 +36,18 @@ type UpdateProjectBody = {
   cameraType?: 'device' | 'external'
 }
 
-function canManageWorkspace(user: SessionUser) {
-  return user.role !== 'EMPLOYEE'
-}
-
-function isValidProjectId(id: unknown) {
-  return typeof id === 'string' && id.length >= 8 && id.length <= 128 && /^[a-zA-Z0-9_-]+$/.test(id)
+function apiHeaders(requestId: string, headers: HeadersInit = {}) {
+  return {
+    ...headers,
+    [REQUEST_ID_HEADER]: requestId,
+  }
 }
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const user = session.user as SessionUser
+  const user = session.user as ProjectSessionUser
   const { id } = await params
 
   const allowed = await getProjectIfAllowed(id, user)
@@ -153,12 +154,33 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const requestId = getRequestId(req)
+  const rateLimit = rateLimitRequest(req, {
+    namespace: 'projects.write',
+    windowMs: 60_000,
+    max: 30,
+  })
+  if (!rateLimit.allowed) {
+    logger.warn('api.rate_limited', { requestId, route: '/api/projects/[id]', namespace: 'projects.write' })
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again shortly.', code: 'RATE_LIMITED', requestId },
+      {
+        status: 429,
+        headers: apiHeaders(requestId, {
+          'Retry-After': String(rateLimit.retryAfterSeconds),
+          'X-RateLimit-Remaining': String(rateLimit.remaining),
+          'X-RateLimit-Reset': new Date(rateLimit.resetAt).toISOString(),
+        }),
+      }
+    )
+  }
+
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const user = session.user as SessionUser
+  const user = session.user as ProjectSessionUser
   if (!user.companyId) return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
-  if (!canManageWorkspace(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  if (!canManageProjects(user)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   const { id } = await params
   const allowed = await getProjectIfAllowed(id, user)
@@ -272,47 +294,68 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const [projectWithAgencyFields] = await attachProjectAgencyFields([normalizedProject], user.companyId)
   emitCompanyRealtime(user.companyId, 'project_updated', { project: projectWithAgencyFields, projectId: id })
 
-  return NextResponse.json(projectWithAgencyFields)
+  return NextResponse.json(projectWithAgencyFields, { headers: apiHeaders(requestId) })
 }
 
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const requestId = getRequestId(_req)
+  const rateLimit = rateLimitRequest(_req, {
+    namespace: 'projects.write',
+    windowMs: 60_000,
+    max: 30,
+  })
+  if (!rateLimit.allowed) {
+    logger.warn('api.rate_limited', { requestId, route: '/api/projects/[id]', namespace: 'projects.write' })
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again shortly.', code: 'RATE_LIMITED', requestId },
+      {
+        status: 429,
+        headers: apiHeaders(requestId, {
+          'Retry-After': String(rateLimit.retryAfterSeconds),
+          'X-RateLimit-Remaining': String(rateLimit.remaining),
+          'X-RateLimit-Reset': new Date(rateLimit.resetAt).toISOString(),
+        }),
+      }
+    )
+  }
+
   try {
     const { id: rawId } = await params
     const id = rawId?.trim()
-    if (!isValidProjectId(id)) return NextResponse.json({ error: 'Project not found.' }, { status: 404 })
+    if (!isValidProjectId(id)) return NextResponse.json({ error: 'Project not found.' }, { status: 404, headers: apiHeaders(requestId) })
 
     const session = await auth()
-    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: apiHeaders(requestId) })
 
-    const user = session.user as SessionUser
-    if (!user.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    if (!canManageWorkspace(user)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const user = session.user as ProjectSessionUser
+    if (!user.companyId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: apiHeaders(requestId) })
+    if (!canManageProjects(user)) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: apiHeaders(requestId) })
 
     const project = await prisma.project.findFirst({
       where: { id, companyId: user.companyId },
       select: { id: true },
     })
-    if (!project) return NextResponse.json({ error: 'Project not found.' }, { status: 404 })
+    if (!project) return NextResponse.json({ error: 'Project not found.' }, { status: 404, headers: apiHeaders(requestId) })
 
     await prisma.$transaction((tx) => deleteProjectGraph(tx, id))
 
     try {
       emitCompanyRealtime(user.companyId, 'project_deleted', { projectId: id })
     } catch (emitError) {
-      console.error('[project-delete:realtime]', {
+      logger.error('project.delete_realtime_failed', emitError, {
+        requestId,
         projectId: id,
         companyId: user.companyId,
-        error: emitError,
       })
     }
 
-    return NextResponse.json({ success: true, projectId: id }, { status: 200 })
+    return NextResponse.json({ success: true, projectId: id }, { status: 200, headers: apiHeaders(requestId) })
   } catch (error) {
-    console.error('[project-delete]', {
+    logger.error('project.delete_failed', error, {
+      requestId,
       route: '/api/projects/[id]',
-      error,
     })
 
-    return NextResponse.json({ error: 'Project could not be deleted.' }, { status: 500 })
+    return NextResponse.json({ error: 'Project could not be deleted.', requestId }, { status: 500, headers: apiHeaders(requestId) })
   }
 }

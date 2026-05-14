@@ -6,6 +6,9 @@ import { auth } from '@/lib/auth'
 import { getDatabaseConfigHint, prisma } from '@/lib/db'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
+import { getRequestId, REQUEST_ID_HEADER } from '@/modules/shared/api'
+import { logger } from '@/modules/shared/logger'
+import { rateLimitRequest } from '@/modules/shared/rate-limit'
 import {
   attachProjectAgencyFields,
   findProjectCategory,
@@ -18,6 +21,9 @@ import {
   withProjectCameraDefaults,
 } from '@/lib/project-camera-support'
 import { ensureImportedBriefForCampaign } from '@/lib/creative-workflow'
+
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 function getProjectListSelect(includeCameraFields: boolean) {
   return {
@@ -68,6 +74,13 @@ type RawTaskRow = {
   projectId: string
   stage: string
   priority: string
+}
+
+function apiHeaders(requestId: string, headers: HeadersInit = {}) {
+  return {
+    ...headers,
+    [REQUEST_ID_HEADER]: requestId,
+  }
 }
 
 async function findProjectsWithoutCameraFields(companyId: string) {
@@ -289,13 +302,14 @@ async function createProjectWithoutCameraFields(input: {
 }
 
 // GET all projects for company
-export async function GET() {
+export async function GET(req: Request) {
+  const requestId = getRequestId(req)
   const session = await auth()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: apiHeaders(requestId) })
 
   const user = session.user as { companyId?: string | null; companyType?: string | null }
   if (!user.companyId) {
-    return NextResponse.json([], { headers: NO_STORE_HEADERS })
+    return NextResponse.json([], { headers: apiHeaders(requestId, NO_STORE_HEADERS) })
   }
 
   try {
@@ -321,27 +335,49 @@ export async function GET() {
 
     const normalizedProjects = projects.map(withProjectCameraDefaults) as unknown as Array<{ id: string } & Record<string, unknown>>
     if (isAgencyCompanyType(normalizeCompanyType(user.companyType))) {
-      return NextResponse.json(await attachProjectAgencyFields(normalizedProjects, user.companyId), { headers: NO_STORE_HEADERS })
+      return NextResponse.json(await attachProjectAgencyFields(normalizedProjects, user.companyId), { headers: apiHeaders(requestId, NO_STORE_HEADERS) })
     }
 
-    return NextResponse.json(normalizedProjects, { headers: NO_STORE_HEADERS })
+    return NextResponse.json(normalizedProjects, { headers: apiHeaders(requestId, NO_STORE_HEADERS) })
   } catch (err) {
-    console.error(err)
+    logger.error('projects.list_failed', err, { requestId, companyId: user.companyId })
     return NextResponse.json(
       {
         error: 'Unable to load projects',
-        detail: err instanceof Error ? err.message : 'Unknown database error',
-        hint: getDatabaseConfigHint(),
+        detail: process.env.NODE_ENV === 'production' ? undefined : err instanceof Error ? err.message : 'Unknown database error',
+        hint: process.env.NODE_ENV === 'production' ? undefined : getDatabaseConfigHint(),
+        requestId,
       },
-      { status: 500 }
+      { status: 500, headers: apiHeaders(requestId) }
     )
   }
 }
 
 // POST create project
 export async function POST(req: Request) {
+  const requestId = getRequestId(req)
+  const rateLimit = rateLimitRequest(req, {
+    namespace: 'projects.write',
+    windowMs: 60_000,
+    max: 30,
+  })
+  if (!rateLimit.allowed) {
+    logger.warn('api.rate_limited', { requestId, route: '/api/projects', namespace: 'projects.write' })
+    return NextResponse.json(
+      { error: 'Too many requests. Please try again shortly.', code: 'RATE_LIMITED', requestId },
+      {
+        status: 429,
+        headers: apiHeaders(requestId, {
+          'Retry-After': String(rateLimit.retryAfterSeconds),
+          'X-RateLimit-Remaining': String(rateLimit.remaining),
+          'X-RateLimit-Reset': new Date(rateLimit.resetAt).toISOString(),
+        }),
+      }
+    )
+  }
+
   const session = await auth()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: apiHeaders(requestId) })
 
   const user = session.user as { id?: string; role?: string; companyId?: string | null; companyType?: string | null }
   if (!user.companyId) {
@@ -484,21 +520,22 @@ export async function POST(req: Request) {
     if (isAgency) {
       const [projectWithAgencyFields] = await attachProjectAgencyFields([normalizedProject], user.companyId)
       emitCompanyRealtime(user.companyId, 'project_created', { project: projectWithAgencyFields })
-      return NextResponse.json(projectWithAgencyFields, { status: 201 })
+      return NextResponse.json(projectWithAgencyFields, { status: 201, headers: apiHeaders(requestId) })
     }
 
     emitCompanyRealtime(user.companyId, 'project_created', { project: normalizedProject })
 
-    return NextResponse.json(normalizedProject, { status: 201 })
+    return NextResponse.json(normalizedProject, { status: 201, headers: apiHeaders(requestId) })
   } catch (err) {
-    console.error(err)
+    logger.error('projects.create_failed', err, { requestId, companyId: user.companyId, userId: user.id })
     return NextResponse.json(
       {
         error: 'Unable to create project',
-        detail: err instanceof Error ? err.message : 'Unknown database error',
-        hint: getDatabaseConfigHint(),
+        detail: process.env.NODE_ENV === 'production' ? undefined : err instanceof Error ? err.message : 'Unknown database error',
+        hint: process.env.NODE_ENV === 'production' ? undefined : getDatabaseConfigHint(),
+        requestId,
       },
-      { status: 500 }
+      { status: 500, headers: apiHeaders(requestId) }
     )
   }
 }
