@@ -20,6 +20,7 @@ function hrefForEvent(event: DomainEvent) {
     return projectId ? `/dashboard/admin/projects/${projectId}` : '/dashboard/admin/tasks'
   }
   if (event.entityType === 'invoice') return '/dashboard/admin/invoices'
+  if (event.entityType === 'journal_entry' || event.entityType === 'account') return '/dashboard/admin/finance'
   if (event.entityType === 'client') return `/dashboard/admin/clients/${event.entityId}`
   if (event.entityType === 'project') return `/dashboard/admin/projects/${event.entityId}`
   return null
