@@ -10,6 +10,7 @@ import { assertFinanceManage, requireFinanceCompany } from '@/modules/finance/po
 import { writeFinancialAuditLog } from '@/modules/finance/audit.repository'
 import { normalizeCurrency, toDecimal } from '@/modules/accounting/money'
 import { createTreasuryAccountSchema, createTreasuryTransactionSchema } from '@/modules/treasury/treasury.validation'
+import type { PaginationInput } from '@/modules/shared/pagination'
 
 function parseOptionalDate(value: string | null | undefined) {
   if (!value) return null
@@ -116,4 +117,76 @@ export async function createTreasuryTransaction(user: SessionUser, rawInput: unk
   })
 
   return { ...transaction, amount: (transaction.amount as Prisma.Decimal).toString() }
+}
+
+function serializeTreasuryAccount(account: Prisma.TreasuryAccountGetPayload<{ include: { ledgerAccount: { select: { id: true; code: true; name: true } } } }>) {
+  return {
+    ...account,
+    openingBalance: account.openingBalance.toString(),
+    currentBalance: account.currentBalance.toString(),
+  }
+}
+
+function serializeTreasuryTransaction(
+  transaction: Prisma.TreasuryTransactionGetPayload<{
+    include: {
+      fromAccount: { select: { id: true; name: true; type: true } }
+      toAccount: { select: { id: true; name: true; type: true } }
+      invoice: { select: { id: true; invoiceNumber: true; clientName: true } }
+      createdBy: { select: { id: true; name: true; email: true } }
+      approvedBy: { select: { id: true; name: true; email: true } }
+    }
+  }>
+) {
+  return {
+    ...transaction,
+    amount: transaction.amount.toString(),
+  }
+}
+
+export async function listTreasuryAccounts(user: SessionUser) {
+  const companyId = requireFinanceCompany(user)
+  assertFinanceManage(user)
+
+  const accounts = await prisma.treasuryAccount.findMany({
+    where: { companyId },
+    include: { ledgerAccount: { select: { id: true, code: true, name: true } } },
+    orderBy: [{ type: 'asc' }, { name: 'asc' }],
+  })
+
+  return accounts.map(serializeTreasuryAccount)
+}
+
+export async function listTreasuryTransactions(user: SessionUser, pagination: PaginationInput) {
+  const companyId = requireFinanceCompany(user)
+  assertFinanceManage(user)
+
+  const include = {
+    fromAccount: { select: { id: true, name: true, type: true } },
+    toAccount: { select: { id: true, name: true, type: true } },
+    invoice: { select: { id: true, invoiceNumber: true, clientName: true } },
+    createdBy: { select: { id: true, name: true, email: true } },
+    approvedBy: { select: { id: true, name: true, email: true } },
+  } satisfies Prisma.TreasuryTransactionInclude
+
+  const [items, total] = await prisma.$transaction([
+    prisma.treasuryTransaction.findMany({
+      where: { companyId },
+      include,
+      orderBy: [{ scheduledFor: 'asc' }, { createdAt: 'desc' }],
+      skip: pagination.skip,
+      take: pagination.pageSize,
+    }),
+    prisma.treasuryTransaction.count({ where: { companyId } }),
+  ])
+
+  return {
+    items: items.map(serializeTreasuryTransaction),
+    pagination: {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      total,
+      pageCount: Math.ceil(total / pagination.pageSize),
+    },
+  }
 }

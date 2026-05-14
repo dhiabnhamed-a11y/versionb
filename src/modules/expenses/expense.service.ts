@@ -10,6 +10,7 @@ import { assertFinanceManage, requireFinanceCompany } from '@/modules/finance/po
 import { writeFinancialAuditLog } from '@/modules/finance/audit.repository'
 import { normalizeCurrency, toDecimal } from '@/modules/accounting/money'
 import { createExpenseSchema } from '@/modules/expenses/expense.validation'
+import type { PaginationInput } from '@/modules/shared/pagination'
 
 function parseDate(value: string | null | undefined) {
   if (!value) return new Date()
@@ -100,5 +101,48 @@ export async function createExpense(user: SessionUser, rawInput: unknown) {
     subtotal: (expense.subtotal as Prisma.Decimal).toString(),
     taxTotal: (expense.taxTotal as Prisma.Decimal).toString(),
     total: (expense.total as Prisma.Decimal).toString(),
+  }
+}
+
+function serializeExpense(expense: Awaited<ReturnType<typeof prisma.expense.findMany>>[number]) {
+  return {
+    ...expense,
+    subtotal: (expense.subtotal as Prisma.Decimal).toString(),
+    taxTotal: (expense.taxTotal as Prisma.Decimal).toString(),
+    total: (expense.total as Prisma.Decimal).toString(),
+    aiCategoryConfidence: expense.aiCategoryConfidence?.toString() ?? null,
+  }
+}
+
+export async function listExpenses(user: SessionUser, pagination: PaginationInput) {
+  const companyId = requireFinanceCompany(user)
+  assertFinanceManage(user)
+
+  const [items, total] = await prisma.$transaction([
+    prisma.expense.findMany({
+      where: { companyId },
+      include: {
+        vendor: { select: { id: true, name: true } },
+        category: { select: { id: true, name: true } },
+        project: { select: { id: true, title: true } },
+        client: { select: { id: true, companyName: true } },
+        submittedBy: { select: { id: true, name: true, email: true } },
+        approvedBy: { select: { id: true, name: true, email: true } },
+      },
+      orderBy: [{ expenseDate: 'desc' }, { createdAt: 'desc' }],
+      skip: pagination.skip,
+      take: pagination.pageSize,
+    }),
+    prisma.expense.count({ where: { companyId } }),
+  ])
+
+  return {
+    items: items.map(serializeExpense),
+    pagination: {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      total,
+      pageCount: Math.ceil(total / pagination.pageSize),
+    },
   }
 }

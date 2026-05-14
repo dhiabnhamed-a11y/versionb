@@ -11,6 +11,7 @@ import { writeFinancialAuditLog } from '@/modules/finance/audit.repository'
 import { createJournalEntryInTransaction } from '@/modules/accounting/accounting.service'
 import { normalizeCurrency, sumDecimals, toDecimal, zeroDecimal } from '@/modules/accounting/money'
 import { createPayrollSchema, postPayrollSchema } from '@/modules/payroll/payroll.validation'
+import type { PaginationInput } from '@/modules/shared/pagination'
 
 function parseDate(value: string, field: string) {
   const date = new Date(value)
@@ -187,5 +188,55 @@ export async function postPayrollRun(user: SessionUser, payrollId: string, rawIn
     grossPay: decimalString(payroll.grossPay),
     netPay: decimalString(payroll.netPay),
     items: payroll.items.map((item) => ({ ...item, hours: item.hours.toString(), rate: item.rate.toString(), amount: item.amount.toString() })),
+  }
+}
+
+function serializePayroll(payroll: Prisma.PayrollGetPayload<{ include: { items: true; processedBy: { select: { id: true; name: true; email: true } }; approvedBy: { select: { id: true; name: true; email: true } } } }>) {
+  return {
+    ...payroll,
+    grossPay: decimalString(payroll.grossPay),
+    overtimePay: decimalString(payroll.overtimePay),
+    bonusPay: decimalString(payroll.bonusPay),
+    deductions: decimalString(payroll.deductions),
+    taxes: decimalString(payroll.taxes),
+    netPay: decimalString(payroll.netPay),
+    items: payroll.items.map((item) => ({
+      ...item,
+      hours: item.hours.toString(),
+      rate: item.rate.toString(),
+      amount: item.amount.toString(),
+    })),
+  }
+}
+
+export async function listPayrollRuns(user: SessionUser, pagination: PaginationInput) {
+  const companyId = requireFinanceCompany(user)
+  assertFinanceManage(user)
+
+  const include = {
+    items: true,
+    processedBy: { select: { id: true, name: true, email: true } },
+    approvedBy: { select: { id: true, name: true, email: true } },
+  } satisfies Prisma.PayrollInclude
+
+  const [items, total] = await prisma.$transaction([
+    prisma.payroll.findMany({
+      where: { companyId },
+      include,
+      orderBy: [{ periodEnd: 'desc' }, { createdAt: 'desc' }],
+      skip: pagination.skip,
+      take: pagination.pageSize,
+    }),
+    prisma.payroll.count({ where: { companyId } }),
+  ])
+
+  return {
+    items: items.map(serializePayroll),
+    pagination: {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      total,
+      pageCount: Math.ceil(total / pagination.pageSize),
+    },
   }
 }
