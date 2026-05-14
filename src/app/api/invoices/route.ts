@@ -1,34 +1,40 @@
-import { NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { createInvoice, listInvoices } from '@/modules/invoices/invoice.service'
-import { okJson, parseJsonObject, withApiError } from '@/modules/shared/api'
 import { parsePagination } from '@/modules/shared/pagination'
-import { requireSessionUser } from '@/modules/shared/session'
 
 export async function GET(req: NextRequest) {
-  return withApiError(async () => {
-    const user = await requireSessionUser()
-    const pagination = parsePagination(req, { pageSize: 30, maxPageSize: 100 })
-    const body = await listInvoices(
-      user,
-      {
-        status: req.nextUrl.searchParams.get('status'),
-        query: req.nextUrl.searchParams.get('q'),
-        clientId: req.nextUrl.searchParams.get('clientId'),
-        campaignId: req.nextUrl.searchParams.get('campaignId'),
-        briefId: req.nextUrl.searchParams.get('briefId'),
-      },
-      pagination
-    )
-
-    return okJson(body)
-  })
+  return handleApiRoute(
+    req,
+    undefined,
+    async ({ user }) => {
+      const pagination = parsePagination(req, { pageSize: 30, maxPageSize: 100 })
+      return apiData(
+        await listInvoices(
+          user,
+          {
+            status: req.nextUrl.searchParams.get('status'),
+            query: req.nextUrl.searchParams.get('q'),
+            clientId: req.nextUrl.searchParams.get('clientId'),
+            campaignId: req.nextUrl.searchParams.get('campaignId'),
+            briefId: req.nextUrl.searchParams.get('briefId'),
+          },
+          pagination
+        )
+      )
+    },
+    { auth: 'required', responseMode: 'legacy' }
+  )
 }
 
 export async function POST(req: NextRequest) {
-  return withApiError(async () => {
-    const user = await requireSessionUser()
-    const body = await parseJsonObject(req)
-    const invoice = await createInvoice(user, body)
-    return NextResponse.json(invoice, { status: 201 })
-  })
+  return handleApiRoute(
+    req,
+    undefined,
+    async ({ user }) => {
+      const body = await parseJsonObject(req)
+      return apiData(await createInvoice(user, body), { status: 201 })
+    },
+    { auth: 'required', responseMode: 'legacy' }
+  )
 }

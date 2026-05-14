@@ -8,9 +8,9 @@ export async function GET(req: NextRequest) {
     undefined,
     async ({ user }) => {
       const projectId = req.nextUrl.searchParams.get('projectId')
-      return apiData(await listTasks(user, { projectId }))
+      return apiData(await listTasks(user, { projectId }), { code: 'TASKS_LISTED' })
     },
-    { auth: 'required', responseMode: 'legacy' }
+    { auth: 'required', responseMode: 'canonical' }
   )
 }
 
@@ -20,8 +20,8 @@ export async function POST(req: NextRequest) {
     undefined,
     async ({ user }) => {
       const body = await parseJsonObject(req)
-      return apiData(await createTask(user, body), { status: 201 })
+      return apiData(await createTask(user, body), { code: 'TASK_CREATED', status: 201 })
     },
-    { auth: 'required', responseMode: 'legacy' }
+    { auth: 'required', responseMode: 'canonical' }
   )
 }
