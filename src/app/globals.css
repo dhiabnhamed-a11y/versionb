@@ -545,12 +545,6 @@ textarea:focus-visible {
   font-weight: 500 !important;
 }
 
-.sidebar nav {
-  min-height: 0;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-}
-
 .sidebar-section-label {
   font-size: 13px !important;
   line-height: 18px;
@@ -558,7 +552,6 @@ textarea:focus-visible {
 
 .sidebar-footer {
   border-top: 1px solid var(--sidebar-border);
-  flex-shrink: 0;
 }
 
 .sidebar-user-card {
@@ -2964,18 +2957,6 @@ html[dir="rtl"] .taskit-agent-drawer {
 }
 @media (min-width: 901px) {
   .mobile-menu-btn { display: none !important; }
-  .sidebar {
-    position: fixed;
-    inset: 0 auto 0 0;
-  }
-  .dashboard-app-shell[data-user-design="active"][data-sidebar-side="right"] .sidebar {
-    inset: 0 0 0 auto;
-    border-right: 0;
-    border-left: 1px solid var(--sidebar-border);
-  }
-  html[dir="rtl"] .dashboard-app-shell:not([data-sidebar-side="left"]) .sidebar {
-    inset: 0 0 0 auto;
-  }
 }
 @media (min-width: 1040px) { .marketing-nav-links { display: flex; } }
 @media (min-width: 1180px) { .marketing-feature-grid { grid-template-columns: repeat(4, minmax(0,1fr)); } }

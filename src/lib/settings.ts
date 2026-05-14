@@ -5,10 +5,8 @@ import { prisma } from '@/lib/db'
 import {
   DEFAULT_DASHBOARD_DESIGN_CONFIG,
   normalizeDashboardDesignConfig,
-  type DashboardBackgroundStyle,
   type DashboardButtonStyle,
   type DashboardCardShadow,
-  type DashboardCardSurface,
   type DashboardDesignConfig,
   type DashboardDesignDensity,
   type DashboardSidebarSide,
@@ -223,11 +221,6 @@ function clampNumber(value: number, min: number, max: number, fallback: number) 
   return Math.max(min, Math.min(max, Math.round(value)))
 }
 
-function clampFloat(value: number, min: number, max: number, fallback: number) {
-  if (!Number.isFinite(value)) return fallback
-  return Math.max(min, Math.min(max, value))
-}
-
 function sanitizeHexColor(value: string, label: string) {
   const text = value.trim()
   if (!HEX_COLOR_PATTERN.test(text)) {
@@ -339,12 +332,9 @@ function sanitizeDashboardDesignConfig(input: unknown): DashboardDesignConfig {
       info: sanitizeHexColor(design.palette.info, 'Info color'),
     },
     background: {
-      style: sanitizeEnum<DashboardBackgroundStyle>(design.background.style, ['solid', 'gradient', 'mesh', 'image'] as const, 'Background style'),
+      style: sanitizeEnum(design.background.style, ['solid', 'gradient', 'image'] as const, 'Background style'),
       gradientFrom: sanitizeHexColor(design.background.gradientFrom, 'Background gradient start'),
       gradientTo: sanitizeHexColor(design.background.gradientTo, 'Background gradient end'),
-      meshA: sanitizeHexColor(design.background.meshA, 'Background mesh color A'),
-      meshB: sanitizeHexColor(design.background.meshB, 'Background mesh color B'),
-      meshC: sanitizeHexColor(design.background.meshC, 'Background mesh color C'),
       imageUrl: sanitizeBackgroundImageUrl(design.background.imageUrl),
       imagePublicId: sanitizeCloudinaryPublicId(design.background.imagePublicId),
       imageOverlayColor: sanitizeHexColor(design.background.imageOverlayColor, 'Background image overlay color'),
@@ -378,8 +368,6 @@ function sanitizeDashboardDesignConfig(input: unknown): DashboardDesignConfig {
     cards: {
       shadow: sanitizeEnum<DashboardCardShadow>(design.cards.shadow, ['none', 'soft', 'strong'] as const, 'Card shadow'),
       borderWidth: clampNumber(design.cards.borderWidth, 0, 3, DEFAULT_DASHBOARD_DESIGN_CONFIG.cards.borderWidth),
-      opacity: clampFloat(design.cards.opacity, 0.25, 1, DEFAULT_DASHBOARD_DESIGN_CONFIG.cards.opacity),
-      surface: sanitizeEnum<DashboardCardSurface>(design.cards.surface, ['flat', 'subtleGradient', 'glassmorphism', 'bordered'] as const, 'Card surface'),
     },
   }
 }
@@ -475,34 +463,11 @@ function dashboardShellBackground(design: DashboardDesignConfig) {
     return `linear-gradient(0deg, ${overlay}, ${overlay}), ${cssUrl(design.background.imageUrl)}`
   }
 
-  if (design.background.style === 'mesh') {
-    return [
-      `radial-gradient(circle at 18% 18%, ${rgba(design.background.meshA, 0.34)}, transparent 34rem)`,
-      `radial-gradient(circle at 84% 16%, ${rgba(design.background.meshB, 0.28)}, transparent 32rem)`,
-      `radial-gradient(circle at 48% 88%, ${rgba(design.background.meshC, 0.3)}, transparent 38rem)`,
-      design.palette.background,
-    ].join(', ')
-  }
-
   if (design.background.style === 'gradient') {
     return `linear-gradient(135deg, ${design.background.gradientFrom} 0%, ${design.background.gradientTo} 100%)`
   }
 
   return design.palette.background
-}
-
-function dashboardCardSurface(design: DashboardDesignConfig) {
-  const card = rgba(design.palette.card, design.cards.opacity)
-
-  if (design.cards.surface === 'glassmorphism') {
-    return `color-mix(in srgb, ${card} 86%, transparent)`
-  }
-
-  if (design.cards.surface === 'subtleGradient') {
-    return `linear-gradient(145deg, ${card}, ${rgba(design.palette.primary, Math.min(0.16, design.cards.opacity * 0.16))})`
-  }
-
-  return card
 }
 
 function densityPadding(density: DashboardDesignDensity) {
@@ -547,7 +512,6 @@ function compileDashboardDesignJson(design: Record<string, unknown>) {
   const densityValues = densityPadding(noCodeDesign.layout.density)
   const hasImageBackground = noCodeDesign.background.style === 'image' && Boolean(noCodeDesign.background.imageUrl)
   const shellBackground = dashboardShellBackground(noCodeDesign)
-  const cardSurface = dashboardCardSurface(noCodeDesign)
 
   const variableLines: string[] = [
     `  --accent: ${noCodeDesign.palette.primary};`,
@@ -561,7 +525,7 @@ function compileDashboardDesignJson(design: Record<string, unknown>) {
     `  --bg-primary: ${noCodeDesign.palette.background};`,
     `  --bg: ${noCodeDesign.palette.background};`,
     `  --bg-secondary: ${noCodeDesign.palette.backgroundSoft};`,
-    `  --bg-card: ${rgba(noCodeDesign.palette.card, noCodeDesign.cards.opacity)};`,
+    `  --bg-card: ${noCodeDesign.palette.card};`,
     `  --bg-elevated: ${noCodeDesign.palette.elevated};`,
     `  --sidebar-bg: ${noCodeDesign.palette.sidebar};`,
     `  --sidebar: ${noCodeDesign.palette.sidebar};`,
@@ -597,7 +561,6 @@ function compileDashboardDesignJson(design: Record<string, unknown>) {
     `  --user-button-height: ${noCodeDesign.buttons.height}px;`,
     `  --user-button-weight: ${noCodeDesign.buttons.fontWeight};`,
     `  --user-card-border-width: ${noCodeDesign.cards.borderWidth}px;`,
-    `  --user-card-surface: ${cardSurface};`,
     `  --user-shell-background: ${shellBackground};`,
     `  --user-shell-background-size: ${hasImageBackground ? 'cover' : 'auto'};`,
     `  --user-shell-background-position: ${hasImageBackground ? 'center' : '0 0'};`,
@@ -663,12 +626,12 @@ function compileDashboardDesignJson(design: Record<string, unknown>) {
     '.dashboard-app-shell[data-user-design="active"] .command-trigger { background: color-mix(in srgb, var(--bg-card) 86%, transparent) !important; border-color: var(--border) !important; }',
     '.dashboard-app-shell[data-user-design="active"] .sidebar { background: linear-gradient(180deg, rgba(255,255,255,0.035), transparent 24rem), var(--sidebar-bg) !important; }',
     '.dashboard-app-shell[data-user-design="active"] .card, .dashboard-app-shell[data-user-design="active"] .dashboard-hero, .dashboard-app-shell[data-user-design="active"] .stat-card, .dashboard-app-shell[data-user-design="active"] .ops-signal-card, .dashboard-app-shell[data-user-design="active"] .dashboard-disclosure {',
-    '  background: var(--user-card-surface) !important;',
+    '  background: var(--bg-card) !important;',
     '  border-color: var(--border) !important;',
     '  box-shadow: var(--shadow-card) !important;',
     '  border-width: var(--user-card-border-width) !important;',
     '}',
-    '.dashboard-app-shell[data-user-design="active"] .ops-briefing-panel { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 38%), var(--user-card-surface) !important; }',
+    '.dashboard-app-shell[data-user-design="active"] .ops-briefing-panel { background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 10%, transparent), transparent 38%), var(--bg-card) !important; }',
     '.dashboard-app-shell[data-user-design="active"] .metric-row, .dashboard-app-shell[data-user-design="active"] .compact-stat, .dashboard-app-shell[data-user-design="active"] .activity-card, .dashboard-app-shell[data-user-design="active"] .team-card, .dashboard-app-shell[data-user-design="active"] .ops-agent-row, .dashboard-app-shell[data-user-design="active"] .ops-risk-row, .dashboard-app-shell[data-user-design="active"] .ops-focus-row, .dashboard-app-shell[data-user-design="active"] .ops-loop-node, .dashboard-app-shell[data-user-design="active"] .ops-health-score, .dashboard-app-shell[data-user-design="active"] .ops-signal-icon, .dashboard-app-shell[data-user-design="active"] .ops-empty-state, .dashboard-app-shell[data-user-design="active"] .ops-graph-score > div, .dashboard-app-shell[data-user-design="active"] .ops-graph-coverage > div, .dashboard-app-shell[data-user-design="active"] .dashboard-hero-kicker {',
     '  background: var(--bg-elevated) !important;',
     '  border-color: var(--border) !important;',
