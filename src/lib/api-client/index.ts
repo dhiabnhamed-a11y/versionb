@@ -1,3 +1,4 @@
+export * from '@/lib/api-client/alerts'
 export * from '@/lib/api-client/clients'
 export * from '@/lib/api-client/core'
 export * from '@/lib/api-client/invoices'

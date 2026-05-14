@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Bell, Radio, Phone, Clock, Send, Loader2, CheckCircle2 } from 'lucide-react'
+import { alertsApi, getApiErrorMessage } from '@/lib/api-client'
 import { playTaskitNotificationSound, registerTaskitNotificationSoundUnlock } from '@/lib/notification-sound'
 
 interface Employee { id: string; name: string; email: string; role: string }
@@ -28,13 +29,16 @@ export default function SendAlertPage() {
     e.preventDefault()
     if (!form.recipientId) { setError('Please select an employee'); return }
     setSending(true); setError(''); setSuccess(false)
-    const res = await fetch('/api/alerts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(form) })
-    setSending(false)
-    if (res.ok) {
+    try {
+      await alertsApi.create(form)
       void playTaskitNotificationSound({ force: true })
       setSuccess(true); setForm({ ...form, title: '', message: '', recipientId: '' })
       setTimeout(() => setSuccess(false), 4000)
-    } else { const d = await res.json(); setError(d.error || 'Failed to send') }
+    } catch (error) {
+      setError(getApiErrorMessage(error, 'Failed to send'))
+    } finally {
+      setSending(false)
+    }
   }
 
   return (

@@ -7,16 +7,7 @@ import { enablePushNotifications, refreshPushTokenIfNeeded } from '@/firebase'
 import { formatTimeAgo } from '@/lib/utils'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import type { RealtimeEventName } from '@/lib/realtime-events'
-
-type AlertRecord = {
-  id: string
-  type: string
-  title: string
-  message: string
-  read: boolean
-  createdAt: string
-  sender?: { id: string; name: string; avatar?: string | null }
-}
+import { alertsApi, type AlertRecord } from '@/lib/api-client/alerts'
 
 const NOTIFICATION_REALTIME_EVENTS = ['alert', 'alert_read'] as const
 type PushStatus = 'checking' | 'unsupported' | 'default' | 'granted' | 'denied' | 'syncing' | 'enabled' | 'failed'
@@ -35,9 +26,8 @@ export default function NotificationDropdown({ alertsHref = '/dashboard/employee
       void (async () => {
         setLoading(true)
         try {
-          const body = await fetch('/api/alerts', { cache: 'no-store' }).then((response) => response.json())
           if (!cancelled) {
-            setAlerts(Array.isArray(body) ? body : [])
+            setAlerts(await alertsApi.list())
           }
         } finally {
           if (!cancelled) {
@@ -71,9 +61,7 @@ export default function NotificationDropdown({ alertsHref = '/dashboard/employee
       }
 
       if (eventName === 'workspace_event') {
-        void fetch('/api/alerts', { cache: 'no-store' })
-          .then((response) => response.json())
-          .then((body) => setAlerts(Array.isArray(body) ? body : []))
+        void alertsApi.list().then((body) => setAlerts(body))
       }
     },
     100
@@ -111,24 +99,14 @@ export default function NotificationDropdown({ alertsHref = '/dashboard/employee
 
   async function markRead(alertId: string) {
     setAlerts((current) => current.map((alert) => (alert.id === alertId ? { ...alert, read: true } : alert)))
-    await fetch('/api/alerts', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ alertId }),
-    })
+    await alertsApi.markRead(alertId)
   }
 
   async function markAllRead() {
     const unread = alerts.filter((alert) => !alert.read)
     setAlerts((current) => current.map((alert) => ({ ...alert, read: true })))
     await Promise.allSettled(
-      unread.map((alert) =>
-        fetch('/api/alerts', {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ alertId: alert.id }),
-        })
-      )
+      unread.map((alert) => alertsApi.markRead(alert.id))
     )
   }
 

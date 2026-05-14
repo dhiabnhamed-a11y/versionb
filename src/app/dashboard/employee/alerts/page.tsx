@@ -5,11 +5,9 @@ import { formatTimeAgo } from '@/lib/utils'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import type { RealtimeEventName } from '@/lib/realtime-events'
 import { Bell, Clock, Phone, AlertTriangle, CheckCircle2 } from 'lucide-react'
+import { alertsApi, type AlertRecord } from '@/lib/api-client/alerts'
 
-interface Alert {
-  id: string; type: string; title: string; message: string; read: boolean; createdAt: string
-  sender: { name: string }
-}
+type Alert = AlertRecord
 
 const typeConfig: Record<string, { icon: typeof Bell; color: string; bg: string; border: string; label: string }> = {
   URGENT_TASK: { icon: AlertTriangle, color: '#dc2626', bg: 'rgba(220,38,38,0.08)', border: 'rgba(220,38,38,0.18)', label: 'Urgent Task' },
@@ -24,12 +22,11 @@ export default function EmployeeAlertsPage() {
   const [loading, setLoading] = useState(true)
 
   async function fetchAlerts() {
-    const data = await fetch('/api/alerts', { cache: 'no-store' }).then((response) => response.json())
-    return Array.isArray(data) ? data : []
+    return alertsApi.list()
   }
 
   async function markRead(alertId: string) {
-    await fetch('/api/alerts', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ alertId }) })
+    await alertsApi.markRead(alertId)
     setAlerts(prev => prev.map(a => a.id === alertId ? { ...a, read: true } : a))
   }
 
