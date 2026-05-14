@@ -1,7 +1,8 @@
 export type DashboardDesignDensity = 'compact' | 'comfortable' | 'spacious'
 export type DashboardButtonStyle = 'solid' | 'soft' | 'outline' | 'minimal'
 export type DashboardCardShadow = 'none' | 'soft' | 'strong'
-export type DashboardBackgroundStyle = 'solid' | 'gradient' | 'image'
+export type DashboardCardSurface = 'flat' | 'subtleGradient' | 'glassmorphism' | 'bordered'
+export type DashboardBackgroundStyle = 'solid' | 'gradient' | 'mesh' | 'image'
 export type DashboardSidebarSide = 'left' | 'right'
 
 export type DashboardDesignConfig = {
@@ -34,6 +35,9 @@ export type DashboardDesignConfig = {
     style: DashboardBackgroundStyle
     gradientFrom: string
     gradientTo: string
+    meshA: string
+    meshB: string
+    meshC: string
     imageUrl: string | null
     imagePublicId: string | null
     imageOverlayColor: string
@@ -62,6 +66,8 @@ export type DashboardDesignConfig = {
   cards: {
     shadow: DashboardCardShadow
     borderWidth: number
+    opacity: number
+    surface: DashboardCardSurface
   }
 }
 
@@ -95,6 +101,9 @@ export const DEFAULT_DASHBOARD_DESIGN_CONFIG: DashboardDesignConfig = {
     style: 'solid',
     gradientFrom: '#f7f8fa',
     gradientTo: '#eef1f5',
+    meshA: '#0369a1',
+    meshB: '#0891b2',
+    meshC: '#0284c7',
     imageUrl: null,
     imagePublicId: null,
     imageOverlayColor: '#000000',
@@ -123,6 +132,8 @@ export const DEFAULT_DASHBOARD_DESIGN_CONFIG: DashboardDesignConfig = {
   cards: {
     shadow: 'soft',
     borderWidth: 1,
+    opacity: 1,
+    surface: 'flat',
   },
 }
 
@@ -184,9 +195,12 @@ export function normalizeDashboardDesignConfig(value: unknown): DashboardDesignC
       info: stringValue(palette.info, defaults.palette.info),
     },
     background: {
-      style: enumValue(background.style, ['solid', 'gradient', 'image'] as const, defaults.background.style),
+      style: enumValue(background.style, ['solid', 'gradient', 'mesh', 'image'] as const, defaults.background.style),
       gradientFrom: stringValue(background.gradientFrom, defaults.background.gradientFrom),
       gradientTo: stringValue(background.gradientTo, defaults.background.gradientTo),
+      meshA: stringValue(background.meshA, defaults.background.meshA),
+      meshB: stringValue(background.meshB, defaults.background.meshB),
+      meshC: stringValue(background.meshC, defaults.background.meshC),
       imageUrl: nullableString(background.imageUrl ?? background.pictureUrl ?? background.photoUrl, defaults.background.imageUrl),
       imagePublicId: nullableString(
         background.imagePublicId ?? background.cloudinaryPublicId,
@@ -224,6 +238,8 @@ export function normalizeDashboardDesignConfig(value: unknown): DashboardDesignC
     cards: {
       shadow: enumValue(cards.shadow, ['none', 'soft', 'strong'] as const, defaults.cards.shadow),
       borderWidth: numberValue(cards.borderWidth, defaults.cards.borderWidth),
+      opacity: numberValue(cards.opacity, defaults.cards.opacity),
+      surface: enumValue(cards.surface, ['flat', 'subtleGradient', 'glassmorphism', 'bordered'] as const, defaults.cards.surface),
     },
   }
 }

@@ -142,6 +142,7 @@ function DashboardLayoutChrome({
   return (
     <div
       className={`dashboard-app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}
+      data-sidebar-side={dashboardDesignConfig.layout.sidebarSide}
       data-user-design={userDesign.enabled && userDesign.compiledCss ? 'active' : undefined}
       dir={direction}
     >

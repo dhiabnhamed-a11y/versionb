@@ -1344,7 +1344,7 @@ function makeDesignSystem(core: DashboardDesignConfig, paletteOverride?: Record<
       accent: 1,
       background: 1,
       surface: 1,
-      card: 1,
+      card: core.cards.opacity,
       border: 1,
       textMain: 1,
       textMuted: 1,
@@ -1354,12 +1354,12 @@ function makeDesignSystem(core: DashboardDesignConfig, paletteOverride?: Record<
       info: 1,
     },
     background: {
-      mode: core.background.style === 'gradient' ? 'twoStop' : 'solid',
+      mode: core.background.style === 'mesh' ? 'mesh' : core.background.style === 'gradient' ? 'twoStop' : 'solid',
       stopA: core.background.gradientFrom,
       stopB: core.background.gradientTo,
-      meshA: palette.primary,
-      meshB: palette.accent,
-      meshC: palette.info,
+      meshA: core.background.meshA,
+      meshB: core.background.meshB,
+      meshC: core.background.meshC,
     },
     typography: {
       headingFont: 'Geist',
@@ -1392,7 +1392,7 @@ function makeDesignSystem(core: DashboardDesignConfig, paletteOverride?: Record<
     },
     effects: {
       cardShadow: core.cards.shadow === 'strong' ? 'hard' : core.cards.shadow,
-      cardSurface: 'glassmorphism',
+      cardSurface: core.cards.surface,
       texture: 'noise',
       sidebarStyle: 'frosted',
     },
@@ -1547,9 +1547,12 @@ function toCoreDesign(designSystem: DesignSystem): DashboardDesignConfig {
       info: designSystem.palette.info,
     },
     background: {
-      style: designSystem.background.mode === 'solid' ? 'solid' : 'gradient',
-      gradientFrom: designSystem.background.mode === 'mesh' ? designSystem.background.meshA : designSystem.background.stopA,
-      gradientTo: designSystem.background.mode === 'mesh' ? designSystem.background.meshB : designSystem.background.stopB,
+      style: designSystem.background.mode === 'mesh' ? 'mesh' : designSystem.background.mode === 'twoStop' ? 'gradient' : 'solid',
+      gradientFrom: designSystem.background.stopA,
+      gradientTo: designSystem.background.stopB,
+      meshA: designSystem.background.meshA,
+      meshB: designSystem.background.meshB,
+      meshC: designSystem.background.meshC,
       imageUrl: null,
       imagePublicId: null,
       imageOverlayColor: '#000000',
@@ -1588,6 +1591,8 @@ function toCoreDesign(designSystem: DesignSystem): DashboardDesignConfig {
             ? 'none'
             : 'soft',
       borderWidth: designSystem.effects.cardSurface === 'bordered' ? 2 : 1,
+      opacity: designSystem.opacity.card,
+      surface: designSystem.effects.cardSurface,
     },
   }
 }
@@ -2199,7 +2204,9 @@ export default function PremiumDashboardDesignStudio({ initialDesign, onSaved }:
       onSaved?.(data.design)
       setSaved(true)
       notify('Design saved and applied.')
-      window.setTimeout(() => setSaved(false), 1800)
+      window.setTimeout(() => setSaved(false), 3000)
+    } catch (error) {
+      notify(error instanceof Error ? error.message : 'Failed to save dashboard design.')
     } finally {
       setSaving(false)
     }
