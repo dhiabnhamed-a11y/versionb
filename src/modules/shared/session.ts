@@ -1,5 +1,6 @@
 import { auth } from '@/lib/auth'
-import { unauthorized } from '@/modules/shared/errors'
+import { canAuthenticateAuthState, getAuthBlockReason } from '@/lib/security'
+import { forbidden, unauthorized } from '@/modules/shared/errors'
 
 export type SessionUser = {
   id: string
@@ -15,7 +16,14 @@ export type SessionUser = {
 export async function requireSessionUser() {
   const session = await auth()
   if (!session?.user) throw unauthorized()
-  return session.user as SessionUser
+  const user = session.user as SessionUser
+
+  const hasStatusSnapshot = Boolean(user.accountStatus || user.companyStatus)
+  if (hasStatusSnapshot && !canAuthenticateAuthState(user)) {
+    throw forbidden(getAuthBlockReason(user))
+  }
+
+  return user
 }
 
 export function requireCompanyId(user: SessionUser) {

@@ -47,10 +47,10 @@ export function conflict(message: string, details?: unknown) {
 export function normalizeError(error: unknown): AppError {
   if (error instanceof AppError) return error
 
-  if (error && typeof error === 'object' && 'status' in error && 'code' in error) {
+  if (error && typeof error === 'object' && 'status' in error) {
     const candidate = error as { message?: unknown; status?: unknown; code?: unknown; details?: unknown; expose?: unknown }
     const status = typeof candidate.status === 'number' ? candidate.status : 500
-    const code = typeof candidate.code === 'string' ? candidate.code : 'APP_ERROR'
+    const code = typeof candidate.code === 'string' ? candidate.code : status >= 500 ? 'SERVER_ERROR' : 'REQUEST_ERROR'
     const message = typeof candidate.message === 'string' ? candidate.message : 'Server error'
     const expose = typeof candidate.expose === 'boolean' ? candidate.expose : status < 500
     return new AppError(message, { status, code, details: candidate.details, expose })
