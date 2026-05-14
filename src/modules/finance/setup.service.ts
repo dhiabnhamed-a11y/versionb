@@ -92,49 +92,47 @@ export async function initializeRecommendedFinanceWorkspace(user: SessionUser) {
 
   return prisma.$transaction(async (tx) => {
     const chart = await findOrCreateChart(tx, companyId)
-    const existingAccounts = await tx.account.findMany({
-      where: { companyId, code: { in: RECOMMENDED_ACCOUNTS.map((account) => account.code) }, deletedAt: null },
+    const recommendedAccountCodes = RECOMMENDED_ACCOUNTS.map((account) => account.code)
+    const existingAccountCount = await tx.account.count({
+      where: { companyId, code: { in: recommendedAccountCodes }, deletedAt: null },
+    })
+
+    const createdAccounts = await tx.account.createMany({
+      data: RECOMMENDED_ACCOUNTS.map((account) => ({
+        companyId,
+        chartId: chart.id,
+        code: account.code,
+        name: account.name,
+        type: account.type,
+        normalBalance: account.normalBalance,
+        currency: 'USD',
+        isSystem: true,
+        metadata: toJsonValue({ generatedBy: 'taskit_finance_setup_v1', recommendedFor: ['agency', 'service_business'] }),
+      })),
+      skipDuplicates: true,
+    })
+
+    const accounts = await tx.account.findMany({
+      where: { companyId, code: { in: recommendedAccountCodes }, deletedAt: null },
       select: { id: true, code: true },
     })
-    const accountByCode = new Map(existingAccounts.map((account) => [account.code, account]))
-    const createdAccounts: Array<{ id: string; code: string; name: string }> = []
+    const accountByCode = new Map(accounts.map((account) => [account.code, account]))
 
-    for (const account of RECOMMENDED_ACCOUNTS) {
-      if (accountByCode.has(account.code)) continue
-      const created = await tx.account.create({
-        data: {
-          companyId,
-          chartId: chart.id,
-          code: account.code,
-          name: account.name,
-          type: account.type,
-          normalBalance: account.normalBalance,
-          currency: 'USD',
-          isSystem: true,
-          metadata: toJsonValue({ generatedBy: 'taskit_finance_setup_v1', recommendedFor: ['agency', 'service_business'] }),
-        },
-        select: { id: true, code: true, name: true },
-      })
-      accountByCode.set(created.code, created)
-      createdAccounts.push(created)
-    }
-
-    const createdCategories: Array<{ id: string; name: string }> = []
-    for (const category of EXPENSE_CATEGORIES) {
-      const exists = await tx.expenseCategory.findFirst({ where: { companyId, name: category.name }, select: { id: true } })
-      if (exists) continue
-      const account = accountByCode.get(category.accountCode)
-      const created = await tx.expenseCategory.create({
-        data: {
+    const existingCategoryCount = await tx.expenseCategory.count({
+      where: { companyId, name: { in: EXPENSE_CATEGORIES.map((category) => category.name) } },
+    })
+    const createdCategories = await tx.expenseCategory.createMany({
+      data: EXPENSE_CATEGORIES.map((category) => {
+        const account = accountByCode.get(category.accountCode)
+        return {
           companyId,
           name: category.name,
           defaultAccountId: account?.id ?? null,
           metadata: toJsonValue({ generatedBy: 'taskit_finance_setup_v1' }),
-        },
-        select: { id: true, name: true },
-      })
-      createdCategories.push(created)
-    }
+        }
+      }),
+      skipDuplicates: true,
+    })
 
     const cashAccount = accountByCode.get('1000')
     const existingTreasury = await tx.treasuryAccount.findFirst({ where: { companyId, name: 'Operating Cash' }, select: { id: true } })
@@ -162,8 +160,10 @@ export async function initializeRecommendedFinanceWorkspace(user: SessionUser) {
       entityId: companyId,
       after: {
         chartId: chart.id,
-        createdAccountCount: createdAccounts.length,
-        createdExpenseCategoryCount: createdCategories.length,
+        createdAccountCount: createdAccounts.count,
+        createdExpenseCategoryCount: createdCategories.count,
+        existingAccountCount,
+        existingExpenseCategoryCount: existingCategoryCount,
         treasuryAccountId: treasuryAccount.id,
         periodId: period.id,
       },
@@ -173,12 +173,11 @@ export async function initializeRecommendedFinanceWorkspace(user: SessionUser) {
     return {
       initialized: true,
       chart,
-      createdAccountCount: createdAccounts.length,
-      createdExpenseCategoryCount: createdCategories.length,
+      createdAccountCount: createdAccounts.count,
+      createdExpenseCategoryCount: createdCategories.count,
       treasuryAccountId: treasuryAccount.id,
       periodId: period.id,
       message: 'Your financial workspace is ready.',
     }
-  })
+  }, { maxWait: 10_000, timeout: 30_000 })
 }
-
