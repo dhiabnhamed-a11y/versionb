@@ -10,6 +10,7 @@ import {
   CheckSquare,
   FileText,
   FolderKanban,
+  Landmark,
   LayoutDashboard,
   Plus,
   ReceiptText,
@@ -96,6 +97,15 @@ const baseCommands: Command[] = [
     group: 'Navigate',
     keywords: ['billing', 'payment', 'invoice', 'money'],
     icon: ReceiptText,
+  },
+  {
+    id: 'finance',
+    label: 'Finance',
+    description: 'Open profitability, approvals, treasury, payroll, and ledger controls',
+    href: '/dashboard/admin/finance',
+    group: 'Navigate',
+    keywords: ['finance', 'accounting', 'payroll', 'treasury', 'expense', 'profitability', 'ledger'],
+    icon: Landmark,
   },
   {
     id: 'new-client',
@@ -215,6 +225,8 @@ export default function CommandPalette({
                 ? { label: t('nav.briefs'), description: t('command.briefs.description') }
                 : command.id === 'invoices'
                   ? { label: t('nav.invoices'), description: t('command.invoices.description') }
+                  : command.id === 'finance'
+                    ? { label: t('nav.finance'), description: t('command.finance.description') }
                   : command.id === 'new-client'
                     ? { label: t('command.createClient'), description: t('command.createClient.description') }
                     : command.id === 'new-brief'

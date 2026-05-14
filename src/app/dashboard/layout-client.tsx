@@ -39,6 +39,7 @@ import {
   Settings,
   ReceiptText,
   Building2,
+  Landmark,
 } from 'lucide-react'
 
 type DashboardLayoutClientProps = {
@@ -127,6 +128,7 @@ function DashboardLayoutChrome({
         },
         { href: '/dashboard/admin/tasks', label: isAgencyWorkspace ? t('nav.briefs') : t('nav.tasks'), icon: CheckSquare },
         { href: '/dashboard/admin/invoices', label: t('nav.invoices'), icon: ReceiptText },
+        { href: '/dashboard/admin/finance', label: t('nav.finance'), icon: Landmark },
         { href: '/dashboard/admin/calendar', label: t('nav.calendar'), icon: CalendarDays },
         { href: '/dashboard/admin/employees', label: t('nav.team'), icon: Users },
         { href: '/dashboard/admin/alerts', label: t('nav.sendAlert'), icon: Bell },
