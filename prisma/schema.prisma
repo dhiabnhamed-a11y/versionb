@@ -22,38 +22,40 @@ model User {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  company                  Company?                @relation("CompanyMembers", fields: [companyId], references: [id])
-  ownedCompany             Company?                @relation("CompanyOwner")
-  managedProjects          Project[]               @relation("ProjectManager")
-  assignedTasks            Task[]                  @relation("TaskAssignee")
+  company                  Company?                 @relation("CompanyMembers", fields: [companyId], references: [id])
+  ownedCompany             Company?                 @relation("CompanyOwner")
+  managedProjects          Project[]                @relation("ProjectManager")
+  assignedTasks            Task[]                   @relation("TaskAssignee")
   activities               Activity[]
-  sentAlerts               Alert[]                 @relation("AlertSender")
-  receivedAlerts           Alert[]                 @relation("AlertRecipient")
+  sentAlerts               Alert[]                  @relation("AlertSender")
+  receivedAlerts           Alert[]                  @relation("AlertRecipient")
   pushTokens               PushToken[]
-  createdInvites           Invite[]                @relation("InviteCreatedBy")
-  redeemedInvites          Invite[]                @relation("InviteUsedBy")
-  reviewedAccessRequests   AccessRequest[]         @relation("AccessRequestReviewedBy")
-  reviewedCompanies        Company[]               @relation("CompanyReviewedBy")
+  createdInvites           Invite[]                 @relation("InviteCreatedBy")
+  redeemedInvites          Invite[]                 @relation("InviteUsedBy")
+  reviewedAccessRequests   AccessRequest[]          @relation("AccessRequestReviewedBy")
+  reviewedCompanies        Company[]                @relation("CompanyReviewedBy")
   taskSubmissions          TaskSubmission[]
-  projectMediaUploads      ProjectMedia[]          @relation("ProjectMediaUploadedBy")
+  projectMediaUploads      ProjectMedia[]           @relation("ProjectMediaUploadedBy")
   comments                 Comment[]
-  calendarEvents           CalendarEvent[]         @relation("CalendarEventCreatedBy")
-  adminActions             AdminActionLog[]        @relation("AdminActionActor")
-  targetedAdminActions     AdminActionLog[]        @relation("AdminActionTarget")
-  createdInvoices          Invoice[]               @relation("InvoiceCreatedBy")
-  clientActivities         ClientActivity[]        @relation("ClientActivityActor")
-  createdBriefs            Brief[]                 @relation("BriefCreatedBy")
-  uploadedDeliverableFiles DeliverableFile[]       @relation("DeliverableFileUploadedBy")
-  approvalDecisions        ApprovalDecision[]      @relation("ApprovalDecisionDecidedBy")
-  deliverableActivities    DeliverableActivity[]   @relation("DeliverableActivityActor")
-  assignedSubtasks         Subtask[]               @relation("SubtaskAssignee")
+  calendarEvents           CalendarEvent[]          @relation("CalendarEventCreatedBy")
+  adminActions             AdminActionLog[]         @relation("AdminActionActor")
+  targetedAdminActions     AdminActionLog[]         @relation("AdminActionTarget")
+  createdInvoices          Invoice[]                @relation("InvoiceCreatedBy")
+  clientActivities         ClientActivity[]         @relation("ClientActivityActor")
+  createdBriefs            Brief[]                  @relation("BriefCreatedBy")
+  uploadedDeliverableFiles DeliverableFile[]        @relation("DeliverableFileUploadedBy")
+  approvalDecisions        ApprovalDecision[]       @relation("ApprovalDecisionDecidedBy")
+  deliverableActivities    DeliverableActivity[]    @relation("DeliverableActivityActor")
+  assignedSubtasks         Subtask[]                @relation("SubtaskAssignee")
   aiConversations          AiConversation[]
   aiMemories               AiMemory[]
+  aiRuns                   AiRun[]                  @relation("AiRunActor")
+  aiActionRuns             AiActionRun[]            @relation("AiActionRunActor")
   dashboardDesign          UserDashboardDesign?
-  auditLogs                AuditLog[]              @relation("AuditLogActor")
+  auditLogs                AuditLog[]               @relation("AuditLogActor")
   notificationPreferences  NotificationPreference?
-  connectedSocialAccounts  ConnectedAccount[]      @relation("ConnectedAccountConnectedBy")
-  ownedCreatorProfiles     CreatorProfile[]        @relation("CreatorProfileOwner")
+  connectedSocialAccounts  ConnectedAccount[]       @relation("ConnectedAccountConnectedBy")
+  ownedCreatorProfiles     CreatorProfile[]         @relation("CreatorProfileOwner")
   integrationActivityLogs  IntegrationActivityLog[] @relation("IntegrationActivityActor")
 }
 
@@ -73,45 +75,47 @@ model Company {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  owner                User                  @relation("CompanyOwner", fields: [ownerId], references: [id])
-  reviewedBy           User?                 @relation("CompanyReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  members              User[]                @relation("CompanyMembers")
-  rooms                Room[]
-  projectCategories    ProjectCategory[]
-  projects             Project[]
-  invites              Invite[]
-  accessRequests       AccessRequest[]
-  calendarEvents       CalendarEvent[]
-  settings             CompanySettings?
-  adminActionLogs      AdminActionLog[]
-  clients              Client[]
-  clientActivities     ClientActivity[]
-  clientPortalComments ClientPortalComment[]
-  invoices             Invoice[]
-  briefs               Brief[]
-  deliverables         Deliverable[]
-  workflowTemplates    WorkflowTemplate[]
-  ApprovalDecision     ApprovalDecision[]
-  DeliverableActivity  DeliverableActivity[]
-  aiConversations      AiConversation[]
-  aiMemories           AiMemory[]
-  activities           Activity[]
-  auditLogs            AuditLog[]
-  alerts               Alert[]
-  jobRuns              JobRun[]
-  searchIndexes        SearchIndex[]
-  analyticsMetrics     AnalyticsMetric[]
-  creatorProfiles      CreatorProfile[]
+  owner                   User                     @relation("CompanyOwner", fields: [ownerId], references: [id])
+  reviewedBy              User?                    @relation("CompanyReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  members                 User[]                   @relation("CompanyMembers")
+  rooms                   Room[]
+  projectCategories       ProjectCategory[]
+  projects                Project[]
+  invites                 Invite[]
+  accessRequests          AccessRequest[]
+  calendarEvents          CalendarEvent[]
+  settings                CompanySettings?
+  adminActionLogs         AdminActionLog[]
+  clients                 Client[]
+  clientActivities        ClientActivity[]
+  clientPortalComments    ClientPortalComment[]
+  invoices                Invoice[]
+  briefs                  Brief[]
+  deliverables            Deliverable[]
+  workflowTemplates       WorkflowTemplate[]
+  ApprovalDecision        ApprovalDecision[]
+  DeliverableActivity     DeliverableActivity[]
+  aiConversations         AiConversation[]
+  aiMemories              AiMemory[]
+  aiRuns                  AiRun[]
+  aiActionRuns            AiActionRun[]
+  activities              Activity[]
+  auditLogs               AuditLog[]
+  alerts                  Alert[]
+  jobRuns                 JobRun[]
+  searchIndexes           SearchIndex[]
+  analyticsMetrics        AnalyticsMetric[]
+  creatorProfiles         CreatorProfile[]
   connectedSocialAccounts ConnectedAccount[]
-  analyticsSnapshots   AnalyticsSnapshot[]
-  realtimeMetrics      RealtimeMetric[]
-  audienceDemographics AudienceDemographic[]
-  engagementMetrics    EngagementMetric[]
-  revenueMetrics       RevenueMetric[]
-  contentPerformance   ContentPerformance[]
-  socialAiInsights     SocialAiInsight[]
-  socialSyncJobs       SocialSyncJob[]
-  socialWebhookEvents  SocialWebhookEvent[]
+  analyticsSnapshots      AnalyticsSnapshot[]
+  realtimeMetrics         RealtimeMetric[]
+  audienceDemographics    AudienceDemographic[]
+  engagementMetrics       EngagementMetric[]
+  revenueMetrics          RevenueMetric[]
+  contentPerformance      ContentPerformance[]
+  socialAiInsights        SocialAiInsight[]
+  socialSyncJobs          SocialSyncJob[]
+  socialWebhookEvents     SocialWebhookEvent[]
   integrationActivityLogs IntegrationActivityLog[]
 
   @@index([status, createdAt])
@@ -1008,6 +1012,83 @@ model AiMemory {
   @@index([companyId, kind, key])
 }
 
+model AiRun {
+  id               String    @id @default(cuid())
+  companyId        String
+  userId           String?
+  conversationId   String?
+  trigger          String    @default("chat")
+  status           String    @default("PLANNED") // PLANNED, PREVIEWED, PENDING_CONFIRMATION, EXECUTING, COMPLETED, FAILED, CANCELLED, EXPIRED
+  phase            String    @default("PLAN") // PLAN, PREVIEW, CONFIRM, EXECUTE
+  input            Json?
+  plan             Json?
+  result           Json?
+  error            String?
+  model            String?
+  promptVersion    String?
+  latencyMs        Int?
+  promptTokens     Int?
+  completionTokens Int?
+  estimatedCostUsd Decimal?  @db.Decimal(12, 6)
+  idempotencyKey   String?
+  startedAt        DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user    User?         @relation("AiRunActor", fields: [userId], references: [id], onDelete: SetNull)
+  actions AiActionRun[]
+
+  @@unique([companyId, idempotencyKey])
+  @@index([companyId, status, createdAt])
+  @@index([companyId, userId, createdAt])
+  @@index([trigger, status, createdAt])
+}
+
+model AiActionRun {
+  id                    String    @id @default(cuid())
+  aiRunId               String
+  companyId             String
+  actorId               String?
+  toolName              String
+  actionKind            String
+  status                String    @default("PENDING_CONFIRMATION") // PENDING_CONFIRMATION, EXECUTING, COMPLETED, FAILED, CANCELLED, EXPIRED
+  phase                 String    @default("PREVIEW") // PREVIEW, CONFIRM, EXECUTE
+  riskLevel             String    @default("LOW")
+  requiresConfirmation  Boolean   @default(true)
+  confirmationTokenHash String?   @unique
+  confirmationExpiresAt DateTime?
+  confirmationUsedAt    DateTime?
+  idempotencyKey        String?
+  targetType            String?
+  targetId              String?
+  preview               Json?
+  diff                  Json?
+  rollback              Json?
+  audit                 Json?
+  input                 Json?
+  result                Json?
+  receipt               Json?
+  error                 String?
+  attempts              Int       @default(0)
+  startedAt             DateTime?
+  completedAt           DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  aiRun   AiRun   @relation(fields: [aiRunId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actor   User?   @relation("AiActionRunActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, idempotencyKey])
+  @@index([aiRunId, createdAt])
+  @@index([companyId, status, createdAt])
+  @@index([companyId, toolName, createdAt])
+  @@index([companyId, targetType, targetId, createdAt])
+  @@index([actorId, createdAt])
+}
+
 model SocialPlatform {
   id             String   @id @default(cuid())
   slug           String   @unique
@@ -1224,25 +1305,25 @@ model EngagementMetric {
 }
 
 model RevenueMetric {
-  id                  String   @id @default(cuid())
-  companyId           String
-  connectedAccountId  String
+  id                   String   @id @default(cuid())
+  companyId            String
+  connectedAccountId   String
   contentPerformanceId String?
-  platformSlug        String
-  metricDate          DateTime
-  granularity         String   @default("day")
-  currency            String   @default("USD")
-  grossRevenue        Decimal  @default(0) @db.Decimal(20, 6)
-  estimatedRevenue    Decimal  @default(0) @db.Decimal(20, 6)
-  adRevenue           Decimal  @default(0) @db.Decimal(20, 6)
-  subscriptionRevenue Decimal  @default(0) @db.Decimal(20, 6)
-  affiliateRevenue    Decimal  @default(0) @db.Decimal(20, 6)
-  rpm                 Decimal? @db.Decimal(20, 6)
-  cpm                 Decimal? @db.Decimal(20, 6)
-  fingerprint         String
-  metadata            Json?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  platformSlug         String
+  metricDate           DateTime
+  granularity          String   @default("day")
+  currency             String   @default("USD")
+  grossRevenue         Decimal  @default(0) @db.Decimal(20, 6)
+  estimatedRevenue     Decimal  @default(0) @db.Decimal(20, 6)
+  adRevenue            Decimal  @default(0) @db.Decimal(20, 6)
+  subscriptionRevenue  Decimal  @default(0) @db.Decimal(20, 6)
+  affiliateRevenue     Decimal  @default(0) @db.Decimal(20, 6)
+  rpm                  Decimal? @db.Decimal(20, 6)
+  cpm                  Decimal? @db.Decimal(20, 6)
+  fingerprint          String
+  metadata             Json?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
 
   company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
   connectedAccount   ConnectedAccount    @relation(fields: [connectedAccountId], references: [id], onDelete: Cascade)
