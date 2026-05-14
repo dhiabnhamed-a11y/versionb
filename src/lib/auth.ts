@@ -4,6 +4,7 @@ import bcrypt from 'bcryptjs'
 import { createClient } from '@supabase/supabase-js'
 
 import { prisma } from '@/lib/db'
+import { getAuthSecret } from '@/lib/env'
 import {
   canAuthenticateAuthState,
   getAuthBlockReason,
@@ -125,16 +126,6 @@ function buildAuthSessionUser(user: AuthUserRecord): AuthSessionShape {
     companyType: user.company?.companyType ?? null,
     companyStatus: user.company?.status ?? null,
   }
-}
-
-function getAuthSecret() {
-  const secret = process.env.AUTH_SECRET?.trim() || process.env.NEXTAUTH_SECRET?.trim()
-  if (!secret) {
-    logger.error('auth.secret_missing')
-    return undefined
-  }
-
-  return secret
 }
 
 export async function validateCredentialsForLogin(email: string, password: string) {

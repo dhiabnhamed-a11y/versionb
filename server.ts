@@ -3,6 +3,7 @@ import { createServer } from 'http'
 import next from 'next'
 import { Server as SocketIOServer } from 'socket.io'
 import { getToken } from 'next-auth/jwt'
+import { getAuthSecret } from './src/lib/env'
 import { emitPresence } from './src/lib/realtime-server'
 import { logger } from './src/modules/shared/logger'
 import { startBackgroundJobWorkers } from './src/modules/jobs/job-worker'
@@ -49,9 +50,14 @@ global.io = io
 
 io.use(async (socket, nextHandler) => {
   try {
+    const authSecret = getAuthSecret('realtime.socket')
+    if (!authSecret) {
+      return nextHandler(new Error('Unauthorized'))
+    }
+
     const token = await getToken({
       req: socket.request as Parameters<typeof getToken>[0]['req'],
-      secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || 'taskforce-super-secret-key-2024-change-in-production',
+      secret: authSecret,
     })
 
     if (!token?.id) {
