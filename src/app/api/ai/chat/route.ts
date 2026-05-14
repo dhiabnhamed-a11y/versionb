@@ -19,6 +19,7 @@ type ChatBody = {
   messages?: AiMessageInput[]
   conversationId?: string
   locale?: string
+  confirmationToken?: string
 }
 
 function cleanMessage(value: unknown) {
@@ -45,6 +46,10 @@ function cleanConversationId(value: unknown) {
   return typeof value === 'string' && /^[a-z0-9_-]{8,80}$/i.test(value) ? value : null
 }
 
+function cleanConfirmationToken(value: unknown) {
+  return typeof value === 'string' && /^[a-z0-9_-]{24,160}$/i.test(value.trim()) ? value.trim() : null
+}
+
 export async function POST(req: NextRequest) {
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -55,34 +60,38 @@ export async function POST(req: NextRequest) {
   const messages = cleanMessages(body.messages)
   const conversationId = cleanConversationId(body.conversationId)
   const locale = normalizeAppLocale(body.locale)
+  const confirmationToken = cleanConfirmationToken(body.confirmationToken)
+  const question = message || (confirmationToken ? 'Confirm AI action' : '')
 
-  if (!message) {
+  if (!question) {
     return NextResponse.json({ error: 'Message is required.' }, { status: 400 })
   }
 
   const memory = await loadAiMemoryContext({
-    question: message,
+    question,
     messages,
     user,
   })
 
   const grounded = await buildGroundedOperationalAnswer({
-    question: message,
+    question,
     messages,
     memory,
     user,
+    confirmationToken,
   })
-  const polished = grounded.ambiguity
+  const keepDeterministic = Boolean(grounded.ambiguity || grounded.facts.actionPreview || grounded.facts.executionReceipt)
+  const polished = keepDeterministic
     ? {
         answer: grounded.answer,
         model: 'deterministic-grounded-engine',
         usedModel: false,
       }
-    : await polishGroundedAnswerWithOpenAi({ question: message, messages, grounded, memory, locale })
+    : await polishGroundedAnswerWithOpenAi({ question, messages, grounded, memory, locale })
   const memoryWrite = await persistAiTurn({
     user,
     conversationId,
-    question: message,
+    question,
     answer: polished.answer,
     grounded,
   })
@@ -97,6 +106,8 @@ export async function POST(req: NextRequest) {
       citations: grounded.citations,
       quickActions: grounded.quickActions,
       policy: grounded.policy,
+      actionPreview: grounded.facts.actionPreview ?? null,
+      executionReceipt: grounded.facts.executionReceipt ?? null,
       model: polished.model,
       usedModel: polished.usedModel,
       language: grounded.language ?? locale,

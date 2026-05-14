@@ -1209,6 +1209,7 @@ export async function buildGroundedOperationalAnswer(input: {
   user: AiSessionUser
   messages?: AiMessageInput[]
   memory?: AiMemoryContext
+  confirmationToken?: string | null
 }): Promise<AiGroundedAnswer> {
   const role = normalizeRole(input.user.role)
   if (!input.user.companyId || role === 'SUPER_ADMIN') {
@@ -1226,6 +1227,7 @@ export async function buildGroundedOperationalAnswer(input: {
   const action = await executeAiWorkspaceAction({
     message: input.question,
     user: input.user,
+    confirmationToken: input.confirmationToken,
   })
   if (action.handled) {
     return {
@@ -1236,6 +1238,8 @@ export async function buildGroundedOperationalAnswer(input: {
       quickActions: action.quickActions ?? ['Detect operational risks', 'Analyze delayed projects'],
       facts: {
         ...(action.facts ?? {}),
+        ...(action.actionPreview ? { actionPreview: action.actionPreview } : {}),
+        ...(action.executionReceipt ? { executionReceipt: action.executionReceipt } : {}),
         generatedAt: new Date().toISOString(),
       },
       language: action.resolvedIntent?.language,

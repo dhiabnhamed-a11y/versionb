@@ -18,6 +18,18 @@ import {
   type ResolvedIntent,
 } from '@/lib/ai-intent'
 import type { AiCitation, AiSessionUser } from '@/lib/ai-operations'
+import {
+  createAiActionPreview,
+  createPreviewAnswer,
+  loadAiActionForConfirmation,
+  markAiActionCompleted,
+  markAiActionExecuting,
+  markAiActionFailed,
+  parseStoredActionInput,
+  type AiActionPreviewCard,
+  type AiActionPreviewPayload,
+} from '@/modules/ai/runtime/governance'
+import { getAiToolForActionKind } from '@/modules/ai/tools/registry'
 
 type AiActionResult = {
   handled: boolean
@@ -29,6 +41,8 @@ type AiActionResult = {
   facts?: Record<string, unknown>
   ambiguity?: AiAmbiguityPanelPayload
   resolvedIntent?: ResolvedIntent
+  actionPreview?: AiActionPreviewCard
+  executionReceipt?: Record<string, unknown>
 }
 
 type WorkspaceLookups = {
@@ -678,6 +692,97 @@ function ambiguousTargetAnswer(intent: string, subject: string, options: string[
     quickActions: ['Find overdue invoices', 'Analyze delayed projects'],
     facts: { ambiguousTarget: subject, options },
   }
+}
+
+function intentForActionKind(kind: string) {
+  if (kind === 'client') return 'create_client'
+  if (kind === 'campaign') return 'create_campaign'
+  if (kind === 'brief') return 'create_brief'
+  if (kind === 'invoice') return 'create_invoice'
+  return kind
+}
+
+function confirmationUnavailableAnswer(reason: 'missing' | 'expired' | 'used' | 'forbidden'): AiActionResult {
+  const message =
+    reason === 'expired'
+      ? 'That AI action confirmation token has expired. Run the request again to generate a fresh preview.'
+      : reason === 'used'
+        ? 'That AI action confirmation token was already used or cancelled. Run the request again if you need a new execution.'
+        : reason === 'forbidden'
+          ? 'That AI action confirmation belongs to a different actor or workspace, so I cannot execute it.'
+          : 'I could not find a pending AI action for that confirmation token.'
+
+  return {
+    handled: true,
+    intent: 'ai_action_confirmation',
+    confidence: 'high',
+    answer: [
+      '**Confirmation Not Executed**',
+      message,
+      '',
+      '**Governance**',
+      '- No workspace data was changed.',
+      '- Generate a new preview before attempting execution again.',
+    ].join('\n'),
+    citations: [],
+    quickActions: ['Detect operational risks', 'Analyze delayed projects'],
+    facts: { confirmationFailed: true, reason },
+  }
+}
+
+async function governedPreview(input: {
+  user: AiSessionUser
+  kind: string
+  rawMessage: string
+  canonicalMessage: string
+  preview: AiActionPreviewPayload
+  citations?: AiCitation[]
+  quickActions?: string[]
+}) {
+  if (!input.user.companyId) return missingDetailsAnswer(input.kind, ['an active workspace'])
+  const tool = getAiToolForActionKind(input.kind)
+  if (!tool) {
+    return {
+      handled: true,
+      intent: 'action_error',
+      confidence: 'low' as const,
+      answer: 'I found an action intent, but no governed AI tool is registered for it yet.',
+      citations: [],
+      quickActions: ['Detect operational risks', 'Analyze delayed projects'],
+      facts: { missingTool: input.kind },
+    }
+  }
+
+  const created = await createAiActionPreview({
+    companyId: input.user.companyId,
+    actorId: input.user.id,
+    tool,
+    actionKind: input.kind,
+    rawMessage: input.rawMessage,
+    canonicalMessage: input.canonicalMessage,
+    preview: input.preview,
+  })
+
+  return {
+    handled: true,
+    intent: intentForActionKind(input.kind),
+    confidence: 'high' as const,
+    answer: createPreviewAnswer(created.card),
+    citations: input.citations ?? [],
+    quickActions: input.quickActions ?? ['Detect operational risks', 'Analyze delayed projects'],
+    facts: {
+      dryRun: true,
+      confirmationRequired: true,
+      actionPreview: created.card,
+    },
+    actionPreview: created.card,
+  }
+}
+
+function fieldsFromObject(value: Record<string, unknown>) {
+  return Object.entries(value)
+    .filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim().length > 0)
+    .map(([key, val]) => `${key}: ${val}`)
 }
 
 async function createCampaign(input: {
@@ -1387,10 +1492,749 @@ async function deleteWorkspaceRecord(input: {
   }
 }
 
+async function previewCreateCampaign(input: {
+  rawMessage: string
+  message: string
+  user: AiSessionUser
+  lookups: WorkspaceLookups
+}) {
+  if (!input.user.companyId) return missingDetailsAnswer('campaign', ['an active workspace'])
+  if (!canManageOperations(input.user)) return forbiddenAdminActionAnswer('create_campaign', 'create campaigns')
+
+  const title = extractTitle(input.message, 'campaign')
+  if (!title || title.length < 3) return missingDetailsAnswer('campaign', ['a campaign name'])
+
+  const clientId = extractLabeledValue(input.message, ['client id', 'clientId'])
+  const categoryId = extractLabeledValue(input.message, ['category id', 'categoryId'])
+  const managerId = extractLabeledValue(input.message, ['manager id', 'managerId'])
+  const client = findById(input.lookups.clients, clientId) ?? findBestByName(input.lookups.clients, input.message)
+  const requestedClientName = extractLabeledValue(input.message, ['client', 'client name', 'customer', 'customer name'])
+  const category = findById(input.lookups.categories, categoryId) ?? findBestByName(input.lookups.categories, input.message) ?? (input.lookups.categories.length === 1 ? input.lookups.categories[0] : null)
+  const manager = findById(input.lookups.managers, managerId)
+  if (input.lookups.categories.length > 1 && !category) {
+    return missingDetailsAnswer('campaign', [`one category (${input.lookups.categories.map((item) => item.name).slice(0, 5).join(', ')})`])
+  }
+
+  const fields = {
+    Campaign: title,
+    Client: client?.companyName ?? requestedClientName ?? '',
+    Category: category?.name ?? '',
+    Manager: manager?.name ?? input.user.name ?? 'Current user',
+    Description: extractDescription(input.message) ?? '',
+  }
+
+  return governedPreview({
+    user: input.user,
+    kind: 'campaign',
+    rawMessage: input.rawMessage,
+    canonicalMessage: input.message,
+    preview: {
+      summary: `Create campaign "${title}"${client?.companyName ? ` for ${client.companyName}` : requestedClientName ? ` for ${requestedClientName}` : ''}.`,
+      changes: [
+        'Create a new campaign/project in this workspace.',
+        'Initialize a starter campaign brief for the delivery team.',
+        ...fieldsFromObject(fields).map((field) => `Set ${field}.`),
+      ],
+      warnings: ['No campaign will be created until this preview is confirmed.'],
+      targetType: 'project',
+      targetLabel: title,
+      diff: {
+        before: null,
+        after: {
+          title,
+          clientId: client?.id ?? null,
+          clientName: client?.companyName ?? requestedClientName ?? null,
+          categoryId: category?.id ?? null,
+          managerId: manager?.id ?? input.user.id,
+          hasCamera: false,
+        },
+      },
+      rollback: {
+        strategy: 'metadata_snapshot',
+        proposedEntity: 'project',
+        title,
+        linkedClientId: client?.id ?? null,
+      },
+    },
+    citations: client ? [{ type: 'client', id: client.id, label: client.companyName, href: `/dashboard/admin/clients/${client.id}` }] : [],
+    quickActions: ['Create brief', 'Create invoice', 'Analyze delayed projects'],
+  })
+}
+
+async function previewCreateBrief(input: {
+  rawMessage: string
+  message: string
+  user: AiSessionUser
+  lookups: WorkspaceLookups
+}) {
+  if (!input.user.companyId) return missingDetailsAnswer('brief', ['an active workspace'])
+  if (!canManageOperations(input.user)) return forbiddenAdminActionAnswer('create_brief', 'create briefs')
+
+  const campaignId = extractLabeledValue(input.message, ['campaign id', 'campaignId', 'project id', 'projectId'])
+  const campaign = findById(input.lookups.projects, campaignId) ?? findBestByName(input.lookups.projects, input.message) ?? (input.lookups.projects.length === 1 ? input.lookups.projects[0] : null)
+  if (!campaign) return missingDetailsAnswer('brief', ['the campaign name'])
+
+  const title = extractTitle(input.message, 'brief') || `${campaign.title} brief`
+  const description = extractDescription(input.message) ?? input.message
+
+  return governedPreview({
+    user: input.user,
+    kind: 'brief',
+    rawMessage: input.rawMessage,
+    canonicalMessage: input.message,
+    preview: {
+      summary: `Create draft brief "${title}" for ${campaign.title}.`,
+      changes: [
+        'Create a draft campaign brief.',
+        `Link the brief to campaign: ${campaign.title}.`,
+        campaign.clientName ? `Carry over client context: ${campaign.clientName}.` : 'No client link will be added unless the campaign has one.',
+        'Set description from the confirmed AI instruction.',
+      ],
+      warnings: ['The brief remains in DRAFT status after execution.'],
+      targetType: 'brief',
+      targetLabel: title,
+      diff: {
+        before: null,
+        after: {
+          title,
+          campaignId: campaign.id,
+          clientId: campaign.clientId,
+          description,
+          status: 'DRAFT',
+        },
+      },
+      rollback: {
+        strategy: 'metadata_snapshot',
+        proposedEntity: 'brief',
+        title,
+        campaignId: campaign.id,
+      },
+    },
+    citations: [{ type: 'project', id: campaign.id, label: campaign.title, href: `/dashboard/admin/projects/${campaign.id}` }],
+    quickActions: ['Create campaign', 'Create invoice', 'Summarize pending approvals'],
+  })
+}
+
+async function previewCreateInvoice(input: {
+  rawMessage: string
+  message: string
+  user: AiSessionUser
+  lookups: WorkspaceLookups
+}) {
+  if (!input.user.companyId) return missingDetailsAnswer('invoice', ['an active workspace'])
+  if (!canManageInvoices(input.user)) return forbiddenAdminActionAnswer('create_invoice', 'create invoices')
+
+  const clientId = extractLabeledValue(input.message, ['client id', 'clientId'])
+  const campaignId = extractLabeledValue(input.message, ['campaign id', 'campaignId', 'project id', 'projectId'])
+  const client = findById(input.lookups.clients, clientId) ?? findBestByName(input.lookups.clients, input.message)
+  const campaign = findById(input.lookups.projects, campaignId) ?? findBestByName(input.lookups.projects, input.message)
+  const amount = extractMoney(input.message)
+  if (!client && !campaign?.clientName) return missingDetailsAnswer('invoice', ['a client name'])
+  if (!amount) return missingDetailsAnswer('invoice', ['an invoice amount such as "$1200"'])
+
+  const clientName = client?.companyName ?? campaign?.clientName ?? ''
+  const currency = extractCurrency(input.message)
+  const itemDescription = extractLabeledValue(input.message, ['line item', 'item', 'description']) || extractTitle(input.message, 'invoice') || `Services for ${campaign?.title ?? clientName}`
+  const rawItems: InvoiceItemInput[] = [{ description: itemDescription, quantity: 1, unitPrice: amount }]
+  const totals = calculateInvoiceTotals(rawItems, 0)
+  if (totals.items.length === 0) return missingDetailsAnswer('invoice', ['a line-item description'])
+
+  const invoiceNumber = await nextInvoiceNumber(input.user.companyId)
+  const dueDate = extractDueDate(input.message)
+  const totalLabel = new Intl.NumberFormat('en-US', { style: 'currency', currency }).format(totals.totalCents / 100)
+
+  return governedPreview({
+    user: input.user,
+    kind: 'invoice',
+    rawMessage: input.rawMessage,
+    canonicalMessage: input.message,
+    preview: {
+      summary: `Create draft invoice ${invoiceNumber} for ${clientName} totaling ${totalLabel}.`,
+      changes: [
+        `Create a draft invoice for ${clientName}.`,
+        `Add line item: ${itemDescription}.`,
+        `Set total to ${totalLabel}.`,
+        dueDate ? `Set due date to ${dueDate}.` : 'Leave due date empty.',
+        campaign ? `Link invoice to campaign: ${campaign.title}.` : 'Do not link a campaign.',
+      ],
+      warnings: [
+        'Financial data will not be changed until confirmed.',
+        'The invoice number is provisional and may advance if another invoice is created before confirmation.',
+      ],
+      targetType: 'invoice',
+      targetLabel: invoiceNumber,
+      diff: {
+        before: null,
+        after: {
+          invoiceNumber,
+          clientId: client?.id ?? campaign?.clientId ?? null,
+          campaignId: campaign?.id ?? null,
+          clientName,
+          status: 'draft',
+          currency,
+          dueDate,
+          subtotal: totals.subtotalCents / 100,
+          taxTotal: totals.taxTotalCents / 100,
+          total: totals.totalCents / 100,
+          items: totals.items.map((item) => ({
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPriceCents / 100,
+            lineTotal: item.lineTotalCents / 100,
+          })),
+        },
+      },
+      rollback: {
+        strategy: 'metadata_snapshot',
+        proposedEntity: 'invoice',
+        invoiceNumber,
+        total: totals.totalCents / 100,
+        currency,
+      },
+    },
+    citations: client
+      ? [{ type: 'client', id: client.id, label: client.companyName, href: `/dashboard/admin/clients/${client.id}` }]
+      : campaign
+        ? [{ type: 'project', id: campaign.id, label: campaign.title, href: `/dashboard/admin/projects/${campaign.id}` }]
+        : [],
+    quickActions: ['Find overdue invoices', 'Create campaign', 'Generate weekly report'],
+  })
+}
+
+async function previewCreateClient(input: {
+  rawMessage: string
+  message: string
+  user: AiSessionUser
+}) {
+  if (!input.user.companyId) return missingDetailsAnswer('client', ['an active workspace'])
+  if (!canManageOperations(input.user)) return forbiddenAdminActionAnswer('create_client', 'create clients')
+
+  const companyName = extractClientName(input.message)
+  if (!companyName || companyName.length < 2) return missingDetailsAnswer('client', ['a client or company name'])
+
+  const email = extractLabeledValue(input.message, ['email', 'client email'])
+  const contactPerson = extractLabeledValue(input.message, ['contact person', 'contact'])
+  const phone = extractLabeledValue(input.message, ['phone', 'phone number'])
+  const country = extractLabeledValue(input.message, ['country'])
+  const address = extractLabeledValue(input.message, ['address'])
+  const notes = extractLabeledValue(input.message, ['notes', 'note'])
+  const status = extractLabeledValue(input.message, ['status'])?.toLowerCase() === 'inactive' ? 'inactive' : 'active'
+
+  const fields = {
+    Client: companyName,
+    Contact: contactPerson ?? '',
+    Email: email?.toLowerCase() ?? '',
+    Phone: phone ?? '',
+    Country: country ?? '',
+    Status: status,
+  }
+
+  return governedPreview({
+    user: input.user,
+    kind: 'client',
+    rawMessage: input.rawMessage,
+    canonicalMessage: input.message,
+    preview: {
+      summary: `Create client profile for ${companyName}.`,
+      changes: [
+        'Create a new client profile in this workspace.',
+        'Create initial client activity records for auditability.',
+        ...fieldsFromObject(fields).map((field) => `Set ${field}.`),
+      ],
+      warnings: ['No client profile will be created until this preview is confirmed.'],
+      targetType: 'client',
+      targetLabel: companyName,
+      diff: {
+        before: null,
+        after: {
+          companyName,
+          contactPerson,
+          email: email?.toLowerCase() ?? null,
+          phone,
+          country,
+          address,
+          notes,
+          status,
+        },
+      },
+      rollback: {
+        strategy: 'metadata_snapshot',
+        proposedEntity: 'client',
+        companyName,
+      },
+    },
+    quickActions: ['Create campaign', 'Create brief', 'Create invoice'],
+  })
+}
+
+async function previewPaymentDeadlineAlerts(input: {
+  rawMessage: string
+  message: string
+  user: AiSessionUser
+}) {
+  if (!input.user.companyId) return missingDetailsAnswer('payment alert', ['an active workspace'])
+  if (!canManageInvoices(input.user)) return forbiddenAdminActionAnswer('payment_deadline_alerts', 'send payment-deadline alerts')
+
+  const now = new Date()
+  const dueSoonCutoff = addDays(now, 7)
+  const invoices = await prisma.invoice.findMany({
+    where: {
+      companyId: input.user.companyId,
+      status: { in: ['sent', 'overdue'] },
+      paidAt: null,
+      OR: [{ dueDate: { lte: dueSoonCutoff } }, { status: 'overdue' }],
+    },
+    select: {
+      id: true,
+      invoiceNumber: true,
+      clientName: true,
+      dueDate: true,
+      status: true,
+      total: true,
+      currency: true,
+    },
+    orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+    take: 20,
+  })
+
+  if (invoices.length === 0) {
+    return {
+      handled: true,
+      intent: 'payment_deadline_alerts',
+      confidence: 'high' as const,
+      answer: [
+        'Direct Answer',
+        'No sent or overdue client-payment invoices are due within the next 7 days.',
+        '',
+        'Suggested Next Actions',
+        '- Review draft invoices before sending them.',
+        '- Ask me to find overdue invoices when you want a finance risk scan.',
+      ].join('\n'),
+      citations: [],
+      quickActions: ['Find overdue invoices', 'Create invoice', 'Analyze delayed projects'],
+      facts: { alertsSent: 0, invoiceCount: 0, dryRun: true },
+    }
+  }
+
+  const recipients = await prisma.user.findMany({
+    where: {
+      companyId: input.user.companyId,
+      role: { in: ['OWNER', 'MANAGER'] },
+      accountStatus: 'ACTIVE',
+    },
+    select: { id: true, name: true },
+    take: 100,
+  })
+  const alertRecipients = recipients.length ? recipients : [{ id: input.user.id, name: input.user.name ?? 'Current user' }]
+  const today = startOfDay(now)
+  let suppressedDuplicates = 0
+
+  for (const invoice of invoices) {
+    for (const recipient of alertRecipients) {
+      const existing = await prisma.alert.findFirst({
+        where: {
+          recipientId: recipient.id,
+          type: 'CLIENT_PAYMENT_DEADLINE',
+          entityType: 'invoice',
+          entityId: invoice.id,
+          createdAt: { gte: today },
+        },
+        select: { id: true },
+      })
+      if (existing) suppressedDuplicates += 1
+    }
+  }
+
+  const alertCount = invoices.length * alertRecipients.length - suppressedDuplicates
+  const visibleInvoices = invoices.slice(0, 6)
+
+  return governedPreview({
+    user: input.user,
+    kind: 'payment_alerts',
+    rawMessage: input.rawMessage,
+    canonicalMessage: input.message,
+    preview: {
+      summary: `Send ${alertCount} payment-deadline alert${alertCount === 1 ? '' : 's'} for ${invoices.length} invoice${invoices.length === 1 ? '' : 's'}.`,
+      changes: [
+        `Create in-app alerts for ${alertRecipients.length} active Owner/Manager recipient${alertRecipients.length === 1 ? '' : 's'}.`,
+        `Cover ${invoices.length} sent or overdue invoice${invoices.length === 1 ? '' : 's'} due within 7 days or already overdue.`,
+        suppressedDuplicates ? `Suppress ${suppressedDuplicates} duplicate alert${suppressedDuplicates === 1 ? '' : 's'} already created today.` : 'No duplicate alerts were found for today.',
+      ],
+      warnings: [
+        'Notifications are user-visible after execution.',
+        'No alerts have been created during this dry run.',
+      ],
+      targetType: 'invoice',
+      diff: {
+        before: { alertsCreated: 0 },
+        after: {
+          alertsToCreate: alertCount,
+          invoiceIds: invoices.map((invoice) => invoice.id),
+          recipientIds: alertRecipients.map((recipient) => recipient.id),
+          duplicatesSuppressed: suppressedDuplicates,
+        },
+      },
+      rollback: {
+        strategy: 'manual_review',
+        notes: 'Executed notification artifacts are not automatically recalled.',
+      },
+    },
+    citations: visibleInvoices.map((invoice) => ({
+      type: 'invoice' as const,
+      id: invoice.id,
+      label: `${invoice.invoiceNumber} - ${invoice.clientName}`,
+      href: '/dashboard/admin/invoices',
+    })),
+    quickActions: ['Find overdue invoices', 'Create invoice', 'Analyze delayed projects'],
+  })
+}
+
+async function previewMarkInvoicePaid(input: {
+  rawMessage: string
+  message: string
+  user: AiSessionUser
+  lookups: WorkspaceLookups
+}) {
+  if (!input.user.companyId) return missingDetailsAnswer('invoice payment', ['an active workspace'])
+  if (!canManageInvoices(input.user)) return forbiddenAdminActionAnswer('mark_invoice_paid', 'mark invoices as paid')
+  const companyId = input.user.companyId
+
+  const target = resolveInvoiceTarget(input.lookups.invoices, input.message)
+  if (target.status === 'missing') return missingTargetAnswer('mark_invoice_paid', 'invoice', target.examples)
+  if (target.status === 'ambiguous') return ambiguousTargetAnswer('mark_invoice_paid', 'invoice', target.options)
+
+  const existing = await prisma.invoice.findFirst({
+    where: { id: target.item.id, companyId },
+    select: {
+      id: true,
+      invoiceNumber: true,
+      clientName: true,
+      status: true,
+      total: true,
+      currency: true,
+      paidAt: true,
+      sentAt: true,
+    },
+  })
+  if (!existing) return missingTargetAnswer('mark_invoice_paid', 'invoice', input.lookups.invoices.slice(0, 5).map((invoice) => `${invoice.invoiceNumber} - ${invoice.clientName}`))
+
+  if (existing.status === 'paid') {
+    return {
+      handled: true,
+      intent: 'mark_invoice_paid',
+      confidence: 'high' as const,
+      answer: [
+        '**Direct Answer**',
+        `${existing.invoiceNumber} is already marked paid.`,
+        '',
+        '**Governance**',
+        '- No confirmation is required because no mutation is needed.',
+      ].join('\n'),
+      citations: [{ type: 'invoice' as const, id: existing.id, label: `${existing.invoiceNumber} - ${existing.clientName}`, href: '/dashboard/admin/invoices' }],
+      quickActions: ['Find overdue invoices', 'Create invoice', 'Send payment deadline alerts'],
+      facts: { invoiceId: existing.id, invoiceNumber: existing.invoiceNumber, alreadyPaid: true, dryRun: true },
+    }
+  }
+
+  return governedPreview({
+    user: input.user,
+    kind: 'mark_invoice_paid',
+    rawMessage: input.rawMessage,
+    canonicalMessage: input.message,
+    preview: {
+      summary: `Mark invoice ${existing.invoiceNumber} as paid.`,
+      changes: [
+        `Change invoice status from ${existing.status} to paid.`,
+        'Set paidAt to the execution timestamp.',
+        existing.sentAt ? 'Keep the existing sentAt timestamp.' : 'Set sentAt to the execution timestamp because it is currently empty.',
+      ],
+      warnings: [
+        'This changes financial reporting and payment status.',
+        'No invoice has been updated during this dry run.',
+      ],
+      targetType: 'invoice',
+      targetId: existing.id,
+      targetLabel: `${existing.invoiceNumber} - ${existing.clientName}`,
+      diff: {
+        before: {
+          status: existing.status,
+          paidAt: existing.paidAt?.toISOString() ?? null,
+          sentAt: existing.sentAt?.toISOString() ?? null,
+        },
+        after: {
+          status: 'paid',
+          paidAt: 'execution_timestamp',
+          sentAt: existing.sentAt?.toISOString() ?? 'execution_timestamp',
+        },
+      },
+      rollback: {
+        strategy: 'metadata_snapshot',
+        invoiceId: existing.id,
+        invoiceNumber: existing.invoiceNumber,
+        previousStatus: existing.status,
+        previousPaidAt: existing.paidAt?.toISOString() ?? null,
+        previousSentAt: existing.sentAt?.toISOString() ?? null,
+      },
+    },
+    citations: [{ type: 'invoice' as const, id: existing.id, label: `${existing.invoiceNumber} - ${existing.clientName}`, href: '/dashboard/admin/invoices' }],
+    quickActions: ['Find overdue invoices', 'Create invoice', 'Send payment deadline alerts'],
+  })
+}
+
+async function deleteImpact(kind: DeletableKind, companyId: string, targetId: string) {
+  if (kind === 'invoice') {
+    const itemCount = await prisma.invoiceItem.count({ where: { invoiceId: targetId } })
+    return [`Delete invoice and ${itemCount} line item${itemCount === 1 ? '' : 's'}.`]
+  }
+
+  if (kind === 'client') {
+    const [projectLinks, invoiceLinks, briefLinks, activities] = await Promise.all([
+      prisma.project.count({ where: { companyId, clientId: targetId } }),
+      prisma.invoice.count({ where: { companyId, clientId: targetId } }),
+      prisma.brief.count({ where: { companyId, clientId: targetId } }),
+      prisma.clientActivity.count({ where: { companyId, clientId: targetId } }),
+    ])
+    return [
+      'Delete the client profile.',
+      `Unlink ${projectLinks} campaign${projectLinks === 1 ? '' : 's'}, ${invoiceLinks} invoice${invoiceLinks === 1 ? '' : 's'}, and ${briefLinks} brief${briefLinks === 1 ? '' : 's'} from this client.`,
+      `Delete ${activities} client activity record${activities === 1 ? '' : 's'}.`,
+    ]
+  }
+
+  if (kind === 'campaign') {
+    const [tasks, briefs, deliverables, media, calendars] = await Promise.all([
+      prisma.task.count({ where: { projectId: targetId } }),
+      prisma.brief.count({ where: { companyId, campaignId: targetId } }),
+      prisma.deliverable.count({ where: { companyId, campaignId: targetId } }),
+      prisma.projectMedia.count({ where: { projectId: targetId } }),
+      prisma.calendarEvent.count({ where: { companyId, projectId: targetId } }),
+    ])
+    return [
+      'Delete the campaign/project record.',
+      `Delete graph-linked delivery records: ${tasks} task${tasks === 1 ? '' : 's'}, ${briefs} brief${briefs === 1 ? '' : 's'}, ${deliverables} deliverable${deliverables === 1 ? '' : 's'}, ${media} media item${media === 1 ? '' : 's'}, and ${calendars} calendar event${calendars === 1 ? '' : 's'}.`,
+      'Unlink related invoices from this campaign instead of deleting the invoices.',
+    ]
+  }
+
+  if (kind === 'task') {
+    const [subtasks, submissions] = await Promise.all([
+      prisma.subtask.count({ where: { taskId: targetId } }),
+      prisma.taskSubmission.count({ where: { taskId: targetId } }),
+    ])
+    return [`Delete the task plus ${subtasks} subtask${subtasks === 1 ? '' : 's'} and ${submissions} submission${submissions === 1 ? '' : 's'}.`]
+  }
+
+  return [`Delete the selected ${deleteSubjectLabel(kind)} if it still belongs to this workspace at execution time.`]
+}
+
+async function previewDeleteWorkspaceRecord(input: {
+  rawMessage: string
+  message: string
+  user: AiSessionUser
+  lookups: WorkspaceLookups
+  kind: DeletableKind
+}) {
+  if (!input.user.companyId) return missingDetailsAnswer(input.kind, ['an active workspace'])
+  if (!canManageOperations(input.user)) return forbiddenAdminActionAnswer(`delete_${input.kind}`, `delete ${deleteSubjectLabel(input.kind)} records`)
+  const companyId = input.user.companyId
+
+  const target = resolveDeleteTarget(input.kind, input.lookups, input.message)
+  const subject = deleteSubjectLabel(input.kind)
+  if (target.status === 'missing') return missingTargetAnswer(`delete_${input.kind}`, subject, target.examples)
+  if (target.status === 'ambiguous') return ambiguousTargetAnswer(`delete_${input.kind}`, subject, target.options)
+
+  const label = deleteTargetLabel(input.kind, target.item, input.lookups)
+  const impact = await deleteImpact(input.kind, companyId, target.item.id)
+
+  return governedPreview({
+    user: input.user,
+    kind: `delete_${input.kind}`,
+    rawMessage: input.rawMessage,
+    canonicalMessage: input.message,
+    preview: {
+      summary: `Delete ${subject}: ${label}.`,
+      changes: impact,
+      warnings: [
+        'This is a destructive action and cannot execute without confirmation.',
+        'Rollback metadata will be recorded, but full restore may require backup recovery.',
+        'The target will be rechecked inside the same workspace at execution time.',
+      ],
+      targetType: input.kind,
+      targetId: target.item.id,
+      targetLabel: label,
+      diff: {
+        before: {
+          entityType: input.kind,
+          entityId: target.item.id,
+          label,
+        },
+        after: null,
+      },
+      rollback: {
+        strategy: 'metadata_snapshot',
+        entityType: input.kind,
+        entityId: target.item.id,
+        label,
+        impact,
+      },
+    },
+    quickActions: ['Analyze delayed projects', 'Find overdue invoices', 'Create campaign'],
+  })
+}
+
+async function previewAiWorkspaceAction(input: {
+  kind: string
+  rawMessage: string
+  actionMessage: string
+  user: AiSessionUser
+  lookups: WorkspaceLookups
+}): Promise<AiActionResult> {
+  if (input.kind === 'client') return previewCreateClient({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user })
+  if (input.kind === 'payment_alerts') return previewPaymentDeadlineAlerts({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user })
+  if (input.kind === 'mark_invoice_paid') return previewMarkInvoicePaid({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, lookups: input.lookups })
+  if (input.kind.startsWith('delete_')) {
+    const deleteKind = input.kind.replace('delete_', '') as DeletableKind
+    return previewDeleteWorkspaceRecord({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, lookups: input.lookups, kind: deleteKind })
+  }
+  if (input.kind === 'campaign') return previewCreateCampaign({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, lookups: input.lookups })
+  if (input.kind === 'brief') return previewCreateBrief({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, lookups: input.lookups })
+  if (input.kind === 'invoice') return previewCreateInvoice({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, lookups: input.lookups })
+
+  return { handled: false }
+}
+
+async function executeConfirmedAiWorkspaceAction(input: {
+  confirmationToken: string
+  user: AiSessionUser
+}): Promise<AiActionResult> {
+  if (!input.user.companyId) return missingDetailsAnswer('confirmed action', ['an active workspace'])
+
+  const lookup = await loadAiActionForConfirmation({
+    confirmationToken: input.confirmationToken,
+    companyId: input.user.companyId,
+    actorId: input.user.id,
+  })
+  if (!lookup.ok) return confirmationUnavailableAnswer(lookup.reason)
+
+  const storedInput = parseStoredActionInput(lookup.action.input)
+  if (!storedInput) return confirmationUnavailableAnswer('missing')
+
+  const executingReceipt = await markAiActionExecuting({
+    actionRunId: lookup.action.id,
+    aiRunId: lookup.action.aiRunId,
+    companyId: input.user.companyId,
+    actorId: input.user.id,
+  })
+  if (!executingReceipt) return confirmationUnavailableAnswer('used')
+
+  try {
+    const lookups = await loadLookups(input.user.companyId)
+    const actionMessage = storedInput.canonicalMessage
+    const kind = lookup.action.actionKind
+    let result: AiActionResult
+
+    if (kind === 'client') {
+      result = await createClient({ message: actionMessage, user: input.user })
+    } else if (kind === 'payment_alerts') {
+      result = await sendPaymentDeadlineAlerts({ user: input.user })
+    } else if (kind === 'mark_invoice_paid') {
+      result = await markInvoicePaid({ message: actionMessage, user: input.user, lookups })
+    } else if (kind.startsWith('delete_')) {
+      const deleteKind = kind.replace('delete_', '') as DeletableKind
+      result = await deleteWorkspaceRecord({ message: actionMessage, user: input.user, lookups, kind: deleteKind })
+    } else if (kind === 'campaign') {
+      result = await createCampaign({ message: actionMessage, user: input.user, lookups })
+    } else if (kind === 'brief') {
+      result = await createBrief({ message: actionMessage, user: input.user, lookups })
+    } else if (kind === 'invoice') {
+      result = await createInvoice({ message: actionMessage, user: input.user, lookups })
+    } else {
+      result = {
+        handled: true,
+        intent: 'action_error',
+        confidence: 'low',
+        answer: 'The confirmed AI action no longer maps to an executable tool.',
+        citations: [],
+        quickActions: ['Detect operational risks', 'Analyze delayed projects'],
+        facts: { missingExecutor: kind },
+      }
+    }
+
+    const completedReceipt = await markAiActionCompleted({
+      actionRunId: lookup.action.id,
+      aiRunId: lookup.action.aiRunId,
+      companyId: input.user.companyId,
+      actorId: input.user.id,
+      result: result.facts ?? { intent: result.intent },
+      receipt: executingReceipt,
+    })
+
+    return {
+      ...result,
+      answer: [
+        result.answer ?? 'Done.',
+        '',
+        '**Execution Receipt**',
+        `- Receipt: ${String(completedReceipt.receiptId)}`,
+        `- AI action run: ${lookup.action.id}`,
+        '- Confirmation, tenant scope, actor, and result were written to the audit trail.',
+      ].join('\n'),
+      facts: {
+        ...(result.facts ?? {}),
+        executionReceipt: completedReceipt,
+        actionRunId: lookup.action.id,
+        aiRunId: lookup.action.aiRunId,
+      },
+      executionReceipt: completedReceipt,
+    }
+  } catch (error) {
+    const failedReceipt = await markAiActionFailed({
+      actionRunId: lookup.action.id,
+      aiRunId: lookup.action.aiRunId,
+      companyId: input.user.companyId,
+      actorId: input.user.id,
+      error,
+      receipt: executingReceipt,
+    })
+
+    return {
+      handled: true,
+      intent: 'action_error',
+      confidence: 'low',
+      answer: [
+        '**Execution Failed**',
+        'The confirmed AI action did not complete.',
+        '',
+        '**Governance**',
+        `- Receipt: ${String(failedReceipt.receiptId)}`,
+        '- The failure was recorded in the AI action audit trail.',
+        '- No retry was attempted automatically.',
+      ].join('\n'),
+      citations: [],
+      quickActions: ['Detect operational risks', 'Analyze delayed projects'],
+      facts: {
+        error: error instanceof Error ? error.message : 'Unknown action error',
+        executionReceipt: failedReceipt,
+        actionRunId: lookup.action.id,
+        aiRunId: lookup.action.aiRunId,
+      },
+      executionReceipt: failedReceipt,
+    }
+  }
+}
+
 export async function executeAiWorkspaceAction(input: {
   message: string
   user: AiSessionUser
+  confirmationToken?: string | null
 }): Promise<AiActionResult> {
+  if (input.confirmationToken) {
+    return executeConfirmedAiWorkspaceAction({
+      confirmationToken: input.confirmationToken,
+      user: input.user,
+    })
+  }
+
   const initialIntent = resolveIntent(input.message)
   const fallbackKind = getActionKind(input.message)
   if (!fallbackKind && !isPotentialActionIntent(initialIntent)) return { handled: false, resolvedIntent: initialIntent }
@@ -1424,37 +2268,15 @@ export async function executeAiWorkspaceAction(input: {
         resolvedIntent,
       }
     }
-    if (kind === 'client') {
-      const result = await createClient({ message: actionMessage, user: input.user })
-      return { ...result, resolvedIntent }
-    }
-    if (kind === 'payment_alerts') {
-      const result = await sendPaymentDeadlineAlerts({ user: input.user })
-      return { ...result, resolvedIntent }
-    }
-    if (kind === 'mark_invoice_paid') {
-      const result = await markInvoicePaid({ message: actionMessage, user: input.user, lookups })
-      return { ...result, resolvedIntent }
-    }
-    if (kind.startsWith('delete_')) {
-      const deleteKind = kind.replace('delete_', '') as DeletableKind
-      const result = await deleteWorkspaceRecord({ message: actionMessage, user: input.user, lookups, kind: deleteKind })
-      return { ...result, resolvedIntent }
-    }
-    if (kind === 'campaign') {
-      const result = await createCampaign({ message: actionMessage, user: input.user, lookups })
-      return { ...result, resolvedIntent }
-    }
-    if (kind === 'brief') {
-      const result = await createBrief({ message: actionMessage, user: input.user, lookups })
-      return { ...result, resolvedIntent }
-    }
-    if (kind === 'invoice') {
-      const result = await createInvoice({ message: actionMessage, user: input.user, lookups })
-      return { ...result, resolvedIntent }
-    }
 
-    return { handled: false, resolvedIntent }
+    const result = await previewAiWorkspaceAction({
+      kind,
+      rawMessage: input.message,
+      actionMessage,
+      user: input.user,
+      lookups,
+    })
+    return { ...result, resolvedIntent }
   } catch (error) {
     console.warn('[ai-actions] Action execution failed:', error)
     return {
