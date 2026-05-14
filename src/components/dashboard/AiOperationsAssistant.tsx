@@ -33,6 +33,20 @@ type AssistantMessage = {
   quickActions?: string[]
   model?: string
   ambiguity?: AiAmbiguityPanelPayload | null
+  pendingAction?: AiActionPreview | null
+}
+
+type AiActionPreview = {
+  actionRunId: string
+  toolName: string
+  actionKind: string
+  riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
+  confirmationToken: string
+  confirmationExpiresAt: string
+  summary: string
+  changes: string[]
+  warnings: string[]
+  confirmLabel: string
 }
 
 type AssistantResponse = {
@@ -52,6 +66,7 @@ type AssistantResponse = {
   language?: AppLocale
   dir?: 'ltr' | 'rtl'
   ambiguity?: AiAmbiguityPanelPayload | null
+  actionPreview?: AiActionPreview | null
   memory?: {
     available: boolean
     recalled: number
@@ -809,9 +824,9 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
   }, [open, workflowFocusKey])
 
   const sendChatPrompt = useCallback(
-    async (prompt: string, options?: { displayContent?: string }) => {
+    async (prompt: string, options?: { displayContent?: string; confirmationToken?: string }) => {
       const message = prompt.trim()
-      if (!message || loading || disabled) return
+      if ((!message && !options?.confirmationToken) || loading || disabled) return
 
       const userMessage: AssistantMessage = {
         id: crypto.randomUUID(),
@@ -833,6 +848,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
             messages: toApiMessages(nextMessages),
             conversationId,
             locale,
+            confirmationToken: options?.confirmationToken,
           }),
         })
         const data = (await response.json()) as Partial<AssistantResponse> & { error?: string }
@@ -853,6 +869,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
             quickActions: data.quickActions ?? [],
             model: data.model,
             ambiguity: data.ambiguity ?? null,
+            pendingAction: data.actionPreview ?? null,
           },
         ])
       } catch (error) {
@@ -1066,6 +1083,53 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
                       })
                     }
                   />
+                ) : null}
+                {message.role === 'assistant' && message.pendingAction ? (
+                  <div className={`ai-assistant-action-preview risk-${message.pendingAction.riskLevel.toLowerCase()}`}>
+                    <div className="ai-assistant-action-preview-head">
+                      <span>
+                        <ShieldCheck size={14} />
+                        {message.pendingAction.riskLevel}
+                      </span>
+                      <small>{new Date(message.pendingAction.confirmationExpiresAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
+                    </div>
+                    <p>{message.pendingAction.summary}</p>
+                    <div className="ai-assistant-action-preview-actions">
+                      <button
+                        type="button"
+                        className="primary"
+                        disabled={loading}
+                        onClick={() =>
+                          void sendChatPrompt('Confirm AI action', {
+                            confirmationToken: message.pendingAction?.confirmationToken,
+                            displayContent: `Confirm: ${message.pendingAction?.summary ?? 'AI action'}`,
+                          })
+                        }
+                      >
+                        <CheckCircle2 size={14} />
+                        {message.pendingAction.confirmLabel}
+                      </button>
+                      <button
+                        type="button"
+                        className="ghost"
+                        disabled={loading}
+                        onClick={() =>
+                          setMessages((current) => [
+                            ...current,
+                            {
+                              id: crypto.randomUUID(),
+                              role: 'assistant',
+                              content: '**Action Cancelled**\nNo workspace data was changed. The confirmation token can be ignored until it expires.',
+                              quickActions: starterPrompts,
+                              model: 'governed action runtime',
+                            },
+                          ])
+                        }
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
                 ) : null}
                 {message.citations?.length ? (
                   <div className="ai-assistant-citations">
