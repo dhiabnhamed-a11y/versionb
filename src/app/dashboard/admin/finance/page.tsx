@@ -77,6 +77,22 @@ type Expense = {
   client?: { companyName: string } | null
 }
 
+type Invoice = {
+  id: string
+  invoiceNumber: string
+  clientName: string
+  status: string
+  currency: string
+  issueDate: string
+  dueDate?: string | null
+  paidAt?: string | null
+  subtotal: MoneyLike
+  taxTotal: MoneyLike
+  total: MoneyLike
+  campaign?: { id: string; title: string } | null
+  client?: { id: string; companyName: string } | null
+}
+
 type PayrollRun = {
   id: string
   status: string
@@ -130,10 +146,11 @@ type Account = {
   normalBalance: string
 }
 
-type FinanceTab = 'command' | 'approvals' | 'expenses' | 'payroll' | 'treasury' | 'ledger'
+type FinanceTab = 'command' | 'billing' | 'approvals' | 'expenses' | 'payroll' | 'treasury' | 'ledger'
 
 const tabs: Array<{ id: FinanceTab; label: string }> = [
   { id: 'command', label: 'Command' },
+  { id: 'billing', label: 'Billing' },
   { id: 'approvals', label: 'Approvals' },
   { id: 'expenses', label: 'Expenses' },
   { id: 'payroll', label: 'Payroll' },
@@ -215,6 +232,7 @@ export default function AdminFinancePage() {
   const [refreshing, setRefreshing] = useState(false)
 
   const cfo = useSWR<CfoBrief>('/api/finance/cfo/brief', fetchJson)
+  const invoices = useSWR<ApiList<Invoice> & { summary?: { total?: number; count?: number } }>('/api/invoices?pageSize=50', fetchJson)
   const approvals = useSWR<ApiList<ApprovalFlow>>('/api/finance/approvals?pageSize=50', fetchJson)
   const expenses = useSWR<ApiList<Expense>>('/api/finance/expenses?pageSize=50', fetchJson)
   const payroll = useSWR<ApiList<PayrollRun>>('/api/finance/payroll?pageSize=30', fetchJson)
@@ -223,6 +241,7 @@ export default function AdminFinancePage() {
   const journals = useSWR<ApiList<JournalEntry>>('/api/finance/journal-entries?pageSize=30', fetchJson)
   const accounts = useSWR<Account[]>('/api/finance/accounts', fetchJson)
 
+  const invoiceItems = useMemo(() => invoices.data?.items ?? [], [invoices.data?.items])
   const approvalItems = useMemo(() => approvals.data?.items ?? [], [approvals.data?.items])
   const expenseItems = useMemo(() => expenses.data?.items ?? [], [expenses.data?.items])
   const payrollItems = useMemo(() => payroll.data?.items ?? [], [payroll.data?.items])
@@ -233,6 +252,7 @@ export default function AdminFinancePage() {
 
   const loading = [
     cfo.isLoading,
+    invoices.isLoading,
     approvals.isLoading,
     expenses.isLoading,
     payroll.isLoading,
@@ -243,6 +263,7 @@ export default function AdminFinancePage() {
   ].some(Boolean)
   const loadError = [
     cfo.error,
+    invoices.error,
     approvals.error,
     expenses.error,
     payroll.error,
@@ -260,7 +281,10 @@ export default function AdminFinancePage() {
       .filter((item) => !['POSTED', 'PAID', 'VOID'].includes(item.status))
       .reduce((sum, item) => sum + decimal(item.grossPay), 0)
     const cashBalance = treasuryAccountItems.reduce((sum, item) => sum + decimal(item.currentBalance), 0)
-    const overdueReceivables = cfo.data?.overdueInvoices.reduce((sum, invoice) => sum + decimal(invoice.total), 0) ?? 0
+    const overdueReceivables = invoiceItems.filter((item) => item.status === 'overdue').reduce((sum, invoice) => sum + decimal(invoice.total), 0)
+    const openReceivables = invoiceItems.filter((item) => ['sent', 'overdue'].includes(item.status)).reduce((sum, invoice) => sum + decimal(invoice.total), 0)
+    const paidRevenue = invoiceItems.filter((item) => item.status === 'paid').reduce((sum, invoice) => sum + decimal(invoice.total), 0)
+    const draftPipeline = invoiceItems.filter((item) => item.status === 'draft').reduce((sum, invoice) => sum + decimal(invoice.total), 0)
     const postedJournals = journalItems.filter((item) => item.status === 'POSTED').length
 
     return {
@@ -270,14 +294,18 @@ export default function AdminFinancePage() {
       payrollExposure,
       cashBalance,
       overdueReceivables,
+      openReceivables,
+      paidRevenue,
+      draftPipeline,
       postedJournals,
     }
-  }, [approvalItems, cfo.data?.overdueInvoices, expenseItems, journalItems, payrollItems, treasuryAccountItems])
+  }, [approvalItems, expenseItems, invoiceItems, journalItems, payrollItems, treasuryAccountItems])
 
   async function refreshAll() {
     setRefreshing(true)
     await Promise.all([
       cfo.mutate(),
+      invoices.mutate(),
       approvals.mutate(),
       expenses.mutate(),
       payroll.mutate(),
@@ -288,7 +316,7 @@ export default function AdminFinancePage() {
     ]).finally(() => setRefreshing(false))
   }
 
-  const primaryCurrency = treasuryAccountItems[0]?.currency || expenseItems[0]?.currency || payrollItems[0]?.currency || 'USD'
+  const primaryCurrency = invoiceItems[0]?.currency || treasuryAccountItems[0]?.currency || expenseItems[0]?.currency || payrollItems[0]?.currency || 'USD'
 
   return (
     <div className="dashboard-page" style={{ maxWidth: '1180px' }}>
@@ -324,6 +352,13 @@ export default function AdminFinancePage() {
           <strong className="stat-card-value">{formatMoney(metrics.cashBalance, primaryCurrency, locale)}</strong>
           <span className="stat-card-delta">
             <WalletCards size={14} /> {treasuryAccountItems.length} treasury account{treasuryAccountItems.length === 1 ? '' : 's'}
+          </span>
+        </article>
+        <article className="stat-card">
+          <span className="stat-card-label">Open receivables</span>
+          <strong className="stat-card-value">{formatMoney(metrics.openReceivables, primaryCurrency, locale)}</strong>
+          <span className="stat-card-delta">
+            <ReceiptText size={14} /> {invoiceItems.filter((item) => ['sent', 'overdue'].includes(item.status)).length} unpaid invoice{invoiceItems.filter((item) => ['sent', 'overdue'].includes(item.status)).length === 1 ? '' : 's'}
           </span>
         </article>
         <article className="stat-card">
@@ -405,6 +440,14 @@ export default function AdminFinancePage() {
                 <strong className="taskit-heading">{formatMoney(metrics.overdueReceivables, primaryCurrency, locale)}</strong>
               </div>
               <div className="taskit-metric-row">
+                <span className="taskit-body">Paid invoice revenue</span>
+                <strong className="taskit-heading">{formatMoney(metrics.paidRevenue, primaryCurrency, locale)}</strong>
+              </div>
+              <div className="taskit-metric-row">
+                <span className="taskit-body">Draft billing pipeline</span>
+                <strong className="taskit-heading">{formatMoney(metrics.draftPipeline, primaryCurrency, locale)}</strong>
+              </div>
+              <div className="taskit-metric-row">
                 <span className="taskit-body">Posted journal entries</span>
                 <strong className="taskit-heading">{metrics.postedJournals}</strong>
               </div>
@@ -435,6 +478,74 @@ export default function AdminFinancePage() {
                       <span className="taskit-body">Due {formatDate(invoice.dueDate, locale)}</span>
                     </div>
                     <strong className="taskit-heading">{formatMoney(invoice.total, primaryCurrency, locale)}</strong>
+                  </div>
+                ))}
+              </div>
+            )}
+          </article>
+        </section>
+      )}
+
+      {activeTab === 'billing' && (
+        <section className="taskit-detail-grid">
+          <article className="taskit-card">
+            <div className="taskit-card-header">
+              <div className="taskit-row-main">
+                <span className="taskit-label">Invoice system link</span>
+                <h2 className="taskit-heading">Billing and receivables</h2>
+              </div>
+              <Link href="/dashboard/admin/invoices" className="taskit-secondary-action">
+                <ReceiptText size={20} />
+                Open invoices
+              </Link>
+            </div>
+            <div className="taskit-metric-list">
+              <div className="taskit-metric-row">
+                <span className="taskit-body">Invoice total in current view</span>
+                <strong className="taskit-heading">{formatMoney(invoices.data?.summary?.total ?? 0, primaryCurrency, locale)}</strong>
+              </div>
+              <div className="taskit-metric-row">
+                <span className="taskit-body">Paid revenue</span>
+                <strong className="taskit-heading">{formatMoney(metrics.paidRevenue, primaryCurrency, locale)}</strong>
+              </div>
+              <div className="taskit-metric-row">
+                <span className="taskit-body">Unpaid receivables</span>
+                <strong className="taskit-heading">{formatMoney(metrics.openReceivables, primaryCurrency, locale)}</strong>
+              </div>
+              <div className="taskit-metric-row">
+                <span className="taskit-body">Draft pipeline</span>
+                <strong className="taskit-heading">{formatMoney(metrics.draftPipeline, primaryCurrency, locale)}</strong>
+              </div>
+            </div>
+          </article>
+
+          <article className="taskit-card">
+            <div className="taskit-card-header">
+              <div className="taskit-row-main">
+                <span className="taskit-label">Recent invoices</span>
+                <h2 className="taskit-heading">Client billing feed</h2>
+              </div>
+              <ReceiptText size={22} aria-hidden />
+            </div>
+            {!invoiceItems.length ? (
+              <EmptyBlock title="No invoices yet" body="Create invoices from the invoice workspace and they will appear in finance." />
+            ) : (
+              <div className="taskit-activity-list">
+                {invoiceItems.slice(0, 12).map((invoice) => (
+                  <div key={invoice.id} className="taskit-activity-row">
+                    <div className="taskit-row-main">
+                      <span className="taskit-label">{invoice.invoiceNumber}</span>
+                      <span className="taskit-body">{invoice.client?.companyName ?? invoice.clientName}</span>
+                      <span className="taskit-body">
+                        {invoice.campaign?.title ? `${invoice.campaign.title} / ` : ''}
+                        Issued {formatDate(invoice.issueDate, locale)}
+                        {invoice.dueDate ? ` / Due ${formatDate(invoice.dueDate, locale)}` : ''}
+                      </span>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <strong className="taskit-heading">{formatMoney(invoice.total, invoice.currency, locale)}</strong>
+                      <ToneBadge value={invoice.status} />
+                    </div>
                   </div>
                 ))}
               </div>
