@@ -21,74 +21,13 @@ import {
   ReceiptText,
   Upload,
 } from 'lucide-react'
+import { clientsApi, type ClientProfileResponse } from '@/lib/api-client/clients'
 import { downloadPdfFromApi } from '@/lib/download-response'
 import { formatInvoiceMoney, getInvoiceStatusLabel } from '@/lib/invoices'
 
-type ProfileResponse = {
-  client: {
-    id: string
-    companyName: string
-    contactPerson?: string | null
-    email?: string | null
-    phone?: string | null
-    country?: string | null
-    address?: string | null
-    notes?: string | null
-    avatarUrl?: string | null
-    status: 'active' | 'inactive'
-    projects: Array<{
-      id: string
-      title: string
-      description?: string | null
-      category?: { id: string; name: string } | null
-      manager?: { id: string; name: string } | null
-      tasks: Array<{ id: string; stage: string }>
-      updatedAt: string
-    }>
-    invoices: Array<{
-      id: string
-      invoiceNumber: string
-      status: string
-      currency: string
-      dueDate?: string | null
-      total: number | string
-      campaign?: { id: string; title: string } | null
-      brief?: { id: string; title: string } | null
-      createdAt: string
-    }>
-    activities: Array<{
-      id: string
-      type: string
-      title: string
-      body?: string | null
-      createdAt: string
-      actor?: { id: string; name: string; email: string } | null
-    }>
-    _count: { projects: number; invoices: number }
-  }
-  stats: {
-    activeProjects: number
-    completedProjects: number
-    unpaidInvoiceCount: number
-    unpaidTotal: number
-  }
-  recentDeliverables: Array<{
-    id: string
-    type: string
-    originalFilename: string
-    thumbnailUrl?: string | null
-    url: string
-    createdAt: string
-    uploadedBy: { id: string; name: string }
-  }>
-}
+type ProfileResponse = ClientProfileResponse
 
-const fetcher = async (url: string) => {
-  const response = await fetch(url, { cache: 'no-store' })
-  const body = await response.json()
-  if (!response.ok) throw new Error(body?.error || 'Client could not be loaded.')
-  return body
-}
+const fetcher = (url: string) => clientsApi.getFromUrl(url)
 
 function formatDate(value?: string | null) {
   if (!value) return '-'
@@ -130,13 +69,7 @@ export default function ClientProfilePage() {
     setPortalLoading(true)
     setPortalError(null)
     try {
-      const response = await fetch(`/api/clients/${params.id}/portal`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ enabled: true, rotate }),
-      })
-      const body = await response.json()
-      if (!response.ok) throw new Error(body?.error || 'Portal link could not be generated.')
+      const body = await clientsApi.createPortal(params.id, { enabled: true, rotate })
       setPortalUrl(body.url)
       if (body.url && navigator.clipboard) {
         await navigator.clipboard.writeText(body.url).catch(() => undefined)

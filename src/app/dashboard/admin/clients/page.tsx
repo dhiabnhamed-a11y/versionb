@@ -18,44 +18,8 @@ import {
   X,
 } from 'lucide-react'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import { clientsApi, type Client, type ClientsResponse, type ClientStatus } from '@/lib/api-client/clients'
 import { formatInvoiceMoney } from '@/lib/invoices'
-
-type ClientStatus = 'active' | 'inactive'
-
-type Client = {
-  id: string
-  companyName: string
-  contactPerson?: string | null
-  email?: string | null
-  phone?: string | null
-  country?: string | null
-  address?: string | null
-  notes?: string | null
-  avatarUrl?: string | null
-  status: ClientStatus
-  createdAt: string
-  updatedAt: string
-  unpaidTotal?: number
-  _count?: {
-    projects: number
-    invoices: number
-  }
-}
-
-type ClientsResponse = {
-  items: Client[]
-  pagination: {
-    page: number
-    pageSize: number
-    total: number
-    pageCount: number
-  }
-  summary: {
-    activeCount: number
-    inactiveCount: number
-    unpaidTotal: number
-  }
-}
 
 type ClientForm = {
   companyName: string
@@ -69,12 +33,7 @@ type ClientForm = {
   status: ClientStatus
 }
 
-const fetcher = async (url: string) => {
-  const response = await fetch(url, { cache: 'no-store' })
-  const body = await response.json()
-  if (!response.ok) throw new Error(body?.error || 'Request failed.')
-  return body
-}
+const fetcher = (url: string) => clientsApi.listFromUrl(url)
 
 function emptyForm(): ClientForm {
   return {
@@ -165,13 +124,11 @@ export default function ClientsPage() {
 
     await mutate(
       async (current) => {
-        const response = await fetch(editingClient ? `/api/clients/${editingClient.id}` : '/api/clients', {
-          method: editingClient ? 'PATCH' : 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(form),
-        })
-        const body = await response.json()
-        if (!response.ok) throw new Error(body?.error || 'Client could not be saved.')
+        if (editingClient) {
+          await clientsApi.update(editingClient.id, form)
+        } else {
+          await clientsApi.create(form)
+        }
         return current
       },
       {
@@ -212,11 +169,7 @@ export default function ClientsPage() {
 
     await mutate(
       async (current) => {
-        const response = await fetch(`/api/clients/${client.id}`, { method: 'DELETE' })
-        if (!response.ok) {
-          const body = await response.json().catch(() => ({}))
-          throw new Error(body?.error || 'Client could not be deleted.')
-        }
+        await clientsApi.delete(client.id)
         return current
       },
       {
