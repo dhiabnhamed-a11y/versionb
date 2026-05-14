@@ -1,2 +1,4 @@
 export * from '@/modules/finance/audit.repository'
+export * from '@/modules/finance/approval.service'
+export * from '@/modules/finance/approval.validation'
 export * from '@/modules/finance/policy'
