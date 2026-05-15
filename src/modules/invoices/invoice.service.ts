@@ -16,6 +16,8 @@ import { canManageFinance } from '@/modules/permissions/permissions'
 import { badRequest, forbidden, notFound } from '@/modules/shared/errors'
 import type { PaginationInput } from '@/modules/shared/pagination'
 import type { SessionUser } from '@/modules/shared/session'
+import { createJournalEntryInTransaction } from '@/modules/accounting/accounting.service'
+import { zeroDecimal } from '@/modules/accounting/money'
 import {
   countInvoicesByPrefix,
   findInvoiceForCompany,
@@ -36,6 +38,8 @@ import {
 } from '@/modules/invoices/invoice.validation'
 
 registerEnterpriseEventListeners()
+
+type TransactionClient = Prisma.TransactionClient
 
 type InvoiceListFilters = {
   status?: string | null
@@ -82,6 +86,174 @@ function statusDatePatch(status: InvoiceStatus | undefined, previousStatus: stri
   return {
     sentAt: (status === 'sent' || status === 'overdue') && previousStatus === 'draft' ? now : undefined,
     paidAt: status === 'paid' ? now : status === 'draft' || status === 'sent' || status === 'overdue' ? null : undefined,
+  }
+}
+
+async function findInvoiceAccountingAccounts(tx: TransactionClient, companyId: string) {
+  const accounts = await tx.account.findMany({
+    where: {
+      companyId,
+      code: { in: ['1000', '1100', '2200', '4000'] },
+      status: 'ACTIVE',
+      deletedAt: null,
+    },
+    select: { id: true, code: true },
+  })
+  return new Map(accounts.map((account) => [account.code, account.id]))
+}
+
+async function hasOpenPeriodForInvoice(tx: TransactionClient, companyId: string, transactionDate: Date) {
+  const period = await tx.financialPeriod.findFirst({
+    where: {
+      companyId,
+      status: 'OPEN',
+      startsAt: { lte: transactionDate },
+      endsAt: { gte: transactionDate },
+    },
+    select: { id: true },
+  })
+  return Boolean(period)
+}
+
+async function journalExists(tx: TransactionClient, companyId: string, idempotencyKey: string) {
+  const existing = await tx.journalEntry.findUnique({
+    where: { companyId_idempotencyKey: { companyId, idempotencyKey } },
+    select: { id: true },
+  })
+  return Boolean(existing)
+}
+
+async function createInvoiceAccountingEntries(
+  tx: TransactionClient,
+  invoice: InvoiceReadModel,
+  previousStatus: string | null,
+  actorId: string
+) {
+  const status = invoice.status
+  const isBillable = ['sent', 'overdue', 'paid', 'partially_paid'].includes(status)
+  const becameBillable = isBillable && !['sent', 'overdue', 'paid', 'partially_paid'].includes(previousStatus ?? '')
+  const becamePaid = status === 'paid' && previousStatus !== 'paid'
+  if (!becameBillable && !becamePaid) return
+
+  const transactionDate = invoice.paidAt ?? invoice.sentAt ?? invoice.issueDate ?? new Date()
+  const [accounts, hasPeriod] = await Promise.all([
+    findInvoiceAccountingAccounts(tx, invoice.companyId),
+    hasOpenPeriodForInvoice(tx, invoice.companyId, transactionDate),
+  ])
+  if (!hasPeriod) return
+
+  const cashAccountId = accounts.get('1000')
+  const receivableAccountId = accounts.get('1100')
+  const taxLiabilityAccountId = accounts.get('2200')
+  const revenueAccountId = accounts.get('4000')
+  if (!receivableAccountId || !revenueAccountId) return
+
+  if (becameBillable) {
+    const idempotencyKey = `invoice:${invoice.id}:issued:v1`
+    if (!(await journalExists(tx, invoice.companyId, idempotencyKey))) {
+      const lines = [
+        {
+          accountId: receivableAccountId,
+          description: `Recognize ${invoice.invoiceNumber} receivable`,
+          debit: invoice.total,
+          credit: zeroDecimal(),
+          clientId: invoice.clientId,
+          invoiceId: invoice.id,
+          projectId: invoice.campaignId,
+          taskId: invoice.briefId,
+          targetType: 'invoice',
+          targetId: invoice.id,
+        },
+        {
+          accountId: revenueAccountId,
+          description: `Recognize ${invoice.invoiceNumber} revenue`,
+          debit: zeroDecimal(),
+          credit: invoice.subtotal,
+          clientId: invoice.clientId,
+          invoiceId: invoice.id,
+          projectId: invoice.campaignId,
+          taskId: invoice.briefId,
+          targetType: 'invoice_revenue',
+          targetId: invoice.id,
+        },
+      ]
+      if (invoice.taxTotal.gt(0) && taxLiabilityAccountId) {
+        lines.push({
+          accountId: taxLiabilityAccountId,
+          description: `Recognize ${invoice.invoiceNumber} tax liability`,
+          debit: zeroDecimal(),
+          credit: invoice.taxTotal,
+          clientId: invoice.clientId,
+          invoiceId: invoice.id,
+          projectId: invoice.campaignId,
+          taskId: invoice.briefId,
+          targetType: 'invoice_tax',
+          targetId: invoice.id,
+        })
+      }
+
+      await createJournalEntryInTransaction(tx, {
+        companyId: invoice.companyId,
+        actorId,
+        invoiceId: invoice.id,
+        sourceType: 'INVOICE',
+        sourceId: invoice.id,
+        memo: `Invoice ${invoice.invoiceNumber} sent to ${invoice.clientName}`,
+        currency: invoice.currency,
+        transactionDate,
+        idempotencyKey,
+        requiresApproval: false,
+        postNow: true,
+        metadata: { invoiceNumber: invoice.invoiceNumber, accountingEvent: 'invoice_sent' },
+        lines,
+      })
+    }
+  }
+
+  if (becamePaid && cashAccountId && receivableAccountId) {
+    const idempotencyKey = `invoice:${invoice.id}:paid:v1`
+    if (!(await journalExists(tx, invoice.companyId, idempotencyKey))) {
+      await createJournalEntryInTransaction(tx, {
+        companyId: invoice.companyId,
+        actorId,
+        invoiceId: invoice.id,
+        sourceType: 'PAYMENT',
+        sourceId: invoice.id,
+        memo: `Payment received for ${invoice.invoiceNumber}`,
+        currency: invoice.currency,
+        transactionDate,
+        idempotencyKey,
+        requiresApproval: false,
+        postNow: true,
+        metadata: { invoiceNumber: invoice.invoiceNumber, accountingEvent: 'invoice_paid' },
+        lines: [
+          {
+            accountId: cashAccountId,
+            description: `Cash received for ${invoice.invoiceNumber}`,
+            debit: invoice.total,
+            credit: zeroDecimal(),
+            clientId: invoice.clientId,
+            invoiceId: invoice.id,
+            projectId: invoice.campaignId,
+            taskId: invoice.briefId,
+            targetType: 'invoice_payment',
+            targetId: invoice.id,
+          },
+          {
+            accountId: receivableAccountId,
+            description: `Clear receivable for ${invoice.invoiceNumber}`,
+            debit: zeroDecimal(),
+            credit: invoice.total,
+            clientId: invoice.clientId,
+            invoiceId: invoice.id,
+            projectId: invoice.campaignId,
+            taskId: invoice.briefId,
+            targetType: 'invoice_payment',
+            targetId: invoice.id,
+          },
+        ],
+      })
+    }
   }
 }
 
@@ -187,38 +359,42 @@ export async function createInvoice(user: SessionUser, rawInput: unknown) {
   for (let attempt = 0; attempt < 3; attempt += 1) {
     try {
       const invoiceNumber = await nextInvoiceNumber(companyId)
-      const invoice = await prisma.invoice.create({
-        data: {
-          companyId,
-          createdById: user.id,
-          clientId: links.clientId,
-          campaignId: links.campaignId,
-          briefId: links.briefId,
-          invoiceNumber,
-          clientName,
-          clientEmail: body.clientEmail?.trim() || links.client?.email || null,
-          clientAddress: body.clientAddress?.trim() || links.client?.address || null,
-          status,
-          currency: normalizeCurrency(body.currency),
-          locale: normalizeInvoiceLocale(body.locale),
-          issueDate: parseDate(body.issueDate) ?? new Date(),
-          dueDate: parseDate(body.dueDate),
-          notes: body.notes?.trim() || null,
-          taxRate: new Prisma.Decimal(totals.taxRate.toFixed(2)),
-          subtotal: centsToDecimal(totals.subtotalCents),
-          taxTotal: centsToDecimal(totals.taxTotalCents),
-          total: centsToDecimal(totals.totalCents),
-          ...buildStatusDates(status),
-          items: {
-            create: totals.items.map((item) => ({
-              description: item.description,
-              quantity: new Prisma.Decimal(item.quantity.toFixed(2)),
-              unitPrice: centsToDecimal(item.unitPriceCents),
-              lineTotal: centsToDecimal(item.lineTotalCents),
-            })),
+      const invoice = await prisma.$transaction(async (tx) => {
+        const created = await tx.invoice.create({
+          data: {
+            companyId,
+            createdById: user.id,
+            clientId: links.clientId,
+            campaignId: links.campaignId,
+            briefId: links.briefId,
+            invoiceNumber,
+            clientName,
+            clientEmail: body.clientEmail?.trim() || links.client?.email || null,
+            clientAddress: body.clientAddress?.trim() || links.client?.address || null,
+            status,
+            currency: normalizeCurrency(body.currency),
+            locale: normalizeInvoiceLocale(body.locale),
+            issueDate: parseDate(body.issueDate) ?? new Date(),
+            dueDate: parseDate(body.dueDate),
+            notes: body.notes?.trim() || null,
+            taxRate: new Prisma.Decimal(totals.taxRate.toFixed(2)),
+            subtotal: centsToDecimal(totals.subtotalCents),
+            taxTotal: centsToDecimal(totals.taxTotalCents),
+            total: centsToDecimal(totals.totalCents),
+            ...buildStatusDates(status),
+            items: {
+              create: totals.items.map((item) => ({
+                description: item.description,
+                quantity: new Prisma.Decimal(item.quantity.toFixed(2)),
+                unitPrice: centsToDecimal(item.unitPriceCents),
+                lineTotal: centsToDecimal(item.lineTotalCents),
+              })),
+            },
           },
-        },
-        select: invoiceReadSelect,
+          select: invoiceReadSelect,
+        })
+        await createInvoiceAccountingEntries(tx, created, 'draft', user.id)
+        return created
       })
 
       const serialized = serializeInvoice(invoice)
@@ -278,7 +454,7 @@ export async function updateInvoice(user: SessionUser, id: string, rawInput: unk
   const invoice = await prisma.$transaction(async (tx) => {
     if (totals) await tx.invoiceItem.deleteMany({ where: { invoiceId: id } })
 
-    return tx.invoice.update({
+    const updated = await tx.invoice.update({
       where: { id },
       data: {
         clientName: body.clientName?.trim(),
@@ -314,6 +490,8 @@ export async function updateInvoice(user: SessionUser, id: string, rawInput: unk
       },
       select: invoiceReadSelect,
     })
+    await createInvoiceAccountingEntries(tx, updated, existing.status, user.id)
+    return updated
   })
 
   const serialized = serializeInvoice(invoice)

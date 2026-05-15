@@ -23,6 +23,7 @@ import {
   Wand2,
   WalletCards,
 } from 'lucide-react'
+import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { useLocale } from '@/components/i18n/LocaleProvider'
 
 type ApiList<T> = {
@@ -41,12 +42,79 @@ type CfoBrief = {
   generatedAt: string
   model: string
   summary: string[]
+  metrics?: ExecutiveFinanceMetrics
+  recommendations?: ExecutiveFinanceInsight[]
   overdueInvoices: Array<{
     invoiceNumber: string
     clientName: string
     total: string
     dueDate: string | null
   }>
+}
+
+type ExecutiveFinanceMetrics = {
+  primaryCurrency: string
+  financialHealthScore: number
+  cashBalance: string
+  openReceivables: string
+  overdueReceivables: string
+  paidRevenue: string
+  draftPipeline: string
+  expenseExposure: string
+  payrollExposure: string
+  openApprovals: number
+  postedJournals: number
+  grossProfit: string
+  netProfit: string
+  grossMarginPercent: number
+  monthlyBurn: string
+  runwayMonths: number | null
+  accountsReceivableExposure: string
+  accountsPayableExposure: string
+  budgetVariance: string
+  deliveryToCashDays: number | null
+  payrollRevenueRatio: number
+  clientConcentrationPercent: number
+}
+
+type ExecutiveFinanceInsight = {
+  severity: 'INFO' | 'WATCH' | 'CRITICAL'
+  title: string
+  narrative: string
+  recommendation: string
+  evidence: Record<string, string | number | null>
+}
+
+type FinancialOperatingSystemDashboard = {
+  generatedAt: string
+  model: string
+  metrics: ExecutiveFinanceMetrics
+  trends: {
+    monthly: Array<{
+      label: string
+      periodStart: string
+      periodEnd: string
+      revenue: string
+      expenses: string
+      payroll: string
+      netCashflow: string
+    }>
+  }
+  aging: {
+    current: string
+    days1To30: string
+    days31To60: string
+    days61To90: string
+    over90: string
+  }
+  topClients: Array<{
+    clientId: string | null
+    clientName: string
+    revenue: string
+    exposure: string
+    reliabilityScore: number
+  }>
+  recommendations: ExecutiveFinanceInsight[]
 }
 
 type ApprovalFlow = {
@@ -228,6 +296,92 @@ function EmptyBlock({ title, body }: { title: string; body: string }) {
   )
 }
 
+const emptyExecutiveMetrics: ExecutiveFinanceMetrics = {
+  primaryCurrency: 'USD',
+  financialHealthScore: 0,
+  cashBalance: '0',
+  openReceivables: '0',
+  overdueReceivables: '0',
+  paidRevenue: '0',
+  draftPipeline: '0',
+  expenseExposure: '0',
+  payrollExposure: '0',
+  openApprovals: 0,
+  postedJournals: 0,
+  grossProfit: '0',
+  netProfit: '0',
+  grossMarginPercent: 0,
+  monthlyBurn: '0',
+  runwayMonths: null,
+  accountsReceivableExposure: '0',
+  accountsPayableExposure: '0',
+  budgetVariance: '0',
+  deliveryToCashDays: null,
+  payrollRevenueRatio: 0,
+  clientConcentrationPercent: 0,
+}
+
+function ExecutiveTrendChart({
+  data,
+  currency,
+  locale,
+}: {
+  data: FinancialOperatingSystemDashboard['trends']['monthly']
+  currency: string
+  locale: string
+}) {
+  if (!data.length) {
+    return <EmptyBlock title="No trend data yet" body="Invoice, expense, payroll, and treasury activity will build this operating trend." />
+  }
+
+  const chartData = data.map((point) => ({
+    ...point,
+    revenue: decimal(point.revenue),
+    expenses: decimal(point.expenses),
+    payroll: decimal(point.payroll),
+    netCashflow: decimal(point.netCashflow),
+  }))
+
+  return (
+    <div className="h-[280px] w-full">
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+          <defs>
+            <linearGradient id="financeRevenue" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.34} />
+              <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.04} />
+            </linearGradient>
+            <linearGradient id="financeCosts" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor="var(--danger)" stopOpacity={0.22} />
+              <stop offset="95%" stopColor="var(--danger)" stopOpacity={0.03} />
+            </linearGradient>
+          </defs>
+          <CartesianGrid stroke="var(--border)" vertical={false} />
+          <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+          <YAxis
+            tickLine={false}
+            axisLine={false}
+            tick={{ fill: 'var(--text-secondary)', fontSize: 12 }}
+            tickFormatter={(value) => Intl.NumberFormat(localeForDate(locale), { notation: 'compact', maximumFractionDigits: 1 }).format(Number(value))}
+          />
+          <Tooltip
+            contentStyle={{
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              boxShadow: 'var(--shadow-lg)',
+            }}
+            formatter={(value, name) => [formatMoney(Number(value), currency, locale), String(name).replace(/([A-Z])/g, ' $1')]}
+          />
+          <Area type="monotone" dataKey="revenue" stroke="var(--accent)" fill="url(#financeRevenue)" strokeWidth={2.4} />
+          <Area type="monotone" dataKey="expenses" stroke="var(--danger)" fill="url(#financeCosts)" strokeWidth={2} />
+          <Area type="monotone" dataKey="payroll" stroke="var(--warning)" fill="transparent" strokeWidth={2} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
 function PremiumEmptyState({
   icon: Icon,
   title,
@@ -296,6 +450,7 @@ export default function AdminFinancePage() {
   const [setupMessage, setSetupMessage] = useState<string | null>(null)
 
   const cfo = useSWR<CfoBrief>('/api/finance/cfo/brief', fetchJson)
+  const operatingSystem = useSWR<FinancialOperatingSystemDashboard>('/api/finance/operating-system', fetchJson)
   const invoices = useSWR<ApiList<Invoice> & { summary?: { total?: number; count?: number } }>('/api/invoices?pageSize=50', fetchJson)
   const approvals = useSWR<ApiList<ApprovalFlow>>('/api/finance/approvals?pageSize=50', fetchJson)
   const expenses = useSWR<ApiList<Expense>>('/api/finance/expenses?pageSize=50', fetchJson)
@@ -313,9 +468,14 @@ export default function AdminFinancePage() {
   const treasuryTransactionItems = useMemo(() => treasuryTransactions.data?.items ?? [], [treasuryTransactions.data?.items])
   const journalItems = useMemo(() => journals.data?.items ?? [], [journals.data?.items])
   const accountItems = useMemo(() => accounts.data ?? [], [accounts.data])
+  const metrics = operatingSystem.data?.metrics ?? emptyExecutiveMetrics
+  const recommendations = operatingSystem.data?.recommendations ?? cfo.data?.recommendations ?? []
+  const monthlyTrend = operatingSystem.data?.trends.monthly ?? []
+  const topClients = operatingSystem.data?.topClients ?? []
 
   const loading = [
     cfo.isLoading,
+    operatingSystem.isLoading,
     invoices.isLoading,
     approvals.isLoading,
     expenses.isLoading,
@@ -327,6 +487,7 @@ export default function AdminFinancePage() {
   ].some(Boolean)
   const loadError = [
     cfo.error,
+    operatingSystem.error,
     invoices.error,
     approvals.error,
     expenses.error,
@@ -337,38 +498,11 @@ export default function AdminFinancePage() {
     accounts.error,
   ].find(Boolean)
 
-  const metrics = useMemo(() => {
-    const openApprovals = approvalItems.filter((item) => ['PENDING', 'ESCALATED'].includes(item.status)).length
-    const submittedExpenses = expenseItems.filter((item) => ['SUBMITTED', 'APPROVED'].includes(item.status)).length
-    const expenseExposure = expenseItems.reduce((sum, item) => sum + decimal(item.total), 0)
-    const payrollExposure = payrollItems
-      .filter((item) => !['POSTED', 'PAID', 'VOID'].includes(item.status))
-      .reduce((sum, item) => sum + decimal(item.grossPay), 0)
-    const cashBalance = treasuryAccountItems.reduce((sum, item) => sum + decimal(item.currentBalance), 0)
-    const overdueReceivables = invoiceItems.filter((item) => item.status === 'overdue').reduce((sum, invoice) => sum + decimal(invoice.total), 0)
-    const openReceivables = invoiceItems.filter((item) => ['sent', 'overdue'].includes(item.status)).reduce((sum, invoice) => sum + decimal(invoice.total), 0)
-    const paidRevenue = invoiceItems.filter((item) => item.status === 'paid').reduce((sum, invoice) => sum + decimal(invoice.total), 0)
-    const draftPipeline = invoiceItems.filter((item) => item.status === 'draft').reduce((sum, invoice) => sum + decimal(invoice.total), 0)
-    const postedJournals = journalItems.filter((item) => item.status === 'POSTED').length
-
-    return {
-      openApprovals,
-      submittedExpenses,
-      expenseExposure,
-      payrollExposure,
-      cashBalance,
-      overdueReceivables,
-      openReceivables,
-      paidRevenue,
-      draftPipeline,
-      postedJournals,
-    }
-  }, [approvalItems, expenseItems, invoiceItems, journalItems, payrollItems, treasuryAccountItems])
-
   async function refreshAll() {
     setRefreshing(true)
     await Promise.all([
       cfo.mutate(),
+      operatingSystem.mutate(),
       invoices.mutate(),
       approvals.mutate(),
       expenses.mutate(),
@@ -380,22 +514,9 @@ export default function AdminFinancePage() {
     ]).finally(() => setRefreshing(false))
   }
 
-  const primaryCurrency = invoiceItems[0]?.currency || treasuryAccountItems[0]?.currency || expenseItems[0]?.currency || payrollItems[0]?.currency || 'USD'
+  const primaryCurrency = metrics.primaryCurrency || invoiceItems[0]?.currency || treasuryAccountItems[0]?.currency || expenseItems[0]?.currency || payrollItems[0]?.currency || 'USD'
   const workspaceActivated = accountItems.length > 0
-  const financialHealthScore = Math.max(
-    42,
-    Math.min(
-      98,
-      Math.round(
-        58 +
-          (workspaceActivated ? 16 : 0) +
-          (invoiceItems.length ? 8 : 0) +
-          (treasuryAccountItems.length ? 8 : 0) +
-          (metrics.openApprovals === 0 ? 5 : -Math.min(metrics.openApprovals * 3, 12)) -
-          (metrics.overdueReceivables > 0 ? 9 : 0)
-      )
-    )
-  )
+  const financialHealthScore = metrics.financialHealthScore || (workspaceActivated ? 58 : 0)
 
   async function initializeWorkspace() {
     setInitializing(true)
@@ -507,7 +628,7 @@ export default function AdminFinancePage() {
           <span className="stat-card-label">Expense exposure</span>
           <strong className="stat-card-value">{formatMoney(metrics.expenseExposure, primaryCurrency, locale)}</strong>
           <span className="stat-card-delta">
-            <BadgeDollarSign size={14} /> {metrics.submittedExpenses} submitted or approved
+            <BadgeDollarSign size={14} /> {formatMoney(metrics.accountsPayableExposure, primaryCurrency, locale)} payable exposure
           </span>
         </article>
         <article className="stat-card">
@@ -541,6 +662,45 @@ export default function AdminFinancePage() {
             ))}
           </div>
         )}
+      </section>
+
+      <section className="taskit-detail-grid mb-6">
+        <article className="taskit-card">
+          <div className="taskit-card-header">
+            <div className="taskit-row-main">
+              <span className="taskit-label">Operating intelligence</span>
+              <h2 className="taskit-heading">Revenue, cost, and cashflow trend</h2>
+            </div>
+            <TrendingUp size={22} aria-hidden />
+          </div>
+          <ExecutiveTrendChart data={monthlyTrend} currency={primaryCurrency} locale={locale} />
+        </article>
+
+        <article className="taskit-card">
+          <div className="taskit-card-header">
+            <div className="taskit-row-main">
+              <span className="taskit-label">Executive recommendations</span>
+              <h2 className="taskit-heading">CFO action queue</h2>
+            </div>
+            <Sparkles size={22} aria-hidden />
+          </div>
+          {!recommendations.length ? (
+            <EmptyBlock title="No recommendations yet" body="TASKIT will surface collection, margin, payroll, budget, and runway actions as financial events accumulate." />
+          ) : (
+            <div className="taskit-alert-list">
+              {recommendations.slice(0, 4).map((insight) => (
+                <div key={`${insight.title}-${insight.severity}`} className="taskit-alert-row">
+                  <div className="taskit-row-main">
+                    <span className="taskit-label">{insight.severity}</span>
+                    <span className="taskit-heading">{insight.title}</span>
+                    <span className="taskit-body">{insight.narrative}</span>
+                    <span className="taskit-body">{insight.recommendation}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </article>
       </section>
 
       <div className="mb-6 flex flex-wrap gap-2">
@@ -613,6 +773,32 @@ export default function AdminFinancePage() {
                       <span className="taskit-body">Due {formatDate(invoice.dueDate, locale)}</span>
                     </div>
                     <strong className="taskit-heading">{formatMoney(invoice.total, primaryCurrency, locale)}</strong>
+                  </div>
+                ))}
+              </div>
+            )}
+          </article>
+
+          <article className="taskit-card">
+            <div className="taskit-card-header">
+              <div className="taskit-row-main">
+                <span className="taskit-label">Client exposure</span>
+                <h2 className="taskit-heading">Receivables concentration</h2>
+              </div>
+              <BriefcaseBusiness size={22} aria-hidden />
+            </div>
+            {!topClients.length ? (
+              <EmptyBlock title="No client exposure yet" body="Client-level revenue and receivables risk will appear after invoices are issued." />
+            ) : (
+              <div className="taskit-activity-list">
+                {topClients.slice(0, 6).map((client) => (
+                  <div key={`${client.clientId ?? client.clientName}`} className="taskit-activity-row">
+                    <div className="taskit-row-main">
+                      <span className="taskit-label">{client.clientName}</span>
+                      <span className="taskit-body">Reliability score {client.reliabilityScore}</span>
+                      <span className="taskit-body">Recognized revenue {formatMoney(client.revenue, primaryCurrency, locale)}</span>
+                    </div>
+                    <strong className="taskit-heading">{formatMoney(client.exposure, primaryCurrency, locale)}</strong>
                   </div>
                 ))}
               </div>
