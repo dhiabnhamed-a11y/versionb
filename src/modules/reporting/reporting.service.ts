@@ -265,10 +265,10 @@ export async function getFinancialOperatingSystemDashboard(user: SessionUser): P
     'USD'
 
   const cashBalance = treasuryBalances.reduce((total, row) => total.plus(row._sum.currentBalance ?? zeroDecimal()), zeroDecimal())
-  const openReceivables = statusSum(invoiceStatusRows, ['sent', 'overdue', 'partially_paid'])
-  const overdueReceivables = statusSum(invoiceStatusRows, ['overdue'])
+  const openReceivables = statusSum(invoiceStatusRows, ['sent', 'viewed', 'partially_paid', 'overdue', 'disputed', 'escalated'])
+  const overdueReceivables = statusSum(invoiceStatusRows, ['overdue', 'disputed', 'escalated'])
   const paidRevenue = statusSum(invoiceStatusRows, ['paid'])
-  const draftPipeline = statusSum(invoiceStatusRows, ['draft', 'pending_approval'])
+  const draftPipeline = statusSum(invoiceStatusRows, ['draft', 'internal_review', 'pending_approval', 'approved'])
   const expenseExposure = statusSum(expenseStatusRows, ['SUBMITTED', 'APPROVED', 'PAID', 'REIMBURSED'])
   const accountsPayableExposure = statusSum(expenseStatusRows, ['SUBMITTED', 'APPROVED'])
   const payrollExposure = statusSum(payrollStatusRows, ['DRAFT', 'PENDING_APPROVAL', 'APPROVED'], 'grossPay')

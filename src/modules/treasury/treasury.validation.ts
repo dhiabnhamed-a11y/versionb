@@ -23,6 +23,7 @@ export const createTreasuryTransactionSchema = z.object({
   amount: moneyInput,
   currency: z.string().trim().length(3).optional().nullable(),
   scheduledFor: z.string().trim().min(1).optional().nullable(),
+  executeNow: z.boolean().optional(),
   externalRef: z.string().trim().max(160).optional().nullable(),
   memo: z.string().trim().max(1000).optional().nullable(),
   metadata: z.unknown().optional(),

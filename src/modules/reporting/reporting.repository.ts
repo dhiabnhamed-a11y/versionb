@@ -82,7 +82,7 @@ export function getClientExposureRows(companyId: string, startsAt: Date) {
       "clientId",
       "clientName",
       COALESCE(SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END), 0) AS revenue,
-      COALESCE(SUM(CASE WHEN status IN ('sent', 'overdue') THEN total ELSE 0 END), 0) AS exposure,
+      COALESCE(SUM(CASE WHEN status IN ('sent', 'viewed', 'partially_paid', 'overdue', 'disputed', 'escalated') THEN total ELSE 0 END), 0) AS exposure,
       COUNT(*) FILTER (WHERE status = 'paid') AS "paidCount",
       COUNT(*) FILTER (WHERE status = 'overdue') AS "overdueCount"
     FROM "Invoice"
@@ -107,7 +107,7 @@ export function getReceivablesAgingRows(companyId: string, asOf: Date) {
       COALESCE(SUM(total), 0) AS total
     FROM "Invoice"
     WHERE "companyId" = ${companyId}
-      AND status IN ('sent', 'overdue')
+      AND status IN ('sent', 'viewed', 'partially_paid', 'overdue', 'disputed', 'escalated')
     GROUP BY 1
   `
 }

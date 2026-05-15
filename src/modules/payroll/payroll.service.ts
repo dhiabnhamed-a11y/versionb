@@ -9,7 +9,7 @@ import { publishDomainEvent } from '@/modules/events/event-bus'
 import { assertFinanceApproval, assertFinanceManage, requireFinanceCompany } from '@/modules/finance/policy'
 import { writeFinancialAuditLog } from '@/modules/finance/audit.repository'
 import { createJournalEntryInTransaction } from '@/modules/accounting/accounting.service'
-import { normalizeCurrency, sumDecimals, toDecimal, zeroDecimal } from '@/modules/accounting/money'
+import { normalizeCurrency, toDecimal, zeroDecimal, type DecimalInput } from '@/modules/accounting/money'
 import { createPayrollSchema, postPayrollSchema } from '@/modules/payroll/payroll.validation'
 import type { PaginationInput } from '@/modules/shared/pagination'
 
@@ -21,6 +21,83 @@ function parseDate(value: string, field: string) {
 
 function decimalString(value: Prisma.Decimal) {
   return value.toString()
+}
+
+function normalizeItemType(value: string) {
+  return value.trim().toUpperCase().replace(/[\s-]+/g, '_')
+}
+
+function metadataRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === 'object' && !Array.isArray(value) ? (value as Record<string, unknown>) : {}
+}
+
+function decimalMetadata(value: unknown, fallback = zeroDecimal()) {
+  if (value === undefined || value === null || value === '') return fallback
+  if (value instanceof Prisma.Decimal || typeof value === 'string' || typeof value === 'number') return toDecimal(value as DecimalInput, 'metadata')
+  return fallback
+}
+
+function percentageRate(value: unknown, fallback: string) {
+  const rate = decimalMetadata(value, new Prisma.Decimal(fallback))
+  return rate.div(rate.gt(1) ? 100 : 1)
+}
+
+function calculatePayrollTotals(
+  items: Array<{ itemType: string; amount: Prisma.Decimal; taxable?: boolean | null }>,
+  metadata: unknown
+) {
+  const payrollMetadata = metadataRecord(metadata)
+  const employeeTaxRate = percentageRate(payrollMetadata.employeeTaxRate ?? payrollMetadata.taxRate, '0.18')
+  const employerContributionRate = percentageRate(payrollMetadata.employerContributionRate, '0.09')
+  const benefitContributionRate = percentageRate(payrollMetadata.benefitContributionRate, '0.04')
+
+  const totals = items.reduce(
+    (acc, item) => {
+      const type = normalizeItemType(item.itemType)
+      const amount = item.amount
+      if (['OVERTIME'].includes(type)) acc.overtimePay = acc.overtimePay.plus(amount)
+      if (['BONUS', 'COMMISSION'].includes(type)) acc.bonusPay = acc.bonusPay.plus(amount)
+      if (['REIMBURSEMENT', 'EXPENSE_REIMBURSEMENT'].includes(type)) acc.reimbursements = acc.reimbursements.plus(amount)
+      if (['DEDUCTION', 'BENEFIT_DEDUCTION', 'RETIREMENT_DEDUCTION', 'GARNISHMENT'].includes(type)) acc.deductions = acc.deductions.plus(amount)
+      if (['BENEFIT', 'EMPLOYER_BENEFIT', 'EMPLOYER_CONTRIBUTION'].includes(type)) acc.employerContributions = acc.employerContributions.plus(amount)
+      if (['TAX', 'WITHHOLDING'].includes(type)) acc.explicitTaxes = acc.explicitTaxes.plus(amount)
+      if (!['DEDUCTION', 'BENEFIT_DEDUCTION', 'RETIREMENT_DEDUCTION', 'GARNISHMENT', 'TAX', 'WITHHOLDING', 'BENEFIT', 'EMPLOYER_BENEFIT', 'EMPLOYER_CONTRIBUTION'].includes(type)) {
+        acc.grossPay = acc.grossPay.plus(amount)
+        if (item.taxable !== false && !['REIMBURSEMENT', 'EXPENSE_REIMBURSEMENT'].includes(type)) acc.taxablePay = acc.taxablePay.plus(amount)
+      }
+      return acc
+    },
+    {
+      grossPay: zeroDecimal(),
+      taxablePay: zeroDecimal(),
+      overtimePay: zeroDecimal(),
+      bonusPay: zeroDecimal(),
+      reimbursements: zeroDecimal(),
+      deductions: zeroDecimal(),
+      employerContributions: zeroDecimal(),
+      explicitTaxes: zeroDecimal(),
+    }
+  )
+
+  const computedTaxes = totals.taxablePay.minus(totals.deductions).gt(0)
+    ? totals.taxablePay.minus(totals.deductions).mul(employeeTaxRate)
+    : zeroDecimal()
+  const taxes = totals.explicitTaxes.gt(0) ? totals.explicitTaxes : computedTaxes
+  const employerContributions = totals.employerContributions.gt(0)
+    ? totals.employerContributions
+    : totals.taxablePay.mul(employerContributionRate).plus(totals.taxablePay.mul(benefitContributionRate))
+  const netPay = totals.grossPay.plus(totals.reimbursements).minus(taxes).minus(totals.deductions)
+
+  return {
+    ...totals,
+    taxes,
+    employerContributions,
+    netPay: netPay.gt(0) ? netPay : zeroDecimal(),
+    employeeTaxRate: employeeTaxRate.toString(),
+    employerContributionRate: employerContributionRate.toString(),
+    benefitContributionRate: benefitContributionRate.toString(),
+    country: typeof payrollMetadata.country === 'string' ? payrollMetadata.country : 'US',
+  }
 }
 
 export async function createPayrollRun(user: SessionUser, rawInput: unknown) {
@@ -48,9 +125,9 @@ export async function createPayrollRun(user: SessionUser, rawInput: unknown) {
     const rate = toDecimal(item.rate, 'rate')
     const amount = item.amount == null ? hours.mul(rate) : toDecimal(item.amount, 'amount')
     if (hours.isNegative() || rate.isNegative() || amount.isNegative()) throw badRequest('Payroll amounts cannot be negative.')
-    return { ...item, hours, rate, amount }
+    return { ...item, itemType: normalizeItemType(item.itemType), hours, rate, amount }
   })
-  const grossPay = sumDecimals(normalizedItems.map((item) => item.amount))
+  const totals = calculatePayrollTotals(normalizedItems, input.metadata)
 
   const payroll = await prisma.$transaction(async (tx) => {
     const created = await tx.payroll.create({
@@ -60,9 +137,23 @@ export async function createPayrollRun(user: SessionUser, rawInput: unknown) {
         periodStart,
         periodEnd,
         currency: normalizeCurrency(input.currency),
-        grossPay,
-        netPay: grossPay,
-        metadata: toJsonValue(input.metadata),
+        grossPay: totals.grossPay,
+        overtimePay: totals.overtimePay,
+        bonusPay: totals.bonusPay,
+        deductions: totals.deductions,
+        taxes: totals.taxes,
+        netPay: totals.netPay,
+        metadata: toJsonValue({
+          ...metadataRecord(input.metadata),
+          country: totals.country,
+          reimbursements: totals.reimbursements.toString(),
+          employerContributions: totals.employerContributions.toString(),
+          taxablePay: totals.taxablePay.toString(),
+          employeeTaxRate: totals.employeeTaxRate,
+          employerContributionRate: totals.employerContributionRate,
+          benefitContributionRate: totals.benefitContributionRate,
+          calculationModel: 'taskit_payroll_engine_v2',
+        }),
         items: {
           create: normalizedItems.map((item) => ({
             companyId,
@@ -93,13 +184,13 @@ export async function createPayrollRun(user: SessionUser, rawInput: unknown) {
   })
 
   await publishDomainEvent({
-    type: 'finance.payroll.created',
+      type: 'finance.payroll.created',
     companyId,
     actorId: user.id,
     entityType: 'payroll',
     entityId: payroll.id,
     action: 'Payroll run created',
-    payload: { payrollId: payroll.id, periodStart, periodEnd },
+    payload: { payrollId: payroll.id, periodStart, periodEnd, grossPay: payroll.grossPay.toString(), netPay: payroll.netPay.toString() },
     after: { id: payroll.id },
   })
 
@@ -122,13 +213,15 @@ export async function postPayrollRun(user: SessionUser, payrollId: string, rawIn
     if (existing.journalEntryId) throw conflict('Payroll run is already linked to a journal entry.')
     if (existing.grossPay.lte(0)) throw badRequest('Payroll run must have positive gross pay before posting.')
 
+    const metadata = metadataRecord(existing.metadata)
+    const employerContributions = decimalMetadata(metadata.employerContributions)
     const taxAmount = input.taxLiabilityAccountId ? existing.taxes : zeroDecimal()
-    const payrollLiabilityCredit = existing.grossPay.minus(taxAmount)
-    if (payrollLiabilityCredit.isNegative()) throw conflict('Payroll tax amount cannot exceed gross pay.')
+    const payrollLiabilityCredit = existing.netPay.plus(employerContributions).plus(input.taxLiabilityAccountId ? zeroDecimal() : taxAmount)
+    if (payrollLiabilityCredit.isNegative()) throw conflict('Payroll liabilities cannot be negative.')
     const lines = [
       {
         accountId: input.wageExpenseAccountId,
-        debit: existing.grossPay,
+        debit: existing.grossPay.plus(employerContributions),
         credit: zeroDecimal(),
         targetType: 'payroll',
         targetId: existing.id,

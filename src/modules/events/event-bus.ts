@@ -15,6 +15,7 @@ export type DomainEventName =
   | 'finance.expense.created'
   | 'finance.payroll.created'
   | 'finance.treasury_transaction.created'
+  | 'finance.treasury_transaction.posted'
   | 'approval.completed'
   | 'comment.created'
   | 'deliverable.reviewed'

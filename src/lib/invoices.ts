@@ -1,4 +1,18 @@
-export const INVOICE_STATUSES = ['draft', 'sent', 'paid', 'overdue'] as const
+export const INVOICE_STATUSES = [
+  'draft',
+  'internal_review',
+  'pending_approval',
+  'approved',
+  'sent',
+  'viewed',
+  'partially_paid',
+  'overdue',
+  'disputed',
+  'escalated',
+  'paid',
+  'refunded',
+  'archived',
+] as const
 export type InvoiceStatus = (typeof INVOICE_STATUSES)[number]
 
 export type InvoiceItemInput = {
@@ -97,9 +111,18 @@ export function formatInvoiceMoney(value: number | string, currency: string, loc
 export function getInvoiceStatusLabel(status: string, locale = 'en') {
   const labels: Record<InvoiceStatus, { en: string; ar: string }> = {
     draft: { en: 'Draft', ar: 'مسودة' },
+    internal_review: { en: 'Internal review', ar: 'مراجعة داخلية' },
+    pending_approval: { en: 'Pending approval', ar: 'في انتظار الموافقة' },
+    approved: { en: 'Approved', ar: 'موافق عليها' },
     sent: { en: 'Sent', ar: 'مرسلة' },
+    viewed: { en: 'Viewed', ar: 'تمت المشاهدة' },
+    partially_paid: { en: 'Partially paid', ar: 'مدفوعة جزئيا' },
     paid: { en: 'Paid', ar: 'مدفوعة' },
     overdue: { en: 'Overdue', ar: 'متأخرة' },
+    disputed: { en: 'Disputed', ar: 'متنازع عليها' },
+    escalated: { en: 'Escalated', ar: 'تم تصعيدها' },
+    refunded: { en: 'Refunded', ar: 'مسترجعة' },
+    archived: { en: 'Archived', ar: 'مؤرشفة' },
   }
 
   return labels[isInvoiceStatus(status) ? status : 'draft'][locale === 'ar' ? 'ar' : 'en']

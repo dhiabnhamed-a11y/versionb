@@ -13,6 +13,7 @@ import {
 import { publishDomainEvent } from '@/modules/events/event-bus'
 import { registerEnterpriseEventListeners } from '@/modules/events/listeners'
 import { canManageFinance } from '@/modules/permissions/permissions'
+import { toJsonValue } from '@/modules/shared/json'
 import { badRequest, forbidden, notFound } from '@/modules/shared/errors'
 import type { PaginationInput } from '@/modules/shared/pagination'
 import type { SessionUser } from '@/modules/shared/session'
@@ -74,8 +75,9 @@ async function nextInvoiceNumber(companyId: string) {
 
 function buildStatusDates(status: InvoiceStatus) {
   const now = new Date()
+  const sentLike = ['sent', 'viewed', 'partially_paid', 'overdue', 'disputed', 'escalated', 'paid'].includes(status)
   return {
-    sentAt: status === 'sent' || status === 'overdue' ? now : null,
+    sentAt: sentLike ? now : null,
     paidAt: status === 'paid' ? now : null,
   }
 }
@@ -83,9 +85,10 @@ function buildStatusDates(status: InvoiceStatus) {
 function statusDatePatch(status: InvoiceStatus | undefined, previousStatus: string) {
   if (!status) return {}
   const now = new Date()
+  const sentLike = ['sent', 'viewed', 'partially_paid', 'overdue', 'disputed', 'escalated', 'paid'].includes(status)
   return {
-    sentAt: (status === 'sent' || status === 'overdue') && previousStatus === 'draft' ? now : undefined,
-    paidAt: status === 'paid' ? now : status === 'draft' || status === 'sent' || status === 'overdue' ? null : undefined,
+    sentAt: sentLike && !['sent', 'viewed', 'partially_paid', 'overdue', 'disputed', 'escalated', 'paid'].includes(previousStatus) ? now : undefined,
+    paidAt: status === 'paid' ? now : ['draft', 'internal_review', 'pending_approval', 'approved', 'sent', 'viewed', 'overdue', 'disputed', 'escalated'].includes(status) ? null : undefined,
   }
 }
 
@@ -130,8 +133,9 @@ async function createInvoiceAccountingEntries(
   actorId: string
 ) {
   const status = invoice.status
-  const isBillable = ['sent', 'overdue', 'paid', 'partially_paid'].includes(status)
-  const becameBillable = isBillable && !['sent', 'overdue', 'paid', 'partially_paid'].includes(previousStatus ?? '')
+  const billableStatuses = ['sent', 'viewed', 'partially_paid', 'overdue', 'disputed', 'escalated', 'paid']
+  const isBillable = billableStatuses.includes(status)
+  const becameBillable = isBillable && !billableStatuses.includes(previousStatus ?? '')
   const becamePaid = status === 'paid' && previousStatus !== 'paid'
   if (!becameBillable && !becamePaid) return
 
@@ -213,7 +217,7 @@ async function createInvoiceAccountingEntries(
   if (becamePaid && cashAccountId && receivableAccountId) {
     const idempotencyKey = `invoice:${invoice.id}:paid:v1`
     if (!(await journalExists(tx, invoice.companyId, idempotencyKey))) {
-      await createJournalEntryInTransaction(tx, {
+      const entry = await createJournalEntryInTransaction(tx, {
         companyId: invoice.companyId,
         actorId,
         invoiceId: invoice.id,
@@ -253,6 +257,42 @@ async function createInvoiceAccountingEntries(
           },
         ],
       })
+
+      const existingTreasuryPayment = await tx.treasuryTransaction.findFirst({
+        where: { companyId: invoice.companyId, invoiceId: invoice.id, status: { in: ['POSTED', 'RECONCILED'] } },
+        select: { id: true },
+      })
+      if (!existingTreasuryPayment) {
+        const treasuryAccount = await tx.treasuryAccount.findFirst({
+          where: { companyId: invoice.companyId, currency: invoice.currency, status: 'ACTIVE' },
+          orderBy: [{ type: 'asc' }, { createdAt: 'asc' }],
+          select: { id: true },
+        })
+        if (treasuryAccount) {
+          await tx.treasuryAccount.update({
+            where: { id: treasuryAccount.id },
+            data: { currentBalance: { increment: invoice.total } },
+          })
+          await tx.treasuryTransaction.create({
+            data: {
+              companyId: invoice.companyId,
+              toAccountId: treasuryAccount.id,
+              createdById: actorId,
+              approvedById: actorId,
+              journalEntryId: entry.id,
+              invoiceId: invoice.id,
+              status: 'POSTED',
+              direction: 'INFLOW',
+              amount: invoice.total,
+              currency: invoice.currency,
+              executedAt: transactionDate,
+              externalRef: `invoice:${invoice.id}:payment`,
+              memo: `Payment received for ${invoice.invoiceNumber}`,
+              metadata: toJsonValue({ source: 'invoice_paid', invoiceNumber: invoice.invoiceNumber }),
+            },
+          })
+        }
+      }
     }
   }
 }

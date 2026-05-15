@@ -117,6 +117,41 @@ type FinancialOperatingSystemDashboard = {
   recommendations: ExecutiveFinanceInsight[]
 }
 
+type EnterpriseForecast = {
+  generatedAt: string
+  model: string
+  currency: string
+  assumptions: {
+    baseRevenue: string
+    baseExpenses: string
+    basePayroll: string
+    openReceivables: string
+    overdueReceivables: string
+    currentCash: string
+  }
+  scenarios: Array<{
+    id: string
+    label: string
+    runwayMonths: number | null
+    projectedProfitability: string
+    confidence: number
+    months: Array<{
+      label: string
+      revenue: string
+      collections: string
+      expenses: string
+      payroll: string
+      netCashflow: string
+      endingCash: string
+    }>
+  }>
+  explanation: {
+    confidence: string
+    bottlenecks: string[]
+    strategicMove: string
+  }
+}
+
 type ApprovalFlow = {
   id: string
   entityType: string
@@ -451,6 +486,7 @@ export default function AdminFinancePage() {
 
   const cfo = useSWR<CfoBrief>('/api/finance/cfo/brief', fetchJson)
   const operatingSystem = useSWR<FinancialOperatingSystemDashboard>('/api/finance/operating-system', fetchJson)
+  const forecast = useSWR<EnterpriseForecast>('/api/finance/forecasting/engine', fetchJson)
   const invoices = useSWR<ApiList<Invoice> & { summary?: { total?: number; count?: number } }>('/api/invoices?pageSize=50', fetchJson)
   const approvals = useSWR<ApiList<ApprovalFlow>>('/api/finance/approvals?pageSize=50', fetchJson)
   const expenses = useSWR<ApiList<Expense>>('/api/finance/expenses?pageSize=50', fetchJson)
@@ -476,6 +512,7 @@ export default function AdminFinancePage() {
   const loading = [
     cfo.isLoading,
     operatingSystem.isLoading,
+    forecast.isLoading,
     invoices.isLoading,
     approvals.isLoading,
     expenses.isLoading,
@@ -488,6 +525,7 @@ export default function AdminFinancePage() {
   const loadError = [
     cfo.error,
     operatingSystem.error,
+    forecast.error,
     invoices.error,
     approvals.error,
     expenses.error,
@@ -503,6 +541,7 @@ export default function AdminFinancePage() {
     await Promise.all([
       cfo.mutate(),
       operatingSystem.mutate(),
+      forecast.mutate(),
       invoices.mutate(),
       approvals.mutate(),
       expenses.mutate(),
@@ -614,7 +653,7 @@ export default function AdminFinancePage() {
           <span className="stat-card-label">Open receivables</span>
           <strong className="stat-card-value">{formatMoney(metrics.openReceivables, primaryCurrency, locale)}</strong>
           <span className="stat-card-delta">
-            <ReceiptText size={14} /> {invoiceItems.filter((item) => ['sent', 'overdue'].includes(item.status)).length} unpaid invoice{invoiceItems.filter((item) => ['sent', 'overdue'].includes(item.status)).length === 1 ? '' : 's'}
+            <ReceiptText size={14} /> {invoiceItems.filter((item) => ['sent', 'viewed', 'partially_paid', 'overdue', 'disputed', 'escalated'].includes(item.status)).length} unpaid invoice{invoiceItems.filter((item) => ['sent', 'viewed', 'partially_paid', 'overdue', 'disputed', 'escalated'].includes(item.status)).length === 1 ? '' : 's'}
           </span>
         </article>
         <article className="stat-card">
@@ -801,6 +840,63 @@ export default function AdminFinancePage() {
                     <strong className="taskit-heading">{formatMoney(client.exposure, primaryCurrency, locale)}</strong>
                   </div>
                 ))}
+              </div>
+            )}
+          </article>
+
+          <article className="taskit-card">
+            <div className="taskit-card-header">
+              <div className="taskit-row-main">
+                <span className="taskit-label">Forecasting engine</span>
+                <h2 className="taskit-heading">Scenario runway</h2>
+              </div>
+              <TrendingUp size={22} aria-hidden />
+            </div>
+            {!forecast.data?.scenarios.length ? (
+              <EmptyBlock title="Forecast building" body="Scenario planning appears when revenue, payroll, expense, and treasury records are available." />
+            ) : (
+              <div className="taskit-metric-list">
+                {forecast.data.scenarios.map((scenario) => (
+                  <div key={scenario.id} className="taskit-metric-row">
+                    <span className="taskit-body">{scenario.label}</span>
+                    <strong className="taskit-heading">
+                      {scenario.runwayMonths === null ? '12+ mo' : `${scenario.runwayMonths} mo`} / {formatMoney(scenario.projectedProfitability, forecast.data?.currency ?? primaryCurrency, locale)}
+                    </strong>
+                  </div>
+                ))}
+                <div className="taskit-metric-row">
+                  <span className="taskit-body">Forecast confidence</span>
+                  <strong className="taskit-heading">{forecast.data.scenarios.find((scenario) => scenario.id === 'realistic')?.confidence ?? 0}%</strong>
+                </div>
+              </div>
+            )}
+          </article>
+
+          <article className="taskit-card">
+            <div className="taskit-card-header">
+              <div className="taskit-row-main">
+                <span className="taskit-label">Risk center</span>
+                <h2 className="taskit-heading">Operational finance bottlenecks</h2>
+              </div>
+              <AlertTriangle size={22} aria-hidden />
+            </div>
+            {!forecast.data?.explanation.bottlenecks.length ? (
+              <EmptyBlock title="No bottlenecks detected" body="TASKIT is monitoring collections, payroll burden, margin quality, and delivery-to-cash latency." />
+            ) : (
+              <div className="taskit-alert-list">
+                {forecast.data.explanation.bottlenecks.slice(0, 4).map((bottleneck) => (
+                  <div key={bottleneck} className="taskit-alert-row">
+                    <div className="taskit-row-main">
+                      <span className="taskit-body">{bottleneck}</span>
+                    </div>
+                  </div>
+                ))}
+                <div className="taskit-alert-row">
+                  <div className="taskit-row-main">
+                    <span className="taskit-label">Strategic move</span>
+                    <span className="taskit-body">{forecast.data.explanation.strategicMove}</span>
+                  </div>
+                </div>
               </div>
             )}
           </article>
