@@ -2,9 +2,11 @@ import NextAuth from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { createClient } from '@supabase/supabase-js'
+import { createHash, randomUUID } from 'crypto'
 
 import { prisma } from '@/lib/db'
 import { getAuthSecret } from '@/lib/env'
+import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'
 import {
   canAuthenticateAuthState,
   getAuthBlockReason,
@@ -114,6 +116,22 @@ function getSafeAuthLogContext(email: string) {
   }
 }
 
+function hashLoginEmail(email: string) {
+  return createHash('sha256').update(email.trim().toLowerCase()).digest('hex')
+}
+
+async function recordLoginAttempt(email: string, success: boolean, reason?: string) {
+  try {
+    await prisma.$executeRaw`
+      INSERT INTO "auth_login_attempts" ("id", "emailHash", "success", "reason", "riskScore", "createdAt")
+      VALUES (${randomUUID()}, ${hashLoginEmail(email)}, ${success}, ${reason ?? null}, ${success ? 0 : 50}, NOW())
+    `
+  } catch (error) {
+    if (isMissingDatabaseObjectError(error)) return
+    logger.warn('auth.login_attempt_record_failed', { reason: error instanceof Error ? error.message : 'unknown' })
+  }
+}
+
 function buildAuthSessionUser(user: AuthUserRecord): AuthSessionShape {
   return {
     id: user.id,
@@ -133,6 +151,7 @@ export async function validateCredentialsForLogin(email: string, password: strin
   const user = await loadAuthUserByEmail(email)
   if (!user) {
     logger.warn('auth.credentials_rejected', { ...logContext, reason: 'user_not_found' })
+    await recordLoginAttempt(email, false, 'user_not_found')
     return { ok: false as const, error: 'Invalid email or password.' }
   }
 
@@ -151,6 +170,7 @@ export async function validateCredentialsForLogin(email: string, password: strin
         passwordHashPresent: Boolean(user.password),
         passwordHashLength: user.password?.length ?? 0,
       })
+      await recordLoginAttempt(email, false, 'password_mismatch')
       return { ok: false as const, error: 'Invalid email or password.' }
     }
 
@@ -174,6 +194,7 @@ export async function validateCredentialsForLogin(email: string, password: strin
       accountStatus: user.accountStatus,
       companyStatus: user.company?.status ?? null,
     })
+    await recordLoginAttempt(email, false, 'blocked_state')
     return { ok: false as const, error: getAuthBlockReason(authUser) }
   }
 
@@ -184,6 +205,7 @@ export async function validateCredentialsForLogin(email: string, password: strin
     accountStatus: user.accountStatus,
     companyStatus: user.company?.status ?? null,
   })
+  await recordLoginAttempt(email, true)
 
   return { ok: true as const, user: authUser }
 }

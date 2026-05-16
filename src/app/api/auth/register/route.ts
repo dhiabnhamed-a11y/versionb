@@ -3,6 +3,7 @@ import { createOwnerSignup, isSignupRole } from '@/lib/onboarding'
 import type { CompanyType } from '@/lib/company-types'
 import { redeemInviteSignup } from '@/lib/invites'
 import { withApiError } from '@/modules/shared/api'
+import { assertPasswordPolicy } from '@/modules/security/password-policy'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -28,6 +29,8 @@ export async function POST(req: NextRequest) {
       if (!name?.trim() || !email?.trim() || !password || !role?.trim()) {
         return NextResponse.json({ error: 'Full name, email, password, and role are required.' }, { status: 400 })
       }
+
+      assertPasswordPolicy(password, { email, name })
 
       const normalizedRole = role.trim().toUpperCase()
 

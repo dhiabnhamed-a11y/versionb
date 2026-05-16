@@ -1,12 +1,13 @@
 import { createHmac, timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/db'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
+import { assertTimestampTolerance, storeReplayNonce } from '@/modules/security/request-signature'
 import { getSocialProvider, isSocialProviderSlug } from '@/modules/integrations/core/provider-registry'
 import type { SocialProviderSlug } from '@/modules/integrations/core/types'
 import { enqueueSocialIntegrationJob } from '@/modules/integrations/jobs/social-job-queue'
 import { recordIntegrationActivity } from '@/modules/integrations/security/audit'
 import { toJsonValue } from '@/modules/shared/json'
-import { badRequest, notFound } from '@/modules/shared/errors'
+import { badRequest, notFound, unauthorized } from '@/modules/shared/errors'
 import { stableHash } from '@/modules/integrations/utils/hash'
 
 function webhookSecret(providerSlug: SocialProviderSlug) {
@@ -23,9 +24,22 @@ function safeCompare(left: string, right: string) {
   return a.length === b.length && timingSafeEqual(a, b)
 }
 
+function cleanSignature(value: string | null) {
+  return value?.trim().replace(/^sha256=/i, '') ?? ''
+}
+
 export function verifyWebhookSignature(providerSlug: SocialProviderSlug, headers: Headers, rawBody: string) {
   const secret = webhookSecret(providerSlug)
-  if (!secret) return false
+  if (!secret) throw unauthorized('Webhook signing secret is not configured.')
+
+  if (providerSlug === 'twitch') {
+    const messageId = headers.get('x-twitch-eventsub-message-id')
+    const timestamp = headers.get('x-twitch-eventsub-message-timestamp')
+    const signature = cleanSignature(headers.get('x-twitch-eventsub-message-signature'))
+    if (!messageId || !timestamp || !signature) return false
+    const expected = createHmac('sha256', secret).update(`${messageId}${timestamp}${rawBody}`).digest('hex')
+    return safeCompare(signature, expected)
+  }
 
   const expected = createHmac('sha256', secret).update(rawBody).digest('hex')
   const signatures = [
@@ -37,6 +51,26 @@ export function verifyWebhookSignature(providerSlug: SocialProviderSlug, headers
   ].filter((value): value is string => Boolean(value))
 
   return signatures.some((signature) => safeCompare(signature, expected))
+}
+
+function timestampFromWebhook(headers: Headers, payload: unknown) {
+  const headerTimestamp =
+    headers.get('x-taskit-timestamp') ??
+    headers.get('x-signature-timestamp') ??
+    headers.get('x-timestamp') ??
+    headers.get('x-twitch-eventsub-message-timestamp') ??
+    headers.get('x-tiktok-timestamp')
+
+  if (headerTimestamp) return headerTimestamp
+
+  if (payload && typeof payload === 'object') {
+    const record = payload as Record<string, unknown>
+    for (const key of ['timestamp', 'created_at', 'createdAt', 'created_time']) {
+      if (typeof record[key] === 'string' || typeof record[key] === 'number') return String(record[key])
+    }
+  }
+
+  return null
 }
 
 function headerJson(headers: Headers) {
@@ -87,7 +121,17 @@ export async function receiveSocialWebhook(input: {
   if (!isSocialProviderSlug(input.providerSlug)) throw badRequest('Unsupported webhook provider.')
   const provider = getSocialProvider(input.providerSlug)
   const signatureValid = verifyWebhookSignature(provider.slug, input.headers, input.rawBody)
+  if (!signatureValid) throw unauthorized('Invalid webhook signature.')
+
   const providerEventId = eventIdFromPayload(input.headers, input.payload)
+  const timestamp = assertTimestampTolerance(timestampFromWebhook(input.headers, input.payload), 10 * 60 * 1000)
+  const replayNonce = providerEventId ?? stableHash({ provider: provider.slug, rawBody: input.rawBody }).slice(0, 64)
+  await storeReplayNonce({
+    namespace: `webhook:${provider.slug}`,
+    nonce: replayNonce,
+    expiresAt: new Date(timestamp.getTime() + 10 * 60 * 1000),
+  })
+
   const eventType = eventTypeFromPayload(input.headers, input.payload)
   const providerAccountId = providerAccountIdFromPayload(input.payload)
   const account = providerAccountId

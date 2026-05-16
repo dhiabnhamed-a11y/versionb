@@ -8,9 +8,18 @@ import {
   type PermissionSubject,
 } from '@/modules/permissions/permissions'
 import type { SessionUser } from '@/modules/shared/session'
+import {
+  requireMinimumRole,
+  requirePermission as requireAccessPermission,
+  requireResourceOwnership,
+  requireRole,
+  requireTenantAccess,
+  tenantScopedWhere,
+} from '@/modules/security/access-control'
 
 export { assertAllowed, assertAllowedAsync } from '@/lib/api/policy'
 export { assertCan, can, canManageFinance, canManageWorkspace }
+export { requireMinimumRole, requireResourceOwnership, requireRole, requireTenantAccess, tenantScopedWhere }
 export type { PermissionAction, PermissionResource, PermissionSubject }
 
 export function requirePermission(
@@ -19,8 +28,7 @@ export function requirePermission(
   subject: PermissionSubject,
   resource?: PermissionResource
 ) {
-  assertCan(user, action, subject, resource)
-  return user
+  return requireAccessPermission(user, action, subject, resource)
 }
 
 export function createPermissionCheck(

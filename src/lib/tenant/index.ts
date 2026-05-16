@@ -1,5 +1,13 @@
 import { badRequest, forbidden, notFound } from '@/modules/shared/errors'
 import type { SessionUser } from '@/modules/shared/session'
+export {
+  requireMinimumRole,
+  requirePermission,
+  requireResourceOwnership,
+  requireRole,
+  requireTenantAccess,
+  tenantScopedWhere,
+} from '@/modules/security/access-control'
 
 export type TenantScope = {
   companyId: string

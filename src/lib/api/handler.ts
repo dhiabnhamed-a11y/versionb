@@ -5,6 +5,10 @@ import { apiError, apiOk, legacyJson } from '@/lib/api/response'
 import { requireSessionUser, type SessionUser } from '@/lib/api/auth'
 import type { ApiMeta, ApiPagination, ApiRequestContext, ApiResponseMode } from '@/lib/api/types'
 import { enforceDistributedRateLimit } from '@/lib/rate-limit'
+import { requirePermission, requireRole } from '@/modules/security/access-control'
+import { recordSecurityAudit } from '@/modules/security/audit'
+import type { UserRole } from '@/lib/security'
+import type { PermissionAction, PermissionResource, PermissionSubject } from '@/modules/permissions/permissions'
 import { logger } from '@/modules/shared/logger'
 import type { RateLimitOptions, RateLimitResult } from '@/modules/shared/rate-limit'
 
@@ -47,6 +51,12 @@ export type AuthenticatedApiHandlerContext<TParams extends ApiParams = ApiParams
 export type ApiRouteOptions<TParams extends ApiParams = ApiParams> = {
   auth?: 'none' | 'required'
   permission?: (context: AuthenticatedApiHandlerContext<TParams>) => boolean | void | Promise<boolean | void>
+  requiredPermission?: {
+    action: PermissionAction
+    subject: PermissionSubject
+    resource?: PermissionResource | ((context: AuthenticatedApiHandlerContext<TParams>) => PermissionResource | undefined)
+  }
+  requiredRole?: UserRole | UserRole[]
   rateLimit?: RateLimitOptions
   responseMode?: ApiResponseMode
   route?: string
@@ -111,6 +121,11 @@ async function resolveParams<TParams extends ApiParams>(context?: ApiRouteContex
 function getRoute(req: NextRequest, route?: string) {
   if (route) return route
   return new URL(req.url).pathname
+}
+
+function getClientIp(req: Request) {
+  const forwarded = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+  return req.headers.get('cf-connecting-ip')?.trim() || req.headers.get('x-real-ip')?.trim() || forwarded || null
 }
 
 function toResponse<TData>(result: ApiRouteResult<TData>, requestId: string, defaultMode: ApiResponseMode) {
@@ -193,6 +208,15 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
     rateLimit = await enforceDistributedRateLimit(req, options.rateLimit)
     if (!rateLimit.allowed) {
       logger.warn('api.rate_limited', { requestId, route, namespace: options.rateLimit.namespace })
+      await recordSecurityAudit({
+        action: 'api.rate_limited',
+        entityId: route,
+        entityType: 'api_route',
+        ipAddress: getClientIp(req),
+        metadata: { method: req.method, namespace: options.rateLimit.namespace },
+        requestId,
+        userAgent: req.headers.get('user-agent'),
+      })
       return applyResponseHeaders(
         errorResponse(
           {
@@ -212,11 +236,22 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
   try {
     const params = await resolveParams(context)
     const baseContext: ApiHandlerContext<TParams> = { params, req, requestId, route, startedAt }
-    const shouldRequireAuth = options.auth === 'required' || Boolean(options.permission)
+    const shouldRequireAuth = options.auth === 'required' || Boolean(options.permission) || Boolean(options.requiredRole || options.requiredPermission)
     const user = shouldRequireAuth ? await requireSessionUser() : undefined
     const nextContext = user
       ? { ...baseContext, actorId: user.id, companyId: user.companyId ?? undefined, user }
       : baseContext
+
+    if (options.requiredRole) {
+      requireRole((nextContext as AuthenticatedApiHandlerContext<TParams>).user, options.requiredRole)
+    }
+
+    if (options.requiredPermission) {
+      const permission = options.requiredPermission
+      const authenticatedContext = nextContext as AuthenticatedApiHandlerContext<TParams>
+      const resource = typeof permission.resource === 'function' ? permission.resource(authenticatedContext) : permission.resource
+      requirePermission(authenticatedContext.user, permission.action, permission.subject, resource)
+    }
 
     if (options.permission) {
       const allowed = await options.permission(nextContext as AuthenticatedApiHandlerContext<TParams>)
@@ -239,6 +274,17 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
     const normalized = normalizeError(error)
     if (normalized.status >= 500) {
       logger.error('api.unhandled_error', error, { code: normalized.code, requestId, route })
+    }
+    if (normalized.status === 401 || normalized.status === 403) {
+      await recordSecurityAudit({
+        action: normalized.status === 401 ? 'api.unauthorized' : 'api.forbidden',
+        entityId: route,
+        entityType: 'api_route',
+        ipAddress: getClientIp(req),
+        metadata: { code: normalized.code, method: req.method },
+        requestId,
+        userAgent: req.headers.get('user-agent'),
+      })
     }
 
     const finalResponse = applyResponseHeaders(errorResponse(normalized, requestId, responseMode), buildTraceHeaders({ rateLimit, requestId }))

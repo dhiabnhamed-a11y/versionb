@@ -91,6 +91,10 @@ model User {
   connectedSocialAccounts      ConnectedAccount[]           @relation("ConnectedAccountConnectedBy")
   ownedCreatorProfiles         CreatorProfile[]             @relation("CreatorProfileOwner")
   integrationActivityLogs      IntegrationActivityLog[]     @relation("IntegrationActivityActor")
+  authSessions                 AuthSession[]                @relation("UserAuthSessions")
+  revokedTokens                RevokedToken[]               @relation("UserRevokedTokens")
+  mfaFactors                   MfaFactor[]                  @relation("UserMfaFactors")
+  mfaRecoveryCodes             MfaRecoveryCode[]            @relation("UserMfaRecoveryCodes")
 }
 
 model Company {
@@ -193,6 +197,9 @@ model Company {
   socialWebhookEvents          SocialWebhookEvent[]
   integrationActivityLogs      IntegrationActivityLog[]
   idempotencyKeys              IdempotencyKey[]
+  authSessions                 AuthSession[]                @relation("CompanyAuthSessions")
+  revokedTokens                RevokedToken[]               @relation("CompanyRevokedTokens")
+  securityNonces               SecurityNonce[]              @relation("CompanySecurityNonces")
 
   @@index([status, createdAt])
   @@index([name, registrationNumber, status])
@@ -2117,6 +2124,118 @@ model IdempotencyKey {
   @@index([companyId, status, lockedUntil])
   @@index([expiresAt])
   @@map("idempotency_keys")
+}
+
+model AuthSession {
+  id                 String    @id @default(cuid())
+  userId             String
+  companyId          String?
+  sessionTokenHash   String?   @unique
+  refreshTokenHash   String?   @unique
+  jti                String?   @unique
+  status             String    @default("ACTIVE") // ACTIVE, REVOKED, EXPIRED, FORCED_LOGOUT
+  deviceFingerprint  String?
+  ipAddress          String?
+  userAgent          String?
+  riskScore          Int       @default(0)
+  lastSeenAt         DateTime  @default(now())
+  expiresAt          DateTime
+  revokedAt          DateTime?
+  forcedLogoutAt     DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  user    User     @relation("UserAuthSessions", fields: [userId], references: [id], onDelete: Cascade)
+  company Company? @relation("CompanyAuthSessions", fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, lastSeenAt])
+  @@index([companyId, status, lastSeenAt])
+  @@index([status, expiresAt])
+  @@index([deviceFingerprint, status])
+  @@map("auth_sessions")
+}
+
+model RevokedToken {
+  id        String   @id @default(cuid())
+  jti       String   @unique
+  userId    String?
+  companyId String?
+  reason    String
+  expiresAt DateTime
+  revokedAt DateTime @default(now())
+
+  user    User?    @relation("UserRevokedTokens", fields: [userId], references: [id], onDelete: SetNull)
+  company Company? @relation("CompanyRevokedTokens", fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt])
+  @@index([companyId, revokedAt])
+  @@index([expiresAt])
+  @@map("revoked_tokens")
+}
+
+model MfaFactor {
+  id               String    @id @default(cuid())
+  userId           String
+  type             String    @default("TOTP") // TOTP, WEBAUTHN
+  status           String    @default("PENDING") // PENDING, ACTIVE, DISABLED
+  secretCiphertext String?
+  label            String?
+  verifiedAt       DateTime?
+  disabledAt       DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation("UserMfaFactors", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, status, type])
+  @@map("mfa_factors")
+}
+
+model MfaRecoveryCode {
+  id        String    @id @default(cuid())
+  userId    String
+  codeHash  String
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation("UserMfaRecoveryCodes", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, codeHash])
+  @@index([userId, usedAt])
+  @@map("mfa_recovery_codes")
+}
+
+model AuthLoginAttempt {
+  id        String   @id @default(cuid())
+  emailHash String
+  ipAddress String?
+  userAgent String?
+  success   Boolean  @default(false)
+  reason    String?
+  riskScore Int      @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([emailHash, createdAt])
+  @@index([ipAddress, createdAt])
+  @@index([success, createdAt])
+  @@map("auth_login_attempts")
+}
+
+model SecurityNonce {
+  id        String    @id @default(cuid())
+  companyId String?
+  namespace String
+  nonceHash String
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  company Company? @relation("CompanySecurityNonces", fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([namespace, nonceHash])
+  @@index([companyId, namespace, createdAt])
+  @@index([expiresAt])
+  @@map("security_nonces")
 }
 
 model SearchIndex {

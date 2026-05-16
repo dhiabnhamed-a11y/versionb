@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { NO_STORE_HEADERS } from '@/lib/http'
+import { enforceDistributedRateLimit } from '@/lib/rate-limit'
+import { recordSecurityAudit } from '@/modules/security/audit'
 import { logger } from '@/modules/shared/logger'
 import { normalizeError, type ApiErrorPayload } from '@/modules/shared/errors'
-import { rateLimitRequest, type RateLimitOptions, type RateLimitResult } from '@/modules/shared/rate-limit'
+import type { RateLimitOptions, RateLimitResult } from '@/modules/shared/rate-limit'
 
 export const REQUEST_ID_HEADER = 'X-Request-Id'
 
@@ -63,6 +65,12 @@ function applyResponseHeaders(response: Response, headers: HeadersInit) {
   }
 }
 
+function getClientIp(req?: Request) {
+  if (!req) return null
+  const forwarded = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+  return req.headers.get('cf-connecting-ip')?.trim() || req.headers.get('x-real-ip')?.trim() || forwarded || null
+}
+
 export async function withApiError(handler: (context: ApiRequestContext) => Promise<Response>): Promise<Response>
 export async function withApiError(
   req: Request,
@@ -83,11 +91,20 @@ export async function withApiError(
   let extraHeaders: HeadersInit = { [REQUEST_ID_HEADER]: requestId }
 
   if (req && options.rateLimit) {
-    const rateLimit = rateLimitRequest(req, options.rateLimit)
+    const rateLimit = await enforceDistributedRateLimit(req, options.rateLimit)
     extraHeaders = { ...extraHeaders, ...rateLimitHeaders(rateLimit) }
 
     if (!rateLimit.allowed) {
       logger.warn('api.rate_limited', { requestId, route, namespace: options.rateLimit.namespace })
+      await recordSecurityAudit({
+        action: 'api.rate_limited',
+        entityId: route,
+        entityType: 'api_route',
+        ipAddress: getClientIp(req),
+        metadata: { namespace: options.rateLimit.namespace },
+        requestId,
+        userAgent: req.headers.get('user-agent'),
+      })
       const payload: ApiErrorPayload = {
         error: 'Too many requests. Please try again shortly.',
         code: 'RATE_LIMITED',
@@ -111,6 +128,17 @@ export async function withApiError(
     const normalized = normalizeError(error)
     if (normalized.status >= 500) {
       logger.error('api.unhandled_error', error, { code: normalized.code, requestId, route })
+    }
+    if (normalized.status === 401 || normalized.status === 403) {
+      await recordSecurityAudit({
+        action: normalized.status === 401 ? 'api.unauthorized' : 'api.forbidden',
+        entityId: route,
+        entityType: 'api_route',
+        ipAddress: getClientIp(req),
+        metadata: { code: normalized.code },
+        requestId,
+        userAgent: req?.headers.get('user-agent') ?? null,
+      })
     }
 
     const payload: ApiErrorPayload = {

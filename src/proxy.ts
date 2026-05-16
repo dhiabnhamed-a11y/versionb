@@ -1,6 +1,46 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 
+function securityHeaders(req: NextRequest) {
+  const isDev = process.env.NODE_ENV !== 'production'
+  const csp = [
+    "default-src 'self'",
+    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob: https:",
+    "font-src 'self' data:",
+    "media-src 'self' data: blob: https:",
+    "connect-src 'self' https: wss:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "frame-ancestors 'none'",
+    'upgrade-insecure-requests',
+  ].join('; ')
+
+  const headers: Record<string, string> = {
+    'Content-Security-Policy': csp,
+    'Cross-Origin-Opener-Policy': 'same-origin',
+    'Origin-Agent-Cluster': '?1',
+    'Permissions-Policy': 'camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), browsing-topics=()',
+    'Referrer-Policy': 'no-referrer',
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'X-Permitted-Cross-Domain-Policies': 'none',
+  }
+
+  if (req.nextUrl.protocol === 'https:' || process.env.NODE_ENV === 'production') {
+    headers['Strict-Transport-Security'] = 'max-age=63072000; includeSubDomains; preload'
+  }
+
+  return headers
+}
+
+function applySecurityHeaders(response: NextResponse, req: NextRequest) {
+  Object.entries(securityHeaders(req)).forEach(([key, value]) => response.headers.set(key, value))
+  return response
+}
+
 function hasAuthSessionCookie(req: NextRequest) {
   return req.cookies
     .getAll()
@@ -19,21 +59,21 @@ export function proxy(req: NextRequest) {
 
   if (pathname === '/login' || pathname === '/signup' || pathname === '/') {
     if (hasSessionCookie) {
-      return NextResponse.redirect(new URL('/dashboard', req.url))
+      return applySecurityHeaders(NextResponse.redirect(new URL('/dashboard', req.url)), req)
     }
 
-    return NextResponse.next()
+    return applySecurityHeaders(NextResponse.next(), req)
   }
 
   if (pathname.startsWith('/dashboard')) {
     if (!hasSessionCookie) {
-      return NextResponse.redirect(new URL('/login', req.url))
+      return applySecurityHeaders(NextResponse.redirect(new URL('/login', req.url)), req)
     }
   }
 
-  return NextResponse.next()
+  return applySecurityHeaders(NextResponse.next(), req)
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|sounds).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|sounds).*)'],
 }

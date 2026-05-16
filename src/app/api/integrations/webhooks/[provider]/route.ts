@@ -20,7 +20,7 @@ export async function GET(req: NextRequest, ctx: RouteContext<'/api/integrations
 }
 
 export async function POST(req: NextRequest, ctx: RouteContext<'/api/integrations/webhooks/[provider]'>) {
-  return withApiError(async () => {
+  return withApiError(req, async () => {
     const { provider } = await ctx.params
     if (!isSocialProviderSlug(provider)) throw badRequest('Unsupported social provider.')
 
@@ -44,5 +44,11 @@ export async function POST(req: NextRequest, ctx: RouteContext<'/api/integration
     })
 
     return NextResponse.json({ ok: true, received: true, signatureValid: result.signatureValid })
+  }, {
+    rateLimit: {
+      namespace: 'integrations.webhooks',
+      windowMs: 60_000,
+      max: 120,
+    },
   })
 }
