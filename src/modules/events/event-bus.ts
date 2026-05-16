@@ -1,4 +1,7 @@
 import { logger } from '@/modules/shared/logger'
+import { prisma } from '@/lib/db'
+import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'
+import { toJsonValue } from '@/modules/shared/json'
 
 export type DomainEventName =
   | 'task.created'
@@ -8,6 +11,9 @@ export type DomainEventName =
   | 'invoice.updated'
   | 'invoice.deleted'
   | 'invoice.paid'
+  | 'project.created'
+  | 'project.updated'
+  | 'project.deleted'
   | 'finance.account.created'
   | 'finance.journal_entry.created'
   | 'finance.journal_entry.posted'
@@ -23,10 +29,14 @@ export type DomainEventName =
   | 'client.updated'
   | 'client.deleted'
   | 'contract.generated'
+  | 'contract.signed'
+  | 'ai.action.completed'
 
 export type DomainEvent = {
   id: string
   type: DomainEventName
+  version: number
+  idempotencyKey: string
   companyId?: string | null
   actorId?: string | null
   entityType: string
@@ -36,6 +46,7 @@ export type DomainEvent = {
   before?: unknown
   after?: unknown
   metadata?: unknown
+  correlationId?: string | null
   occurredAt: string
 }
 
@@ -61,10 +72,23 @@ function makeEventId() {
   return `evt_${Date.now()}_${Math.random().toString(36).slice(2)}`
 }
 
-export function buildDomainEvent(input: Omit<DomainEvent, 'id' | 'occurredAt'> & { id?: string; occurredAt?: string }): DomainEvent {
+function makeIdempotencyKey(input: Omit<DomainEvent, 'id' | 'occurredAt' | 'version' | 'idempotencyKey'> & { id?: string; idempotencyKey?: string }) {
+  return input.idempotencyKey || [input.type, input.companyId, input.entityType, input.entityId, input.action].filter(Boolean).join(':')
+}
+
+export function buildDomainEvent(
+  input: Omit<DomainEvent, 'id' | 'occurredAt' | 'version' | 'idempotencyKey'> & {
+    id?: string
+    occurredAt?: string
+    version?: number
+    idempotencyKey?: string
+  }
+): DomainEvent {
   return {
     ...input,
     id: input.id ?? makeEventId(),
+    version: input.version ?? 1,
+    idempotencyKey: makeIdempotencyKey(input),
     occurredAt: input.occurredAt ?? new Date().toISOString(),
   }
 }
@@ -78,8 +102,42 @@ export function subscribeDomainEvent(type: DomainEventName | '*', listener: List
   return () => listeners.delete(listener)
 }
 
-export async function publishDomainEvent(input: Omit<DomainEvent, 'id' | 'occurredAt'> & { id?: string; occurredAt?: string }) {
+async function recordDurableEvent(event: DomainEvent) {
+  try {
+    await prisma.jobRun.create({
+      data: {
+        companyId: event.companyId ?? null,
+        queue: 'domain-events',
+        name: event.type,
+        status: 'PUBLISHED',
+        maxAttempts: 1,
+        externalId: event.idempotencyKey,
+        entityType: event.entityType,
+        entityId: event.entityId,
+        payload: toJsonValue(event),
+        finishedAt: new Date(event.occurredAt),
+      },
+    })
+  } catch (error) {
+    if (isMissingDatabaseObjectError(error)) {
+      logger.warn('event.durable_record_skipped_missing_schema', { eventId: event.id, eventType: event.type })
+      return
+    }
+
+    logger.error('event.durable_record_failed', error, { eventId: event.id, eventType: event.type })
+  }
+}
+
+export async function publishDomainEvent(
+  input: Omit<DomainEvent, 'id' | 'occurredAt' | 'version' | 'idempotencyKey'> & {
+    id?: string
+    occurredAt?: string
+    version?: number
+    idempotencyKey?: string
+  }
+) {
   const event = buildDomainEvent(input)
+  await recordDurableEvent(event)
   const state = getState()
   const listeners = [...(state.listeners.get(event.type) ?? []), ...(state.listeners.get('*') ?? [])]
   const results = await Promise.allSettled(listeners.map((listener) => listener(event)))

@@ -1,15 +1,11 @@
-// Custom Next.js server with Socket.io integrated.
+// Custom Next.js server with distributed Socket.IO attached.
 import { createServer } from 'http'
 import next from 'next'
-import { Server as SocketIOServer } from 'socket.io'
-import { getToken } from 'next-auth/jwt'
-import { getAuthSecret } from './src/lib/env'
-import { emitPresence } from './src/lib/realtime-server'
+import { createSocketServer } from './src/modules/realtime/socket/socket-server'
 import { logger } from './src/modules/shared/logger'
-import { startBackgroundJobWorkers } from './src/modules/jobs/job-worker'
 
 const dev = process.env.NODE_ENV !== 'production'
-const hostname = 'localhost'
+const hostname = process.env.HOSTNAME || 'localhost'
 const port = parseInt(process.env.PORT || '3000', 10)
 
 const handleRef: { current?: ReturnType<ReturnType<typeof next>['getRequestHandler']> } = {}
@@ -24,116 +20,12 @@ const httpServer = createServer((req, res) => {
   void handleRef.current(req, res)
 })
 
-const app = next({ dev, httpServer, webpack: dev })
+const app = next({ dev, httpServer, hostname, port, webpack: dev })
 handleRef.current = app.getRequestHandler()
 
-type RealtimeSocketUser = {
-  id: string
-  name?: string | null
-  role?: string | null
-  companyId?: string | null
-}
+app.prepare().then(async () => {
+  await createSocketServer(httpServer)
 
-const onlineUsers = new Map<string, { user: RealtimeSocketUser; socketIds: Set<string> }>()
-
-const io = new SocketIOServer(httpServer, {
-  path: '/api/socketio',
-  addTrailingSlash: false,
-  cors: {
-    origin: process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || `http://${hostname}:${port}`,
-    credentials: true,
-    methods: ['GET', 'POST'],
-  },
-})
-
-global.io = io
-
-io.use(async (socket, nextHandler) => {
-  try {
-    const authSecret = getAuthSecret('realtime.socket')
-    if (!authSecret) {
-      return nextHandler(new Error('Unauthorized'))
-    }
-
-    const token = await getToken({
-      req: socket.request as Parameters<typeof getToken>[0]['req'],
-      secret: authSecret,
-    })
-
-    if (!token?.id) {
-      return nextHandler(new Error('Unauthorized'))
-    }
-
-    socket.data.user = {
-      id: String(token.id),
-      name: typeof token.name === 'string' ? token.name : null,
-      role: typeof token.role === 'string' ? token.role : null,
-      companyId: typeof token.companyId === 'string' ? token.companyId : null,
-    } satisfies RealtimeSocketUser
-
-    return nextHandler()
-  } catch (error) {
-    logger.error('realtime.socket_auth_failed', error)
-    return nextHandler(new Error('Unauthorized'))
-  }
-})
-
-io.on('connection', (socket) => {
-  const user = socket.data.user as RealtimeSocketUser
-  const companyId = user.companyId
-
-  socket.join(`user:${user.id}`)
-  if (companyId) socket.join(`company:${companyId}`)
-
-  const existing = onlineUsers.get(user.id)
-  const wasOffline = !existing
-  if (existing) {
-    existing.socketIds.add(socket.id)
-  } else {
-    onlineUsers.set(user.id, { user, socketIds: new Set([socket.id]) })
-  }
-
-  if (companyId && wasOffline) {
-    emitPresence(companyId, 'user_online', user)
-  }
-
-  socket.emit(
-    'presence_snapshot',
-    Array.from(onlineUsers.values())
-      .map((entry) => entry.user)
-      .filter((entry) => entry.companyId && entry.companyId === companyId)
-      .map((entry) => ({
-        userId: entry.id,
-        name: entry.name ?? null,
-        role: entry.role ?? null,
-        companyId: entry.companyId ?? null,
-        online: true,
-        at: new Date().toISOString(),
-      }))
-  )
-
-  socket.on('join', (userId: string) => {
-    if (userId === user.id) {
-      socket.join(`user:${user.id}`)
-    }
-  })
-
-  socket.on('disconnect', () => {
-    const current = onlineUsers.get(user.id)
-    if (!current) return
-
-    current.socketIds.delete(socket.id)
-    if (current.socketIds.size === 0) {
-      onlineUsers.delete(user.id)
-      if (companyId) {
-        emitPresence(companyId, 'user_offline', user)
-      }
-    }
-  })
-})
-
-app.prepare().then(() => {
-  void startBackgroundJobWorkers()
   httpServer.listen(port, () => {
     logger.info('server.ready', { url: `http://${hostname}:${port}` })
   })

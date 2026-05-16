@@ -3,6 +3,7 @@ import type { Socket } from 'socket.io-client'
 
 let socket: Socket | null = null
 let socketInitPromise: Promise<Socket | null> | null = null
+const LAST_REALTIME_EVENT_ID_KEY = 'taskit:lastRealtimeEventId'
 
 function envFlag(value: string | undefined) {
   if (value === 'true') return true
@@ -42,8 +43,21 @@ export async function getSocket(): Promise<Socket | null> {
         addTrailingSlash: false,
         withCredentials: true,
         transports: ['websocket', 'polling'],
-        reconnectionAttempts: 3,
-        timeout: 5000,
+        reconnectionAttempts: Infinity,
+        reconnectionDelay: 500,
+        reconnectionDelayMax: 5000,
+        timeout: 10000,
+      })
+
+      socket.on('connect', () => {
+        const afterEventId = window.localStorage.getItem(LAST_REALTIME_EVENT_ID_KEY)
+        if (afterEventId) socket?.emit('realtime:replay', { afterEventId })
+      })
+
+      socket.on('realtime:event', (event: { id?: string }) => {
+        if (!event?.id) return
+        window.localStorage.setItem(LAST_REALTIME_EVENT_ID_KEY, event.id)
+        socket?.emit('realtime:ack', { eventId: event.id })
       })
 
       return socket

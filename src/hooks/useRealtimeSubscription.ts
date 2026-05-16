@@ -114,6 +114,11 @@ export function useRealtimeSubscription(
         socket.on(eventName, eventHandler)
         return { eventName, eventHandler }
       })
+      const handleReplay = (items: Array<{ type?: RealtimeEventName; payload?: unknown }>) => {
+        for (const item of items ?? []) {
+          if (item.type && eventList.includes(item.type)) emitDebounced(item.type, item.payload)
+        }
+      }
       const handleConnect = () => {
         socketLive = true
         reconcilePolling()
@@ -124,6 +129,7 @@ export function useRealtimeSubscription(
       }
       socket.on('connect', handleConnect)
       socket.on('disconnect', handleDisconnect)
+      socket.on('realtime:replay', handleReplay)
 
       socketLive = socket.connected
       reconcilePolling()
@@ -132,6 +138,7 @@ export function useRealtimeSubscription(
         handlers.forEach(({ eventName, eventHandler }) => socket.off(eventName, eventHandler))
         socket.off('connect', handleConnect)
         socket.off('disconnect', handleDisconnect)
+        socket.off('realtime:replay', handleReplay)
       }
     })()
 

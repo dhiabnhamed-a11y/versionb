@@ -1,42 +1,46 @@
-import type { RealtimeEventName, RealtimeWorkspaceEvent } from './realtime-events'
+import type { RealtimeEventName } from './realtime-events'
+import { enqueueRealtimeDelivery, emitRealtimeEnvelopeDirect } from '@/modules/realtime/events/delivery'
+import { buildRealtimeEnvelope } from '@/modules/realtime/events/contracts'
+import type { PresenceUser } from '@/modules/realtime/presence/presence-store'
+import { logger } from '@/modules/shared/logger'
 
-type RealtimeUser = {
-  id: string
-  name?: string | null
-  role?: string | null
-  companyId?: string | null
-}
-
-function getIO() {
-  return global.io
-}
-
-function workspaceEvent(type: RealtimeEventName, payload: unknown): RealtimeWorkspaceEvent {
-  return {
-    type,
-    payload,
-    at: new Date().toISOString(),
-  }
-}
+export type RealtimeUser = PresenceUser
 
 export function emitCompanyRealtime(companyId: string | null | undefined, type: RealtimeEventName, payload: unknown) {
   if (!companyId) return
 
-  const io = getIO()
-  if (!io) return
-
-  const event = workspaceEvent(type, payload)
-  io.to(`company:${companyId}`).emit(type, payload)
-  io.to(`company:${companyId}`).emit('workspace_event', event)
+  void enqueueRealtimeDelivery({
+    type,
+    target: { scope: 'workspace', workspaceId: companyId },
+    workspaceId: companyId,
+    payload,
+  }).catch((error) => {
+    logger.error('realtime.company_enqueue_failed', error, { companyId, type })
+    emitRealtimeEnvelopeDirect({
+      envelope: buildRealtimeEnvelope({ type, workspaceId: companyId, payload }),
+      target: { scope: 'workspace', workspaceId: companyId },
+      emitLegacyEvent: true,
+      queuedAt: new Date().toISOString(),
+    })
+  })
 }
 
 export function emitUserRealtime(userId: string | null | undefined, type: RealtimeEventName, payload: unknown) {
   if (!userId) return
 
-  const io = getIO()
-  if (!io) return
-
-  io.to(`user:${userId}`).emit(type, payload)
+  void enqueueRealtimeDelivery({
+    type,
+    target: { scope: 'user', userId },
+    payload,
+  }).catch((error) => {
+    logger.error('realtime.user_enqueue_failed', error, { userId, type })
+    emitRealtimeEnvelopeDirect({
+      envelope: buildRealtimeEnvelope({ type, workspaceId: null, payload }),
+      target: { scope: 'user', userId },
+      emitLegacyEvent: true,
+      queuedAt: new Date().toISOString(),
+    })
+  })
 }
 
 export function emitPresence(companyId: string | null | undefined, type: 'user_online' | 'user_offline', user: RealtimeUser) {
