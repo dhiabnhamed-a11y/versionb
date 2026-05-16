@@ -3,7 +3,7 @@ import { Server as SocketIOServer, type Socket } from 'socket.io'
 import { getToken } from 'next-auth/jwt'
 import { getAuthSecret } from '@/lib/env'
 import { emitPresence } from '@/lib/realtime-server'
-import { attachRedisAdapter } from '@/modules/realtime/adapters/redis'
+import { assertRealtimeRedisReadyForProduction, attachRedisAdapter, isRealtimeRedisRequired } from '@/modules/realtime/adapters/redis'
 import { channelRoom, workspaceRoom } from '@/modules/realtime/events/contracts'
 import { recordRealtimeMetric } from '@/modules/realtime/metrics/metrics'
 import {
@@ -94,7 +94,11 @@ export async function createSocketServer(httpServer: HttpServer) {
     maxHttpBufferSize: Math.max(Number(process.env.SOCKET_IO_MAX_HTTP_BUFFER_BYTES ?? 1_000_000), 64_000),
   })
 
-  await attachRedisAdapter(io)
+  await assertRealtimeRedisReadyForProduction()
+  const redisAdapterAttached = await attachRedisAdapter(io)
+  if (isRealtimeRedisRequired() && !redisAdapterAttached) {
+    throw new Error('Socket.IO Redis adapter is required in production.')
+  }
   global.io = io
 
   io.use(async (socket, nextHandler) => {

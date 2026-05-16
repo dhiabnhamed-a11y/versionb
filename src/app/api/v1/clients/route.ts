@@ -34,7 +34,12 @@ export async function POST(req: NextRequest) {
     undefined,
     async ({ user }) => {
       const body = await parseJsonObject(req)
-      const client = await runIdempotent(getIdempotencyKey(req), body, () => createClient(user, body))
+      const client = await runIdempotent(getIdempotencyKey(req), body, () => createClient(user, body), {
+        companyId: user.companyId,
+        method: req.method,
+        responseStatus: 201,
+        route: '/api/v1/clients',
+      })
       return apiData(client, { code: 'CLIENT_CREATED', status: 201 })
     },
     {

@@ -16,6 +16,7 @@
     "worker:ai": "tsx src/workers/ai.worker.ts",
     "worker:media": "tsx src/workers/media.worker.ts",
     "realtime:load-test": "tsx scripts/realtime-load-test.ts",
+    "test:unit": "tsx --test src/lib/idempotency/idempotency.test.ts",
     "lint": "eslint",
     "db:migrate": "prisma migrate dev --name init",
     "db:generate": "prisma generate",

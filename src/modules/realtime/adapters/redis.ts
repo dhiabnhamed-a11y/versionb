@@ -30,6 +30,10 @@ export function isRealtimeRedisConfigured() {
   return Boolean(getRealtimeRedisUrl())
 }
 
+export function isRealtimeRedisRequired() {
+  return process.env.NODE_ENV === 'production'
+}
+
 export function parseRedisConnection(url: string): RedisConnectionOptions {
   const parsed = new URL(url)
   return {
@@ -76,6 +80,35 @@ export function getRealtimeRedis() {
 
   realtimeRedisState.__taskitRealtimeRedis = createRealtimeRedisClient('state')
   return realtimeRedisState.__taskitRealtimeRedis
+}
+
+export async function verifyRealtimeRedisConnection() {
+  if (!isRealtimeRedisConfigured()) return false
+
+  const redis = createRealtimeRedisClient('startup-check', {
+    lazyConnect: true,
+    maxRetriesPerRequest: 1,
+    retryStrategy: () => null,
+  })
+  if (!redis) return false
+
+  try {
+    await redis.connect()
+    await redis.ping()
+    return true
+  } catch (error) {
+    logger.error('realtime.redis_startup_check_failed', error)
+    return false
+  } finally {
+    redis.disconnect()
+  }
+}
+
+export async function assertRealtimeRedisReadyForProduction() {
+  if (!isRealtimeRedisRequired()) return
+  if (!(await verifyRealtimeRedisConnection())) {
+    throw new Error('Realtime Redis is required in production. Set REALTIME_REDIS_URL, REDIS_URL, or QUEUE_REDIS_URL to a reachable Redis instance.')
+  }
 }
 
 export async function attachRedisAdapter(io: SocketIOServer) {

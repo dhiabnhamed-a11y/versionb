@@ -28,6 +28,7 @@ export function apiEnvelope<TData>(data: TData, options: ApiOkOptions): ApiRespo
   return {
     success: true,
     data,
+    error: null,
     meta,
     requestId: options.requestId,
     timestamp: new Date().toISOString(),
@@ -37,11 +38,13 @@ export function apiEnvelope<TData>(data: TData, options: ApiOkOptions): ApiRespo
 export function apiErrorEnvelope(message: string, options: ApiErrorOptions): ApiErrorResponse {
   return {
     success: false,
+    data: null,
     error: {
       code: options.code,
       message,
       details: options.details,
     },
+    meta: {},
     requestId: options.requestId,
     timestamp: new Date().toISOString(),
   }

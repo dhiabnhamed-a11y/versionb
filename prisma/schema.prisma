@@ -184,6 +184,7 @@ model Company {
   socialSyncJobs               SocialSyncJob[]
   socialWebhookEvents          SocialWebhookEvent[]
   integrationActivityLogs      IntegrationActivityLog[]
+  idempotencyKeys              IdempotencyKey[]
 
   @@index([status, createdAt])
   @@index([name, registrationNumber, status])
@@ -2081,6 +2082,29 @@ model JobRun {
   @@index([companyId, status, createdAt])
   @@index([entityType, entityId])
   @@index([externalId])
+}
+
+model IdempotencyKey {
+  id             String   @id @default(cuid())
+  companyId      String
+  key            String
+  method         String
+  route          String
+  bodyHash       String
+  status         String   @default("PROCESSING") // PROCESSING, COMPLETED, FAILED
+  response       Json?
+  responseStatus Int?
+  error          String?
+  expiresAt      DateTime
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, key])
+  @@index([companyId, route, createdAt])
+  @@index([expiresAt])
+  @@map("idempotency_keys")
 }
 
 model SearchIndex {

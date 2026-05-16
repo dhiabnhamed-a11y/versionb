@@ -19,6 +19,7 @@ export type ApiErrorBody<TCode extends string = string> = {
 export type ApiResponse<TData = unknown, TCode extends string = string> = {
   success: true
   data: TData
+  error: null
   meta: ApiMeta
   requestId: string
   timestamp: string
@@ -26,7 +27,9 @@ export type ApiResponse<TData = unknown, TCode extends string = string> = {
 
 export type ApiErrorResponse<TCode extends string = string> = {
   success: false
+  data: null
   error: ApiErrorBody<TCode>
+  meta: ApiMeta
   requestId: string
   timestamp: string
 }

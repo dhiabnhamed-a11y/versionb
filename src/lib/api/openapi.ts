@@ -334,10 +334,11 @@ export const openApiV1Spec = {
       },
       ApiResponse: {
         type: 'object',
-        required: ['success', 'data', 'meta', 'requestId', 'timestamp'],
+        required: ['success', 'data', 'error', 'meta', 'requestId', 'timestamp'],
         properties: {
           success: { const: true },
           data: {},
+          error: { type: 'null' },
           meta: {
             type: 'object',
             additionalProperties: true,
@@ -351,9 +352,10 @@ export const openApiV1Spec = {
       },
       ApiErrorResponse: {
         type: 'object',
-        required: ['success', 'error', 'requestId', 'timestamp'],
+        required: ['success', 'data', 'error', 'meta', 'requestId', 'timestamp'],
         properties: {
           success: { const: false },
+          data: { type: 'null' },
           error: {
             type: 'object',
             required: ['code', 'message'],
@@ -362,6 +364,10 @@ export const openApiV1Spec = {
               message: { type: 'string' },
               details: {},
             },
+          },
+          meta: {
+            type: 'object',
+            additionalProperties: true,
           },
           requestId: { type: 'string' },
           timestamp: { type: 'string', format: 'date-time' },
