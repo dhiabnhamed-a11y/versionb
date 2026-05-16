@@ -24,6 +24,7 @@ import {
   WalletCards,
 } from 'lucide-react'
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import ResponsiveChartFrame from '@/components/dashboard/ResponsiveChartFrame'
 import { useLocale } from '@/components/i18n/LocaleProvider'
 
 type ApiList<T> = {
@@ -378,7 +379,7 @@ function ExecutiveTrendChart({
   }))
 
   return (
-    <div className="h-[280px] w-full">
+    <ResponsiveChartFrame className="h-[280px] w-full min-w-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <AreaChart data={chartData} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
           <defs>
@@ -413,7 +414,7 @@ function ExecutiveTrendChart({
           <Area type="monotone" dataKey="payroll" stroke="var(--warning)" fill="transparent" strokeWidth={2} />
         </AreaChart>
       </ResponsiveContainer>
-    </div>
+    </ResponsiveChartFrame>
   )
 }
 

@@ -11,19 +11,35 @@ function envFlag(value: string | undefined) {
   return null
 }
 
+function configuredSocketIoUrl() {
+  const url = process.env.NEXT_PUBLIC_SOCKET_IO_URL?.trim()
+  return url || undefined
+}
+
+function isLocalhost(hostname: string) {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]'
+}
+
+function isVercelHostname(hostname: string) {
+  return hostname === 'vercel.app' || hostname.endsWith('.vercel.app')
+}
+
 function isSocketIoEnabled() {
   if (typeof window === 'undefined') return false
 
   const configured = envFlag(process.env.NEXT_PUBLIC_SOCKET_IO_ENABLED)
-  if (configured !== null) return configured
+  if (configured === false) return false
 
   const hostname = window.location.hostname
-  if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]') return true
+  if (configuredSocketIoUrl()) return configured ?? true
+  if (isLocalhost(hostname)) return configured ?? true
 
   // Vercel does not run this repo's custom Socket.IO server.ts entrypoint.
   // Production deployments should use Supabase realtime / polling unless a
   // separate Socket.IO host is explicitly configured.
-  return false
+  if (isVercelHostname(hostname)) return false
+
+  return configured === true
 }
 
 export async function getSocket(): Promise<Socket | null> {
@@ -38,7 +54,7 @@ export async function getSocket(): Promise<Socket | null> {
   if (!socketInitPromise) {
     socketInitPromise = (async () => {
       const { io } = await import('socket.io-client')
-      socket = io({
+      socket = io(configuredSocketIoUrl(), {
         path: '/api/socketio',
         addTrailingSlash: false,
         withCredentials: true,

@@ -14,6 +14,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import ResponsiveChartFrame from '@/components/dashboard/ResponsiveChartFrame'
 
 type GrowthPoint = {
   date: string
@@ -34,7 +35,7 @@ const PLATFORM_COLORS = ['#dc2626', '#16a34a', '#0f172a', '#db2777', '#2563eb', 
 
 export function SocialGrowthChart({ data }: { data: GrowthPoint[] }) {
   return (
-    <div className="h-[280px] min-h-[280px] min-w-0">
+    <ResponsiveChartFrame className="h-[280px] min-h-[280px] w-full min-w-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <AreaChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
           <defs>
@@ -51,13 +52,13 @@ export function SocialGrowthChart({ data }: { data: GrowthPoint[] }) {
           <Area type="monotone" dataKey="engagement" stroke="#059669" strokeWidth={2} fill="transparent" name="Engagement actions" />
         </AreaChart>
       </ResponsiveContainer>
-    </div>
+    </ResponsiveChartFrame>
   )
 }
 
 export function PlatformBreakdownChart({ data }: { data: PlatformPoint[] }) {
   return (
-    <div className="h-[260px] min-h-[260px] min-w-0">
+    <ResponsiveChartFrame className="h-[260px] min-h-[260px] w-full min-w-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <BarChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
           <CartesianGrid stroke="rgba(100,116,139,0.18)" vertical={false} />
@@ -71,13 +72,13 @@ export function PlatformBreakdownChart({ data }: { data: PlatformPoint[] }) {
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-    </div>
+    </ResponsiveChartFrame>
   )
 }
 
 export function RevenueTrendChart({ data }: { data: GrowthPoint[] }) {
   return (
-    <div className="h-[250px] min-h-[250px] min-w-0">
+    <ResponsiveChartFrame className="h-[250px] min-h-[250px] w-full min-w-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <AreaChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
           <defs>
@@ -93,14 +94,14 @@ export function RevenueTrendChart({ data }: { data: GrowthPoint[] }) {
           <Area type="monotone" dataKey="revenue" stroke="#d97706" strokeWidth={3} fill="url(#revenueFill)" name="Revenue" />
         </AreaChart>
       </ResponsiveContainer>
-    </div>
+    </ResponsiveChartFrame>
   )
 }
 
 export function PlatformRevenuePie({ data }: { data: PlatformPoint[] }) {
   const pieData = data.filter((item) => item.revenue > 0)
   return (
-    <div className="h-[220px] min-h-[220px] min-w-0">
+    <ResponsiveChartFrame className="h-[220px] min-h-[220px] w-full min-w-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <PieChart>
           <Pie data={pieData} dataKey="revenue" nameKey="platform" innerRadius={54} outerRadius={82} paddingAngle={3}>
@@ -111,6 +112,6 @@ export function PlatformRevenuePie({ data }: { data: PlatformPoint[] }) {
           <Tooltip contentStyle={{ border: '1px solid var(--border)', borderRadius: 10, boxShadow: 'var(--shadow-card)' }} />
         </PieChart>
       </ResponsiveContainer>
-    </div>
+    </ResponsiveChartFrame>
   )
 }

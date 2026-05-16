@@ -14,6 +14,7 @@ import {
   XAxis,
   YAxis,
 } from 'recharts'
+import ResponsiveChartFrame from '@/components/dashboard/ResponsiveChartFrame'
 
 type ActivityPoint = {
   date: string
@@ -44,7 +45,7 @@ export function ActivityLineChart({
   completedLabel?: string
 }) {
   return (
-    <div className="h-[260px] min-h-[260px] min-w-0">
+    <ResponsiveChartFrame className="h-[260px] min-h-[260px] w-full min-w-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <LineChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
           <CartesianGrid stroke="rgba(100,116,139,0.18)" vertical={false} />
@@ -62,13 +63,13 @@ export function ActivityLineChart({
           <Line type="monotone" dataKey="completed" stroke="#059669" strokeWidth={3} dot={{ r: 3 }} name={completedLabel} />
         </LineChart>
       </ResponsiveContainer>
-    </div>
+    </ResponsiveChartFrame>
   )
 }
 
 export function StatusBarChart({ data, valueLabel = 'Tasks' }: { data: StageBreakdownItem[]; valueLabel?: string }) {
   return (
-    <div className="h-[250px] min-h-[250px] min-w-0">
+    <ResponsiveChartFrame className="h-[250px] min-h-[250px] w-full min-w-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <BarChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
           <CartesianGrid stroke="rgba(100,116,139,0.18)" vertical={false} />
@@ -89,13 +90,13 @@ export function StatusBarChart({ data, valueLabel = 'Tasks' }: { data: StageBrea
           </Bar>
         </BarChart>
       </ResponsiveContainer>
-    </div>
+    </ResponsiveChartFrame>
   )
 }
 
 export function RolesPieChart({ data }: { data: RoleDistributionItem[] }) {
   return (
-    <div className="h-[250px] min-h-[250px] min-w-0">
+    <ResponsiveChartFrame className="h-[250px] min-h-[250px] w-full min-w-0">
       <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <PieChart>
           <Pie data={data} dataKey="value" nameKey="name" innerRadius={58} outerRadius={88} paddingAngle={3}>
@@ -113,6 +114,6 @@ export function RolesPieChart({ data }: { data: RoleDistributionItem[] }) {
           />
         </PieChart>
       </ResponsiveContainer>
-    </div>
+    </ResponsiveChartFrame>
   )
 }

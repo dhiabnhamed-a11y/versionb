@@ -5,12 +5,14 @@ function securityHeaders(req: NextRequest) {
   const isDev = process.env.NODE_ENV !== 'production'
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
+    `script-src 'self' 'unsafe-inline' blob:${isDev ? " 'unsafe-eval'" : ''}`,
+    "script-src-elem 'self' 'unsafe-inline' blob:",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob: https:",
     "font-src 'self' data:",
     "media-src 'self' data: blob: https:",
-    "connect-src 'self' https: wss:",
+    "connect-src 'self' https: wss: ws:",
+    "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
