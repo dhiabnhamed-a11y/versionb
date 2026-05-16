@@ -51,6 +51,13 @@ model User {
   aiMemories                   AiMemory[]
   aiRuns                       AiRun[]                      @relation("AiRunActor")
   aiActionRuns                 AiActionRun[]                @relation("AiActionRunActor")
+  createdContracts             Contract[]                   @relation("ContractCreatedBy")
+  approvedContracts            Contract[]                   @relation("ContractApprovedBy")
+  createdContractVersions      ContractVersion[]            @relation("ContractVersionCreatedBy")
+  createdContractTemplates     ContractTemplate[]           @relation("ContractTemplateCreatedBy")
+  contractSignatures           ContractSignature[]          @relation("ContractSignatureSigner")
+  contractAuditLogs            ContractAuditLog[]           @relation("ContractAuditActor")
+  contractGenerationJobs       ContractGenerationJob[]      @relation("ContractGenerationActor")
   financialPeriodsClosed       FinancialPeriod[]            @relation("FinancialPeriodClosedBy")
   journalEntriesCreated        JournalEntry[]               @relation("JournalEntryCreatedBy")
   journalEntriesApproved       JournalEntry[]               @relation("JournalEntryApprovedBy")
@@ -107,6 +114,13 @@ model Company {
   clientActivities             ClientActivity[]
   clientPortalComments         ClientPortalComment[]
   invoices                     Invoice[]
+  contracts                    Contract[]
+  contractVersions             ContractVersion[]
+  contractTemplates            ContractTemplate[]
+  contractClauses              ContractClause[]
+  contractSignatures           ContractSignature[]
+  contractAuditLogs            ContractAuditLog[]
+  contractGenerationJobs       ContractGenerationJob[]
   chartOfAccounts              ChartOfAccount[]
   accounts                     Account[]
   financialPeriods             FinancialPeriod[]
@@ -184,6 +198,9 @@ model Client {
   company                Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
   projects               Project[]
   invoices               Invoice[]
+  contracts              Contract[]
+  contractSignatures     ContractSignature[]
+  contractGenerationJobs ContractGenerationJob[]
   activities             ClientActivity[]
   portalComments         ClientPortalComment[]
   briefs                 Brief[]
@@ -302,6 +319,243 @@ model InvoiceItem {
 
   @@index([invoiceId])
   @@index([deliverableId])
+}
+
+model Contract {
+  id                   String    @id @default(cuid())
+  companyId            String
+  clientId             String?
+  projectId            String?
+  createdById          String
+  approvedById         String?
+  contractNumber       String
+  title                String
+  type                 String    @default("SERVICE_AGREEMENT")
+  status               String    @default("draft") // draft, in_review, approved, sent, viewed, signed, expired, terminated, archived
+  language             String    @default("en") // en, fr, ar, bilingual_en_fr, bilingual_en_ar
+  currency             String    @default("USD")
+  jurisdiction         String?
+  governingLaw         String?
+  confidentialityLevel String    @default("standard")
+  riskProfile          String    @default("standard")
+  currentVersionNumber Int       @default(1)
+  effectiveDate        DateTime?
+  expiryDate           DateTime?
+  renewalDate          DateTime?
+  sentAt               DateTime?
+  viewedAt             DateTime?
+  approvedAt           DateTime?
+  signedAt             DateTime?
+  terminatedAt         DateTime?
+  metadata             Json?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  company        Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  client         Client?                 @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  project        Project?                @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  createdBy      User                    @relation("ContractCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  approvedBy     User?                   @relation("ContractApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  versions       ContractVersion[]
+  signatures     ContractSignature[]
+  auditLogs      ContractAuditLog[]
+  generationJobs ContractGenerationJob[]
+
+  @@unique([companyId, contractNumber])
+  @@index([companyId, clientId, status, createdAt])
+  @@index([companyId, projectId, createdAt])
+  @@index([companyId, status, expiryDate])
+  @@index([createdById, createdAt])
+}
+
+model ContractVersion {
+  id               String   @id @default(cuid())
+  companyId        String
+  contractId       String
+  createdById      String?
+  versionNumber    Int
+  status           String   @default("draft") // draft, generated, approved, sent, signed, superseded, archived
+  locale           String   @default("en")
+  title            String
+  content          Json
+  renderedSnapshot Json?
+  dataSnapshot     Json?
+  clauseSnapshot   Json?
+  pdfStorageKey    String?
+  pdfChecksum      String?
+  pdfByteLength    Int?
+  model            String   @default("taskit-contract-intelligence")
+  promptVersion    String   @default("contract-v1")
+  legalDisclaimer  String?
+  watermark        String?
+  immutable        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  company    Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contract   Contract            @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  createdBy  User?               @relation("ContractVersionCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  signatures ContractSignature[]
+  auditLogs  ContractAuditLog[]
+
+  @@unique([contractId, versionNumber])
+  @@index([companyId, status, createdAt])
+  @@index([companyId, contractId, versionNumber])
+}
+
+model ContractTemplate {
+  id            String   @id @default(cuid())
+  companyId     String
+  createdById   String?
+  name          String
+  type          String   @default("SERVICE_AGREEMENT")
+  locale        String   @default("en")
+  jurisdiction  String?
+  status        String   @default("active") // active, draft, archived
+  version       Int      @default(1)
+  description   String?
+  variables     Json?
+  clauseSet     Json?
+  branding      Json?
+  approvalRules Json?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  company   Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy User?            @relation("ContractTemplateCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  clauses   ContractClause[]
+
+  @@index([companyId, status, type, locale])
+  @@index([companyId, name])
+}
+
+model ContractClause {
+  id           String   @id @default(cuid())
+  companyId    String
+  templateId   String?
+  key          String
+  title        String
+  body         String
+  locale       String   @default("en")
+  category     String
+  riskLevel    String   @default("standard")
+  jurisdiction String?
+  serviceType  String?
+  sortOrder    Int      @default(0)
+  required     Boolean  @default(true)
+  conditions   Json?
+  variables    Json?
+  status       String   @default("active")
+  version      Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company  Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  template ContractTemplate? @relation(fields: [templateId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, key, locale, version])
+  @@index([companyId, category, locale, status])
+  @@index([templateId, sortOrder])
+}
+
+model ContractSignature {
+  id                 String    @id @default(cuid())
+  companyId          String
+  contractId         String
+  versionId          String?
+  clientId           String?
+  signerUserId       String?
+  signerType         String    @default("client") // company, client, witness, legal
+  signerName         String
+  signerEmail        String?
+  status             String    @default("pending") // pending, requested, viewed, signed, declined, expired, voided
+  method             String    @default("prepared") // prepared, electronic, manual, provider
+  signingOrder       Int       @default(1)
+  signingUrlHash     String?
+  provider           String?
+  providerEnvelopeId String?
+  signatureData      Json?
+  ipAddress          String?
+  userAgent          String?
+  requestedAt        DateTime?
+  viewedAt           DateTime?
+  signedAt           DateTime?
+  declinedAt         DateTime?
+  expiresAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  company    Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contract   Contract         @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  version    ContractVersion? @relation(fields: [versionId], references: [id], onDelete: SetNull)
+  client     Client?          @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  signerUser User?            @relation("ContractSignatureSigner", fields: [signerUserId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status, createdAt])
+  @@index([contractId, signingOrder])
+  @@index([versionId, status])
+  @@index([clientId, status, createdAt])
+  @@index([signingUrlHash])
+}
+
+model ContractAuditLog {
+  id         String   @id @default(cuid())
+  companyId  String
+  contractId String
+  versionId  String?
+  actorId    String?
+  action     String
+  before     Json?
+  after      Json?
+  metadata   Json?
+  requestId  String?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  company  Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contract Contract         @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  version  ContractVersion? @relation(fields: [versionId], references: [id], onDelete: SetNull)
+  actor    User?            @relation("ContractAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([companyId, contractId, createdAt])
+  @@index([versionId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+}
+
+model ContractGenerationJob {
+  id            String    @id @default(cuid())
+  companyId     String
+  contractId    String?
+  clientId      String?
+  actorId       String?
+  jobRunId      String?
+  status        String    @default("queued") // queued, collecting_data, generating, rendering_pdf, completed, failed, cancelled
+  contractType  String    @default("SERVICE_AGREEMENT")
+  language      String    @default("en")
+  riskProfile   String    @default("standard")
+  input         Json?
+  missingFields Json?
+  result        Json?
+  error         String?
+  attempts      Int       @default(0)
+  maxAttempts   Int       @default(3)
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  company  Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contract Contract? @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  client   Client?   @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  actor    User?     @relation("ContractGenerationActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status, createdAt])
+  @@index([companyId, clientId, createdAt])
+  @@index([contractId, createdAt])
+  @@index([jobRunId])
 }
 
 model CompanySettings {
@@ -591,6 +845,7 @@ model Project {
   manager                User?                   @relation("ProjectManager", fields: [managerId], references: [id])
   tasks                  Task[]
   invoices               Invoice[]               @relation("InvoiceCampaign")
+  contracts              Contract[]
   briefs                 Brief[]
   deliverables           Deliverable[]
   cameraMedia            ProjectCameraMedia[]

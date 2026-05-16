@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import useSWR from 'swr'
 import { useState } from 'react'
+import type { FormEvent } from 'react'
 import {
   ArrowLeft,
   Building2,
@@ -12,6 +13,7 @@ import {
   Copy,
   Download,
   ExternalLink,
+  FileSignature,
   FolderKanban,
   Link2,
   Loader2,
@@ -19,19 +21,60 @@ import {
   Phone,
   Plus,
   ReceiptText,
+  ShieldCheck,
+  Sparkles,
   Upload,
+  Wand2,
+  X,
 } from 'lucide-react'
 import { clientsApi, type ClientProfileResponse } from '@/lib/api-client/clients'
+import { contractsApi, type ClientContractsResponse, type ContractGenerationInput } from '@/lib/api-client/contracts'
+import { formatContractDate, getContractStatusLabel, type ContractLanguage } from '@/lib/contracts'
 import { downloadPdfFromApi } from '@/lib/download-response'
 import { formatInvoiceMoney, getInvoiceStatusLabel } from '@/lib/invoices'
 
 type ProfileResponse = ClientProfileResponse
 
 const fetcher = (url: string) => clientsApi.getFromUrl(url)
+const contractsFetcher = (url: string) => {
+  const match = url.match(/\/api\/clients\/([^/]+)\/contracts/)
+  const clientId = match?.[1] ? decodeURIComponent(match[1]) : ''
+  return contractsApi.listForClient(clientId)
+}
+
+type ContractWizardForm = Required<
+  Pick<
+    ContractGenerationInput,
+    | 'contractType'
+    | 'language'
+    | 'currency'
+    | 'governingLaw'
+    | 'jurisdiction'
+    | 'paymentFrequency'
+    | 'paymentTerms'
+    | 'confidentialityLevel'
+    | 'supportTerms'
+    | 'terminationNoticeDays'
+    | 'revisionLimit'
+    | 'ipOwnership'
+    | 'serviceScope'
+    | 'durationMonths'
+    | 'renewalTerms'
+    | 'riskProfile'
+    | 'effectiveDate'
+    | 'pricingStructure'
+  >
+> & {
+  projectId: string
+}
 
 function formatDate(value?: string | null) {
   if (!value) return '-'
   return new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' }).format(new Date(value))
+}
+
+function todayInput() {
+  return new Date().toISOString().slice(0, 10)
 }
 
 function projectProgress(project: ProfileResponse['client']['projects'][number]) {
@@ -39,14 +82,54 @@ function projectProgress(project: ProfileResponse['client']['projects'][number])
   return project.tasks.length ? Math.round((done / project.tasks.length) * 100) : 0
 }
 
+function buildContractForm(client: ProfileResponse['client']): ContractWizardForm {
+  const projectScope = client.projects
+    .slice(0, 3)
+    .map((project) => project.title)
+    .join('; ')
+
+  return {
+    projectId: client.projects[0]?.id ?? '',
+    contractType: 'SERVICE_AGREEMENT',
+    language: 'en',
+    currency: client.invoices[0]?.currency ?? 'USD',
+    governingLaw: client.country ? `${client.country} law` : '',
+    jurisdiction: client.country ?? '',
+    paymentFrequency: client.invoices.length > 1 ? 'Monthly or per approved invoice' : 'Per approved invoice',
+    paymentTerms: 'Net 15 days from valid invoice unless otherwise agreed',
+    confidentialityLevel: 'standard',
+    supportTerms: 'Business-hours support with priority handling for production-blocking issues',
+    terminationNoticeDays: 30,
+    revisionLimit: 'Two consolidated revision rounds per deliverable',
+    ipOwnership: 'Client owns final paid deliverables; provider retains pre-existing tools, systems, reusable know-how, and templates',
+    serviceScope: projectScope || client.notes || 'Professional services, operational deliverables, and client support managed in TASKIT',
+    durationMonths: 12,
+    renewalTerms: 'Renewal by mutual written agreement before the expiry date',
+    riskProfile: 'standard',
+    effectiveDate: todayInput(),
+    pricingStructure: 'Fees follow approved invoices, statements of work, retainers, or written orders recorded in TASKIT',
+  }
+}
+
 export default function ClientProfilePage() {
   const params = useParams<{ id: string }>()
   const { data, isLoading, error } = useSWR<ProfileResponse>(params?.id ? `/api/clients/${params.id}` : null, fetcher)
+  const {
+    data: contractData,
+    isLoading: contractsLoading,
+    mutate: refreshContracts,
+  } = useSWR<ClientContractsResponse>(params?.id ? `/api/clients/${params.id}/contracts` : null, contractsFetcher)
   const [downloadingInvoiceId, setDownloadingInvoiceId] = useState<string | null>(null)
+  const [downloadingContractId, setDownloadingContractId] = useState<string | null>(null)
   const [downloadError, setDownloadError] = useState<string | null>(null)
   const [portalUrl, setPortalUrl] = useState<string | null>(null)
   const [portalLoading, setPortalLoading] = useState(false)
   const [portalError, setPortalError] = useState<string | null>(null)
+  const [contractModalOpen, setContractModalOpen] = useState(false)
+  const [contractSaving, setContractSaving] = useState(false)
+  const [contractError, setContractError] = useState<string | null>(null)
+  const [contractMessage, setContractMessage] = useState<string | null>(null)
+  const [contractForm, setContractForm] = useState<ContractWizardForm | null>(null)
 
   async function downloadInvoicePdf(invoice: ProfileResponse['client']['invoices'][number]) {
     setDownloadingInvoiceId(invoice.id)
@@ -62,6 +145,56 @@ export default function ClientProfilePage() {
       setDownloadError(reason instanceof Error ? reason.message : 'Invoice PDF could not be downloaded.')
     } finally {
       setDownloadingInvoiceId(null)
+    }
+  }
+
+  function openContractWizard() {
+    if (!data?.client) return
+    setContractForm(buildContractForm(data.client))
+    setContractError(null)
+    setContractMessage(null)
+    setContractModalOpen(true)
+  }
+
+  async function generateContract(event: FormEvent) {
+    event.preventDefault()
+    if (!contractForm || !params.id) return
+
+    setContractSaving(true)
+    setContractError(null)
+    setContractMessage(null)
+
+    try {
+      const input: ContractGenerationInput = {
+        ...contractForm,
+        projectId: contractForm.projectId || undefined,
+        language: contractForm.language as ContractLanguage,
+      }
+      const response = await contractsApi.generateForClient(params.id, input)
+      setContractMessage(response.aiMessage)
+      setContractModalOpen(false)
+      await refreshContracts()
+    } catch (reason) {
+      setContractError(reason instanceof Error ? reason.message : 'Contract could not be generated.')
+    } finally {
+      setContractSaving(false)
+    }
+  }
+
+  async function downloadContractPdf(contract: NonNullable<ClientContractsResponse['items']>[number]) {
+    setDownloadingContractId(contract.id)
+    setDownloadError(null)
+
+    try {
+      await downloadPdfFromApi(`/api/contracts/${contract.id}/pdf`, contract.contractNumber, {
+        contractId: contract.id,
+        contractNumber: contract.contractNumber,
+        source: 'client-profile',
+      })
+    } catch (reason) {
+      setDownloadError(reason instanceof Error ? reason.message : 'Contract PDF could not be downloaded.')
+    } finally {
+      setDownloadingContractId(null)
     }
   }
 
@@ -106,6 +239,7 @@ export default function ClientProfilePage() {
   }
 
   const { client, stats, recentDeliverables } = data
+  const contracts = contractData?.items ?? []
 
   return (
     <div className="dashboard-page" style={{ maxWidth: '1180px' }}>
@@ -146,6 +280,10 @@ export default function ClientProfilePage() {
           </div>
         </div>
         <div className="dashboard-hero-actions">
+          <button type="button" onClick={openContractWizard} className="btn-primary">
+            <Wand2 size={16} />
+            Generate Contract
+          </button>
           <Link href={`/dashboard/admin/invoices?clientId=${client.id}`} className="btn-primary">
             <Plus size={16} />
             New invoice
@@ -189,6 +327,16 @@ export default function ClientProfilePage() {
         </section>
       )}
 
+      {(contractMessage || contractError) && (
+        <section className={`alert-banner ${contractError ? 'alert-danger' : 'alert-success'}`}>
+          {contractError ? <ShieldCheck size={18} /> : <Sparkles size={18} />}
+          <div>
+            <strong>{contractError ? 'Contract generation needs attention' : 'Contract intelligence completed'}</strong>
+            <div>{contractError || contractMessage}</div>
+          </div>
+        </section>
+      )}
+
       <div className="dashboard-stat-grid">
         <article className="stat-card">
           <span className="stat-card-label">Active projects</span>
@@ -208,6 +356,13 @@ export default function ClientProfilePage() {
           <span className="stat-card-label">Unpaid invoices</span>
           <strong className="stat-card-value text-[var(--warning)]">{formatInvoiceMoney(stats.unpaidTotal, 'USD')}</strong>
           <span className="stat-card-delta">{stats.unpaidInvoiceCount} open invoice{stats.unpaidInvoiceCount === 1 ? '' : 's'}</span>
+        </article>
+        <article className="stat-card">
+          <span className="stat-card-label">Contracts</span>
+          <strong className="stat-card-value">{contracts.length}</strong>
+          <span className="stat-card-delta">
+            <FileSignature size={14} /> Legal records
+          </span>
         </article>
       </div>
 
@@ -239,6 +394,78 @@ export default function ClientProfilePage() {
                         <div className="progress-fill" style={{ width: `${pct}%` }} />
                       </div>
                     </Link>
+                  )
+                })
+              )}
+            </div>
+          </div>
+
+          <div className="card">
+            <div className="panel-header">
+              <div>
+                <h2 className="panel-title">Contracts</h2>
+                <p className="panel-meta">Generated agreements, versions, signature readiness, and audit-ready PDFs.</p>
+              </div>
+              <button type="button" onClick={openContractWizard} className="btn-secondary btn-sm">
+                <Wand2 size={14} />
+                New
+              </button>
+            </div>
+            {downloadError && <div className="mb-3 rounded-[var(--radius-sm)] border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{downloadError}</div>}
+            <div className="grid gap-3">
+              {contractsLoading ? (
+                <div className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-4">
+                  <div className="loading-shimmer h-16 rounded-[var(--radius-sm)]" />
+                </div>
+              ) : contracts.length === 0 ? (
+                <div className="rounded-[var(--radius-sm)] border border-dashed border-[var(--border)] px-4 py-8 text-center">
+                  <FileSignature size={26} className="mx-auto mb-3 text-[var(--text-light)]" />
+                  <p className="text-sm font-bold text-[var(--text-primary)]">No contracts generated yet.</p>
+                  <p className="mx-auto mt-1 max-w-lg text-xs leading-5 text-[var(--text-muted)]">
+                    I can generate a professionally structured service agreement for this client using your operational and billing data.
+                  </p>
+                  <button type="button" onClick={openContractWizard} className="btn-primary btn-sm mt-4">
+                    <Wand2 size={14} />
+                    Generate Contract
+                  </button>
+                </div>
+              ) : (
+                contracts.map((contract) => {
+                  const signedCount = contract.signatures?.filter((signature) => signature.status === 'signed').length ?? 0
+                  const signatureCount = contract.signatures?.length ?? 0
+                  const latestVersion = contract.versions?.[0]
+                  return (
+                    <article key={contract.id} className="rounded-[var(--radius-sm)] border border-[var(--border)] bg-white p-4">
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <FileSignature size={15} className="text-[var(--accent)]" />
+                            <span className="text-sm font-black text-[var(--text-primary)]">{contract.contractNumber}</span>
+                            <span className={`badge ${contract.status === 'signed' ? 'badge-employee' : contract.status === 'draft' ? 'badge-manager' : 'priority-medium'}`}>
+                              {getContractStatusLabel(contract.status, contract.language)}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-sm font-semibold text-[var(--text-secondary)]">{contract.title}</div>
+                          <div className="mt-1 flex flex-wrap gap-2 text-xs text-[var(--text-muted)]">
+                            <span>v{contract.currentVersionNumber}</span>
+                            <span>{contract.language.replaceAll('_', ' / ')}</span>
+                            <span>Effective {formatContractDate(contract.effectiveDate, contract.language)}</span>
+                            <span>{signedCount}/{signatureCount || 2} signatures</span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+                          {latestVersion && (
+                            <span className="rounded-[var(--radius-sm)] bg-[var(--bg-elevated)] px-3 py-2 text-[11px] font-black uppercase tracking-wide text-[var(--text-muted)]">
+                              {latestVersion.status}
+                            </span>
+                          )}
+                          <button type="button" onClick={() => downloadContractPdf(contract)} disabled={downloadingContractId === contract.id} className="btn-secondary btn-sm">
+                            {downloadingContractId === contract.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
+                            PDF
+                          </button>
+                        </div>
+                      </div>
+                    </article>
                   )
                 })
               )}
@@ -347,6 +574,159 @@ export default function ClientProfilePage() {
           </div>
         </aside>
       </div>
+
+      {contractModalOpen && contractForm && (
+        <div className="modal-backdrop" onClick={(event) => event.target === event.currentTarget && setContractModalOpen(false)}>
+          <div className="modal max-h-[92vh] w-[min(96vw,980px)] overflow-y-auto">
+            <div className="mb-5 flex items-start justify-between gap-3">
+              <div>
+                <div className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--accent-subtle)] px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-[var(--accent)]">
+                  <Sparkles size={13} />
+                  Contract Generation Wizard
+                </div>
+                <h2 className="font-display mt-3 text-xl font-semibold tracking-tight">Enterprise service agreement</h2>
+                <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--text-muted)]">
+                  I can generate a professionally structured service agreement for this client using your operational and billing data.
+                </p>
+              </div>
+              <button type="button" onClick={() => setContractModalOpen(false)} className="rounded-full p-2 hover:bg-[var(--bg-elevated)]" aria-label="Close">
+                <X size={18} />
+              </button>
+            </div>
+
+            {contractError && <div className="alert-banner alert-danger mb-4"><ShieldCheck size={18} /><div>{contractError}</div></div>}
+
+            <form onSubmit={generateContract} className="grid gap-5">
+              <section className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)] p-4">
+                <div className="mb-4 flex items-center gap-2 text-sm font-black text-[var(--text-primary)]">
+                  <FileSignature size={16} className="text-[var(--accent)]" />
+                  Document profile
+                </div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">
+                    Language
+                    <select className="input bg-white" value={contractForm.language} onChange={(event) => setContractForm({ ...contractForm, language: event.target.value as ContractLanguage })}>
+                      <option value="en">English</option>
+                      <option value="fr">French</option>
+                      <option value="ar">Arabic</option>
+                      <option value="bilingual_en_fr">English / French</option>
+                      <option value="bilingual_en_ar">English / Arabic</option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">
+                    Contract type
+                    <select className="input bg-white" value={contractForm.contractType} onChange={(event) => setContractForm({ ...contractForm, contractType: event.target.value })}>
+                      <option value="SERVICE_AGREEMENT">Service agreement</option>
+                      <option value="RETAINER_AGREEMENT">Retainer agreement</option>
+                      <option value="PROJECT_CONTRACT">Project contract</option>
+                      <option value="NDA_SERVICE_AGREEMENT">NDA + service agreement</option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">
+                    Linked project
+                    <select className="input bg-white" value={contractForm.projectId} onChange={(event) => setContractForm({ ...contractForm, projectId: event.target.value })}>
+                      <option value="">Client-level agreement</option>
+                      {client.projects.map((project) => (
+                        <option key={project.id} value={project.id}>{project.title}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">
+                    Currency
+                    <input className="input bg-white uppercase" maxLength={3} value={contractForm.currency} onChange={(event) => setContractForm({ ...contractForm, currency: event.target.value.toUpperCase() })} />
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">
+                    Effective date
+                    <input type="date" className="input bg-white" value={contractForm.effectiveDate} onChange={(event) => setContractForm({ ...contractForm, effectiveDate: event.target.value })} />
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">
+                    Duration months
+                    <input type="number" min="1" max="120" className="input bg-white" value={contractForm.durationMonths} onChange={(event) => setContractForm({ ...contractForm, durationMonths: Number(event.target.value) })} />
+                  </label>
+                </div>
+              </section>
+
+              <section className="rounded-[var(--radius-md)] border border-[var(--border)] p-4">
+                <div className="mb-4 flex items-center gap-2 text-sm font-black text-[var(--text-primary)]">
+                  <ShieldCheck size={16} className="text-[var(--accent)]" />
+                  Legal controls
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">
+                    Governing law
+                    <input className="input" value={contractForm.governingLaw} onChange={(event) => setContractForm({ ...contractForm, governingLaw: event.target.value })} placeholder="e.g. Tunisia law" />
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">
+                    Jurisdiction
+                    <input className="input" value={contractForm.jurisdiction} onChange={(event) => setContractForm({ ...contractForm, jurisdiction: event.target.value })} placeholder="e.g. Tunis, Tunisia" />
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">
+                    Confidentiality level
+                    <select className="input" value={contractForm.confidentialityLevel} onChange={(event) => setContractForm({ ...contractForm, confidentialityLevel: event.target.value })}>
+                      <option value="standard">Standard</option>
+                      <option value="strict">Strict</option>
+                      <option value="regulated">Regulated / sensitive</option>
+                    </select>
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">
+                    Termination notice
+                    <input type="number" min="0" max="365" className="input" value={contractForm.terminationNoticeDays} onChange={(event) => setContractForm({ ...contractForm, terminationNoticeDays: Number(event.target.value) })} />
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)] md:col-span-2">
+                    Intellectual property ownership
+                    <textarea className="input" rows={2} value={contractForm.ipOwnership} onChange={(event) => setContractForm({ ...contractForm, ipOwnership: event.target.value })} />
+                  </label>
+                </div>
+              </section>
+
+              <section className="rounded-[var(--radius-md)] border border-[var(--border)] p-4">
+                <div className="mb-4 flex items-center gap-2 text-sm font-black text-[var(--text-primary)]">
+                  <ReceiptText size={16} className="text-[var(--accent)]" />
+                  Commercial terms
+                </div>
+                <div className="grid gap-4 md:grid-cols-2">
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">
+                    Payment frequency
+                    <input className="input" value={contractForm.paymentFrequency} onChange={(event) => setContractForm({ ...contractForm, paymentFrequency: event.target.value })} />
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">
+                    Payment terms
+                    <input className="input" value={contractForm.paymentTerms} onChange={(event) => setContractForm({ ...contractForm, paymentTerms: event.target.value })} />
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">
+                    Revision limits
+                    <input className="input" value={contractForm.revisionLimit} onChange={(event) => setContractForm({ ...contractForm, revisionLimit: event.target.value })} />
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">
+                    Renewal terms
+                    <input className="input" value={contractForm.renewalTerms} onChange={(event) => setContractForm({ ...contractForm, renewalTerms: event.target.value })} />
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)] md:col-span-2">
+                    Service scope
+                    <textarea className="input" rows={3} value={contractForm.serviceScope} onChange={(event) => setContractForm({ ...contractForm, serviceScope: event.target.value })} />
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)] md:col-span-2">
+                    Support terms
+                    <textarea className="input" rows={2} value={contractForm.supportTerms} onChange={(event) => setContractForm({ ...contractForm, supportTerms: event.target.value })} />
+                  </label>
+                  <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)] md:col-span-2">
+                    Pricing structure
+                    <textarea className="input" rows={2} value={contractForm.pricingStructure} onChange={(event) => setContractForm({ ...contractForm, pricingStructure: event.target.value })} />
+                  </label>
+                </div>
+              </section>
+
+              <div className="modal-actions">
+                <button type="button" onClick={() => setContractModalOpen(false)} className="btn-secondary">Cancel</button>
+                <button type="submit" disabled={contractSaving} className="btn-primary">
+                  {contractSaving ? <Loader2 size={16} className="animate-spin" /> : <Wand2 size={16} />}
+                  Generate enterprise contract
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

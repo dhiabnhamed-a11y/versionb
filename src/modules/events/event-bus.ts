@@ -22,6 +22,7 @@ export type DomainEventName =
   | 'client.created'
   | 'client.updated'
   | 'client.deleted'
+  | 'contract.generated'
 
 export type DomainEvent = {
   id: string
