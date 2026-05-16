@@ -593,24 +593,23 @@ function compileDashboardDesignJson(design: Record<string, unknown>) {
     noCodeDesign.layout.sidebarSide === 'right'
       ? [
           '@media (min-width: 901px) {',
-          '  .dashboard-app-shell[data-user-design="active"]:not(.sidebar-collapsed) { grid-template-columns: minmax(0, 1fr) var(--user-sidebar-width); }',
-          '  .dashboard-app-shell[data-user-design="active"].sidebar-collapsed { grid-template-columns: minmax(0, 1fr) 88px; }',
-          '  .dashboard-app-shell[data-user-design="active"] .sidebar { order: 2; border-right: 0; border-left: 1px solid var(--sidebar-border); }',
-          '  .dashboard-app-shell[data-user-design="active"] .main-content { order: 1; }',
+          '  .dashboard-app-shell[data-user-design="active"] .sidebar { inset-inline-start: auto; inset-inline-end: 0; border-inline-end: 0; border-inline-start: 1px solid var(--sidebar-border); }',
+          '  .dashboard-app-shell[data-user-design="active"] .main-content { margin-inline-start: 0; margin-inline-end: var(--dashboard-sidebar-current-width); }',
           '}',
           '@media (max-width: 900px) {',
-          '  .dashboard-app-shell[data-user-design="active"] .sidebar { inset: 0 0 0 auto; transform: translateX(100%); }',
+          '  .dashboard-app-shell[data-user-design="active"] .sidebar { inset-inline-start: auto; inset-inline-end: 0; transform: translateX(100%); }',
           '  .dashboard-app-shell[data-user-design="active"] .sidebar.open { transform: translateX(0); }',
           '}',
         ]
       : [
           '@media (min-width: 901px) {',
-          '  .dashboard-app-shell[data-user-design="active"]:not(.sidebar-collapsed) { grid-template-columns: var(--user-sidebar-width) minmax(0, 1fr); }',
+          '  .dashboard-app-shell[data-user-design="active"] .sidebar { inset-inline-start: 0; inset-inline-end: auto; }',
           '}',
         ]
 
   const ruleLines: string[] = [
     '.dashboard-app-shell[data-user-design="active"] {',
+    '  --dashboard-sidebar-width: var(--user-sidebar-width);',
     '  background: var(--user-shell-background) !important;',
     '  background-size: var(--user-shell-background-size) !important;',
     '  background-position: var(--user-shell-background-position) !important;',
@@ -619,7 +618,6 @@ function compileDashboardDesignJson(design: Record<string, unknown>) {
     `  font-size: ${noCodeDesign.typography.baseSize}px;`,
     `  font-weight: ${noCodeDesign.typography.bodyWeight};`,
     '}',
-    '.dashboard-app-shell[data-user-design="active"] .sidebar:not(.collapsed) { width: var(--user-sidebar-width); }',
     '.dashboard-app-shell[data-user-design="active"] .dashboard-shell-body, .dashboard-app-shell[data-user-design="active"] .dashboard-page { max-width: var(--user-content-max-width) !important; }',
     `.dashboard-app-shell[data-user-design="active"] .dashboard-shell-body { padding-block: ${densityValues.shell}; }`,
     '.dashboard-app-shell[data-user-design="active"] .dash-header { background: color-mix(in srgb, var(--bg-primary) 88%, transparent) !important; border-color: var(--border) !important; }',
@@ -727,13 +725,19 @@ export async function getUserDashboardDesignSettings(userId?: string | null): Pr
 
   if (!design || !design.enabled) return DEFAULT_USER_DASHBOARD_DESIGN
 
+  const sourceType = design.sourceType === 'css' ? 'css' : 'json'
+  const compiledCss =
+    sourceType === 'json'
+      ? compileDashboardDesignJson(optionalObject(design.designJson))
+      : design.compiledCss
+
   return {
     enabled: design.enabled,
     name: design.name,
-    sourceType: design.sourceType === 'css' ? 'css' : 'json',
+    sourceType,
     designJson: design.designJson,
     customCss: design.customCss,
-    compiledCss: design.compiledCss,
+    compiledCss,
     updatedAt: design.updatedAt.toISOString(),
   }
 }
