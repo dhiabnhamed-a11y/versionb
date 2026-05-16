@@ -14,7 +14,12 @@ import LanguageSwitcher from '@/components/i18n/LanguageSwitcher'
 import { LocaleProvider, useLocale } from '@/components/i18n/LocaleProvider'
 import PushNotificationBootstrap from '@/components/pwa/PushNotificationBootstrap'
 import { getLocalizedCompanyCopy } from '@/lib/company-copy-i18n'
-import { isAgencyCompanyType, isContentCreationCompanyType, normalizeCompanyType } from '@/lib/company-types'
+import {
+  isAgencyCompanyType,
+  isContentCreationCompanyType,
+  isEnterpriseOperationsCompanyType,
+  normalizeCompanyType,
+} from '@/lib/company-types'
 import { normalizeDashboardDesignConfig } from '@/lib/dashboard-design'
 import { isRealtimeAlertsEnabled } from '@/lib/socket-client'
 import type { UserDashboardDesignSettings, WorkspaceThemeSettings } from '@/lib/settings'
@@ -41,6 +46,7 @@ import {
   Building2,
   Landmark,
   FileCheck2,
+  HeartPulse,
 } from 'lucide-react'
 
 type DashboardLayoutClientProps = {
@@ -85,6 +91,7 @@ function DashboardLayoutChrome({
   const companyCopy = getLocalizedCompanyCopy(companyType, t)
   const isAgencyWorkspace = isAgencyCompanyType(companyType)
   const isContentCreationWorkspace = isContentCreationCompanyType(companyType)
+  const isEnterpriseOperationsWorkspace = isEnterpriseOperationsCompanyType(companyType)
   useEffect(() => {
     function handleUserDesign(event: Event) {
       const nextDesign = (event as CustomEvent<UserDashboardDesignSettings>).detail
@@ -116,6 +123,9 @@ function DashboardLayoutChrome({
       ]
     : [
         { href: '/dashboard/admin', label: t('nav.overview'), icon: LayoutDashboard },
+        ...(isEnterpriseOperationsWorkspace
+          ? [{ href: '/dashboard/admin/operations', label: 'Operations', icon: HeartPulse }]
+          : []),
         ...(isContentCreationWorkspace
           ? [{ href: '/dashboard/admin/social-analytics', label: t('nav.socialStats'), icon: BarChart3 }]
           : []),

@@ -82,6 +82,50 @@ const companyTypePresentation = {
     focus: 'Release planning with cross-channel performance',
     flow: ['Campaigns', 'Briefs', 'Channel stats'],
   },
+  HEALTHCARE: {
+    icon: Building2,
+    eyebrow: 'Healthcare operations',
+    accent: '#0e7490',
+    surface: 'rgba(14, 116, 144, 0.1)',
+    outline: 'rgba(14, 116, 144, 0.22)',
+    spotlight: 'rgba(34, 211, 238, 0.22)',
+    audience: 'Clinics, care networks, and healthcare operations',
+    focus: 'Departments, assets, incidents, maintenance, and compliance',
+    flow: ['Departments', 'Assets', 'Incidents'],
+  },
+  ENTERPRISE_OPERATIONS: {
+    icon: Layers3,
+    eyebrow: 'Enterprise service management',
+    accent: '#4338ca',
+    surface: 'rgba(67, 56, 202, 0.1)',
+    outline: 'rgba(67, 56, 202, 0.22)',
+    spotlight: 'rgba(129, 140, 248, 0.22)',
+    audience: 'IT, HR, facilities, finance, and shared services',
+    focus: 'Service queues, SLAs, approvals, and asset lifecycle',
+    flow: ['Departments', 'Queues', 'SLAs'],
+  },
+  CLINIC_HOSPITAL: {
+    icon: ShieldCheck,
+    eyebrow: 'Clinic and hospital teams',
+    accent: '#047857',
+    surface: 'rgba(4, 120, 87, 0.1)',
+    outline: 'rgba(4, 120, 87, 0.22)',
+    spotlight: 'rgba(52, 211, 153, 0.22)',
+    audience: 'Hospitals, clinics, labs, and care facilities',
+    focus: 'Biomedical uptime, facility requests, shifts, and audit evidence',
+    flow: ['Clinical ops', 'Devices', 'Compliance'],
+  },
+  CORPORATE_IT_OPERATIONS: {
+    icon: Layers,
+    eyebrow: 'Corporate IT',
+    accent: '#1d4ed8',
+    surface: 'rgba(29, 78, 216, 0.1)',
+    outline: 'rgba(29, 78, 216, 0.22)',
+    spotlight: 'rgba(96, 165, 250, 0.22)',
+    audience: 'Service desk, infrastructure, security, and endpoint teams',
+    focus: 'Tickets, assets, outages, escalations, and SLA health',
+    flow: ['Service desk', 'Assets', 'Uptime'],
+  },
   OTHER: {
     icon: Layers3,
     eyebrow: 'Flexible teams',
@@ -310,6 +354,14 @@ export default function SignupOnboardingClient({
   const companyPlaceholder =
     selectedCompanyType === 'INDUSTRY'
       ? 'North Plant Operations'
+      : selectedCompanyType === 'HEALTHCARE'
+        ? 'CareBridge Health'
+        : selectedCompanyType === 'CLINIC_HOSPITAL'
+          ? 'Northside Hospital'
+          : selectedCompanyType === 'ENTERPRISE_OPERATIONS'
+            ? 'Atlas Enterprise Operations'
+            : selectedCompanyType === 'CORPORATE_IT_OPERATIONS'
+              ? 'Apex IT Operations'
       : selectedCompanyType === 'DIGITAL_AGENCY'
         ? 'Studio Nova'
         : selectedCompanyType === 'CONTENT_CREATION_AGENCY'
@@ -683,6 +735,10 @@ export default function SignupOnboardingClient({
                   <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
                     {selectedCompanyType === 'INDUSTRY'
                       ? 'Your workspace will start with rooms, then projects inside each room, then tasks inside each project.'
+                      : ['HEALTHCARE', 'CLINIC_HOSPITAL', 'ENTERPRISE_OPERATIONS', 'CORPORATE_IT_OPERATIONS'].includes(
+                            selectedCompanyType
+                          )
+                        ? 'Your workspace will start with enterprise departments, teams, service queues, SLA templates, incident priorities, asset categories, maintenance workflows, and compliance controls.'
                       : isAgencyCompanyType(selectedCompanyType)
                         ? 'Your workspace will start with campaigns, briefs, employee execution, deliverable uploads, and channel performance tracking.'
                         : 'Your workspace will keep the same TASKIT interface you already use today.'}

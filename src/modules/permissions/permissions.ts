@@ -40,6 +40,12 @@ export type PermissionSubject =
   | 'ai'
   | 'audit'
   | 'portal'
+  | 'department'
+  | 'team'
+  | 'asset'
+  | 'incident'
+  | 'maintenance'
+  | 'compliance'
 
 export type PermissionResource = {
   companyId?: string | null
@@ -92,10 +98,22 @@ export function can(user: SessionUser, action: PermissionAction, subject: Permis
 
   if (role === 'MANAGER') {
     if (subject === 'audit') return action === 'read'
+    if (subject === 'department' || subject === 'team' || subject === 'asset' || subject === 'incident' || subject === 'maintenance') {
+      return action !== 'delete'
+    }
+    if (subject === 'compliance') return action === 'read' || action === 'review'
     return subject !== 'settings' || action === 'read' || action === 'update'
   }
 
   if (role === 'EMPLOYEE') {
+    if (subject === 'incident' || subject === 'maintenance') {
+      return action === 'read' || action === 'comment' || (action === 'update' && isAssigned(user, resource))
+    }
+
+    if (subject === 'asset' || subject === 'department' || subject === 'team' || subject === 'compliance') {
+      return action === 'read'
+    }
+
     if (subject === 'task') {
       return action === 'read' || action === 'comment' || action === 'upload' || (action === 'update' && isAssigned(user, resource))
     }

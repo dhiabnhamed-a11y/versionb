@@ -31,6 +31,12 @@ export type DomainEventName =
   | 'contract.generated'
   | 'contract.signed'
   | 'ai.action.completed'
+  | 'enterprise.asset.created'
+  | 'enterprise.asset.updated'
+  | 'enterprise.incident.created'
+  | 'enterprise.incident.updated'
+  | 'enterprise.maintenance.created'
+  | 'enterprise.maintenance.updated'
 
 export type DomainEvent = {
   id: string

@@ -1,4 +1,13 @@
-export const COMPANY_TYPE_VALUES = ['INDUSTRY', 'DIGITAL_AGENCY', 'CONTENT_CREATION_AGENCY', 'OTHER'] as const
+export const COMPANY_TYPE_VALUES = [
+  'INDUSTRY',
+  'DIGITAL_AGENCY',
+  'CONTENT_CREATION_AGENCY',
+  'HEALTHCARE',
+  'ENTERPRISE_OPERATIONS',
+  'CLINIC_HOSPITAL',
+  'CORPORATE_IT_OPERATIONS',
+  'OTHER',
+] as const
 
 export type CompanyType = (typeof COMPANY_TYPE_VALUES)[number]
 
@@ -85,6 +94,90 @@ export const COMPANY_TYPE_CONFIG = {
     groupPluralLabel: 'Categories',
     workspaceLabel: 'Content studio',
   },
+  HEALTHCARE: {
+    label: 'Healthcare',
+    slug: 'healthcare',
+    title: 'Run clinical operations, service requests, and regulated assets.',
+    description:
+      'For healthcare organizations coordinating biomedical equipment, internal requests, compliance, facilities, and incident response.',
+    bullets: ['Provision clinical departments', 'Track biomedical and facility assets', 'Start with healthcare SLAs'],
+    signupTitle: 'Build a healthcare operations workspace for assets, incidents, and compliance.',
+    signupDescription:
+      'TASKIT provisions departments, teams, incident priorities, SLA policies, asset categories, maintenance plans, and compliance controls for healthcare operations.',
+    overviewTitle: 'Healthcare operations connects departments, assets, incidents, maintenance, and governance.',
+    overviewDescription:
+      'Designed for teams that need service-desk style execution across biomedical, facilities, nursing, IT, compliance, and medical operations.',
+    projectLabel: 'Operational Project',
+    projectPluralLabel: 'Operational Projects',
+    taskLabel: 'Work Order',
+    taskPluralLabel: 'Work Orders',
+    groupLabel: 'Department',
+    groupPluralLabel: 'Departments',
+    workspaceLabel: 'Healthcare operations',
+  },
+  ENTERPRISE_OPERATIONS: {
+    label: 'Enterprise operations',
+    slug: 'enterprise-operations',
+    title: 'Coordinate departments, teams, service queues, and assets.',
+    description:
+      'For multi-department organizations that need ITSM/ESM workflows, asset lifecycle governance, approvals, and executive operations analytics.',
+    bullets: ['Provision enterprise departments', 'Create service queues and escalation paths', 'Track assets and SLA health'],
+    signupTitle: 'Build an enterprise operations workspace with service management depth.',
+    signupDescription:
+      'TASKIT configures departments, enterprise teams, service desk queues, approval workflows, SLA templates, and asset categories automatically.',
+    overviewTitle: 'Enterprise operations brings service management and asset lifecycle control into one workspace.',
+    overviewDescription:
+      'Use queue ownership, escalations, workload analytics, asset registry, maintenance workflows, and audit governance without changing current TASKIT modules.',
+    projectLabel: 'Operational Initiative',
+    projectPluralLabel: 'Operational Initiatives',
+    taskLabel: 'Operational Task',
+    taskPluralLabel: 'Operational Tasks',
+    groupLabel: 'Department',
+    groupPluralLabel: 'Departments',
+    workspaceLabel: 'Enterprise operations',
+  },
+  CLINIC_HOSPITAL: {
+    label: 'Clinic / Hospital',
+    slug: 'clinic-hospital',
+    title: 'Operate hospital departments, biomedical assets, and facility workflows.',
+    description:
+      'For clinics, hospitals, and care facilities coordinating rooms, devices, biomedical teams, nursing support, and compliance work.',
+    bullets: ['Provision hospital departments', 'Create biomedical and facilities queues', 'Seed medical asset categories'],
+    signupTitle: 'Build a clinic or hospital operations command center.',
+    signupDescription:
+      'TASKIT starts with nursing, medical operations, laboratory, biomedical, facilities, security, compliance, procurement, and administration workflows.',
+    overviewTitle: 'Hospital operations combines clinical departments, device uptime, maintenance, and compliance.',
+    overviewDescription:
+      'Designed for care environments where equipment health, incident response, shift coordination, and audit evidence need to stay visible.',
+    projectLabel: 'Operational Program',
+    projectPluralLabel: 'Operational Programs',
+    taskLabel: 'Service Request',
+    taskPluralLabel: 'Service Requests',
+    groupLabel: 'Department',
+    groupPluralLabel: 'Departments',
+    workspaceLabel: 'Hospital operations',
+  },
+  CORPORATE_IT_OPERATIONS: {
+    label: 'Corporate IT Operations',
+    slug: 'corporate-it-operations',
+    title: 'Run IT service management, assets, incidents, and maintenance.',
+    description:
+      'For IT operations teams managing endpoints, servers, network devices, support queues, security issues, SLAs, and audit-ready change history.',
+    bullets: ['Provision IT and security queues', 'Track endpoints and infrastructure', 'Start with IT incident SLAs'],
+    signupTitle: 'Build a corporate IT operations workspace.',
+    signupDescription:
+      'TASKIT configures IT, security, procurement, compliance, and facilities workflows with service desk queues, endpoint asset categories, and SLA policies.',
+    overviewTitle: 'Corporate IT operations connects service desk flow, infrastructure assets, and SLA risk.',
+    overviewDescription:
+      'Built for support teams that need incident triage, queue balancing, endpoint history, escalation chains, and executive service health dashboards.',
+    projectLabel: 'IT Initiative',
+    projectPluralLabel: 'IT Initiatives',
+    taskLabel: 'Ticket Task',
+    taskPluralLabel: 'Ticket Tasks',
+    groupLabel: 'Department',
+    groupPluralLabel: 'Departments',
+    workspaceLabel: 'IT operations',
+  },
   OTHER: {
     label: 'Other',
     slug: 'other',
@@ -145,12 +238,28 @@ export function getCompanyTypeCopy(type?: CompanyType | null) {
 
 export const AGENCY_COMPANY_TYPES = ['DIGITAL_AGENCY', 'CONTENT_CREATION_AGENCY'] as const satisfies readonly CompanyType[]
 
+export const ENTERPRISE_OPERATIONS_COMPANY_TYPES = [
+  'HEALTHCARE',
+  'ENTERPRISE_OPERATIONS',
+  'CLINIC_HOSPITAL',
+  'CORPORATE_IT_OPERATIONS',
+] as const satisfies readonly CompanyType[]
+
 export function isAgencyCompanyType(type?: CompanyType | string | null) {
   return Boolean(type && AGENCY_COMPANY_TYPES.includes(normalizeCompanyType(type) as (typeof AGENCY_COMPANY_TYPES)[number]))
 }
 
 export function isContentCreationCompanyType(type?: CompanyType | string | null) {
   return normalizeCompanyType(type) === 'CONTENT_CREATION_AGENCY'
+}
+
+export function isEnterpriseOperationsCompanyType(type?: CompanyType | string | null) {
+  return Boolean(
+    type &&
+      ENTERPRISE_OPERATIONS_COMPANY_TYPES.includes(
+        normalizeCompanyType(type) as (typeof ENTERPRISE_OPERATIONS_COMPANY_TYPES)[number]
+      )
+  )
 }
 
 export const DELIVERABLE_TYPE_OPTIONS = [

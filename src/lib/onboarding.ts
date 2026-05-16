@@ -5,6 +5,7 @@ import { isCompanyType, type CompanyType } from '@/lib/company-types'
 import { prisma } from '@/lib/db'
 import { persistSignupLegalConsents, type LegalRequestContext, type SignupLegalAcceptance } from '@/lib/legal'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { provisionEnterpriseOperationsWorkspace } from '@/modules/enterprise/enterprise-onboarding'
 import {
   createCompanyInvite,
   getInviteTtlHours,
@@ -305,6 +306,12 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
           companyId: company.id,
           context: input.legalContext,
           userId: user.id,
+        })
+
+        await provisionEnterpriseOperationsWorkspace(tx, {
+          companyId: company.id,
+          ownerId: user.id,
+          companyType,
         })
 
         return {

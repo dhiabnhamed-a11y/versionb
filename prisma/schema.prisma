@@ -22,81 +22,92 @@ model User {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  company                      Company?                     @relation("CompanyMembers", fields: [companyId], references: [id])
-  ownedCompany                 Company?                     @relation("CompanyOwner")
-  managedProjects              Project[]                    @relation("ProjectManager")
-  assignedTasks                Task[]                       @relation("TaskAssignee")
+  company                      Company?                         @relation("CompanyMembers", fields: [companyId], references: [id])
+  ownedCompany                 Company?                         @relation("CompanyOwner")
+  managedProjects              Project[]                        @relation("ProjectManager")
+  assignedTasks                Task[]                           @relation("TaskAssignee")
   activities                   Activity[]
-  sentAlerts                   Alert[]                      @relation("AlertSender")
-  receivedAlerts               Alert[]                      @relation("AlertRecipient")
+  sentAlerts                   Alert[]                          @relation("AlertSender")
+  receivedAlerts               Alert[]                          @relation("AlertRecipient")
   pushTokens                   PushToken[]
-  createdInvites               Invite[]                     @relation("InviteCreatedBy")
-  redeemedInvites              Invite[]                     @relation("InviteUsedBy")
-  reviewedAccessRequests       AccessRequest[]              @relation("AccessRequestReviewedBy")
-  reviewedCompanies            Company[]                    @relation("CompanyReviewedBy")
+  createdInvites               Invite[]                         @relation("InviteCreatedBy")
+  redeemedInvites              Invite[]                         @relation("InviteUsedBy")
+  reviewedAccessRequests       AccessRequest[]                  @relation("AccessRequestReviewedBy")
+  reviewedCompanies            Company[]                        @relation("CompanyReviewedBy")
   taskSubmissions              TaskSubmission[]
-  projectMediaUploads          ProjectMedia[]               @relation("ProjectMediaUploadedBy")
+  projectMediaUploads          ProjectMedia[]                   @relation("ProjectMediaUploadedBy")
   comments                     Comment[]
-  calendarEvents               CalendarEvent[]              @relation("CalendarEventCreatedBy")
-  adminActions                 AdminActionLog[]             @relation("AdminActionActor")
-  targetedAdminActions         AdminActionLog[]             @relation("AdminActionTarget")
-  createdInvoices              Invoice[]                    @relation("InvoiceCreatedBy")
-  clientActivities             ClientActivity[]             @relation("ClientActivityActor")
-  createdBriefs                Brief[]                      @relation("BriefCreatedBy")
-  uploadedDeliverableFiles     DeliverableFile[]            @relation("DeliverableFileUploadedBy")
-  approvalDecisions            ApprovalDecision[]           @relation("ApprovalDecisionDecidedBy")
-  deliverableActivities        DeliverableActivity[]        @relation("DeliverableActivityActor")
-  assignedSubtasks             Subtask[]                    @relation("SubtaskAssignee")
+  calendarEvents               CalendarEvent[]                  @relation("CalendarEventCreatedBy")
+  adminActions                 AdminActionLog[]                 @relation("AdminActionActor")
+  targetedAdminActions         AdminActionLog[]                 @relation("AdminActionTarget")
+  createdInvoices              Invoice[]                        @relation("InvoiceCreatedBy")
+  clientActivities             ClientActivity[]                 @relation("ClientActivityActor")
+  createdBriefs                Brief[]                          @relation("BriefCreatedBy")
+  uploadedDeliverableFiles     DeliverableFile[]                @relation("DeliverableFileUploadedBy")
+  approvalDecisions            ApprovalDecision[]               @relation("ApprovalDecisionDecidedBy")
+  deliverableActivities        DeliverableActivity[]            @relation("DeliverableActivityActor")
+  assignedSubtasks             Subtask[]                        @relation("SubtaskAssignee")
   aiConversations              AiConversation[]
   aiMemories                   AiMemory[]
-  aiRuns                       AiRun[]                      @relation("AiRunActor")
-  aiActionRuns                 AiActionRun[]                @relation("AiActionRunActor")
-  aiToolExecutions             AiToolExecution[]            @relation("AiToolExecutionActor")
-  aiConversationStates         AiConversationState[]        @relation("AiConversationStateActor")
-  aiPendingActions             AiPendingAction[]            @relation("AiPendingActionActor")
-  aiWorkflowSteps              AiWorkflowStep[]             @relation("AiWorkflowStepActor")
-  aiActionContexts             AiActionContext[]            @relation("AiActionContextActor")
-  requestedAiApprovals         AiApproval[]                 @relation("AiApprovalRequester")
-  assignedAiApprovals          AiApproval[]                 @relation("AiApprovalApprover")
-  decidedAiApprovals           AiApproval[]                 @relation("AiApprovalDecider")
-  aiObservations               AiObservation[]              @relation("AiObservationActor")
-  aiDecisions                  AiDecision[]                 @relation("AiDecisionActor")
-  createdContracts             Contract[]                   @relation("ContractCreatedBy")
-  approvedContracts            Contract[]                   @relation("ContractApprovedBy")
-  createdContractVersions      ContractVersion[]            @relation("ContractVersionCreatedBy")
-  createdContractTemplates     ContractTemplate[]           @relation("ContractTemplateCreatedBy")
-  contractSignatures           ContractSignature[]          @relation("ContractSignatureSigner")
-  contractAuditLogs            ContractAuditLog[]           @relation("ContractAuditActor")
-  contractGenerationJobs       ContractGenerationJob[]      @relation("ContractGenerationActor")
-  financialPeriodsClosed       FinancialPeriod[]            @relation("FinancialPeriodClosedBy")
-  journalEntriesCreated        JournalEntry[]               @relation("JournalEntryCreatedBy")
-  journalEntriesApproved       JournalEntry[]               @relation("JournalEntryApprovedBy")
-  journalEntriesPosted         JournalEntry[]               @relation("JournalEntryPostedBy")
-  financialAuditLogs           FinancialAuditLog[]          @relation("FinancialAuditActor")
+  aiRuns                       AiRun[]                          @relation("AiRunActor")
+  aiActionRuns                 AiActionRun[]                    @relation("AiActionRunActor")
+  aiToolExecutions             AiToolExecution[]                @relation("AiToolExecutionActor")
+  aiConversationStates         AiConversationState[]            @relation("AiConversationStateActor")
+  aiPendingActions             AiPendingAction[]                @relation("AiPendingActionActor")
+  aiWorkflowSteps              AiWorkflowStep[]                 @relation("AiWorkflowStepActor")
+  aiActionContexts             AiActionContext[]                @relation("AiActionContextActor")
+  requestedAiApprovals         AiApproval[]                     @relation("AiApprovalRequester")
+  assignedAiApprovals          AiApproval[]                     @relation("AiApprovalApprover")
+  decidedAiApprovals           AiApproval[]                     @relation("AiApprovalDecider")
+  aiObservations               AiObservation[]                  @relation("AiObservationActor")
+  aiDecisions                  AiDecision[]                     @relation("AiDecisionActor")
+  createdContracts             Contract[]                       @relation("ContractCreatedBy")
+  approvedContracts            Contract[]                       @relation("ContractApprovedBy")
+  createdContractVersions      ContractVersion[]                @relation("ContractVersionCreatedBy")
+  createdContractTemplates     ContractTemplate[]               @relation("ContractTemplateCreatedBy")
+  contractSignatures           ContractSignature[]              @relation("ContractSignatureSigner")
+  contractAuditLogs            ContractAuditLog[]               @relation("ContractAuditActor")
+  contractGenerationJobs       ContractGenerationJob[]          @relation("ContractGenerationActor")
+  financialPeriodsClosed       FinancialPeriod[]                @relation("FinancialPeriodClosedBy")
+  journalEntriesCreated        JournalEntry[]                   @relation("JournalEntryCreatedBy")
+  journalEntriesApproved       JournalEntry[]                   @relation("JournalEntryApprovedBy")
+  journalEntriesPosted         JournalEntry[]                   @relation("JournalEntryPostedBy")
+  financialAuditLogs           FinancialAuditLog[]              @relation("FinancialAuditActor")
   compensationProfile          EmployeeCompensationProfile?
-  payrollRunsProcessed         Payroll[]                    @relation("PayrollProcessedBy")
-  payrollRunsApproved          Payroll[]                    @relation("PayrollApprovedBy")
-  payrollItems                 PayrollItem[]                @relation("PayrollItemEmployee")
-  expensesSubmitted            Expense[]                    @relation("ExpenseSubmittedBy")
-  expensesApproved             Expense[]                    @relation("ExpenseApprovedBy")
-  treasuryTransactionsCreated  TreasuryTransaction[]        @relation("TreasuryTransactionCreatedBy")
-  treasuryTransactionsApproved TreasuryTransaction[]        @relation("TreasuryTransactionApprovedBy")
-  approvalFlowsCreated         ApprovalFlow[]               @relation("ApprovalFlowCreatedBy")
-  approvalStepsAssigned        ApprovalStep[]               @relation("ApprovalStepAssignedTo")
-  approvalStepsDecided         ApprovalStep[]               @relation("ApprovalStepDecidedBy")
-  timeEntries                  TimeEntry[]                  @relation("TimeEntryEmployee")
+  payrollRunsProcessed         Payroll[]                        @relation("PayrollProcessedBy")
+  payrollRunsApproved          Payroll[]                        @relation("PayrollApprovedBy")
+  payrollItems                 PayrollItem[]                    @relation("PayrollItemEmployee")
+  expensesSubmitted            Expense[]                        @relation("ExpenseSubmittedBy")
+  expensesApproved             Expense[]                        @relation("ExpenseApprovedBy")
+  treasuryTransactionsCreated  TreasuryTransaction[]            @relation("TreasuryTransactionCreatedBy")
+  treasuryTransactionsApproved TreasuryTransaction[]            @relation("TreasuryTransactionApprovedBy")
+  approvalFlowsCreated         ApprovalFlow[]                   @relation("ApprovalFlowCreatedBy")
+  approvalStepsAssigned        ApprovalStep[]                   @relation("ApprovalStepAssignedTo")
+  approvalStepsDecided         ApprovalStep[]                   @relation("ApprovalStepDecidedBy")
+  timeEntries                  TimeEntry[]                      @relation("TimeEntryEmployee")
   dashboardDesign              UserDashboardDesign?
-  auditLogs                    AuditLog[]                   @relation("AuditLogActor")
+  auditLogs                    AuditLog[]                       @relation("AuditLogActor")
   notificationPreferences      NotificationPreference?
-  connectedSocialAccounts      ConnectedAccount[]           @relation("ConnectedAccountConnectedBy")
-  ownedCreatorProfiles         CreatorProfile[]             @relation("CreatorProfileOwner")
-  integrationActivityLogs      IntegrationActivityLog[]     @relation("IntegrationActivityActor")
-  authSessions                 AuthSession[]                @relation("UserAuthSessions")
-  revokedTokens                RevokedToken[]               @relation("UserRevokedTokens")
-  mfaFactors                   MfaFactor[]                  @relation("UserMfaFactors")
-  mfaRecoveryCodes             MfaRecoveryCode[]            @relation("UserMfaRecoveryCodes")
-  legalConsents                LegalConsent[]               @relation("UserLegalConsents")
-  publishedLegalVersions       LegalDocumentVersion[]        @relation("LegalDocumentVersionPublisher")
+  connectedSocialAccounts      ConnectedAccount[]               @relation("ConnectedAccountConnectedBy")
+  ownedCreatorProfiles         CreatorProfile[]                 @relation("CreatorProfileOwner")
+  integrationActivityLogs      IntegrationActivityLog[]         @relation("IntegrationActivityActor")
+  authSessions                 AuthSession[]                    @relation("UserAuthSessions")
+  revokedTokens                RevokedToken[]                   @relation("UserRevokedTokens")
+  mfaFactors                   MfaFactor[]                      @relation("UserMfaFactors")
+  mfaRecoveryCodes             MfaRecoveryCode[]                @relation("UserMfaRecoveryCodes")
+  legalConsents                LegalConsent[]                   @relation("UserLegalConsents")
+  publishedLegalVersions       LegalDocumentVersion[]           @relation("LegalDocumentVersionPublisher")
+  managedEnterpriseDepartments EnterpriseDepartment[]           @relation("EnterpriseDepartmentManager")
+  ledEnterpriseTeams           EnterpriseTeam[]                 @relation("EnterpriseTeamLeader")
+  enterpriseTeamMemberships    EnterpriseTeamMember[]           @relation("EnterpriseTeamMemberUser")
+  enterpriseTaskAssignments    EnterpriseTaskAssignment[]       @relation("EnterpriseTaskAssignmentMember")
+  assignedEnterpriseAssets     EnterpriseAsset[]                @relation("EnterpriseAssetAssignedUser")
+  reportedEnterpriseIncidents  EnterpriseIncident[]             @relation("EnterpriseIncidentReporter")
+  assignedEnterpriseIncidents  EnterpriseIncident[]             @relation("EnterpriseIncidentAssignee")
+  maintenanceAssignments       EnterpriseMaintenanceWorkOrder[] @relation("EnterpriseMaintenanceTechnician")
+  enterpriseRoleAssignments    EnterpriseRoleAssignment[]       @relation("EnterpriseRoleAssignmentUser")
+  enterpriseApprovalWorkflows  EnterpriseApprovalWorkflow[]     @relation("EnterpriseApprovalWorkflowCreatedBy")
+  enterpriseAuditEvents        EnterpriseAuditEvent[]           @relation("EnterpriseAuditActor")
 }
 
 model Company {
@@ -115,9 +126,9 @@ model Company {
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
 
-  owner                        User                          @relation("CompanyOwner", fields: [ownerId], references: [id])
-  reviewedBy                   User?                         @relation("CompanyReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
-  members                      User[]                        @relation("CompanyMembers")
+  owner                        User                             @relation("CompanyOwner", fields: [ownerId], references: [id])
+  reviewedBy                   User?                            @relation("CompanyReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
+  members                      User[]                           @relation("CompanyMembers")
   rooms                        Room[]
   projectCategories            ProjectCategory[]
   projects                     Project[]
@@ -199,10 +210,24 @@ model Company {
   socialWebhookEvents          SocialWebhookEvent[]
   integrationActivityLogs      IntegrationActivityLog[]
   idempotencyKeys              IdempotencyKey[]
-  authSessions                 AuthSession[]                @relation("CompanyAuthSessions")
-  revokedTokens                RevokedToken[]               @relation("CompanyRevokedTokens")
-  securityNonces               SecurityNonce[]              @relation("CompanySecurityNonces")
-  legalConsents                LegalConsent[]               @relation("CompanyLegalConsents")
+  authSessions                 AuthSession[]                    @relation("CompanyAuthSessions")
+  revokedTokens                RevokedToken[]                   @relation("CompanyRevokedTokens")
+  securityNonces               SecurityNonce[]                  @relation("CompanySecurityNonces")
+  legalConsents                LegalConsent[]                   @relation("CompanyLegalConsents")
+  enterpriseDepartments        EnterpriseDepartment[]
+  enterpriseTeams              EnterpriseTeam[]
+  enterpriseTeamMembers        EnterpriseTeamMember[]
+  enterpriseTaskAssignments    EnterpriseTaskAssignment[]
+  enterpriseSlaPolicies        EnterpriseSlaPolicy[]
+  enterpriseAssetCategories    EnterpriseAssetCategory[]
+  enterpriseAssets             EnterpriseAsset[]
+  enterpriseIncidents          EnterpriseIncident[]
+  enterpriseMaintenancePlans   EnterpriseMaintenancePlan[]
+  enterpriseMaintenanceOrders  EnterpriseMaintenanceWorkOrder[]
+  enterpriseComplianceControls EnterpriseComplianceControl[]
+  enterpriseApprovalWorkflows  EnterpriseApprovalWorkflow[]
+  enterpriseRoleAssignments    EnterpriseRoleAssignment[]
+  enterpriseAuditEvents        EnterpriseAuditEvent[]
 
   @@index([status, createdAt])
   @@index([name, registrationNumber, status])
@@ -1906,37 +1931,49 @@ model WorkflowTemplateStep {
 }
 
 model Task {
-  id              String    @id @default(cuid())
-  title           String
-  description     String?
-  priority        String    @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
-  deliverableType String    @default("GENERAL")
-  deliverableId   String
-  deadline        DateTime?
-  assigneeId      String?
-  projectId       String
-  stage           String    @default("TODO") // TODO, IN_PROGRESS, REVIEW, DONE
-  progress        Int       @default(0)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                        String    @id @default(cuid())
+  title                     String
+  description               String?
+  priority                  String    @default("MEDIUM") // LOW, MEDIUM, HIGH, CRITICAL
+  deliverableType           String    @default("GENERAL")
+  deliverableId             String
+  deadline                  DateTime?
+  assigneeId                String?
+  projectId                 String
+  stage                     String    @default("TODO") // TODO, IN_PROGRESS, REVIEW, DONE
+  progress                  Int       @default(0)
+  enterpriseAssignedTeamId  String?
+  enterpriseDepartmentId    String?
+  enterpriseQueuePriority   Int       @default(50)
+  enterpriseSlaDueAt        DateTime?
+  enterpriseEscalationState String    @default("NONE")
+  enterpriseApprovalState   String    @default("NOT_REQUIRED")
+  enterpriseCheckpoints     Json?
+  createdAt                 DateTime  @default(now())
+  updatedAt                 DateTime  @updatedAt
 
-  assignee       User?            @relation("TaskAssignee", fields: [assigneeId], references: [id])
-  project        Project          @relation(fields: [projectId], references: [id])
-  deliverable    Deliverable      @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
-  activities     Activity[]
-  submissions    TaskSubmission[]
-  calendarEvents CalendarEvent[]
-  invoices       Invoice[]        @relation("InvoiceBrief")
-  subtasks       Subtask[]
-  dependencies   TaskDependency[] @relation("TaskDependencyTask")
-  dependents     TaskDependency[] @relation("TaskDependencyDependsOn")
-  journalLines   JournalLine[]
-  expenses       Expense[]
-  payrollItems   PayrollItem[]
-  timeEntries    TimeEntry[]
+  assignee               User?                      @relation("TaskAssignee", fields: [assigneeId], references: [id])
+  project                Project                    @relation(fields: [projectId], references: [id])
+  deliverable            Deliverable                @relation(fields: [deliverableId], references: [id], onDelete: Cascade)
+  enterpriseAssignedTeam EnterpriseTeam?            @relation("TaskAssignedEnterpriseTeam", fields: [enterpriseAssignedTeamId], references: [id], onDelete: SetNull)
+  enterpriseDepartment   EnterpriseDepartment?      @relation("TaskEnterpriseDepartment", fields: [enterpriseDepartmentId], references: [id], onDelete: SetNull)
+  enterpriseAssignments  EnterpriseTaskAssignment[]
+  activities             Activity[]
+  submissions            TaskSubmission[]
+  calendarEvents         CalendarEvent[]
+  invoices               Invoice[]                  @relation("InvoiceBrief")
+  subtasks               Subtask[]
+  dependencies           TaskDependency[]           @relation("TaskDependencyTask")
+  dependents             TaskDependency[]           @relation("TaskDependencyDependsOn")
+  journalLines           JournalLine[]
+  expenses               Expense[]
+  payrollItems           PayrollItem[]
+  timeEntries            TimeEntry[]
 
   @@index([deliverableId, stage, createdAt])
   @@index([projectId, stage, createdAt])
+  @@index([enterpriseAssignedTeamId, enterpriseQueuePriority, enterpriseSlaDueAt])
+  @@index([enterpriseDepartmentId, stage, createdAt])
 }
 
 model Subtask {
@@ -1968,6 +2005,453 @@ model TaskDependency {
 
   @@unique([taskId, dependsOnTaskId])
   @@index([dependsOnTaskId])
+}
+
+model EnterpriseDepartment {
+  id                 String    @id @default(cuid())
+  companyId          String
+  parentDepartmentId String?
+  managerId          String?
+  name               String
+  code               String
+  description        String?
+  status             String    @default("ACTIVE")
+  slaOwnership       Json?
+  approvalChain      Json?
+  escalationRules    Json?
+  shiftPolicy        Json?
+  workloadTarget     Int       @default(0)
+  performanceConfig  Json?
+  deletedAt          DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  company            Company                          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parent             EnterpriseDepartment?            @relation("EnterpriseDepartmentHierarchy", fields: [parentDepartmentId], references: [id], onDelete: SetNull)
+  children           EnterpriseDepartment[]           @relation("EnterpriseDepartmentHierarchy")
+  manager            User?                            @relation("EnterpriseDepartmentManager", fields: [managerId], references: [id], onDelete: SetNull)
+  teams              EnterpriseTeam[]
+  taskAssignments    EnterpriseTaskAssignment[]
+  tasks              Task[]                           @relation("TaskEnterpriseDepartment")
+  slaPolicies        EnterpriseSlaPolicy[]
+  assets             EnterpriseAsset[]
+  incidents          EnterpriseIncident[]
+  maintenancePlans   EnterpriseMaintenancePlan[]
+  maintenanceOrders  EnterpriseMaintenanceWorkOrder[]
+  complianceControls EnterpriseComplianceControl[]
+  approvalWorkflows  EnterpriseApprovalWorkflow[]
+  roleAssignments    EnterpriseRoleAssignment[]
+
+  @@unique([companyId, code])
+  @@unique([companyId, name])
+  @@index([companyId, status, createdAt])
+  @@index([managerId, status])
+  @@index([parentDepartmentId])
+}
+
+model EnterpriseTeam {
+  id               String    @id @default(cuid())
+  companyId        String
+  departmentId     String
+  parentTeamId     String?
+  leaderId         String?
+  name             String
+  code             String
+  queueKey         String
+  status           String    @default("ACTIVE")
+  rotationPolicy   Json?
+  shiftSchedule    Json?
+  escalationChain  Json?
+  workloadCapacity Int       @default(0)
+  queueStrategy    String    @default("PRIORITY_THEN_OLDEST")
+  metadata         Json?
+  deletedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  company           Company                          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  department        EnterpriseDepartment             @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  parent            EnterpriseTeam?                  @relation("EnterpriseTeamHierarchy", fields: [parentTeamId], references: [id], onDelete: SetNull)
+  children          EnterpriseTeam[]                 @relation("EnterpriseTeamHierarchy")
+  leader            User?                            @relation("EnterpriseTeamLeader", fields: [leaderId], references: [id], onDelete: SetNull)
+  members           EnterpriseTeamMember[]
+  taskAssignments   EnterpriseTaskAssignment[]
+  assignedTasks     Task[]                           @relation("TaskAssignedEnterpriseTeam")
+  assignedAssets    EnterpriseAsset[]
+  assignedIncidents EnterpriseIncident[]
+  maintenanceOrders EnterpriseMaintenanceWorkOrder[]
+  roleAssignments   EnterpriseRoleAssignment[]
+
+  @@unique([companyId, code])
+  @@unique([companyId, queueKey])
+  @@index([companyId, departmentId, status])
+  @@index([leaderId, status])
+  @@index([parentTeamId])
+}
+
+model EnterpriseTeamMember {
+  id            String    @id @default(cuid())
+  companyId     String
+  teamId        String
+  userId        String
+  role          String    @default("TECHNICIAN")
+  rotationGroup String?
+  shiftName     String?
+  isOnCall      Boolean   @default(false)
+  capacity      Int       @default(100)
+  startsAt      DateTime  @default(now())
+  endsAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  team    EnterpriseTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user    User           @relation("EnterpriseTeamMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, teamId, userId])
+  @@index([companyId, userId, role])
+  @@index([teamId, isOnCall, shiftName])
+}
+
+model EnterpriseTaskAssignment {
+  id           String    @id @default(cuid())
+  companyId    String
+  taskId       String
+  departmentId String?
+  teamId       String?
+  memberId     String?
+  role         String    @default("RESPONSIBLE")
+  status       String    @default("ACTIVE")
+  assignedAt   DateTime  @default(now())
+  completedAt  DateTime?
+
+  company    Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  task       Task                  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  department EnterpriseDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  team       EnterpriseTeam?       @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  member     User?                 @relation("EnterpriseTaskAssignmentMember", fields: [memberId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, status, assignedAt])
+  @@index([taskId, status])
+  @@index([teamId, status, assignedAt])
+  @@index([memberId, status, assignedAt])
+}
+
+model EnterpriseSlaPolicy {
+  id                     String   @id @default(cuid())
+  companyId              String
+  departmentId           String?
+  name                   String
+  scope                  String   @default("INCIDENT")
+  priority               String   @default("P3")
+  severity               String   @default("MEDIUM")
+  responseMinutes        Int      @default(60)
+  resolutionMinutes      Int      @default(480)
+  escalationAfterMinutes Int      @default(120)
+  businessHoursOnly      Boolean  @default(false)
+  escalationChain        Json?
+  breachActions          Json?
+  status                 String   @default("ACTIVE")
+  defaultPolicy          Boolean  @default(false)
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  company    Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  department EnterpriseDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  incidents  EnterpriseIncident[]
+
+  @@unique([companyId, name])
+  @@index([companyId, scope, priority, severity, status])
+  @@index([departmentId, status])
+}
+
+model EnterpriseAssetCategory {
+  id                  String   @id @default(cuid())
+  companyId           String
+  name                String
+  code                String
+  assetType           String
+  riskWeight          Int      @default(50)
+  maintenanceTemplate Json?
+  complianceProfile   Json?
+  lifecyclePolicy     Json?
+  status              String   @default("ACTIVE")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  company          Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assets           EnterpriseAsset[]
+  maintenancePlans EnterpriseMaintenancePlan[]
+
+  @@unique([companyId, code])
+  @@unique([companyId, name])
+  @@index([companyId, assetType, status])
+}
+
+model EnterpriseAsset {
+  id                    String    @id @default(cuid())
+  companyId             String
+  categoryId            String
+  departmentId          String?
+  assignedTeamId        String?
+  assignedUserId        String?
+  name                  String
+  assetTag              String
+  qrCode                String?
+  barcode               String?
+  serialNumber          String?
+  vendor                String?
+  location              String?
+  warrantyExpiresAt     DateTime?
+  purchaseDate          DateTime?
+  purchaseCost          Decimal?  @db.Decimal(14, 2)
+  depreciationMethod    String    @default("STRAIGHT_LINE")
+  depreciationStartDate DateTime?
+  depreciationMonths    Int?
+  healthScore           Int       @default(100)
+  riskScore             Int       @default(0)
+  lifecycleState        String    @default("IN_SERVICE")
+  operationalStatus     String    @default("OPERATIONAL")
+  lastMaintenanceAt     DateTime?
+  nextMaintenanceAt     DateTime?
+  metadata              Json?
+  deletedAt             DateTime?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  company           Company                          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  category          EnterpriseAssetCategory          @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  department        EnterpriseDepartment?            @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  assignedTeam      EnterpriseTeam?                  @relation(fields: [assignedTeamId], references: [id], onDelete: SetNull)
+  assignedUser      User?                            @relation("EnterpriseAssetAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  incidents         EnterpriseIncident[]
+  maintenancePlans  EnterpriseMaintenancePlan[]
+  maintenanceOrders EnterpriseMaintenanceWorkOrder[]
+
+  @@unique([companyId, assetTag])
+  @@unique([companyId, serialNumber])
+  @@index([companyId, lifecycleState, operationalStatus])
+  @@index([companyId, healthScore, riskScore])
+  @@index([companyId, nextMaintenanceAt])
+  @@index([departmentId, operationalStatus])
+  @@index([assignedUserId, lifecycleState])
+}
+
+model EnterpriseIncident {
+  id               String    @id @default(cuid())
+  companyId        String
+  incidentNumber   String
+  title            String
+  description      String?
+  type             String
+  priority         String    @default("P3")
+  severity         String    @default("MEDIUM")
+  status           String    @default("OPEN")
+  impact           String    @default("MEDIUM")
+  urgency          String    @default("MEDIUM")
+  source           String    @default("MANUAL")
+  departmentId     String?
+  assignedTeamId   String?
+  reportedById     String?
+  assignedToId     String?
+  assetId          String?
+  slaPolicyId      String?
+  responseDueAt    DateTime?
+  resolutionDueAt  DateTime?
+  firstRespondedAt DateTime?
+  resolvedAt       DateTime?
+  closedAt         DateTime?
+  rootCause        String?
+  resolution       String?
+  escalationState  String    @default("NONE")
+  approvalState    String    @default("NOT_REQUIRED")
+  auditTrail       Json?
+  metadata         Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  company           Company                          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  department        EnterpriseDepartment?            @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  assignedTeam      EnterpriseTeam?                  @relation(fields: [assignedTeamId], references: [id], onDelete: SetNull)
+  reportedBy        User?                            @relation("EnterpriseIncidentReporter", fields: [reportedById], references: [id], onDelete: SetNull)
+  assignedTo        User?                            @relation("EnterpriseIncidentAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  asset             EnterpriseAsset?                 @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  slaPolicy         EnterpriseSlaPolicy?             @relation(fields: [slaPolicyId], references: [id], onDelete: SetNull)
+  maintenanceOrders EnterpriseMaintenanceWorkOrder[]
+
+  @@unique([companyId, incidentNumber])
+  @@index([companyId, status, priority, createdAt])
+  @@index([companyId, severity, resolutionDueAt])
+  @@index([departmentId, status, createdAt])
+  @@index([assignedTeamId, status, priority])
+  @@index([assetId, createdAt])
+}
+
+model EnterpriseMaintenancePlan {
+  id                       String    @id @default(cuid())
+  companyId                String
+  assetId                  String?
+  assetCategoryId          String?
+  departmentId             String?
+  name                     String
+  type                     String    @default("PREVENTIVE")
+  status                   String    @default("ACTIVE")
+  frequencyDays            Int       @default(30)
+  estimatedDurationMinutes Int       @default(60)
+  nextRunAt                DateTime?
+  lastRunAt                DateTime?
+  instructions             String?
+  approvalRequired         Boolean   @default(false)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  company       Company                          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  asset         EnterpriseAsset?                 @relation(fields: [assetId], references: [id], onDelete: Cascade)
+  assetCategory EnterpriseAssetCategory?         @relation(fields: [assetCategoryId], references: [id], onDelete: SetNull)
+  department    EnterpriseDepartment?            @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  workOrders    EnterpriseMaintenanceWorkOrder[]
+
+  @@index([companyId, status, nextRunAt])
+  @@index([assetId, status, nextRunAt])
+  @@index([assetCategoryId, status])
+  @@index([departmentId, status])
+}
+
+model EnterpriseMaintenanceWorkOrder {
+  id                   String    @id @default(cuid())
+  companyId            String
+  workOrderNumber      String
+  type                 String    @default("PREVENTIVE")
+  status               String    @default("OPEN")
+  priority             String    @default("P3")
+  assetId              String?
+  planId               String?
+  incidentId           String?
+  departmentId         String?
+  assignedTeamId       String?
+  assignedTechnicianId String?
+  scheduledFor         DateTime?
+  dueAt                DateTime?
+  startedAt            DateTime?
+  completedAt          DateTime?
+  completionReport     Json?
+  cost                 Decimal?  @db.Decimal(14, 2)
+  metadata             Json?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  company            Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  asset              EnterpriseAsset?           @relation(fields: [assetId], references: [id], onDelete: SetNull)
+  plan               EnterpriseMaintenancePlan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  incident           EnterpriseIncident?        @relation(fields: [incidentId], references: [id], onDelete: SetNull)
+  department         EnterpriseDepartment?      @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  assignedTeam       EnterpriseTeam?            @relation(fields: [assignedTeamId], references: [id], onDelete: SetNull)
+  assignedTechnician User?                      @relation("EnterpriseMaintenanceTechnician", fields: [assignedTechnicianId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, workOrderNumber])
+  @@index([companyId, status, priority, dueAt])
+  @@index([assetId, status, dueAt])
+  @@index([assignedTeamId, status, dueAt])
+  @@index([assignedTechnicianId, status, dueAt])
+}
+
+model EnterpriseComplianceControl {
+  id                   String    @id @default(cuid())
+  companyId            String
+  departmentId         String?
+  name                 String
+  framework            String
+  controlCode          String
+  ownerRole            String
+  status               String    @default("ACTIVE")
+  riskLevel            String    @default("MEDIUM")
+  evidenceRequirements Json?
+  reviewFrequencyDays  Int       @default(90)
+  lastReviewedAt       DateTime?
+  nextReviewAt         DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  company    Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  department EnterpriseDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, framework, controlCode])
+  @@index([companyId, status, riskLevel, nextReviewAt])
+  @@index([departmentId, status, nextReviewAt])
+}
+
+model EnterpriseApprovalWorkflow {
+  id           String   @id @default(cuid())
+  companyId    String
+  departmentId String?
+  createdById  String?
+  name         String
+  scope        String
+  trigger      String
+  status       String   @default("ACTIVE")
+  steps        Json
+  escalation   Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company    Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  department EnterpriseDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  createdBy  User?                 @relation("EnterpriseApprovalWorkflowCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, name])
+  @@index([companyId, scope, status])
+  @@index([departmentId, status])
+}
+
+model EnterpriseRoleAssignment {
+  id            String    @id @default(cuid())
+  companyId     String
+  userId        String?
+  departmentId  String?
+  teamId        String?
+  role          String
+  scope         String    @default("COMPANY")
+  permissionSet Json
+  startsAt      DateTime  @default(now())
+  endsAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  company    Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user       User?                 @relation("EnterpriseRoleAssignmentUser", fields: [userId], references: [id], onDelete: Cascade)
+  department EnterpriseDepartment? @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  team       EnterpriseTeam?       @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, role, scope])
+  @@index([userId, role, startsAt])
+  @@index([departmentId, role])
+  @@index([teamId, role])
+}
+
+model EnterpriseAuditEvent {
+  id                String   @id @default(cuid())
+  companyId         String
+  actorId           String?
+  action            String
+  entityType        String
+  entityId          String
+  before            Json?
+  after             Json?
+  metadata          Json?
+  requestId         String?
+  ipAddress         String?
+  userAgent         String?
+  deviceFingerprint String?
+  hash              String?
+  createdAt         DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actor   User?   @relation("EnterpriseAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, createdAt])
+  @@index([companyId, entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
 }
 
 model TaskSubmission {
@@ -2107,19 +2591,19 @@ model LegalConsent {
 }
 
 model LegalDocumentVersion {
-  id                    String           @id @default(cuid())
-  documentType          LegalConsentType
-  version               String
-  title                 String
-  summary               String?
-  contentHash           String
-  isActive              Boolean          @default(false)
-  requiresReacceptance  Boolean          @default(false)
-  effectiveAt           DateTime         @default(now())
-  publishedAt           DateTime?
-  publishedById         String?
-  createdAt             DateTime         @default(now())
-  updatedAt             DateTime         @updatedAt
+  id                   String           @id @default(cuid())
+  documentType         LegalConsentType
+  version              String
+  title                String
+  summary              String?
+  contentHash          String
+  isActive             Boolean          @default(false)
+  requiresReacceptance Boolean          @default(false)
+  effectiveAt          DateTime         @default(now())
+  publishedAt          DateTime?
+  publishedById        String?
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
 
   publishedBy User? @relation("LegalDocumentVersionPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
 
@@ -2157,22 +2641,22 @@ model JobRun {
 }
 
 model IdempotencyKey {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   companyId      String
   key            String
   method         String
   route          String
   bodyHash       String
-  status         String   @default("PROCESSING") // PROCESSING, COMPLETED, FAILED
+  status         String    @default("PROCESSING") // PROCESSING, COMPLETED, FAILED
   response       Json?
   responseStatus Int?
   error          String?
   lockedUntil    DateTime?
-  attempts       Int      @default(1)
-  lastSeenAt     DateTime @default(now())
+  attempts       Int       @default(1)
+  lastSeenAt     DateTime  @default(now())
   expiresAt      DateTime
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
@@ -2184,23 +2668,23 @@ model IdempotencyKey {
 }
 
 model AuthSession {
-  id                 String    @id @default(cuid())
-  userId             String
-  companyId          String?
-  sessionTokenHash   String?   @unique
-  refreshTokenHash   String?   @unique
-  jti                String?   @unique
-  status             String    @default("ACTIVE") // ACTIVE, REVOKED, EXPIRED, FORCED_LOGOUT
-  deviceFingerprint  String?
-  ipAddress          String?
-  userAgent          String?
-  riskScore          Int       @default(0)
-  lastSeenAt         DateTime  @default(now())
-  expiresAt          DateTime
-  revokedAt          DateTime?
-  forcedLogoutAt     DateTime?
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  userId            String
+  companyId         String?
+  sessionTokenHash  String?   @unique
+  refreshTokenHash  String?   @unique
+  jti               String?   @unique
+  status            String    @default("ACTIVE") // ACTIVE, REVOKED, EXPIRED, FORCED_LOGOUT
+  deviceFingerprint String?
+  ipAddress         String?
+  userAgent         String?
+  riskScore         Int       @default(0)
+  lastSeenAt        DateTime  @default(now())
+  expiresAt         DateTime
+  revokedAt         DateTime?
+  forcedLogoutAt    DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   user    User     @relation("UserAuthSessions", fields: [userId], references: [id], onDelete: Cascade)
   company Company? @relation("CompanyAuthSessions", fields: [companyId], references: [id], onDelete: Cascade)
@@ -2384,12 +2868,12 @@ model AiConversation {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  company  Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  messages AiMessage[]
-  states   AiConversationState[]
+  company        Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages       AiMessage[]
+  states         AiConversationState[]
   pendingActions AiPendingAction[]
-  workflowSteps AiWorkflowStep[]
+  workflowSteps  AiWorkflowStep[]
   actionContexts AiActionContext[]
 
   @@index([companyId, userId, updatedAt])
@@ -2412,9 +2896,9 @@ model AiConversationState {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  company        Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user           User               @relation("AiConversationStateActor", fields: [userId], references: [id], onDelete: Cascade)
-  conversation   AiConversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  company        Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user           User              @relation("AiConversationStateActor", fields: [userId], references: [id], onDelete: Cascade)
+  conversation   AiConversation    @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   pendingActions AiPendingAction[]
   workflowSteps  AiWorkflowStep[]
   actionContexts AiActionContext[]
@@ -2450,10 +2934,10 @@ model AiPendingAction {
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
-  state        AiConversationState @relation(fields: [stateId], references: [id], onDelete: Cascade)
-  company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user         User                @relation("AiPendingActionActor", fields: [userId], references: [id], onDelete: Cascade)
-  conversation AiConversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  state          AiConversationState @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  company        Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user           User                @relation("AiPendingActionActor", fields: [userId], references: [id], onDelete: Cascade)
+  conversation   AiConversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   workflowSteps  AiWorkflowStep[]
   actionContexts AiActionContext[]
 
@@ -2592,14 +3076,14 @@ model AiRun {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  company Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  user    User?         @relation("AiRunActor", fields: [userId], references: [id], onDelete: SetNull)
-  actions AiActionRun[]
-  steps   AiStep[]
+  company        Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user           User?             @relation("AiRunActor", fields: [userId], references: [id], onDelete: SetNull)
+  actions        AiActionRun[]
+  steps          AiStep[]
   toolExecutions AiToolExecution[]
-  approvals AiApproval[]
-  observations AiObservation[]
-  decisions AiDecision[]
+  approvals      AiApproval[]
+  observations   AiObservation[]
+  decisions      AiDecision[]
 
   @@unique([companyId, idempotencyKey])
   @@index([companyId, status, createdAt])
@@ -2637,12 +3121,12 @@ model AiStep {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
-  aiRun         AiRun              @relation(fields: [aiRunId], references: [id], onDelete: Cascade)
-  company       Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  aiRun          AiRun             @relation(fields: [aiRunId], references: [id], onDelete: Cascade)
+  company        Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   toolExecutions AiToolExecution[]
-  approvals     AiApproval[]
-  observations  AiObservation[]
-  decisions     AiDecision[]
+  approvals      AiApproval[]
+  observations   AiObservation[]
+  decisions      AiDecision[]
 
   @@unique([aiRunId, sequence])
   @@index([companyId, status, createdAt])
@@ -2681,9 +3165,9 @@ model AiActionRun {
   createdAt             DateTime  @default(now())
   updatedAt             DateTime  @updatedAt
 
-  aiRun   AiRun   @relation(fields: [aiRunId], references: [id], onDelete: Cascade)
-  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  actor   User?   @relation("AiActionRunActor", fields: [actorId], references: [id], onDelete: SetNull)
+  aiRun          AiRun             @relation(fields: [aiRunId], references: [id], onDelete: Cascade)
+  company        Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  actor          User?             @relation("AiActionRunActor", fields: [actorId], references: [id], onDelete: SetNull)
   toolExecutions AiToolExecution[]
 
   @@unique([companyId, idempotencyKey])
@@ -2695,36 +3179,36 @@ model AiActionRun {
 }
 
 model AiToolExecution {
-  id                    String    @id @default(cuid())
-  aiRunId               String
-  aiStepId              String?
-  aiActionRunId         String?
-  companyId             String
-  actorId               String?
-  toolName              String
-  actionKind            String
-  status                String    @default("QUEUED") // QUEUED, DRY_RUN, PENDING_CONFIRMATION, EXECUTING, COMPLETED, FAILED, COMPENSATED
-  dryRun                Boolean   @default(true)
-  riskLevel             String    @default("LOW")
-  requiresConfirmation  Boolean   @default(true)
-  idempotencyKey        String?
-  input                 Json?
-  output                Json?
-  audit                 Json?
-  rollback              Json?
-  receipt               Json?
-  error                 String?
-  latencyMs             Int?
-  promptTokens          Int?
-  completionTokens      Int?
-  estimatedCostUsd      Decimal?  @db.Decimal(12, 6)
-  attempts              Int       @default(0)
-  maxAttempts           Int       @default(3)
-  queuedAt              DateTime  @default(now())
-  startedAt             DateTime?
-  completedAt           DateTime?
-  createdAt             DateTime  @default(now())
-  updatedAt             DateTime  @updatedAt
+  id                   String    @id @default(cuid())
+  aiRunId              String
+  aiStepId             String?
+  aiActionRunId        String?
+  companyId            String
+  actorId              String?
+  toolName             String
+  actionKind           String
+  status               String    @default("QUEUED") // QUEUED, DRY_RUN, PENDING_CONFIRMATION, EXECUTING, COMPLETED, FAILED, COMPENSATED
+  dryRun               Boolean   @default(true)
+  riskLevel            String    @default("LOW")
+  requiresConfirmation Boolean   @default(true)
+  idempotencyKey       String?
+  input                Json?
+  output               Json?
+  audit                Json?
+  rollback             Json?
+  receipt              Json?
+  error                String?
+  latencyMs            Int?
+  promptTokens         Int?
+  completionTokens     Int?
+  estimatedCostUsd     Decimal?  @db.Decimal(12, 6)
+  attempts             Int       @default(0)
+  maxAttempts          Int       @default(3)
+  queuedAt             DateTime  @default(now())
+  startedAt            DateTime?
+  completedAt          DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   aiRun       AiRun        @relation(fields: [aiRunId], references: [id], onDelete: Cascade)
   aiStep      AiStep?      @relation(fields: [aiStepId], references: [id], onDelete: SetNull)
@@ -2741,25 +3225,25 @@ model AiToolExecution {
 }
 
 model AiApproval {
-  id            String    @id @default(cuid())
-  aiRunId       String?
-  aiStepId      String?
-  companyId     String
-  requesterId   String?
-  approverId    String?
-  decidedById   String?
-  approvalType  String    @default("ACTION") // ACTION, FINANCE, CONTRACT, WORKFLOW, BULK_EDIT
-  status        String    @default("REQUESTED") // REQUESTED, APPROVED, REJECTED, EXPIRED, ESCALATED, CANCELLED
-  riskLevel     String    @default("HIGH")
-  reason        String
-  preview       Json?
-  rollback      Json?
-  policy        Json?
-  tokenHash     String?   @unique
-  expiresAt     DateTime?
-  decidedAt     DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  id           String    @id @default(cuid())
+  aiRunId      String?
+  aiStepId     String?
+  companyId    String
+  requesterId  String?
+  approverId   String?
+  decidedById  String?
+  approvalType String    @default("ACTION") // ACTION, FINANCE, CONTRACT, WORKFLOW, BULK_EDIT
+  status       String    @default("REQUESTED") // REQUESTED, APPROVED, REJECTED, EXPIRED, ESCALATED, CANCELLED
+  riskLevel    String    @default("HIGH")
+  reason       String
+  preview      Json?
+  rollback     Json?
+  policy       Json?
+  tokenHash    String?   @unique
+  expiresAt    DateTime?
+  decidedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   aiRun     AiRun?  @relation(fields: [aiRunId], references: [id], onDelete: Cascade)
   aiStep    AiStep? @relation(fields: [aiStepId], references: [id], onDelete: SetNull)
