@@ -138,4 +138,12 @@ export const clientsApi = {
       retries: 0,
     })
   },
+  v1: {
+    list(params: ClientListParams = {}) {
+      return apiRequest<ClientsResponse>('/api/v1/clients', { query: params })
+    },
+    create(input: ClientInput) {
+      return apiRequest<Client, ClientInput>('/api/v1/clients', { body: input, method: 'POST', retries: 0 })
+    },
+  },
 }

@@ -5,7 +5,33 @@ export type ApiPagination = {
   pageCount: number
 }
 
+export type ApiMeta = {
+  pagination?: ApiPagination
+  [key: string]: unknown
+}
+
+export type ApiErrorBody<TCode extends string = string> = {
+  code: TCode
+  details?: unknown
+  message: string
+}
+
 export type ApiResponse<TData = unknown, TCode extends string = string> = {
+  success: true
+  data: TData
+  meta: ApiMeta
+  requestId: string
+  timestamp: string
+}
+
+export type ApiErrorResponse<TCode extends string = string> = {
+  success: false
+  error: ApiErrorBody<TCode>
+  requestId: string
+  timestamp: string
+}
+
+export type LegacyApiResponse<TData = unknown, TCode extends string = string> = {
   data: TData | null
   error: string | null
   code: TCode | null
@@ -13,13 +39,16 @@ export type ApiResponse<TData = unknown, TCode extends string = string> = {
   pagination?: ApiPagination
 }
 
-export type ApiErrorResponse<TCode extends string = string> = ApiResponse<null, TCode> & {
+export type LegacyApiErrorResponse<TCode extends string = string> = LegacyApiResponse<null, TCode> & {
   details?: unknown
 }
 
 export type ApiRequestContext = {
+  actorId?: string
+  companyId?: string
   requestId: string
   route?: string
+  startedAt: number
 }
 
 export type ApiResponseMode = 'canonical' | 'legacy'

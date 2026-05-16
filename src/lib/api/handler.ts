@@ -3,9 +3,10 @@ import { forbidden, normalizeError } from '@/lib/api/errors'
 import { REQUEST_ID_HEADER, getRequestId } from '@/lib/api/request-id'
 import { apiError, apiOk, legacyJson } from '@/lib/api/response'
 import { requireSessionUser, type SessionUser } from '@/lib/api/auth'
-import type { ApiPagination, ApiRequestContext, ApiResponseMode } from '@/lib/api/types'
+import type { ApiMeta, ApiPagination, ApiRequestContext, ApiResponseMode } from '@/lib/api/types'
+import { enforceDistributedRateLimit } from '@/lib/rate-limit'
 import { logger } from '@/modules/shared/logger'
-import { rateLimitRequest, type RateLimitOptions, type RateLimitResult } from '@/modules/shared/rate-limit'
+import type { RateLimitOptions, RateLimitResult } from '@/modules/shared/rate-limit'
 
 const API_ROUTE_RESULT = Symbol('API_ROUTE_RESULT')
 
@@ -18,6 +19,7 @@ export type ApiRouteContext<TParams extends ApiParams = ApiParams> = {
 export type ApiRouteDataOptions = {
   code?: string
   headers?: HeadersInit
+  meta?: ApiMeta
   pagination?: ApiPagination
   responseMode?: ApiResponseMode
   status?: number
@@ -121,6 +123,7 @@ function toResponse<TData>(result: ApiRouteResult<TData>, requestId: string, def
     return apiOk(dataResult.data, {
       code: dataResult.options.code,
       headers: dataResult.options.headers,
+      meta: dataResult.options.meta,
       pagination: dataResult.options.pagination,
       requestId,
       status: dataResult.options.status,
@@ -181,12 +184,13 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
   options: ApiRouteOptions<TParams> = {}
 ) {
   const requestId = getRequestId(req)
+  const startedAt = Date.now()
   const route = getRoute(req, options.route)
   const responseMode = options.responseMode ?? 'legacy'
   let rateLimit: RateLimitResult | undefined
 
   if (options.rateLimit) {
-    rateLimit = rateLimitRequest(req, options.rateLimit)
+    rateLimit = await enforceDistributedRateLimit(req, options.rateLimit)
     if (!rateLimit.allowed) {
       logger.warn('api.rate_limited', { requestId, route, namespace: options.rateLimit.namespace })
       return applyResponseHeaders(
@@ -207,10 +211,12 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
 
   try {
     const params = await resolveParams(context)
-    const baseContext: ApiHandlerContext<TParams> = { params, req, requestId, route }
+    const baseContext: ApiHandlerContext<TParams> = { params, req, requestId, route, startedAt }
     const shouldRequireAuth = options.auth === 'required' || Boolean(options.permission)
     const user = shouldRequireAuth ? await requireSessionUser() : undefined
-    const nextContext = user ? { ...baseContext, user } : baseContext
+    const nextContext = user
+      ? { ...baseContext, actorId: user.id, companyId: user.companyId ?? undefined, user }
+      : baseContext
 
     if (options.permission) {
       const allowed = await options.permission(nextContext as AuthenticatedApiHandlerContext<TParams>)
@@ -218,14 +224,33 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
     }
 
     const response = await handler(nextContext as AuthenticatedApiHandlerContext<TParams> & ApiHandlerContext<TParams>)
-    return applyResponseHeaders(toResponse(response, requestId, responseMode), buildTraceHeaders({ rateLimit, requestId }))
+    const finalResponse = applyResponseHeaders(toResponse(response, requestId, responseMode), buildTraceHeaders({ rateLimit, requestId }))
+    logger.info('api.request_completed', {
+      companyId: user?.companyId,
+      durationMs: Date.now() - startedAt,
+      method: req.method,
+      requestId,
+      route,
+      status: finalResponse.status,
+      userId: user?.id,
+    })
+    return finalResponse
   } catch (error) {
     const normalized = normalizeError(error)
     if (normalized.status >= 500) {
       logger.error('api.unhandled_error', error, { code: normalized.code, requestId, route })
     }
 
-    return applyResponseHeaders(errorResponse(normalized, requestId, responseMode), buildTraceHeaders({ rateLimit, requestId }))
+    const finalResponse = applyResponseHeaders(errorResponse(normalized, requestId, responseMode), buildTraceHeaders({ rateLimit, requestId }))
+    logger.info('api.request_completed', {
+      code: normalized.code,
+      durationMs: Date.now() - startedAt,
+      method: req.method,
+      requestId,
+      route,
+      status: finalResponse.status,
+    })
+    return finalResponse
   }
 }
 

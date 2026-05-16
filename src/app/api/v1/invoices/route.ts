@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
+import { getIdempotencyKey, runIdempotent } from '@/lib/idempotency'
 import { createInvoice, listInvoices } from '@/modules/invoices/invoice.service'
 import { parsePagination } from '@/modules/shared/pagination'
 
@@ -33,7 +34,8 @@ export async function POST(req: NextRequest) {
     undefined,
     async ({ user }) => {
       const body = await parseJsonObject(req)
-      return apiData(await createInvoice(user, body), { code: 'INVOICE_CREATED', status: 201 })
+      const invoice = await runIdempotent(getIdempotencyKey(req), body, () => createInvoice(user, body))
+      return apiData(invoice, { code: 'INVOICE_CREATED', status: 201 })
     },
     { auth: 'required', responseMode: 'canonical' }
   )

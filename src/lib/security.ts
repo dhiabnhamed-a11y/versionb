@@ -141,3 +141,17 @@ export function getRoleHomePath(role?: string | null) {
 
   return '/dashboard/admin'
 }
+
+export function hasWorkspaceManagerRole(role?: string | null) {
+  const normalizedRole = normalizeUserRole(role)
+  return normalizedRole === 'OWNER' || normalizedRole === 'MANAGER' || normalizedRole === 'SUPER_ADMIN'
+}
+
+export function hasTenantAccess(user: { companyId?: string | null }, resource: { companyId?: string | null }) {
+  return Boolean(user.companyId && resource.companyId && user.companyId === resource.companyId)
+}
+
+export function requireWebhookSignatureHeader(headers: Pick<Headers, 'get'>, headerName: string) {
+  const signature = headers.get(headerName)?.trim()
+  return signature && signature.length <= 512 ? signature : null
+}

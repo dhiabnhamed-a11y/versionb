@@ -1,5 +1,5 @@
 import { REQUEST_ID_HEADER } from '@/lib/api/request-id'
-import type { ApiResponse } from '@/lib/api/types'
+import type { ApiErrorResponse, ApiResponse, LegacyApiResponse } from '@/lib/api/types'
 import type { ApiClientErrorPayload, ApiClientRequestOptions, QueryParams, QueryValue } from '@/lib/api-client/types'
 
 function createRequestId() {
@@ -11,9 +11,14 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
   return Boolean(value && typeof value === 'object' && !Array.isArray(value))
 }
 
-function isApiEnvelope<TData>(value: unknown): value is ApiResponse<TData> {
+function isApiEnvelope<TData>(value: unknown): value is ApiResponse<TData> | LegacyApiResponse<TData> {
   if (!isPlainObject(value)) return false
+  if (value.success === true && 'data' in value && typeof value.requestId === 'string') return true
   return 'data' in value && 'error' in value && 'code' in value && typeof value.requestId === 'string'
+}
+
+function isCanonicalError(value: unknown): value is ApiErrorResponse {
+  return isPlainObject(value) && value.success === false && isPlainObject(value.error)
 }
 
 function appendQueryValue(searchParams: URLSearchParams, key: string, value: QueryValue) {
@@ -50,6 +55,7 @@ async function parseBody(response: Response) {
 }
 
 function messageFromBody(body: unknown, fallback: string) {
+  if (isCanonicalError(body) && typeof body.error.message === 'string') return body.error.message
   if (isPlainObject(body)) {
     if (typeof body.error === 'string') return body.error
     if (typeof body.message === 'string') return body.message
@@ -59,10 +65,12 @@ function messageFromBody(body: unknown, fallback: string) {
 }
 
 function codeFromBody(body: unknown) {
+  if (isCanonicalError(body) && typeof body.error.code === 'string') return body.error.code
   return isPlainObject(body) && typeof body.code === 'string' ? body.code : undefined
 }
 
 function detailsFromBody(body: unknown) {
+  if (isCanonicalError(body) && 'details' in body.error) return body.error.details
   return isPlainObject(body) && 'details' in body ? body.details : undefined
 }
 
@@ -102,6 +110,7 @@ export async function apiRequest<TData, TBody = unknown>(path: string, options: 
   const requestId = createRequestId()
   const headers = new Headers(options.headers)
   headers.set(REQUEST_ID_HEADER, requestId)
+  if (options.idempotencyKey) headers.set('Idempotency-Key', options.idempotencyKey)
 
   const hasBody = options.body !== undefined
   let body: BodyInit | undefined

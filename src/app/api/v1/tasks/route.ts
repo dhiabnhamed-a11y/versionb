@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
+import { getIdempotencyKey, runIdempotent } from '@/lib/idempotency'
 import { createTask, listTasks } from '@/modules/tasks/task.service'
 
 export async function GET(req: NextRequest) {
@@ -20,7 +21,8 @@ export async function POST(req: NextRequest) {
     undefined,
     async ({ user }) => {
       const body = await parseJsonObject(req)
-      return apiData(await createTask(user, body), { code: 'TASK_CREATED', status: 201 })
+      const task = await runIdempotent(getIdempotencyKey(req), body, () => createTask(user, body))
+      return apiData(task, { code: 'TASK_CREATED', status: 201 })
     },
     { auth: 'required', responseMode: 'canonical' }
   )

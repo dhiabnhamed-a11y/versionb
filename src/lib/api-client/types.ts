@@ -6,6 +6,7 @@ export type ApiClientRequestOptions<TBody = unknown> = {
   body?: TBody
   cache?: RequestCache
   headers?: HeadersInit
+  idempotencyKey?: string
   method?: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT'
   query?: QueryParams
   retries?: number

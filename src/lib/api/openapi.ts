@@ -17,6 +17,15 @@ const canonicalResponse = (schemaRef: string, description = 'Successful response
   },
 })
 
+const canonicalErrorResponse = (description: string) => ({
+  description,
+  content: {
+    'application/json': {
+      schema: { $ref: '#/components/schemas/ApiErrorResponse' },
+    },
+  },
+})
+
 const canonicalListResponse = (itemRef: string, description = 'Successful list response') => ({
   description,
   content: {
@@ -97,6 +106,40 @@ export const openApiV1Spec = {
         },
         responses: {
           '200': canonicalResponse('#/components/schemas/Alert'),
+          ...errorResponses,
+        },
+      },
+    },
+    '/clients': {
+      get: {
+        operationId: 'listClients',
+        summary: 'List clients',
+        tags: ['Clients'],
+        parameters: [
+          { $ref: '#/components/parameters/Page' },
+          { $ref: '#/components/parameters/PageSize' },
+          { in: 'query', name: 'status', schema: { enum: ['active', 'inactive'], type: 'string' } },
+          { in: 'query', name: 'q', schema: { type: 'string' } },
+        ],
+        responses: {
+          '200': canonicalResponse('#/components/schemas/ClientsListResponse'),
+          ...errorResponses,
+        },
+      },
+      post: {
+        operationId: 'createClient',
+        summary: 'Create a client',
+        tags: ['Clients'],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: '#/components/schemas/ClientMutationRequest' },
+            },
+          },
+        },
+        responses: {
+          '201': canonicalResponse('#/components/schemas/Client', 'Client created'),
           ...errorResponses,
         },
       },
@@ -272,11 +315,11 @@ export const openApiV1Spec = {
       },
     },
     responses: {
-      BadRequest: canonicalResponse('#/components/schemas/NullData', 'Bad request'),
-      Unauthorized: canonicalResponse('#/components/schemas/NullData', 'Unauthorized'),
-      Forbidden: canonicalResponse('#/components/schemas/NullData', 'Forbidden'),
-      NotFound: canonicalResponse('#/components/schemas/NullData', 'Not found'),
-      ServerError: canonicalResponse('#/components/schemas/NullData', 'Server error'),
+      BadRequest: canonicalErrorResponse('Bad request'),
+      Unauthorized: canonicalErrorResponse('Unauthorized'),
+      Forbidden: canonicalErrorResponse('Forbidden'),
+      NotFound: canonicalErrorResponse('Not found'),
+      ServerError: canonicalErrorResponse('Server error'),
     },
     schemas: {
       ApiPagination: {
@@ -291,16 +334,83 @@ export const openApiV1Spec = {
       },
       ApiResponse: {
         type: 'object',
-        required: ['data', 'error', 'code', 'requestId'],
+        required: ['success', 'data', 'meta', 'requestId', 'timestamp'],
         properties: {
+          success: { const: true },
           data: {},
-          error: { type: ['string', 'null'] },
-          code: { type: ['string', 'null'] },
+          meta: {
+            type: 'object',
+            additionalProperties: true,
+            properties: {
+              pagination: { $ref: '#/components/schemas/ApiPagination' },
+            },
+          },
           requestId: { type: 'string' },
-          pagination: { $ref: '#/components/schemas/ApiPagination' },
+          timestamp: { type: 'string', format: 'date-time' },
+        },
+      },
+      ApiErrorResponse: {
+        type: 'object',
+        required: ['success', 'error', 'requestId', 'timestamp'],
+        properties: {
+          success: { const: false },
+          error: {
+            type: 'object',
+            required: ['code', 'message'],
+            properties: {
+              code: { type: 'string' },
+              message: { type: 'string' },
+              details: {},
+            },
+          },
+          requestId: { type: 'string' },
+          timestamp: { type: 'string', format: 'date-time' },
         },
       },
       NullData: { type: 'null' },
+      Client: {
+        type: 'object',
+        additionalProperties: true,
+        required: ['id', 'companyName', 'status'],
+        properties: {
+          id: { type: 'string' },
+          companyName: { type: 'string' },
+          contactPerson: { type: ['string', 'null'] },
+          email: { type: ['string', 'null'] },
+          status: { enum: ['active', 'inactive'], type: 'string' },
+          unpaidTotal: { type: 'number' },
+        },
+      },
+      ClientMutationRequest: {
+        type: 'object',
+        required: ['companyName'],
+        properties: {
+          companyName: { type: 'string' },
+          contactPerson: { type: ['string', 'null'] },
+          email: { type: ['string', 'null'] },
+          phone: { type: ['string', 'null'] },
+          country: { type: ['string', 'null'] },
+          address: { type: ['string', 'null'] },
+          notes: { type: ['string', 'null'] },
+          avatarUrl: { type: ['string', 'null'] },
+          status: { enum: ['active', 'inactive'], type: 'string' },
+        },
+      },
+      ClientsListResponse: {
+        type: 'object',
+        required: ['items', 'pagination'],
+        properties: {
+          items: {
+            type: 'array',
+            items: { $ref: '#/components/schemas/Client' },
+          },
+          pagination: { $ref: '#/components/schemas/ApiPagination' },
+          summary: {
+            type: 'object',
+            additionalProperties: true,
+          },
+        },
+      },
       Alert: {
         type: 'object',
         additionalProperties: true,

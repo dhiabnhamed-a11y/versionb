@@ -127,6 +127,23 @@ export type SerializedContract = {
   }>
 }
 
+export type ApiContractOperation = {
+  method: 'DELETE' | 'GET' | 'PATCH' | 'POST' | 'PUT'
+  operationId: string
+  path: `/api/v1/${string}`
+  permission?: string
+  tenantScoped: boolean
+}
+
+export type AiMutationContract<TPreview = unknown> = {
+  auditEvent: string
+  confirmationRequired: boolean
+  dryRun: boolean
+  preview?: TPreview
+  requestId: string
+  toolName: string
+}
+
 export function normalizeContractLanguage(value: unknown): ContractLanguage {
   return CONTRACT_LANGUAGES.includes(value as ContractLanguage) ? (value as ContractLanguage) : 'en'
 }

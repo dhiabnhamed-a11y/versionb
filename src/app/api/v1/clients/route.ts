@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
+import { getIdempotencyKey, runIdempotent } from '@/lib/idempotency'
 import { createClient, listClients } from '@/modules/clients/service'
 import { parsePagination } from '@/modules/shared/pagination'
 
@@ -21,9 +22,9 @@ export async function GET(req: NextRequest) {
         pagination
       )
 
-      return apiData(body, { pagination: body.pagination })
+      return apiData(body, { code: 'CLIENTS_LISTED', pagination: body.pagination })
     },
-    { auth: 'required', responseMode: 'legacy' }
+    { auth: 'required', responseMode: 'canonical' }
   )
 }
 
@@ -33,7 +34,8 @@ export async function POST(req: NextRequest) {
     undefined,
     async ({ user }) => {
       const body = await parseJsonObject(req)
-      return apiData(await createClient(user, body), { status: 201 })
+      const client = await runIdempotent(getIdempotencyKey(req), body, () => createClient(user, body))
+      return apiData(client, { code: 'CLIENT_CREATED', status: 201 })
     },
     {
       auth: 'required',
@@ -42,7 +44,7 @@ export async function POST(req: NextRequest) {
         namespace: 'clients.write',
         windowMs: 60_000,
       },
-      responseMode: 'legacy',
+      responseMode: 'canonical',
     }
   )
 }
