@@ -9,6 +9,9 @@ Updated: 2026-05-16
 - Legacy API surface: 92 route files.
 - Routes returning raw `NextResponse.json`: 49 route files.
 - Routes with direct database/query logic in handlers: 28 route files.
+- Governance audit: `npm run api:audit`.
+- Current audit result: 0 blocking `/api/v1` governance errors, 28 legacy compatibility warnings.
+- OpenAPI v1 contracts: 14 generated operations from route contract metadata and Zod request schemas.
 - Strong existing primitives: modular domain modules, Prisma/PostgreSQL, canonical API helpers, workers, Redis-aware realtime, durable job/audit records, finance and AI service modules.
 - Primary weakness: uneven adoption. Several enterprise primitives exist, but legacy routes still bypass them.
 
@@ -79,3 +82,19 @@ Durable tenant-scoped idempotency has been added for canonical v1 writes:
 - `DELETE /api/v1/invoices/{id}`
 
 The new `IdempotencyKey` table stores request body hashes, processing status, response snapshots, expiration, route/method metadata, and company isolation.
+
+## Second Implemented Slice
+
+API platform governance has been made measurable and enforceable:
+
+- `/api/v1/openapi` is now generated from `apiRouteContracts` plus Zod request schemas instead of being assembled as a static hand-maintained object.
+- Generated operation metadata includes auth requirement, permission metadata, rate/retry-facing error responses, canonical response envelopes, and idempotency header metadata.
+- `npm run api:audit` fails when a canonical v1 route bypasses `handleApiRoute`, skips canonical response mode, touches Prisma directly, or lacks an OpenAPI route contract.
+- `npm run test:api-governance` is available as the CI hook for the same policy.
+- Durable idempotency now uses database-backed processing leases with stale lease takeover for retry safety after crashes or abandoned in-flight requests.
+
+Remaining measured warning cohort:
+
+- 28 legacy compatibility routes still own database access and must be migrated one domain slice at a time.
+- 49 routes still return raw `NextResponse.json` or `Response.json`; these should become compatibility facades or canonical v1 routes.
+- 92 legacy route files remain outside `/api/v1`; preserve their URLs while making them thin adapters over services and canonical contracts.

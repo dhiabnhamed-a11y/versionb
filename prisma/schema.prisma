@@ -2095,6 +2095,9 @@ model IdempotencyKey {
   response       Json?
   responseStatus Int?
   error          String?
+  lockedUntil    DateTime?
+  attempts       Int      @default(1)
+  lastSeenAt     DateTime @default(now())
   expiresAt      DateTime
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -2103,6 +2106,7 @@ model IdempotencyKey {
 
   @@unique([companyId, key])
   @@index([companyId, route, createdAt])
+  @@index([companyId, status, lockedUntil])
   @@index([expiresAt])
   @@map("idempotency_keys")
 }

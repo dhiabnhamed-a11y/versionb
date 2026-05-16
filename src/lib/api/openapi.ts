@@ -1,519 +1,543 @@
-const canonicalResponse = (schemaRef: string, description = 'Successful response') => ({
-  description,
-  content: {
-    'application/json': {
-      schema: {
-        allOf: [
-          { $ref: '#/components/schemas/ApiResponse' },
-          {
-            type: 'object',
-            properties: {
-              data: { $ref: schemaRef },
-            },
-          },
-        ],
-      },
-    },
-  },
-})
+import { z } from 'zod'
+import { createAlertSchema, markAlertReadSchema } from '@/modules/alerts/validation'
+import { clientCreateSchema } from '@/modules/clients/validation'
+import { createInvoiceSchema, deleteInvoiceSchema, updateInvoiceSchema } from '@/modules/invoices/invoice.validation'
+import { createTaskSchema, updateTaskSchema } from '@/modules/tasks/task.validation'
 
-const canonicalErrorResponse = (description: string) => ({
-  description,
-  content: {
-    'application/json': {
-      schema: { $ref: '#/components/schemas/ApiErrorResponse' },
-    },
-  },
-})
+type HttpMethod = 'get' | 'post' | 'patch' | 'delete'
+type JsonSchema = Record<string, unknown>
 
-const canonicalListResponse = (itemRef: string, description = 'Successful list response') => ({
-  description,
-  content: {
-    'application/json': {
-      schema: {
-        allOf: [
-          { $ref: '#/components/schemas/ApiResponse' },
-          {
-            type: 'object',
-            properties: {
-              data: {
-                type: 'array',
-                items: { $ref: itemRef },
-              },
-            },
-          },
-        ],
-      },
-    },
-  },
-})
+type RouteContract = {
+  auth: 'required' | 'none'
+  dataSchemaRef: string
+  description?: string
+  idempotency?: 'optional' | 'required'
+  method: HttpMethod
+  operationId: string
+  parameters?: Array<Record<string, unknown>>
+  path: string
+  permission?: string
+  requestSchema?: z.ZodType
+  requestSchemaName?: string
+  responseDescription?: string
+  status?: number
+  summary: string
+  tags: string[]
+}
 
-const errorResponses = {
+const commonErrorResponses = {
   '400': { $ref: '#/components/responses/BadRequest' },
   '401': { $ref: '#/components/responses/Unauthorized' },
   '403': { $ref: '#/components/responses/Forbidden' },
   '404': { $ref: '#/components/responses/NotFound' },
+  '409': { $ref: '#/components/responses/Conflict' },
+  '429': { $ref: '#/components/responses/RateLimited' },
   '500': { $ref: '#/components/responses/ServerError' },
 } as const
 
-export const openApiV1Spec = {
-  openapi: '3.1.0',
-  info: {
-    title: 'TASKIT OS API',
-    version: '1.0.0',
-    description: 'Versioned canonical API contract for progressively migrated TASKIT OS endpoints.',
+const idParameter = {
+  in: 'path',
+  name: 'id',
+  required: true,
+  schema: { type: 'string' },
+}
+
+const pageParameter = {
+  in: 'query',
+  name: 'page',
+  schema: { default: 1, minimum: 1, type: 'integer' },
+}
+
+const pageSizeParameter = {
+  in: 'query',
+  name: 'pageSize',
+  schema: { default: 30, maximum: 100, minimum: 1, type: 'integer' },
+}
+
+export const apiRouteContracts = [
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/AlertList',
+    method: 'get',
+    operationId: 'listAlerts',
+    path: '/alerts',
+    permission: 'alerts:read',
+    summary: 'List alerts for the current user',
+    tags: ['Alerts'],
   },
-  servers: [{ url: '/api/v1' }],
-  paths: {
-    '/alerts': {
-      get: {
-        operationId: 'listAlerts',
-        summary: 'List alerts for the current user',
-        tags: ['Alerts'],
-        responses: {
-          '200': canonicalListResponse('#/components/schemas/Alert'),
-          ...errorResponses,
-        },
-      },
-      post: {
-        operationId: 'createAlert',
-        summary: 'Send an alert',
-        tags: ['Alerts'],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/CreateAlertRequest' },
-            },
-          },
-        },
-        responses: {
-          '201': canonicalResponse('#/components/schemas/Alert', 'Alert created'),
-          ...errorResponses,
-        },
-      },
-      patch: {
-        operationId: 'markAlertRead',
-        summary: 'Mark an alert as read',
-        tags: ['Alerts'],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/MarkAlertReadRequest' },
-            },
-          },
-        },
-        responses: {
-          '200': canonicalResponse('#/components/schemas/Alert'),
-          ...errorResponses,
-        },
-      },
-    },
-    '/clients': {
-      get: {
-        operationId: 'listClients',
-        summary: 'List clients',
-        tags: ['Clients'],
-        parameters: [
-          { $ref: '#/components/parameters/Page' },
-          { $ref: '#/components/parameters/PageSize' },
-          { in: 'query', name: 'status', schema: { enum: ['active', 'inactive'], type: 'string' } },
-          { in: 'query', name: 'q', schema: { type: 'string' } },
-        ],
-        responses: {
-          '200': canonicalResponse('#/components/schemas/ClientsListResponse'),
-          ...errorResponses,
-        },
-      },
-      post: {
-        operationId: 'createClient',
-        summary: 'Create a client',
-        tags: ['Clients'],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/ClientMutationRequest' },
-            },
-          },
-        },
-        responses: {
-          '201': canonicalResponse('#/components/schemas/Client', 'Client created'),
-          ...errorResponses,
-        },
-      },
-    },
-    '/tasks': {
-      get: {
-        operationId: 'listTasks',
-        summary: 'List tasks',
-        tags: ['Tasks'],
-        parameters: [
-          {
-            in: 'query',
-            name: 'projectId',
-            schema: { type: 'string' },
-          },
-        ],
-        responses: {
-          '200': canonicalListResponse('#/components/schemas/Task'),
-          ...errorResponses,
-        },
-      },
-      post: {
-        operationId: 'createTask',
-        summary: 'Create a task',
-        tags: ['Tasks'],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/TaskMutationRequest' },
-            },
-          },
-        },
-        responses: {
-          '201': canonicalResponse('#/components/schemas/Task', 'Task created'),
-          ...errorResponses,
-        },
-      },
-    },
-    '/tasks/{id}': {
-      patch: {
-        operationId: 'updateTask',
-        summary: 'Update a task',
-        tags: ['Tasks'],
-        parameters: [{ $ref: '#/components/parameters/Id' }],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/TaskMutationRequest' },
-            },
-          },
-        },
-        responses: {
-          '200': canonicalResponse('#/components/schemas/Task'),
-          ...errorResponses,
-        },
-      },
-      delete: {
-        operationId: 'deleteTask',
-        summary: 'Delete a task',
-        tags: ['Tasks'],
-        parameters: [{ $ref: '#/components/parameters/Id' }],
-        responses: {
-          '200': canonicalResponse('#/components/schemas/DeleteTaskResponse'),
-          ...errorResponses,
-        },
-      },
-    },
-    '/invoices': {
-      get: {
-        operationId: 'listInvoices',
-        summary: 'List invoices',
-        tags: ['Invoices'],
-        parameters: [
-          { $ref: '#/components/parameters/Page' },
-          { $ref: '#/components/parameters/PageSize' },
-          { in: 'query', name: 'status', schema: { type: 'string' } },
-          { in: 'query', name: 'q', schema: { type: 'string' } },
-          { in: 'query', name: 'clientId', schema: { type: 'string' } },
-          { in: 'query', name: 'campaignId', schema: { type: 'string' } },
-          { in: 'query', name: 'briefId', schema: { type: 'string' } },
-        ],
-        responses: {
-          '200': canonicalResponse('#/components/schemas/InvoicesListResponse'),
-          ...errorResponses,
-        },
-      },
-      post: {
-        operationId: 'createInvoice',
-        summary: 'Create an invoice',
-        tags: ['Invoices'],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/InvoiceMutationRequest' },
-            },
-          },
-        },
-        responses: {
-          '201': canonicalResponse('#/components/schemas/Invoice', 'Invoice created'),
-          ...errorResponses,
-        },
-      },
-    },
-    '/invoices/{id}': {
-      get: {
-        operationId: 'getInvoice',
-        summary: 'Get an invoice',
-        tags: ['Invoices'],
-        parameters: [{ $ref: '#/components/parameters/Id' }],
-        responses: {
-          '200': canonicalResponse('#/components/schemas/Invoice'),
-          ...errorResponses,
-        },
-      },
-      patch: {
-        operationId: 'updateInvoice',
-        summary: 'Update an invoice',
-        tags: ['Invoices'],
-        parameters: [{ $ref: '#/components/parameters/Id' }],
-        requestBody: {
-          required: true,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/InvoiceMutationRequest' },
-            },
-          },
-        },
-        responses: {
-          '200': canonicalResponse('#/components/schemas/Invoice'),
-          ...errorResponses,
-        },
-      },
-      delete: {
-        operationId: 'deleteInvoice',
-        summary: 'Delete an invoice',
-        tags: ['Invoices'],
-        parameters: [{ $ref: '#/components/parameters/Id' }],
-        requestBody: {
-          required: false,
-          content: {
-            'application/json': {
-              schema: { $ref: '#/components/schemas/DeleteInvoiceRequest' },
-            },
-          },
-        },
-        responses: {
-          '200': canonicalResponse('#/components/schemas/DeleteInvoiceResponse'),
-          ...errorResponses,
-        },
-      },
-    },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/Alert',
+    idempotency: 'optional',
+    method: 'post',
+    operationId: 'createAlert',
+    path: '/alerts',
+    permission: 'alerts:create',
+    requestSchema: createAlertSchema,
+    requestSchemaName: 'CreateAlertRequest',
+    responseDescription: 'Alert created',
+    status: 201,
+    summary: 'Send an alert',
+    tags: ['Alerts'],
   },
-  components: {
-    parameters: {
-      Id: {
-        in: 'path',
-        name: 'id',
-        required: true,
-        schema: { type: 'string' },
-      },
-      Page: {
-        in: 'query',
-        name: 'page',
-        schema: { default: 1, minimum: 1, type: 'integer' },
-      },
-      PageSize: {
-        in: 'query',
-        name: 'pageSize',
-        schema: { default: 30, maximum: 100, minimum: 1, type: 'integer' },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/Alert',
+    idempotency: 'optional',
+    method: 'patch',
+    operationId: 'markAlertRead',
+    path: '/alerts',
+    permission: 'alerts:update',
+    requestSchema: markAlertReadSchema,
+    requestSchemaName: 'MarkAlertReadRequest',
+    summary: 'Mark an alert as read',
+    tags: ['Alerts'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/ClientsListResponse',
+    method: 'get',
+    operationId: 'listClients',
+    parameters: [
+      pageParameter,
+      pageSizeParameter,
+      { in: 'query', name: 'status', schema: { enum: ['active', 'inactive'], type: 'string' } },
+      { in: 'query', name: 'q', schema: { type: 'string' } },
+    ],
+    path: '/clients',
+    permission: 'clients:read',
+    summary: 'List clients',
+    tags: ['Clients'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/Client',
+    idempotency: 'optional',
+    method: 'post',
+    operationId: 'createClient',
+    path: '/clients',
+    permission: 'clients:create',
+    requestSchema: clientCreateSchema,
+    requestSchemaName: 'ClientMutationRequest',
+    responseDescription: 'Client created',
+    status: 201,
+    summary: 'Create a client',
+    tags: ['Clients'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/TaskList',
+    method: 'get',
+    operationId: 'listTasks',
+    parameters: [{ in: 'query', name: 'projectId', schema: { type: 'string' } }],
+    path: '/tasks',
+    permission: 'tasks:read',
+    summary: 'List tasks',
+    tags: ['Tasks'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/Task',
+    idempotency: 'optional',
+    method: 'post',
+    operationId: 'createTask',
+    path: '/tasks',
+    permission: 'tasks:create',
+    requestSchema: createTaskSchema,
+    requestSchemaName: 'CreateTaskRequest',
+    responseDescription: 'Task created',
+    status: 201,
+    summary: 'Create a task',
+    tags: ['Tasks'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/Task',
+    method: 'patch',
+    operationId: 'updateTask',
+    parameters: [idParameter],
+    path: '/tasks/{id}',
+    permission: 'tasks:update',
+    requestSchema: updateTaskSchema,
+    requestSchemaName: 'UpdateTaskRequest',
+    summary: 'Update a task',
+    tags: ['Tasks'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/DeleteTaskResponse',
+    idempotency: 'optional',
+    method: 'delete',
+    operationId: 'deleteTask',
+    parameters: [idParameter],
+    path: '/tasks/{id}',
+    permission: 'tasks:delete',
+    summary: 'Delete a task',
+    tags: ['Tasks'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/InvoicesListResponse',
+    method: 'get',
+    operationId: 'listInvoices',
+    parameters: [
+      pageParameter,
+      pageSizeParameter,
+      { in: 'query', name: 'status', schema: { type: 'string' } },
+      { in: 'query', name: 'q', schema: { type: 'string' } },
+      { in: 'query', name: 'clientId', schema: { type: 'string' } },
+      { in: 'query', name: 'campaignId', schema: { type: 'string' } },
+      { in: 'query', name: 'briefId', schema: { type: 'string' } },
+    ],
+    path: '/invoices',
+    permission: 'finance:read',
+    summary: 'List invoices',
+    tags: ['Invoices'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/Invoice',
+    idempotency: 'optional',
+    method: 'post',
+    operationId: 'createInvoice',
+    path: '/invoices',
+    permission: 'finance:write',
+    requestSchema: createInvoiceSchema,
+    requestSchemaName: 'CreateInvoiceRequest',
+    responseDescription: 'Invoice created',
+    status: 201,
+    summary: 'Create an invoice',
+    tags: ['Invoices'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/Invoice',
+    method: 'get',
+    operationId: 'getInvoice',
+    parameters: [idParameter],
+    path: '/invoices/{id}',
+    permission: 'finance:read',
+    summary: 'Get an invoice',
+    tags: ['Invoices'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/Invoice',
+    idempotency: 'optional',
+    method: 'patch',
+    operationId: 'updateInvoice',
+    parameters: [idParameter],
+    path: '/invoices/{id}',
+    permission: 'finance:write',
+    requestSchema: updateInvoiceSchema,
+    requestSchemaName: 'UpdateInvoiceRequest',
+    summary: 'Update an invoice',
+    tags: ['Invoices'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/DeleteInvoiceResponse',
+    idempotency: 'optional',
+    method: 'delete',
+    operationId: 'deleteInvoice',
+    parameters: [idParameter],
+    path: '/invoices/{id}',
+    permission: 'finance:write',
+    requestSchema: deleteInvoiceSchema,
+    requestSchemaName: 'DeleteInvoiceRequest',
+    summary: 'Delete an invoice',
+    tags: ['Invoices'],
+  },
+] satisfies RouteContract[]
+
+function schemaFromZod(schema: z.ZodType): JsonSchema {
+  const jsonSchema = z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }) as JsonSchema
+  const { $schema: _schema, ...rest } = jsonSchema
+  return rest
+}
+
+function canonicalResponse(schemaRef: string, description = 'Successful response') {
+  return {
+    description,
+    content: {
+      'application/json': {
+        schema: {
+          allOf: [
+            { $ref: '#/components/schemas/ApiResponse' },
+            {
+              type: 'object',
+              properties: {
+                data: { $ref: schemaRef },
+              },
+            },
+          ],
+        },
       },
     },
+  }
+}
+
+function canonicalErrorResponse(description: string) {
+  return {
+    description,
+    content: {
+      'application/json': {
+        schema: { $ref: '#/components/schemas/ApiErrorResponse' },
+      },
+    },
+  }
+}
+
+function operationFromContract(contract: RouteContract) {
+  return {
+    operationId: contract.operationId,
+    summary: contract.summary,
+    description: contract.description,
+    tags: contract.tags,
+    security: contract.auth === 'required' ? [{ sessionAuth: [] }] : [],
+    parameters: [
+      ...(contract.parameters ?? []),
+      ...(contract.idempotency
+        ? [
+            {
+              in: 'header',
+              name: 'Idempotency-Key',
+              required: contract.idempotency === 'required',
+              schema: { maxLength: 255, type: 'string' },
+            },
+          ]
+        : []),
+    ],
+    requestBody: contract.requestSchemaName
+      ? {
+          required: true,
+          content: {
+            'application/json': {
+              schema: { $ref: `#/components/schemas/${contract.requestSchemaName}` },
+            },
+          },
+        }
+      : undefined,
     responses: {
-      BadRequest: canonicalErrorResponse('Bad request'),
-      Unauthorized: canonicalErrorResponse('Unauthorized'),
-      Forbidden: canonicalErrorResponse('Forbidden'),
-      NotFound: canonicalErrorResponse('Not found'),
-      ServerError: canonicalErrorResponse('Server error'),
+      [String(contract.status ?? 200)]: canonicalResponse(contract.dataSchemaRef, contract.responseDescription),
+      ...commonErrorResponses,
     },
-    schemas: {
-      ApiPagination: {
-        type: 'object',
-        required: ['page', 'pageSize', 'total', 'pageCount'],
-        properties: {
-          page: { type: 'integer' },
-          pageSize: { type: 'integer' },
-          total: { type: 'integer' },
-          pageCount: { type: 'integer' },
+    'x-auth-required': contract.auth === 'required',
+    'x-idempotency': contract.idempotency ?? 'none',
+    'x-required-permission': contract.permission,
+  }
+}
+
+function buildPaths(contracts: readonly RouteContract[]) {
+  return contracts.reduce<Record<string, Partial<Record<HttpMethod, ReturnType<typeof operationFromContract>>>>>((paths, contract) => {
+    paths[contract.path] = {
+      ...(paths[contract.path] ?? {}),
+      [contract.method]: operationFromContract(contract),
+    }
+    return paths
+  }, {})
+}
+
+function buildRequestSchemas(contracts: readonly RouteContract[]) {
+  return contracts.reduce<Record<string, JsonSchema>>((schemas, contract) => {
+    if (contract.requestSchema && contract.requestSchemaName) {
+      schemas[contract.requestSchemaName] = schemaFromZod(contract.requestSchema)
+    }
+    return schemas
+  }, {})
+}
+
+export function generateOpenApiV1Spec(contracts: readonly RouteContract[] = apiRouteContracts) {
+  return {
+    openapi: '3.1.0',
+    info: {
+      title: 'TASKIT OS API',
+      version: '1.0.0',
+      description: 'Versioned canonical API contract generated from TASKIT route contracts and Zod schemas.',
+    },
+    servers: [{ url: '/api/v1' }],
+    tags: [
+      { name: 'Alerts' },
+      { name: 'Clients' },
+      { name: 'Tasks' },
+      { name: 'Invoices' },
+    ],
+    paths: buildPaths(contracts),
+    components: {
+      securitySchemes: {
+        sessionAuth: {
+          type: 'apiKey',
+          in: 'cookie',
+          name: 'next-auth.session-token',
         },
       },
-      ApiResponse: {
-        type: 'object',
-        required: ['success', 'data', 'error', 'meta', 'requestId', 'timestamp'],
-        properties: {
-          success: { const: true },
-          data: {},
-          error: { type: 'null' },
-          meta: {
-            type: 'object',
-            additionalProperties: true,
-            properties: {
-              pagination: { $ref: '#/components/schemas/ApiPagination' },
+      responses: {
+        BadRequest: canonicalErrorResponse('Bad request'),
+        Unauthorized: canonicalErrorResponse('Unauthorized'),
+        Forbidden: canonicalErrorResponse('Forbidden'),
+        NotFound: canonicalErrorResponse('Not found'),
+        Conflict: canonicalErrorResponse('Conflict'),
+        RateLimited: canonicalErrorResponse('Rate limited'),
+        ServerError: canonicalErrorResponse('Server error'),
+      },
+      schemas: {
+        ApiPagination: {
+          type: 'object',
+          required: ['page', 'pageSize', 'total', 'pageCount'],
+          properties: {
+            page: { type: 'integer' },
+            pageSize: { type: 'integer' },
+            total: { type: 'integer' },
+            pageCount: { type: 'integer' },
+          },
+        },
+        ApiResponse: {
+          type: 'object',
+          required: ['success', 'data', 'error', 'meta', 'requestId', 'timestamp'],
+          properties: {
+            success: { const: true },
+            data: {},
+            error: { type: 'null' },
+            meta: {
+              type: 'object',
+              additionalProperties: true,
+              properties: {
+                pagination: { $ref: '#/components/schemas/ApiPagination' },
+              },
+            },
+            requestId: { type: 'string' },
+            timestamp: { type: 'string', format: 'date-time' },
+          },
+        },
+        ApiErrorResponse: {
+          type: 'object',
+          required: ['success', 'data', 'error', 'meta', 'requestId', 'timestamp'],
+          properties: {
+            success: { const: false },
+            data: { type: 'null' },
+            error: {
+              type: 'object',
+              required: ['code', 'message'],
+              properties: {
+                code: { type: 'string' },
+                message: { type: 'string' },
+                details: {},
+              },
+            },
+            meta: {
+              type: 'object',
+              additionalProperties: true,
+            },
+            requestId: { type: 'string' },
+            timestamp: { type: 'string', format: 'date-time' },
+          },
+        },
+        Alert: {
+          type: 'object',
+          additionalProperties: true,
+          required: ['id', 'type', 'title', 'message', 'read', 'createdAt'],
+          properties: {
+            id: { type: 'string' },
+            type: { type: 'string' },
+            title: { type: 'string' },
+            message: { type: 'string' },
+            read: { type: 'boolean' },
+            createdAt: { type: 'string', format: 'date-time' },
+          },
+        },
+        AlertList: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/Alert' },
+        },
+        Client: {
+          type: 'object',
+          additionalProperties: true,
+          required: ['id', 'companyName', 'status'],
+          properties: {
+            id: { type: 'string' },
+            companyName: { type: 'string' },
+            contactPerson: { type: ['string', 'null'] },
+            email: { type: ['string', 'null'] },
+            status: { enum: ['active', 'inactive'], type: 'string' },
+            unpaidTotal: { type: 'number' },
+          },
+        },
+        ClientsListResponse: {
+          type: 'object',
+          required: ['items', 'pagination'],
+          properties: {
+            items: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/Client' },
+            },
+            pagination: { $ref: '#/components/schemas/ApiPagination' },
+            summary: {
+              type: 'object',
+              additionalProperties: true,
             },
           },
-          requestId: { type: 'string' },
-          timestamp: { type: 'string', format: 'date-time' },
         },
-      },
-      ApiErrorResponse: {
-        type: 'object',
-        required: ['success', 'data', 'error', 'meta', 'requestId', 'timestamp'],
-        properties: {
-          success: { const: false },
-          data: { type: 'null' },
-          error: {
-            type: 'object',
-            required: ['code', 'message'],
-            properties: {
-              code: { type: 'string' },
-              message: { type: 'string' },
-              details: {},
+        Task: {
+          type: 'object',
+          additionalProperties: true,
+          required: ['id', 'title'],
+          properties: {
+            id: { type: 'string' },
+            title: { type: 'string' },
+            stage: { type: 'string' },
+            priority: { type: 'string' },
+            projectId: { type: ['string', 'null'] },
+          },
+        },
+        TaskList: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/Task' },
+        },
+        DeleteTaskResponse: {
+          type: 'object',
+          required: ['success'],
+          properties: {
+            success: { type: 'boolean' },
+          },
+        },
+        Invoice: {
+          type: 'object',
+          additionalProperties: true,
+          required: ['id', 'invoiceNumber', 'status', 'currency', 'total'],
+          properties: {
+            id: { type: 'string' },
+            invoiceNumber: { type: 'string' },
+            status: { type: 'string' },
+            currency: { type: 'string' },
+            total: { type: ['number', 'string'] },
+          },
+        },
+        InvoicesListResponse: {
+          type: 'object',
+          required: ['items', 'pagination'],
+          properties: {
+            items: {
+              type: 'array',
+              items: { $ref: '#/components/schemas/Invoice' },
+            },
+            pagination: { $ref: '#/components/schemas/ApiPagination' },
+            summary: {
+              type: 'object',
+              additionalProperties: true,
             },
           },
-          meta: {
-            type: 'object',
-            additionalProperties: true,
-          },
-          requestId: { type: 'string' },
-          timestamp: { type: 'string', format: 'date-time' },
         },
-      },
-      NullData: { type: 'null' },
-      Client: {
-        type: 'object',
-        additionalProperties: true,
-        required: ['id', 'companyName', 'status'],
-        properties: {
-          id: { type: 'string' },
-          companyName: { type: 'string' },
-          contactPerson: { type: ['string', 'null'] },
-          email: { type: ['string', 'null'] },
-          status: { enum: ['active', 'inactive'], type: 'string' },
-          unpaidTotal: { type: 'number' },
-        },
-      },
-      ClientMutationRequest: {
-        type: 'object',
-        required: ['companyName'],
-        properties: {
-          companyName: { type: 'string' },
-          contactPerson: { type: ['string', 'null'] },
-          email: { type: ['string', 'null'] },
-          phone: { type: ['string', 'null'] },
-          country: { type: ['string', 'null'] },
-          address: { type: ['string', 'null'] },
-          notes: { type: ['string', 'null'] },
-          avatarUrl: { type: ['string', 'null'] },
-          status: { enum: ['active', 'inactive'], type: 'string' },
-        },
-      },
-      ClientsListResponse: {
-        type: 'object',
-        required: ['items', 'pagination'],
-        properties: {
-          items: {
-            type: 'array',
-            items: { $ref: '#/components/schemas/Client' },
-          },
-          pagination: { $ref: '#/components/schemas/ApiPagination' },
-          summary: {
-            type: 'object',
-            additionalProperties: true,
+        DeleteInvoiceResponse: {
+          type: 'object',
+          required: ['ok'],
+          properties: {
+            ok: { type: 'boolean' },
           },
         },
-      },
-      Alert: {
-        type: 'object',
-        additionalProperties: true,
-        required: ['id', 'type', 'title', 'message', 'read', 'createdAt'],
-        properties: {
-          id: { type: 'string' },
-          type: { type: 'string' },
-          title: { type: 'string' },
-          message: { type: 'string' },
-          read: { type: 'boolean' },
-          createdAt: { type: 'string', format: 'date-time' },
-        },
-      },
-      CreateAlertRequest: {
-        type: 'object',
-        required: ['title', 'message', 'recipientId'],
-        properties: {
-          type: { type: 'string' },
-          title: { type: 'string' },
-          message: { type: 'string' },
-          recipientId: { type: 'string' },
-        },
-      },
-      MarkAlertReadRequest: {
-        type: 'object',
-        required: ['alertId'],
-        properties: {
-          alertId: { type: 'string' },
-        },
-      },
-      Task: {
-        type: 'object',
-        additionalProperties: true,
-        required: ['id', 'title'],
-        properties: {
-          id: { type: 'string' },
-          title: { type: 'string' },
-          stage: { type: 'string' },
-          priority: { type: 'string' },
-          projectId: { type: ['string', 'null'] },
-        },
-      },
-      TaskMutationRequest: {
-        type: 'object',
-        additionalProperties: true,
-      },
-      DeleteTaskResponse: {
-        type: 'object',
-        required: ['success'],
-        properties: {
-          success: { type: 'boolean' },
-        },
-      },
-      Invoice: {
-        type: 'object',
-        additionalProperties: true,
-        required: ['id', 'invoiceNumber', 'status', 'currency', 'total'],
-        properties: {
-          id: { type: 'string' },
-          invoiceNumber: { type: 'string' },
-          status: { type: 'string' },
-          currency: { type: 'string' },
-          total: { type: ['number', 'string'] },
-        },
-      },
-      InvoiceMutationRequest: {
-        type: 'object',
-        additionalProperties: true,
-      },
-      InvoicesListResponse: {
-        type: 'object',
-        required: ['items', 'pagination'],
-        properties: {
-          items: {
-            type: 'array',
-            items: { $ref: '#/components/schemas/Invoice' },
-          },
-          pagination: { $ref: '#/components/schemas/ApiPagination' },
-          summary: {
-            type: 'object',
-            additionalProperties: true,
-          },
-        },
-      },
-      DeleteInvoiceRequest: {
-        type: 'object',
-        properties: {
-          confirmation: {},
-        },
-      },
-      DeleteInvoiceResponse: {
-        type: 'object',
-        required: ['ok'],
-        properties: {
-          ok: { type: 'boolean' },
-        },
+        ...buildRequestSchemas(contracts),
       },
     },
-  },
-} as const
+  }
+}
+
+export const openApiV1Spec = generateOpenApiV1Spec()

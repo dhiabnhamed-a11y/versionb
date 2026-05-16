@@ -19,17 +19,19 @@ class MemoryIdempotencyStore implements IdempotencyStore {
     this.records.set(this.key(input.companyId, input.key), {
       bodyHash: input.bodyHash,
       expiresAt: this.records.get(this.key(input.companyId, input.key))?.expiresAt ?? new Date(Date.now() + 60_000),
+      lockedUntil: null,
       response: input.response,
       status: 'COMPLETED',
     })
   }
 
-  async createProcessing(input: { bodyHash: string; companyId: string; expiresAt: Date; key: string }) {
+  async createProcessing(input: { bodyHash: string; companyId: string; expiresAt: Date; key: string; lockedUntil: Date }) {
     const recordKey = this.key(input.companyId, input.key)
     if (this.records.has(recordKey)) throw { code: 'P2002' }
     this.records.set(recordKey, {
       bodyHash: input.bodyHash,
       expiresAt: input.expiresAt,
+      lockedUntil: input.lockedUntil,
       response: null,
       status: 'PROCESSING',
     })
@@ -45,6 +47,7 @@ class MemoryIdempotencyStore implements IdempotencyStore {
     this.records.set(this.key(input.companyId, input.key), {
       bodyHash: input.bodyHash,
       expiresAt: this.records.get(this.key(input.companyId, input.key))?.expiresAt ?? new Date(Date.now() + 60_000),
+      lockedUntil: null,
       response: { error: input.error },
       status: 'FAILED',
     })
@@ -52,6 +55,16 @@ class MemoryIdempotencyStore implements IdempotencyStore {
 
   async find(input: { companyId: string; key: string }) {
     return this.records.get(this.key(input.companyId, input.key)) ?? null
+  }
+
+  async takeoverExpiredProcessing(input: { bodyHash: string; companyId: string; key: string; lockedUntil: Date; now: Date; staleBefore: Date }) {
+    const recordKey = this.key(input.companyId, input.key)
+    const record = this.records.get(recordKey)
+    if (!record || record.status !== 'PROCESSING' || record.bodyHash !== input.bodyHash) return false
+    const lockExpired = record.lockedUntil ? record.lockedUntil <= input.now : record.expiresAt <= input.staleBefore
+    if (!lockExpired) return false
+    this.records.set(recordKey, { ...record, lockedUntil: input.lockedUntil })
+    return true
   }
 }
 
@@ -121,4 +134,27 @@ test('runIdempotentWithStore requires a tenant when a key is supplied', async ()
     () => runIdempotentWithStore(store, 'key', { value: true }, async () => ({ ok: true })),
     (error) => error instanceof AppError && error.status === 400
   )
+})
+
+test('runIdempotentWithStore lets a retry take over an expired processing lease', async () => {
+  const store = new MemoryIdempotencyStore()
+  const body = { name: 'Acme' }
+  const bodyHash = hashIdempotencyBody(body)
+  const expiredLock = new Date(Date.now() - 10_000)
+  store.records.set(store.key('company_1', 'stale-key'), {
+    bodyHash,
+    expiresAt: new Date(Date.now() + 60_000),
+    lockedUntil: expiredLock,
+    response: null,
+    status: 'PROCESSING',
+  })
+
+  const result = await runIdempotentWithStore(store, 'stale-key', body, async () => ({ id: 'client_after_retry' }), {
+    companyId: 'company_1',
+    processingTtlMs: 1_000,
+    route: '/api/v1/clients',
+  })
+
+  assert.deepEqual(result, { id: 'client_after_retry' })
+  assert.equal(store.records.get(store.key('company_1', 'stale-key'))?.status, 'COMPLETED')
 })

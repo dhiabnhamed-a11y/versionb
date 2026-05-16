@@ -16,6 +16,8 @@
     "worker:ai": "tsx src/workers/ai.worker.ts",
     "worker:media": "tsx src/workers/media.worker.ts",
     "realtime:load-test": "tsx scripts/realtime-load-test.ts",
+    "api:audit": "tsx scripts/audit-api-platform.ts",
+    "test:api-governance": "tsx scripts/audit-api-platform.ts",
     "test:unit": "tsx --test src/lib/idempotency/idempotency.test.ts",
     "lint": "eslint",
     "db:migrate": "prisma migrate dev --name init",

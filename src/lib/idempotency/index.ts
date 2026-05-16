@@ -9,6 +9,7 @@ type IdempotencyStatus = 'PROCESSING' | 'COMPLETED' | 'FAILED'
 export type IdempotencyRecord = {
   bodyHash: string
   expiresAt: Date
+  lockedUntil: Date | null
   response: unknown
   status: IdempotencyStatus | string
 }
@@ -20,23 +21,34 @@ export type IdempotencyStore = {
     companyId: string
     expiresAt: Date
     key: string
+    lockedUntil: Date
     method: string
     route: string
   }): Promise<void>
   deleteExpired(input: { companyId: string; now: Date }): Promise<void>
   fail(input: { bodyHash: string; companyId: string; error: string; key: string }): Promise<void>
   find(input: { companyId: string; key: string }): Promise<IdempotencyRecord | null>
+  takeoverExpiredProcessing(input: {
+    bodyHash: string
+    companyId: string
+    key: string
+    lockedUntil: Date
+    now: Date
+    staleBefore: Date
+  }): Promise<boolean>
 }
 
 export type IdempotencyOptions = {
   companyId?: string | null
   method?: string
+  processingTtlMs?: number
   responseStatus?: number
   route?: string
   ttlMs?: number
 }
 
 const DEFAULT_TTL_MS = 24 * 60 * 60 * 1000
+const DEFAULT_PROCESSING_TTL_MS = 60 * 1000
 const MAX_KEY_LENGTH = 255
 
 export function getIdempotencyKey(req: Request) {
@@ -89,6 +101,8 @@ const prismaIdempotencyStore: IdempotencyStore = {
       data: {
         response: toJsonValue(input.response),
         responseStatus: input.responseStatus ?? null,
+        lockedUntil: null,
+        lastSeenAt: new Date(),
         status: 'COMPLETED',
       },
     })
@@ -100,6 +114,7 @@ const prismaIdempotencyStore: IdempotencyStore = {
         companyId: input.companyId,
         expiresAt: input.expiresAt,
         key: input.key,
+        lockedUntil: input.lockedUntil,
         method: input.method,
         route: input.route,
       },
@@ -118,6 +133,8 @@ const prismaIdempotencyStore: IdempotencyStore = {
       where: { companyId_key: { companyId: input.companyId, key: input.key } },
       data: {
         error: input.error,
+        lockedUntil: null,
+        lastSeenAt: new Date(),
         status: 'FAILED',
       },
     })
@@ -128,10 +145,29 @@ const prismaIdempotencyStore: IdempotencyStore = {
       select: {
         bodyHash: true,
         expiresAt: true,
+        lockedUntil: true,
         response: true,
         status: true,
       },
     })
+  },
+  async takeoverExpiredProcessing(input) {
+    const result = await prisma.idempotencyKey.updateMany({
+      where: {
+        bodyHash: input.bodyHash,
+        companyId: input.companyId,
+        key: input.key,
+        status: 'PROCESSING',
+        OR: [{ lockedUntil: { lte: input.now } }, { lockedUntil: null, updatedAt: { lte: input.staleBefore } }],
+      },
+      data: {
+        attempts: { increment: 1 },
+        lastSeenAt: input.now,
+        lockedUntil: input.lockedUntil,
+      },
+    })
+
+    return result.count === 1
   },
 }
 
@@ -151,40 +187,65 @@ export async function runIdempotentWithStore<T>(
   const now = new Date()
   const bodyHash = hashIdempotencyBody(body)
   const expiresAt = new Date(now.getTime() + (options.ttlMs ?? DEFAULT_TTL_MS))
+  const processingTtlMs = options.processingTtlMs ?? DEFAULT_PROCESSING_TTL_MS
+  const lockedUntil = new Date(now.getTime() + processingTtlMs)
+  const staleBefore = new Date(now.getTime() - processingTtlMs)
   const method = options.method ?? 'POST'
   const route = options.route ?? 'unknown'
 
   await store.deleteExpired({ companyId, now })
 
   try {
-    await store.createProcessing({ bodyHash, companyId, expiresAt, key: normalizedKey, method, route })
+    await store.createProcessing({ bodyHash, companyId, expiresAt, key: normalizedKey, lockedUntil, method, route })
   } catch (error) {
     if (!isUniqueConstraintError(error)) throw error
 
     const existing = await store.find({ companyId, key: normalizedKey })
     if (!existing || existing.expiresAt <= now) {
       await store.deleteExpired({ companyId, now })
-      await store.createProcessing({ bodyHash, companyId, expiresAt, key: normalizedKey, method, route })
+      await store.createProcessing({ bodyHash, companyId, expiresAt, key: normalizedKey, lockedUntil, method, route })
     } else {
       if (existing.bodyHash !== bodyHash) throw conflict('Idempotency key was reused with a different request body.')
       if (existing.status === 'COMPLETED') return existing.response as T
       if (existing.status === 'FAILED') throw conflict('Previous request with this Idempotency-Key failed. Use a new key to retry.')
+      if (existing.status === 'PROCESSING') {
+        const claimed = await store.takeoverExpiredProcessing({
+          bodyHash,
+          companyId,
+          key: normalizedKey,
+          lockedUntil,
+          now,
+          staleBefore,
+        })
+        if (claimed) return completeIdempotentWork(store, normalizedKey, bodyHash, companyId, work, options.responseStatus)
+      }
       throw conflict('A request with this Idempotency-Key is already in progress.')
     }
   }
 
+  return completeIdempotentWork(store, normalizedKey, bodyHash, companyId, work, options.responseStatus)
+}
+
+async function completeIdempotentWork<T>(
+  store: IdempotencyStore,
+  key: string,
+  bodyHash: string,
+  companyId: string,
+  work: () => Promise<T>,
+  responseStatus?: number
+): Promise<T> {
   try {
     const response = await work()
     await store.complete({
       bodyHash,
       companyId,
-      key: normalizedKey,
+      key,
       response,
-      responseStatus: options.responseStatus,
+      responseStatus,
     })
     return response
   } catch (error) {
-    await store.fail({ bodyHash, companyId, error: errorMessage(error), key: normalizedKey }).catch(() => undefined)
+    await store.fail({ bodyHash, companyId, error: errorMessage(error), key }).catch(() => undefined)
     throw error
   }
 }
