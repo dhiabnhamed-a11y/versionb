@@ -40,6 +40,7 @@ import {
   ReceiptText,
   Building2,
   Landmark,
+  FileCheck2,
 } from 'lucide-react'
 
 type DashboardLayoutClientProps = {
@@ -99,7 +100,10 @@ function DashboardLayoutChrome({
   const brandLogo = dashboardDesignConfig.brand.logoDataUrl || logo
   const hasCustomLogo = Boolean(dashboardDesignConfig.brand.logoDataUrl)
   const links = isSuperAdmin
-    ? [{ href: '/dashboard/super-admin', label: t('nav.companyApprovals'), icon: ShieldCheck }]
+    ? [
+        { href: '/dashboard/super-admin', label: t('nav.companyApprovals'), icon: ShieldCheck },
+        { href: '/dashboard/super-admin/legal', label: 'Legal controls', icon: FileCheck2 },
+      ]
     : isEmployee
     ? [
         {

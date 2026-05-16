@@ -551,6 +551,90 @@
   margin-top: 0.45rem;
 }
 
+.legalConsentBox {
+  display: grid;
+  gap: 0.8rem;
+  margin-top: 0.25rem;
+  padding: 0.95rem;
+  border: 1px solid rgba(3, 105, 161, 0.16);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(180deg, rgba(248, 252, 255, 0.96), rgba(238, 247, 251, 0.74));
+}
+
+.legalConsentBoxInvalid {
+  border-color: rgba(220, 38, 38, 0.34);
+  background: linear-gradient(180deg, rgba(255, 248, 248, 0.96), rgba(254, 242, 242, 0.8));
+}
+
+.legalConsentHeader {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  color: var(--accent);
+}
+
+.legalConsentTitle {
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.legalConsentDescription,
+.legalConsentFinePrint {
+  margin-top: 0.15rem;
+  font-size: 0.76rem;
+  line-height: 1.55;
+  color: var(--text-muted);
+}
+
+.legalCheckboxRow {
+  display: grid;
+  grid-template-columns: 1.15rem minmax(0, 1fr);
+  gap: 0.65rem;
+  align-items: flex-start;
+  color: var(--text-secondary);
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+.legalCheckboxRow input {
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: 0.18rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.legalCheckboxRow a,
+.legalConsentFinePrint a {
+  color: var(--accent);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.legalConsentError {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #b91c1c;
+}
+
+.legalFooterLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.55rem;
+  justify-content: center;
+  margin-top: 1rem;
+}
+
+.legalFooterLinks a {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
 @media (min-width: 640px) {
   .sectionBlock {
     padding: 1.2rem;

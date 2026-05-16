@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import { Prisma, type Invite } from '@prisma/client'
 
 import { prisma } from '@/lib/db'
+import { persistSignupLegalConsents, type LegalRequestContext, type SignupLegalAcceptance } from '@/lib/legal'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 
 export const INVITABLE_ROLES = ['MANAGER', 'EMPLOYEE'] as const
@@ -271,6 +272,8 @@ type RedeemInviteInput = {
   password: string
   inviteCode: string
   requestedRole: string
+  legalAcceptance: SignupLegalAcceptance
+  legalContext: LegalRequestContext
 }
 
 export async function redeemInviteSignup(input: RedeemInviteInput) {
@@ -360,7 +363,16 @@ export async function redeemInviteSignup(input: RedeemInviteInput) {
     // Supabase Auth and Prisma are separate systems, so we create the auth user first
     // and delete it again if the local membership transaction fails.
     const createdUser = await prisma.$transaction(
-      async (tx) => createInvitedUser(tx, { authUserId, invite, name, email, password }),
+      async (tx) =>
+        createInvitedUser(tx, {
+          authUserId,
+          invite,
+          name,
+          email,
+          password,
+          legalAcceptance: input.legalAcceptance,
+          legalContext: input.legalContext,
+        }),
       {
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       }
@@ -385,6 +397,8 @@ async function createInvitedUser(
     name: string
     email: string
     password: string
+    legalAcceptance: SignupLegalAcceptance
+    legalContext: LegalRequestContext
   }
 ) {
   const freshInvite = await tx.invite.findFirst({
@@ -445,6 +459,13 @@ async function createInvitedUser(
   if (claimResult.count !== 1) {
     throw new OnboardingFlowError('This invite has already been used.', 409)
   }
+
+  await persistSignupLegalConsents(tx, {
+    acceptance: input.legalAcceptance,
+    companyId: user.companyId,
+    context: input.legalContext,
+    userId: user.id,
+  })
 
   return user
 }

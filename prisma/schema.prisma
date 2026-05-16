@@ -95,6 +95,8 @@ model User {
   revokedTokens                RevokedToken[]               @relation("UserRevokedTokens")
   mfaFactors                   MfaFactor[]                  @relation("UserMfaFactors")
   mfaRecoveryCodes             MfaRecoveryCode[]            @relation("UserMfaRecoveryCodes")
+  legalConsents                LegalConsent[]               @relation("UserLegalConsents")
+  publishedLegalVersions       LegalDocumentVersion[]        @relation("LegalDocumentVersionPublisher")
 }
 
 model Company {
@@ -200,6 +202,7 @@ model Company {
   authSessions                 AuthSession[]                @relation("CompanyAuthSessions")
   revokedTokens                RevokedToken[]               @relation("CompanyRevokedTokens")
   securityNonces               SecurityNonce[]              @relation("CompanySecurityNonces")
+  legalConsents                LegalConsent[]               @relation("CompanyLegalConsents")
 
   @@index([status, createdAt])
   @@index([name, registrationNumber, status])
@@ -702,6 +705,14 @@ model AccessRequest {
 
   @@index([companyId, status, createdAt])
   @@index([companyId, email, status])
+}
+
+enum LegalConsentType {
+  TERMS_OF_SERVICE
+  PRIVACY_POLICY
+  COOKIE_POLICY
+  MARKETING_EMAILS
+  AI_USAGE_DISCLOSURE
 }
 
 enum CameraType {
@@ -2069,6 +2080,52 @@ model AuditLog {
   @@index([companyId, entityType, entityId, createdAt])
   @@index([actorId, createdAt])
   @@index([action, createdAt])
+}
+
+model LegalConsent {
+  id              String           @id @default(cuid())
+  userId          String
+  companyId       String?
+  consentType     LegalConsentType
+  documentVersion String
+  acceptedAt      DateTime
+  ipAddress       String?
+  userAgent       String?
+  locale          String?
+  consentHash     String           @unique
+  requestId       String?
+  source          String           @default("SIGNUP")
+  createdAt       DateTime         @default(now())
+
+  user    User     @relation("UserLegalConsents", fields: [userId], references: [id], onDelete: Cascade)
+  company Company? @relation("CompanyLegalConsents", fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, consentType, documentVersion])
+  @@index([companyId, consentType, acceptedAt])
+  @@index([userId, acceptedAt])
+  @@index([consentType, documentVersion, acceptedAt])
+}
+
+model LegalDocumentVersion {
+  id                    String           @id @default(cuid())
+  documentType          LegalConsentType
+  version               String
+  title                 String
+  summary               String?
+  contentHash           String
+  isActive              Boolean          @default(false)
+  requiresReacceptance  Boolean          @default(false)
+  effectiveAt           DateTime         @default(now())
+  publishedAt           DateTime?
+  publishedById         String?
+  createdAt             DateTime         @default(now())
+  updatedAt             DateTime         @updatedAt
+
+  publishedBy User? @relation("LegalDocumentVersionPublisher", fields: [publishedById], references: [id], onDelete: SetNull)
+
+  @@unique([documentType, version])
+  @@index([documentType, isActive])
+  @@index([requiresReacceptance, effectiveAt])
 }
 
 model JobRun {

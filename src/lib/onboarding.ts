@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client'
 
 import { isCompanyType, type CompanyType } from '@/lib/company-types'
 import { prisma } from '@/lib/db'
+import { persistSignupLegalConsents, type LegalRequestContext, type SignupLegalAcceptance } from '@/lib/legal'
 import { getSupabaseAdmin } from '@/lib/supabase-admin'
 import {
   createCompanyInvite,
@@ -73,6 +74,8 @@ type CreateOwnerSignupInput = {
   industry: string
   registrationNumber: string
   companyType: CompanyType
+  legalAcceptance: SignupLegalAcceptance
+  legalContext: LegalRequestContext
 }
 
 type SubmitAccessRequestInput = {
@@ -295,6 +298,13 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
         await tx.user.update({
           where: { id: user.id },
           data: { companyId: company.id },
+        })
+
+        await persistSignupLegalConsents(tx, {
+          acceptance: input.legalAcceptance,
+          companyId: company.id,
+          context: input.legalContext,
+          userId: user.id,
         })
 
         return {

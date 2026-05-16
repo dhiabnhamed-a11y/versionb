@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createOwnerSignup, isSignupRole } from '@/lib/onboarding'
 import type { CompanyType } from '@/lib/company-types'
+import { assertSignupLegalAcceptance, getLegalRequestContext } from '@/lib/legal'
 import { redeemInviteSignup } from '@/lib/invites'
 import { withApiError } from '@/modules/shared/api'
 import { assertPasswordPolicy } from '@/modules/security/password-policy'
@@ -11,9 +12,8 @@ export const dynamic = 'force-dynamic'
 export async function POST(req: NextRequest) {
   return withApiError(
     req,
-    async () => {
-      const { name, email, password, role, companyName, inviteCode, companyType, country, industry, registrationNumber } =
-        (await req.json().catch(() => ({}))) as {
+    async ({ requestId }) => {
+      const body = (await req.json().catch(() => ({}))) as {
         name?: string
         email?: string
         password?: string
@@ -24,7 +24,11 @@ export async function POST(req: NextRequest) {
         country?: string
         industry?: string
         registrationNumber?: string
+        locale?: string
       }
+      const { name, email, password, role, companyName, inviteCode, companyType, country, industry, registrationNumber } = body
+      const legalAcceptance = assertSignupLegalAcceptance(body)
+      const legalContext = getLegalRequestContext(req, requestId, body.locale)
 
       if (!name?.trim() || !email?.trim() || !password || !role?.trim()) {
         return NextResponse.json({ error: 'Full name, email, password, and role are required.' }, { status: 400 })
@@ -53,6 +57,8 @@ export async function POST(req: NextRequest) {
           industry: industry ?? '',
           registrationNumber: registrationNumber ?? '',
           companyType: (companyType ?? 'OTHER').trim().toUpperCase() as CompanyType,
+          legalAcceptance,
+          legalContext,
         })
 
         return NextResponse.json(
@@ -76,6 +82,8 @@ export async function POST(req: NextRequest) {
         password,
         inviteCode,
         requestedRole: normalizedRole,
+        legalAcceptance,
+        legalContext,
       })
 
       return NextResponse.json({ success: true, userId: user.id }, { status: 201 })

@@ -142,6 +142,13 @@ export default function SignupOnboardingClient({
   const [requestAccessError, setRequestAccessError] = useState('')
   const [requestAccessSuccess, setRequestAccessSuccess] = useState('')
   const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(null)
+  const [legalConsent, setLegalConsent] = useState({
+    termsAccepted: false,
+    privacyAccepted: false,
+    marketingEmailsAccepted: false,
+    aiUsageDisclosureAcknowledged: false,
+  })
+  const [legalTouched, setLegalTouched] = useState(false)
 
   const isOwnerFlow = form.role === 'OWNER'
   const selectedCompanyType = normalizeCompanyType(form.companyType)
@@ -150,6 +157,7 @@ export default function SignupOnboardingClient({
   const roleLocked = !isOwnerFlow && Boolean(invitePreview?.role)
   const companyTypeLocked = !isOwnerFlow && Boolean(invitePreview?.companyType)
   const shouldValidateInvite = !isOwnerFlow && form.inviteCode.trim().length > 0
+  const hasRequiredLegalConsent = legalConsent.termsAccepted && legalConsent.privacyAccepted
 
   useEffect(() => {
     const nextCode = initialInviteCode.trim()
@@ -220,6 +228,12 @@ export default function SignupOnboardingClient({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
+    setLegalTouched(true)
+    if (!hasRequiredLegalConsent) {
+      setError('Accept the Terms of Service and Privacy Policy to continue.')
+      return
+    }
+
     setLoading(true)
     setError('')
     setRequestAccessError('')
@@ -238,6 +252,8 @@ export default function SignupOnboardingClient({
         registrationNumber: form.registrationNumber.trim(),
         inviteCode: form.inviteCode.trim(),
         companyType: form.companyType,
+        locale: navigator.language,
+        legalConsent,
       }),
     })
 
@@ -775,7 +791,84 @@ export default function SignupOnboardingClient({
               </div>
             )}
 
-            <button className="btn-primary mt-1 flex h-11 items-center justify-center gap-2" type="submit" disabled={loading}>
+            <section
+              className={`${styles.legalConsentBox} ${legalTouched && !hasRequiredLegalConsent ? styles.legalConsentBoxInvalid : ''}`}
+              aria-labelledby="signup-legal-consent-title"
+            >
+              <div className={styles.legalConsentHeader}>
+                <ShieldCheck size={16} />
+                <div>
+                  <div id="signup-legal-consent-title" className={styles.legalConsentTitle}>
+                    Legal consent
+                  </div>
+                  <p className={styles.legalConsentDescription}>
+                    Required before TASKIT creates your account and stores the acceptance record.
+                  </p>
+                </div>
+              </div>
+
+              <label className={styles.legalCheckboxRow}>
+                <input
+                  type="checkbox"
+                  checked={hasRequiredLegalConsent}
+                  aria-describedby="signup-legal-consent-help signup-legal-consent-error"
+                  onBlur={() => setLegalTouched(true)}
+                  onChange={(event) => {
+                    const checked = event.target.checked
+                    setLegalConsent((current) => ({
+                      ...current,
+                      termsAccepted: checked,
+                      privacyAccepted: checked,
+                      aiUsageDisclosureAcknowledged: checked,
+                    }))
+                    if (checked) setError('')
+                  }}
+                />
+                <span>
+                  I agree to the{' '}
+                  <Link href="/terms" target="_blank" rel="noopener noreferrer">
+                    Terms of Service
+                  </Link>{' '}
+                  and{' '}
+                  <Link href="/privacy" target="_blank" rel="noopener noreferrer">
+                    Privacy Policy
+                  </Link>
+                  , and acknowledge the{' '}
+                  <Link href="/ai-transparency" target="_blank" rel="noopener noreferrer">
+                    AI Transparency Policy
+                  </Link>
+                  .
+                </span>
+              </label>
+
+              <label className={styles.legalCheckboxRow}>
+                <input
+                  type="checkbox"
+                  checked={legalConsent.marketingEmailsAccepted}
+                  onChange={(event) => {
+                    setLegalConsent((current) => ({ ...current, marketingEmailsAccepted: event.target.checked }))
+                  }}
+                />
+                <span>Send me occasional product updates and compliance notices by email.</span>
+              </label>
+
+              <p id="signup-legal-consent-help" className={styles.legalConsentFinePrint}>
+                TASKIT records the accepted document versions, timestamp, IP address, user agent, and locale for audit evidence.
+              </p>
+
+              {legalTouched && !hasRequiredLegalConsent && (
+                <p id="signup-legal-consent-error" className={styles.legalConsentError} role="alert">
+                  Terms of Service and Privacy Policy acceptance is required.
+                </p>
+              )}
+            </section>
+
+            <button
+              className="btn-primary mt-1 flex h-11 items-center justify-center gap-2"
+              type="submit"
+              disabled={loading || !hasRequiredLegalConsent}
+              aria-disabled={loading || !hasRequiredLegalConsent}
+            >
               {loading ? (
                 <Loader2 size={18} style={{ animation: 'spin 0.7s linear infinite' }} />
               ) : (
@@ -793,6 +886,12 @@ export default function SignupOnboardingClient({
               Sign in
             </Link>
           </p>
+          <div className={styles.legalFooterLinks} aria-label="Legal links">
+            <Link href="/terms">Terms</Link>
+            <Link href="/privacy">Privacy</Link>
+            <Link href="/cookies">Cookies</Link>
+            <Link href="/ai-transparency">AI Transparency</Link>
+          </div>
         </motion.div>
       </div>
     </div>
