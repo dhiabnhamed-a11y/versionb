@@ -5,6 +5,8 @@ import { getSocket } from '@/lib/socket-client'
 import { getSupabaseBrowserClient } from '@/lib/supabaseClient'
 import type { RealtimeEventName } from '@/lib/realtime-events'
 
+let supabaseChannelSequence = 0
+
 const EVENT_TABLES: Partial<Record<RealtimeEventName, string[]>> = {
   task_created: ['Task'],
   task_updated: ['Task'],
@@ -150,7 +152,8 @@ export function useRealtimeSubscription(
       }
 
       if (watchedTables.size > 0) {
-        const channel = supabase.channel(`workspace-changes-${channelKey || 'all'}`)
+        supabaseChannelSequence += 1
+        const channel = supabase.channel(`workspace-changes-${channelKey || 'all'}-${supabaseChannelSequence}`)
         for (const tableName of watchedTables) {
           channel.on(
             'postgres_changes',
