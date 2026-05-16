@@ -1306,6 +1306,124 @@ html[dir="rtl"] textarea {
   opacity: 0.48;
 }
 
+.ai-assistant-state-card {
+  display: grid;
+  gap: 0.58rem;
+  border-top: 1px solid rgba(255,255,255,0.09);
+  border-bottom: 1px solid rgba(255,255,255,0.09);
+  background: rgba(141,215,255,0.055);
+  padding: 0.72rem 0.78rem;
+}
+
+.ai-assistant-state-card.status-awaiting_confirmation {
+  background: rgba(248,196,113,0.075);
+}
+
+.ai-assistant-state-card.status-failed,
+.ai-assistant-state-card.status-expired {
+  background: rgba(248,113,113,0.07);
+}
+
+.ai-assistant-state-card.status-completed {
+  background: rgba(34,197,94,0.075);
+}
+
+.ai-assistant-state-card-head,
+.ai-assistant-state-card-head span,
+.ai-assistant-state-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+}
+
+.ai-assistant-state-card-head {
+  justify-content: space-between;
+  color: #8dd7ff;
+  font-size: 0.7rem;
+  font-weight: 950;
+  text-transform: capitalize;
+}
+
+.ai-assistant-state-card-head small {
+  overflow: hidden;
+  color: #8f9aaa;
+  font-size: 0.66rem;
+  font-weight: 850;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-assistant-state-card-body {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.ai-assistant-state-card-body strong {
+  overflow-wrap: anywhere;
+  color: #f7f8fb;
+  font-size: 0.82rem;
+  font-weight: 950;
+}
+
+.ai-assistant-state-card-body span {
+  color: #aeb7c7;
+  font-size: 0.73rem;
+  font-weight: 760;
+  line-height: 1.45;
+}
+
+.ai-assistant-state-timeline {
+  display: flex;
+  gap: 0.35rem;
+  overflow-x: auto;
+  padding-bottom: 0.05rem;
+}
+
+.ai-assistant-state-timeline span {
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  background: rgba(0,0,0,0.16);
+  color: #8f9aaa;
+  padding: 0.16rem 0.42rem;
+  font-size: 0.62rem;
+  font-weight: 850;
+  text-transform: capitalize;
+}
+
+.ai-assistant-state-actions {
+  flex-wrap: wrap;
+}
+
+.ai-assistant-state-actions button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.32rem;
+  min-height: 32px;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 10px;
+  padding: 0.38rem 0.58rem;
+  font-size: 0.7rem;
+  font-weight: 900;
+}
+
+.ai-assistant-state-actions button.primary {
+  border-color: rgba(34,197,94,0.28);
+  background: rgba(34,197,94,0.14);
+  color: #bbf7d0;
+}
+
+.ai-assistant-state-actions button.ghost {
+  background: rgba(255,255,255,0.045);
+  color: #aeb7c7;
+}
+
+.ai-assistant-state-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .ai-assistant-model {
   color: #687284;
   font-size: 0.65rem;

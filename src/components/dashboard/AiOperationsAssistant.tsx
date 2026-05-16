@@ -36,6 +36,33 @@ type AssistantMessage = {
   pendingAction?: AiActionPreview | null
 }
 
+type ConversationWorkflowState = {
+  stateId: string
+  pendingActionId: string
+  conversationId: string
+  status: 'awaiting_input' | 'awaiting_confirmation' | 'executing' | 'completed' | 'failed' | 'expired' | 'cancelled'
+  actionType: string
+  pendingFields: string[]
+  resolvedFields?: Record<string, unknown>
+  currentStep?: string | null
+  expiresAt?: string | null
+  confirmationRequired: boolean
+  targetType?: string | null
+  targetId?: string | null
+  targetLabel?: string | null
+  receipt?: unknown
+  error?: string | null
+  timeline: Array<{
+    id: string
+    status: string
+    currentStep: string
+    label?: string | null
+    eventType?: string | null
+    message?: string | null
+    createdAt: string
+  }>
+}
+
 type AiActionPreview = {
   actionRunId: string
   toolName: string
@@ -73,6 +100,7 @@ type AssistantResponse = {
     remembered: number
     notes: string[]
   }
+  conversationState?: ConversationWorkflowState | null
 }
 
 type WorkflowKind = 'campaign' | 'brief' | 'invoice' | 'client'
@@ -760,6 +788,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [conversationId, setConversationId] = useState<string | null>(null)
+  const [conversationState, setConversationState] = useState<ConversationWorkflowState | null>(null)
   const [activeWorkflow, setActiveWorkflow] = useState<ActiveWorkflow | null>(null)
   const [workflowContext, setWorkflowContext] = useState<WorkflowContext | null>(null)
   const [workflowContextLoading, setWorkflowContextLoading] = useState(false)
@@ -777,6 +806,17 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
   const inputRef = useRef<HTMLTextAreaElement | null>(null)
   const workflowInputRef = useRef<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null>(null)
   const workflowFocusKey = activeWorkflow ? `${activeWorkflow.kind}:${activeWorkflow.stepIndex}` : ''
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem('taskit-ai-conversation-id')
+    if (stored) setConversationId(stored)
+  }, [])
+
+  useEffect(() => {
+    if (conversationId) {
+      window.localStorage.setItem('taskit-ai-conversation-id', conversationId)
+    }
+  }, [conversationId])
 
   const loadWorkflowContext = useCallback(async () => {
     if (workflowContext) return workflowContext
@@ -818,6 +858,43 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
   }, [activeWorkflow, open])
 
   useEffect(() => {
+    if (!open) return
+    let cancelled = false
+
+    async function loadReplay() {
+      try {
+        const suffix = conversationId ? `?conversationId=${encodeURIComponent(conversationId)}` : ''
+        const response = await fetch(`/api/ai/state${suffix}`, { cache: 'no-store' })
+        const data = (await response.json()) as {
+          conversationId?: string | null
+          state?: ConversationWorkflowState | null
+          messages?: Array<{ id: string; role: string; content: string; citations?: unknown }>
+        } & { error?: string }
+        if (!response.ok || cancelled) return
+        if (data.conversationId) setConversationId(data.conversationId)
+        setConversationState(data.state ?? null)
+        const replayMessages = (data.messages ?? [])
+          .filter((message) => message.role === 'user' || message.role === 'assistant')
+          .map((message) => ({
+            id: message.id,
+            role: message.role as 'user' | 'assistant',
+            content: message.content,
+            citations: Array.isArray(message.citations) ? (message.citations as AssistantMessage['citations']) : [],
+            quickActions: message.role === 'assistant' ? starterPrompts : undefined,
+          }))
+        if (replayMessages.length > 0) setMessages(replayMessages)
+      } catch {
+        if (!cancelled) setConversationState(null)
+      }
+    }
+
+    void loadReplay()
+    return () => {
+      cancelled = true
+    }
+  }, [open])
+
+  useEffect(() => {
     if (!open || !workflowFocusKey) return
     const frame = window.requestAnimationFrame(() => workflowInputRef.current?.focus())
     return () => window.cancelAnimationFrame(frame)
@@ -857,6 +934,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
           throw new Error(data.error ?? 'Unable to run assistant.')
         }
         if (data.conversationId) setConversationId(data.conversationId)
+        setConversationState(data.conversationState ?? null)
         if (data.intent?.startsWith('create_') || data.intent?.startsWith('delete_') || data.intent === 'mark_invoice_paid') setWorkflowContext(null)
 
         setMessages((current) => [
@@ -1067,6 +1145,55 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
               </button>
             ))}
           </div>
+
+          {conversationState ? (
+            <div className={`ai-assistant-state-card status-${conversationState.status}`}>
+              <div className="ai-assistant-state-card-head">
+                <span>
+                  <ShieldCheck size={14} />
+                  {conversationState.status.replaceAll('_', ' ')}
+                </span>
+                <small>{conversationState.actionType.replaceAll('_', ' ')}</small>
+              </div>
+              <div className="ai-assistant-state-card-body">
+                <strong>{conversationState.targetLabel ?? 'Pending operational workflow'}</strong>
+                {conversationState.pendingFields.length ? (
+                  <span>Waiting for: {conversationState.pendingFields.join(', ')}</span>
+                ) : conversationState.confirmationRequired && conversationState.status === 'awaiting_confirmation' ? (
+                  <span>Preview ready. Confirmation is required before execution.</span>
+                ) : conversationState.error ? (
+                  <span>{conversationState.error}</span>
+                ) : (
+                  <span>{conversationState.currentStep?.replaceAll('_', ' ') ?? 'Workflow recorded'}</span>
+                )}
+              </div>
+              <div className="ai-assistant-state-timeline">
+                {conversationState.timeline.slice(-4).map((step) => (
+                  <span key={step.id}>{step.label ?? step.currentStep.replaceAll('_', ' ')}</span>
+                ))}
+              </div>
+              <div className="ai-assistant-state-actions">
+                {conversationState.status === 'awaiting_confirmation' ? (
+                  <button type="button" className="primary" disabled={loading} onClick={() => void sendChatPrompt('CONFIRM', { displayContent: `Confirm: ${conversationState.targetLabel ?? conversationState.actionType}` })}>
+                    <CheckCircle2 size={14} />
+                    Confirm
+                  </button>
+                ) : null}
+                {conversationState.status === 'failed' ? (
+                  <button type="button" className="primary" disabled={loading} onClick={() => void sendChatPrompt(`Retry ${conversationState.actionType} ${conversationState.targetLabel ?? ''}`)}>
+                    <ChevronUp size={14} />
+                    Retry
+                  </button>
+                ) : null}
+                {['awaiting_input', 'awaiting_confirmation', 'failed'].includes(conversationState.status) ? (
+                  <button type="button" className="ghost" disabled={loading} onClick={() => void sendChatPrompt('Cancel')}>
+                    <X size={14} />
+                    Cancel
+                  </button>
+                ) : null}
+              </div>
+            </div>
+          ) : null}
 
           <div ref={scrollRef} className="ai-assistant-messages">
             {messages.map((message) => (

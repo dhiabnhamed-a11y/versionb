@@ -52,6 +52,10 @@ model User {
   aiRuns                       AiRun[]                      @relation("AiRunActor")
   aiActionRuns                 AiActionRun[]                @relation("AiActionRunActor")
   aiToolExecutions             AiToolExecution[]            @relation("AiToolExecutionActor")
+  aiConversationStates         AiConversationState[]        @relation("AiConversationStateActor")
+  aiPendingActions             AiPendingAction[]            @relation("AiPendingActionActor")
+  aiWorkflowSteps              AiWorkflowStep[]             @relation("AiWorkflowStepActor")
+  aiActionContexts             AiActionContext[]            @relation("AiActionContextActor")
   requestedAiApprovals         AiApproval[]                 @relation("AiApprovalRequester")
   assignedAiApprovals          AiApproval[]                 @relation("AiApprovalApprover")
   decidedAiApprovals           AiApproval[]                 @relation("AiApprovalDecider")
@@ -163,6 +167,10 @@ model Company {
   aiActionRuns                 AiActionRun[]
   aiSteps                      AiStep[]
   aiToolExecutions             AiToolExecution[]
+  aiConversationStates         AiConversationState[]
+  aiPendingActions             AiPendingAction[]
+  aiWorkflowSteps              AiWorkflowStep[]
+  aiActionContexts             AiActionContext[]
   aiApprovals                  AiApproval[]
   aiObservations               AiObservation[]
   aiDecisions                  AiDecision[]
@@ -2203,9 +2211,148 @@ model AiConversation {
   company  Company     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   user     User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   messages AiMessage[]
+  states   AiConversationState[]
+  pendingActions AiPendingAction[]
+  workflowSteps AiWorkflowStep[]
+  actionContexts AiActionContext[]
 
   @@index([companyId, userId, updatedAt])
   @@index([companyId, createdAt])
+}
+
+model AiConversationState {
+  id                   String    @id @default(cuid())
+  companyId            String
+  userId               String
+  conversationId       String
+  status               String    @default("completed") // awaiting_input, awaiting_confirmation, executing, completed, failed, expired, cancelled
+  actionType           String?
+  pendingFields        Json?
+  resolvedFields       Json?
+  currentStep          String?
+  expiresAt            DateTime?
+  confirmationRequired Boolean   @default(false)
+  metadata             Json?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  company        Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user           User               @relation("AiConversationStateActor", fields: [userId], references: [id], onDelete: Cascade)
+  conversation   AiConversation     @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  pendingActions AiPendingAction[]
+  workflowSteps  AiWorkflowStep[]
+  actionContexts AiActionContext[]
+
+  @@index([companyId, userId, status, updatedAt])
+  @@index([companyId, conversationId, status])
+  @@index([companyId, actionType, status, expiresAt])
+  @@map("ai_conversation_states")
+}
+
+model AiPendingAction {
+  id                   String    @id @default(cuid())
+  stateId              String
+  companyId            String
+  userId               String
+  conversationId       String
+  status               String    @default("awaiting_input") // awaiting_input, awaiting_confirmation, executing, completed, failed, expired, cancelled
+  actionType           String
+  pendingFields        Json?
+  resolvedFields       Json?
+  currentStep          String?
+  expiresAt            DateTime?
+  confirmationRequired Boolean   @default(false)
+  aiRunId              String?
+  aiActionRunId        String?
+  targetType           String?
+  targetId             String?
+  targetLabel          String?
+  attemptCount         Int       @default(0)
+  lastPrompt           String?
+  receipt              Json?
+  error                String?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  state        AiConversationState @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user         User                @relation("AiPendingActionActor", fields: [userId], references: [id], onDelete: Cascade)
+  conversation AiConversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  workflowSteps  AiWorkflowStep[]
+  actionContexts AiActionContext[]
+
+  @@index([companyId, userId, status, updatedAt])
+  @@index([companyId, conversationId, status])
+  @@index([companyId, actionType, status, expiresAt])
+  @@index([companyId, targetType, targetId, createdAt])
+  @@map("ai_pending_actions")
+}
+
+model AiWorkflowStep {
+  id                   String    @id @default(cuid())
+  stateId              String
+  pendingActionId      String?
+  companyId            String
+  userId               String
+  conversationId       String
+  status               String    @default("awaiting_input") // awaiting_input, awaiting_confirmation, executing, completed, failed, expired, cancelled
+  actionType           String
+  pendingFields        Json?
+  resolvedFields       Json?
+  currentStep          String
+  stepIndex            Int       @default(0)
+  label                String?
+  eventType            String    @default("state_transition")
+  message              String?
+  expiresAt            DateTime?
+  confirmationRequired Boolean   @default(false)
+  metadata             Json?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  state         AiConversationState @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  pendingAction AiPendingAction?    @relation(fields: [pendingActionId], references: [id], onDelete: Cascade)
+  company       Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user          User                @relation("AiWorkflowStepActor", fields: [userId], references: [id], onDelete: Cascade)
+  conversation  AiConversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, conversationId, createdAt])
+  @@index([companyId, userId, status, createdAt])
+  @@index([pendingActionId, stepIndex])
+  @@map("ai_workflow_steps")
+}
+
+model AiActionContext {
+  id                   String    @id @default(cuid())
+  stateId              String
+  pendingActionId      String?
+  companyId            String
+  userId               String
+  conversationId       String
+  status               String    @default("awaiting_input") // awaiting_input, awaiting_confirmation, executing, completed, failed, expired, cancelled
+  actionType           String
+  pendingFields        Json?
+  resolvedFields       Json?
+  currentStep          String?
+  expiresAt            DateTime?
+  confirmationRequired Boolean   @default(false)
+  contextType          String    @default("parameter_resolution")
+  context              Json
+  confidence           Float     @default(0.7)
+  source               String    @default("ai_conversation_state_engine")
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  state         AiConversationState @relation(fields: [stateId], references: [id], onDelete: Cascade)
+  pendingAction AiPendingAction?    @relation(fields: [pendingActionId], references: [id], onDelete: Cascade)
+  company       Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  user          User                @relation("AiActionContextActor", fields: [userId], references: [id], onDelete: Cascade)
+  conversation  AiConversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, conversationId, createdAt])
+  @@index([companyId, actionType, status, createdAt])
+  @@index([pendingActionId, contextType, createdAt])
+  @@map("ai_action_contexts")
 }
 
 model AiMessage {

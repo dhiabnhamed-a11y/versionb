@@ -3,6 +3,11 @@ import { auth } from '@/lib/auth'
 import { buildGroundedOperationalAnswer, type AiMessageInput } from '@/lib/ai-operations'
 import { polishGroundedAnswerWithOpenAi } from '@/lib/ai-openai'
 import { loadAiMemoryContext, persistAiTurn } from '@/lib/ai-memory'
+import {
+  ensureAiConversationForState,
+  handleAiConversationStateTurn,
+  syncConversationStateFromGrounded,
+} from '@/lib/ai-conversation-state'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import { normalizeAppLocale } from '@/lib/i18n'
 
@@ -67,19 +72,35 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Message is required.' }, { status: 400 })
   }
 
+  const durableConversationId = await ensureAiConversationForState({
+    user,
+    conversationId,
+    question,
+  })
+
   const memory = await loadAiMemoryContext({
     question,
     messages,
     user,
   })
 
-  const grounded = await buildGroundedOperationalAnswer({
+  const stateTurn = await handleAiConversationStateTurn({
     question,
-    messages,
-    memory,
     user,
+    conversationId: durableConversationId ?? conversationId,
     confirmationToken,
   })
+
+  const grounded = stateTurn.handled && stateTurn.grounded
+    ? stateTurn.grounded
+    : await buildGroundedOperationalAnswer({
+        question,
+        messages,
+        memory,
+        user,
+        confirmationToken,
+        conversationId: durableConversationId ?? conversationId,
+      })
   const keepDeterministic = Boolean(grounded.ambiguity || grounded.facts.actionPreview || grounded.facts.executionReceipt)
   const polished = keepDeterministic
     ? {
@@ -90,16 +111,21 @@ export async function POST(req: NextRequest) {
     : await polishGroundedAnswerWithOpenAi({ question, messages, grounded, memory, locale })
   const memoryWrite = await persistAiTurn({
     user,
-    conversationId,
+    conversationId: durableConversationId ?? conversationId,
     question,
     answer: polished.answer,
+    grounded,
+  })
+  const conversationState = stateTurn.state ?? await syncConversationStateFromGrounded({
+    user,
+    conversationId: memoryWrite.conversationId ?? durableConversationId ?? conversationId,
     grounded,
   })
 
   return NextResponse.json(
     {
       id: crypto.randomUUID(),
-      conversationId: memoryWrite.conversationId ?? conversationId,
+      conversationId: memoryWrite.conversationId ?? durableConversationId ?? conversationId,
       answer: polished.answer,
       intent: grounded.intent,
       confidence: grounded.confidence,
@@ -132,6 +158,7 @@ export async function POST(req: NextRequest) {
         remembered: memoryWrite.remembered.length,
         notes: [...memory.notes, ...memoryWrite.notes],
       },
+      conversationState: conversationState ?? grounded.facts.conversationState ?? null,
       generatedAt: new Date().toISOString(),
     },
     { headers: NO_STORE_HEADERS }

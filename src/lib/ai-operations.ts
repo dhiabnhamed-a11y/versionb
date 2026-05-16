@@ -1210,6 +1210,7 @@ export async function buildGroundedOperationalAnswer(input: {
   messages?: AiMessageInput[]
   memory?: AiMemoryContext
   confirmationToken?: string | null
+  conversationId?: string | null
 }): Promise<AiGroundedAnswer> {
   const role = normalizeRole(input.user.role)
   if (!input.user.companyId || role === 'SUPER_ADMIN') {
@@ -1228,6 +1229,7 @@ export async function buildGroundedOperationalAnswer(input: {
     message: input.question,
     user: input.user,
     confirmationToken: input.confirmationToken,
+    conversationId: input.conversationId,
   })
   if (action.handled) {
     return {

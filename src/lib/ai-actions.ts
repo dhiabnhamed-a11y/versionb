@@ -211,6 +211,16 @@ function findById<T extends { id: string }>(items: T[], id: string | null | unde
   return items.find((item) => item.id === id.trim()) ?? null
 }
 
+function findByLooseId<T extends { id: string }>(items: T[], id: string | null | undefined) {
+  if (!id) return null
+  const normalized = id.trim().toLowerCase()
+  if (!normalized) return null
+  return items.find((item) => {
+    const candidate = item.id.toLowerCase()
+    return candidate === normalized || candidate.endsWith(normalized)
+  }) ?? null
+}
+
 type ResolvedTarget<T> =
   | { status: 'found'; item: T }
   | { status: 'missing'; examples: string[] }
@@ -285,10 +295,15 @@ function resolveTarget<T extends { id: string }>(
 ): ResolvedTarget<T> {
   const requestedId = extractLabeledValue(message, idLabels)
   if (requestedId) {
-    const item = findById(items, requestedId)
+    const item = findByLooseId(items, requestedId)
     if (item) return { status: 'found', item }
     return { status: 'missing', examples: items.slice(0, 5).map((candidate) => compactLabels(getLabels(candidate))[0] ?? candidate.id) }
   }
+
+  const bareIdentifier = message.match(/\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i)?.[0]
+    ?? message.match(/\b(c[a-z0-9]{8,}|[a-z0-9_-]{12,}|\d{2,})\b/i)?.[0]
+  const bareMatch = findByLooseId(items, bareIdentifier)
+  if (bareMatch) return { status: 'found', item: bareMatch }
 
   return resolveTargetByText(items, message, getLabels)
 }
@@ -302,10 +317,15 @@ function extractInvoiceNumber(message: string) {
 function resolveInvoiceTarget(invoices: WorkspaceLookups['invoices'], message: string): ResolvedTarget<WorkspaceLookups['invoices'][number]> {
   const requestedId = extractLabeledValue(message, ['invoice id', 'invoiceId', 'id'])
   if (requestedId) {
-    const invoice = findById(invoices, requestedId)
+    const invoice = findByLooseId(invoices, requestedId)
     if (invoice) return { status: 'found', item: invoice }
     return { status: 'missing', examples: invoices.slice(0, 5).map((item) => `${item.invoiceNumber} - ${item.clientName}`) }
   }
+
+  const bareIdentifier = message.match(/\b[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\b/i)?.[0]
+    ?? message.match(/\b(c[a-z0-9]{8,}|[a-z0-9_-]{12,})\b/i)?.[0]
+  const bareMatch = findByLooseId(invoices, bareIdentifier)
+  if (bareMatch) return { status: 'found', item: bareMatch }
 
   const invoiceNumber = extractInvoiceNumber(message)
   if (invoiceNumber) {
@@ -735,6 +755,7 @@ async function governedPreview(input: {
   kind: string
   rawMessage: string
   canonicalMessage: string
+  conversationId?: string | null
   preview: AiActionPreviewPayload
   citations?: AiCitation[]
   quickActions?: string[]
@@ -756,6 +777,7 @@ async function governedPreview(input: {
   const created = await createAiActionPreview({
     companyId: input.user.companyId,
     actorId: input.user.id,
+    conversationId: input.conversationId ?? null,
     tool,
     actionKind: input.kind,
     rawMessage: input.rawMessage,
@@ -1497,6 +1519,7 @@ async function previewCreateCampaign(input: {
   message: string
   user: AiSessionUser
   lookups: WorkspaceLookups
+  conversationId?: string | null
 }) {
   if (!input.user.companyId) return missingDetailsAnswer('campaign', ['an active workspace'])
   if (!canManageOperations(input.user)) return forbiddenAdminActionAnswer('create_campaign', 'create campaigns')
@@ -1528,6 +1551,7 @@ async function previewCreateCampaign(input: {
     kind: 'campaign',
     rawMessage: input.rawMessage,
     canonicalMessage: input.message,
+    conversationId: input.conversationId,
     preview: {
       summary: `Create campaign "${title}"${client?.companyName ? ` for ${client.companyName}` : requestedClientName ? ` for ${requestedClientName}` : ''}.`,
       changes: [
@@ -1566,6 +1590,7 @@ async function previewCreateBrief(input: {
   message: string
   user: AiSessionUser
   lookups: WorkspaceLookups
+  conversationId?: string | null
 }) {
   if (!input.user.companyId) return missingDetailsAnswer('brief', ['an active workspace'])
   if (!canManageOperations(input.user)) return forbiddenAdminActionAnswer('create_brief', 'create briefs')
@@ -1582,6 +1607,7 @@ async function previewCreateBrief(input: {
     kind: 'brief',
     rawMessage: input.rawMessage,
     canonicalMessage: input.message,
+    conversationId: input.conversationId,
     preview: {
       summary: `Create draft brief "${title}" for ${campaign.title}.`,
       changes: [
@@ -1620,6 +1646,7 @@ async function previewCreateInvoice(input: {
   message: string
   user: AiSessionUser
   lookups: WorkspaceLookups
+  conversationId?: string | null
 }) {
   if (!input.user.companyId) return missingDetailsAnswer('invoice', ['an active workspace'])
   if (!canManageInvoices(input.user)) return forbiddenAdminActionAnswer('create_invoice', 'create invoices')
@@ -1648,6 +1675,7 @@ async function previewCreateInvoice(input: {
     kind: 'invoice',
     rawMessage: input.rawMessage,
     canonicalMessage: input.message,
+    conversationId: input.conversationId,
     preview: {
       summary: `Create draft invoice ${invoiceNumber} for ${clientName} totaling ${totalLabel}.`,
       changes: [
@@ -1705,6 +1733,7 @@ async function previewCreateClient(input: {
   rawMessage: string
   message: string
   user: AiSessionUser
+  conversationId?: string | null
 }) {
   if (!input.user.companyId) return missingDetailsAnswer('client', ['an active workspace'])
   if (!canManageOperations(input.user)) return forbiddenAdminActionAnswer('create_client', 'create clients')
@@ -1734,6 +1763,7 @@ async function previewCreateClient(input: {
     kind: 'client',
     rawMessage: input.rawMessage,
     canonicalMessage: input.message,
+    conversationId: input.conversationId,
     preview: {
       summary: `Create client profile for ${companyName}.`,
       changes: [
@@ -1771,6 +1801,7 @@ async function previewPaymentDeadlineAlerts(input: {
   rawMessage: string
   message: string
   user: AiSessionUser
+  conversationId?: string | null
 }) {
   if (!input.user.companyId) return missingDetailsAnswer('payment alert', ['an active workspace'])
   if (!canManageInvoices(input.user)) return forbiddenAdminActionAnswer('payment_deadline_alerts', 'send payment-deadline alerts')
@@ -1853,6 +1884,7 @@ async function previewPaymentDeadlineAlerts(input: {
     kind: 'payment_alerts',
     rawMessage: input.rawMessage,
     canonicalMessage: input.message,
+    conversationId: input.conversationId,
     preview: {
       summary: `Send ${alertCount} payment-deadline alert${alertCount === 1 ? '' : 's'} for ${invoices.length} invoice${invoices.length === 1 ? '' : 's'}.`,
       changes: [
@@ -1894,6 +1926,7 @@ async function previewMarkInvoicePaid(input: {
   message: string
   user: AiSessionUser
   lookups: WorkspaceLookups
+  conversationId?: string | null
 }) {
   if (!input.user.companyId) return missingDetailsAnswer('invoice payment', ['an active workspace'])
   if (!canManageInvoices(input.user)) return forbiddenAdminActionAnswer('mark_invoice_paid', 'mark invoices as paid')
@@ -1941,6 +1974,7 @@ async function previewMarkInvoicePaid(input: {
     kind: 'mark_invoice_paid',
     rawMessage: input.rawMessage,
     canonicalMessage: input.message,
+    conversationId: input.conversationId,
     preview: {
       summary: `Mark invoice ${existing.invoiceNumber} as paid.`,
       changes: [
@@ -2033,6 +2067,7 @@ async function previewDeleteWorkspaceRecord(input: {
   user: AiSessionUser
   lookups: WorkspaceLookups
   kind: DeletableKind
+  conversationId?: string | null
 }) {
   if (!input.user.companyId) return missingDetailsAnswer(input.kind, ['an active workspace'])
   if (!canManageOperations(input.user)) return forbiddenAdminActionAnswer(`delete_${input.kind}`, `delete ${deleteSubjectLabel(input.kind)} records`)
@@ -2051,6 +2086,7 @@ async function previewDeleteWorkspaceRecord(input: {
     kind: `delete_${input.kind}`,
     rawMessage: input.rawMessage,
     canonicalMessage: input.message,
+    conversationId: input.conversationId,
     preview: {
       summary: `Delete ${subject}: ${label}.`,
       changes: impact,
@@ -2088,17 +2124,18 @@ async function previewAiWorkspaceAction(input: {
   actionMessage: string
   user: AiSessionUser
   lookups: WorkspaceLookups
+  conversationId?: string | null
 }): Promise<AiActionResult> {
-  if (input.kind === 'client') return previewCreateClient({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user })
-  if (input.kind === 'payment_alerts') return previewPaymentDeadlineAlerts({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user })
-  if (input.kind === 'mark_invoice_paid') return previewMarkInvoicePaid({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, lookups: input.lookups })
+  if (input.kind === 'client') return previewCreateClient({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, conversationId: input.conversationId })
+  if (input.kind === 'payment_alerts') return previewPaymentDeadlineAlerts({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, conversationId: input.conversationId })
+  if (input.kind === 'mark_invoice_paid') return previewMarkInvoicePaid({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, lookups: input.lookups, conversationId: input.conversationId })
   if (input.kind.startsWith('delete_')) {
     const deleteKind = input.kind.replace('delete_', '') as DeletableKind
-    return previewDeleteWorkspaceRecord({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, lookups: input.lookups, kind: deleteKind })
+    return previewDeleteWorkspaceRecord({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, lookups: input.lookups, kind: deleteKind, conversationId: input.conversationId })
   }
-  if (input.kind === 'campaign') return previewCreateCampaign({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, lookups: input.lookups })
-  if (input.kind === 'brief') return previewCreateBrief({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, lookups: input.lookups })
-  if (input.kind === 'invoice') return previewCreateInvoice({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, lookups: input.lookups })
+  if (input.kind === 'campaign') return previewCreateCampaign({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, lookups: input.lookups, conversationId: input.conversationId })
+  if (input.kind === 'brief') return previewCreateBrief({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, lookups: input.lookups, conversationId: input.conversationId })
+  if (input.kind === 'invoice') return previewCreateInvoice({ rawMessage: input.rawMessage, message: input.actionMessage, user: input.user, lookups: input.lookups, conversationId: input.conversationId })
 
   return { handled: false }
 }
@@ -2227,6 +2264,7 @@ export async function executeAiWorkspaceAction(input: {
   message: string
   user: AiSessionUser
   confirmationToken?: string | null
+  conversationId?: string | null
 }): Promise<AiActionResult> {
   if (input.confirmationToken) {
     return executeConfirmedAiWorkspaceAction({
@@ -2275,6 +2313,7 @@ export async function executeAiWorkspaceAction(input: {
       actionMessage,
       user: input.user,
       lookups,
+      conversationId: input.conversationId,
     })
     return { ...result, resolvedIntent }
   } catch (error) {
