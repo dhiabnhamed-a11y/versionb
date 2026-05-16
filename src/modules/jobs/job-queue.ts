@@ -11,6 +11,9 @@ type RedisConnectionOptions = {
   password?: string
   db?: number
   tls?: Record<string, never>
+  connectTimeout?: number
+  enableOfflineQueue?: boolean
+  maxRetriesPerRequest?: number
 }
 
 export type OperationalJobInput = {
@@ -25,6 +28,18 @@ export type OperationalJobInput = {
 }
 
 const queues = new Map<string, Promise<Queue | null>>()
+const QUEUE_OPERATION_TIMEOUT_MS = Math.max(Number(process.env.QUEUE_OPERATION_TIMEOUT_MS ?? 2_500), 500)
+
+function withTimeout<T>(operation: Promise<T>, timeoutMs: number, message: string) {
+  let timer: ReturnType<typeof setTimeout> | undefined
+  const timeout = new Promise<never>((_resolve, reject) => {
+    timer = setTimeout(() => reject(new Error(message)), timeoutMs)
+  })
+
+  return Promise.race([operation, timeout]).finally(() => {
+    if (timer) clearTimeout(timer)
+  })
+}
 
 function redisUrl() {
   return process.env.QUEUE_REDIS_URL || process.env.REDIS_URL || ''
@@ -42,6 +57,9 @@ function parseRedisConnection(url: string): RedisConnectionOptions {
     username: parsed.username || undefined,
     password: parsed.password || undefined,
     db: parsed.pathname && parsed.pathname !== '/' ? Number(parsed.pathname.slice(1)) || undefined : undefined,
+    connectTimeout: QUEUE_OPERATION_TIMEOUT_MS,
+    enableOfflineQueue: false,
+    maxRetriesPerRequest: 1,
     ...(parsed.protocol === 'rediss:' ? { tls: {} } : {}),
   }
 }
@@ -99,7 +117,23 @@ export async function enqueueOperationalJob(input: OperationalJobInput) {
     logger.warn('queue.job_run_skipped_missing_schema', { queue: queueName, jobName: input.name })
   }
 
-  const queue = await getQueue(queueName)
+  let queue: Queue | null = null
+  try {
+    queue = await withTimeout(getQueue(queueName), QUEUE_OPERATION_TIMEOUT_MS, `Queue ${queueName} initialization timed out.`)
+  } catch (error) {
+    logger.error('queue.init_timed_out', error, { queue: queueName, jobName: input.name, jobRunId: runRecord?.id })
+    if (runRecord) {
+      await prisma.jobRun.update({
+        where: { id: runRecord.id },
+        data: {
+          status: 'DEFERRED',
+          error: error instanceof Error ? error.message : String(error),
+        },
+      })
+    }
+    return runRecord
+  }
+
   if (!queue || !runRecord) return runRecord
 
   const options: JobsOptions = {
@@ -109,7 +143,11 @@ export async function enqueueOperationalJob(input: OperationalJobInput) {
   }
 
   try {
-    const job = await queue.add(input.name, { ...((toJsonValue(input.payload) as object | undefined) ?? {}), jobRunId: runRecord.id }, options)
+    const job = await withTimeout(
+      queue.add(input.name, { ...((toJsonValue(input.payload) as object | undefined) ?? {}), jobRunId: runRecord.id }, options),
+      QUEUE_OPERATION_TIMEOUT_MS,
+      `Queue ${queueName} enqueue timed out.`
+    )
     await prisma.jobRun.update({
       where: { id: runRecord.id },
       data: { externalId: job.id ? String(job.id) : null },

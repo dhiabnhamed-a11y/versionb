@@ -45,7 +45,7 @@ export function ActivityLineChart({
 }) {
   return (
     <div className="h-[260px] min-h-[260px] min-w-0">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <LineChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
           <CartesianGrid stroke="rgba(100,116,139,0.18)" vertical={false} />
           <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 13 }} />
@@ -69,7 +69,7 @@ export function ActivityLineChart({
 export function StatusBarChart({ data, valueLabel = 'Tasks' }: { data: StageBreakdownItem[]; valueLabel?: string }) {
   return (
     <div className="h-[250px] min-h-[250px] min-w-0">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <BarChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
           <CartesianGrid stroke="rgba(100,116,139,0.18)" vertical={false} />
           <XAxis dataKey="name" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 13 }} />
@@ -96,7 +96,7 @@ export function StatusBarChart({ data, valueLabel = 'Tasks' }: { data: StageBrea
 export function RolesPieChart({ data }: { data: RoleDistributionItem[] }) {
   return (
     <div className="h-[250px] min-h-[250px] min-w-0">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <PieChart>
           <Pie data={data} dataKey="value" nameKey="name" innerRadius={58} outerRadius={88} paddingAngle={3}>
             {data.map((entry, index) => (

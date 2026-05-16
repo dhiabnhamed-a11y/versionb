@@ -1,4 +1,4 @@
-import { Document, Font, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
+import { Document, Page, StyleSheet, Text, View } from '@react-pdf/renderer'
 import {
   contractDirection,
   formatContractDate,
@@ -13,45 +13,13 @@ type ContractDocumentProps = {
   contract: ContractContent
 }
 
-const fontState = globalThis as typeof globalThis & { __taskitContractFontsRegistered?: boolean }
-
-function registerContractFonts() {
-  if (fontState.__taskitContractFontsRegistered) return
-  fontState.__taskitContractFontsRegistered = true
-
-  try {
-    Font.register({
-      family: 'TaskitLegal',
-      fonts: [
-        { src: 'C:/Windows/Fonts/times.ttf', fontWeight: 400 },
-        { src: 'C:/Windows/Fonts/timesbd.ttf', fontWeight: 700 },
-        { src: 'C:/Windows/Fonts/timesi.ttf', fontStyle: 'italic' },
-      ],
-    })
-    Font.register({
-      family: 'TaskitSans',
-      fonts: [
-        { src: 'C:/Windows/Fonts/arial.ttf', fontWeight: 400 },
-        { src: 'C:/Windows/Fonts/arialbd.ttf', fontWeight: 700 },
-      ],
-    })
-    Font.register({
-      family: 'TaskitArabic',
-      fonts: [
-        { src: 'C:/Windows/Fonts/tahoma.ttf', fontWeight: 400 },
-        { src: 'C:/Windows/Fonts/tahomabd.ttf', fontWeight: 700 },
-      ],
-    })
-  } catch {
-    // React PDF still has built-in fonts; registration is a best-effort upgrade.
-  }
-}
-
 const ink = '#142033'
 const slate = '#5f6f85'
 const border = '#d9e1ec'
 const accent = '#0369a1'
 const gold = '#d97706'
+const bodyFont = 'Helvetica'
+const strongFont = 'Helvetica-Bold'
 
 const styles = StyleSheet.create({
   page: {
@@ -61,12 +29,11 @@ const styles = StyleSheet.create({
     paddingLeft: 40,
     backgroundColor: '#f5f7fb',
     color: ink,
-    fontFamily: 'TaskitLegal',
+    fontFamily: bodyFont,
     fontSize: 10,
     lineHeight: 1.55,
   },
   pageRtl: {
-    fontFamily: 'TaskitArabic',
     textAlign: 'right',
   },
   documentShell: {
@@ -104,16 +71,14 @@ const styles = StyleSheet.create({
   },
   brandKicker: {
     color: '#b8c4d4',
-    fontFamily: 'TaskitSans',
+    fontFamily: strongFont,
     fontSize: 8,
-    fontWeight: 700,
     textTransform: 'uppercase',
   },
   companyName: {
     marginTop: 6,
-    fontFamily: 'TaskitSans',
+    fontFamily: strongFont,
     fontSize: 13,
-    fontWeight: 700,
   },
   statusPill: {
     alignSelf: 'flex-start',
@@ -123,23 +88,22 @@ const styles = StyleSheet.create({
     paddingLeft: 10,
     backgroundColor: '#e0f2fe',
     color: '#075985',
-    fontFamily: 'TaskitSans',
+    fontFamily: strongFont,
     fontSize: 8,
-    fontWeight: 700,
     textTransform: 'uppercase',
   },
   title: {
     marginTop: 44,
     maxWidth: 430,
+    fontFamily: strongFont,
     fontSize: 30,
-    fontWeight: 700,
     lineHeight: 1.08,
   },
   subtitle: {
     marginTop: 12,
     maxWidth: 440,
     color: '#cbd5e1',
-    fontFamily: 'TaskitSans',
+    fontFamily: bodyFont,
     fontSize: 10,
     lineHeight: 1.55,
   },
@@ -161,17 +125,15 @@ const styles = StyleSheet.create({
   },
   coverLabel: {
     color: '#94a3b8',
-    fontFamily: 'TaskitSans',
+    fontFamily: strongFont,
     fontSize: 7,
-    fontWeight: 700,
     textTransform: 'uppercase',
   },
   coverValue: {
     marginTop: 5,
     color: '#ffffff',
-    fontFamily: 'TaskitSans',
+    fontFamily: strongFont,
     fontSize: 10,
-    fontWeight: 700,
   },
   content: {
     paddingTop: 26,
@@ -185,9 +147,8 @@ const styles = StyleSheet.create({
     left: 110,
     width: 360,
     color: '#e2e8f0',
-    fontFamily: 'TaskitSans',
+    fontFamily: strongFont,
     fontSize: 54,
-    fontWeight: 700,
     opacity: 0.28,
     textAlign: 'center',
     transform: 'rotate(-28deg)',
@@ -203,9 +164,8 @@ const styles = StyleSheet.create({
   bandTitle: {
     marginBottom: 8,
     color: accent,
-    fontFamily: 'TaskitSans',
+    fontFamily: strongFont,
     fontSize: 8,
-    fontWeight: 700,
     textTransform: 'uppercase',
   },
   partyRow: {
@@ -224,14 +184,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   partyName: {
-    fontFamily: 'TaskitSans',
+    fontFamily: strongFont,
     fontSize: 12,
-    fontWeight: 700,
   },
   muted: {
     marginTop: 4,
     color: slate,
-    fontFamily: 'TaskitSans',
+    fontFamily: bodyFont,
     fontSize: 8,
   },
   tocRow: {
@@ -247,16 +206,14 @@ const styles = StyleSheet.create({
   tocNumber: {
     width: 28,
     color: gold,
-    fontFamily: 'TaskitSans',
+    fontFamily: strongFont,
     fontSize: 8,
-    fontWeight: 700,
   },
   tocTitle: {
     flex: 1,
     color: ink,
-    fontFamily: 'TaskitSans',
+    fontFamily: strongFont,
     fontSize: 9,
-    fontWeight: 700,
   },
   clause: {
     marginTop: 14,
@@ -277,16 +234,14 @@ const styles = StyleSheet.create({
   clauseNumber: {
     width: 34,
     color: gold,
-    fontFamily: 'TaskitSans',
+    fontFamily: strongFont,
     fontSize: 10,
-    fontWeight: 700,
   },
   clauseTitle: {
     flex: 1,
     color: ink,
-    fontFamily: 'TaskitSans',
+    fontFamily: strongFont,
     fontSize: 12,
-    fontWeight: 700,
   },
   paragraph: {
     marginBottom: 6,
@@ -300,7 +255,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#e2e8f0',
     borderTopStyle: 'solid',
     color: '#344761',
-    fontFamily: 'TaskitSans',
+    fontFamily: bodyFont,
     fontSize: 8.6,
   },
   signatureWrap: {
@@ -328,17 +283,15 @@ const styles = StyleSheet.create({
   },
   signatureRole: {
     color: slate,
-    fontFamily: 'TaskitSans',
+    fontFamily: strongFont,
     fontSize: 8,
-    fontWeight: 700,
     textTransform: 'uppercase',
   },
   signatureName: {
     marginTop: 5,
     color: ink,
-    fontFamily: 'TaskitSans',
+    fontFamily: strongFont,
     fontSize: 10,
-    fontWeight: 700,
   },
   disclaimer: {
     marginTop: 18,
@@ -348,7 +301,7 @@ const styles = StyleSheet.create({
     borderColor: '#fde68a',
     borderStyle: 'solid',
     color: '#7c2d12',
-    fontFamily: 'TaskitSans',
+    fontFamily: bodyFont,
     fontSize: 8,
   },
   footer: {
@@ -359,7 +312,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     color: '#94a3b8',
-    fontFamily: 'TaskitSans',
+    fontFamily: bodyFont,
     fontSize: 7.5,
   },
 })
@@ -409,7 +362,7 @@ function Clause({ section, rtl }: { section: ContractSection; rtl: boolean }) {
       ))}
       {section.bilingualBody && section.bilingualBody.length > 0 && (
         <View style={styles.bilingual}>
-          {section.bilingualTitle && <Text style={[styles.paragraph, { fontWeight: 700 }]}>{section.bilingualTitle}</Text>}
+          {section.bilingualTitle && <Text style={[styles.paragraph, { fontFamily: strongFont }]}>{section.bilingualTitle}</Text>}
           {section.bilingualBody.map((paragraph, index) => (
             <Text key={`${section.id}-b-${index}`} style={styles.paragraph}>
               {paragraph}
@@ -422,7 +375,6 @@ function Clause({ section, rtl }: { section: ContractSection; rtl: boolean }) {
 }
 
 export function ContractDocument({ contract }: ContractDocumentProps) {
-  registerContractFonts()
   const rtl = contractDirection(contract.language) === 'rtl'
   const locale = primaryLocale(contract.language)
   const pageStyle = locale === 'ar' ? [styles.page, styles.pageRtl] : styles.page

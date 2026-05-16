@@ -35,7 +35,7 @@ const PLATFORM_COLORS = ['#dc2626', '#16a34a', '#0f172a', '#db2777', '#2563eb', 
 export function SocialGrowthChart({ data }: { data: GrowthPoint[] }) {
   return (
     <div className="h-[280px] min-h-[280px] min-w-0">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <AreaChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
           <defs>
             <linearGradient id="viewsFill" x1="0" x2="0" y1="0" y2="1">
@@ -58,7 +58,7 @@ export function SocialGrowthChart({ data }: { data: GrowthPoint[] }) {
 export function PlatformBreakdownChart({ data }: { data: PlatformPoint[] }) {
   return (
     <div className="h-[260px] min-h-[260px] min-w-0">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <BarChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
           <CartesianGrid stroke="rgba(100,116,139,0.18)" vertical={false} />
           <XAxis dataKey="platform" tickLine={false} axisLine={false} tick={{ fill: '#64748b', fontSize: 11 }} />
@@ -78,7 +78,7 @@ export function PlatformBreakdownChart({ data }: { data: PlatformPoint[] }) {
 export function RevenueTrendChart({ data }: { data: GrowthPoint[] }) {
   return (
     <div className="h-[250px] min-h-[250px] min-w-0">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <AreaChart data={data} margin={{ top: 8, right: 8, left: -24, bottom: 0 }}>
           <defs>
             <linearGradient id="revenueFill" x1="0" x2="0" y1="0" y2="1">
@@ -101,7 +101,7 @@ export function PlatformRevenuePie({ data }: { data: PlatformPoint[] }) {
   const pieData = data.filter((item) => item.revenue > 0)
   return (
     <div className="h-[220px] min-h-[220px] min-w-0">
-      <ResponsiveContainer width="100%" height="100%">
+      <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
         <PieChart>
           <Pie data={pieData} dataKey="revenue" nameKey="platform" innerRadius={54} outerRadius={82} paddingAngle={3}>
             {pieData.map((entry, index) => (
