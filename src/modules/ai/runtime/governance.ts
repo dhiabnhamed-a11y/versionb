@@ -172,6 +172,84 @@ export async function createAiActionPreview(input: {
       },
     })
 
+    const aiStep = await tx.aiStep.create({
+      data: {
+        aiRunId: aiRun.id,
+        companyId: input.companyId,
+        sequence: 1,
+        name: input.tool.displayName,
+        status: 'PENDING_APPROVAL',
+        phase: 'PREVIEW',
+        toolName: input.tool.name,
+        actionKind: input.actionKind,
+        riskLevel: input.tool.riskLevel,
+        permissionState: 'NEEDS_APPROVAL',
+        input: toJsonValue(aiInput),
+        executionGraph: toJsonValue({ sequence: 1, dependsOn: [], mode: input.tool.execution?.mode ?? 'hybrid' }),
+        rollback: toJsonValue(rollback),
+        audit: toJsonValue({
+          category: input.tool.audit.category,
+          event: input.tool.audit.event,
+          dryRun: true,
+          actorId: input.actorId,
+          companyId: input.companyId,
+        }),
+        approvalRequired: input.tool.requiresConfirmation,
+        maxRetries: input.tool.execution?.maxAttempts ?? (input.tool.riskLevel === 'CRITICAL' ? 1 : 3),
+      },
+    })
+
+    await tx.aiToolExecution.create({
+      data: {
+        aiRunId: aiRun.id,
+        aiStepId: aiStep.id,
+        aiActionRunId: actionRun.id,
+        companyId: input.companyId,
+        actorId: input.actorId,
+        toolName: input.tool.name,
+        actionKind: input.actionKind,
+        status: 'DRY_RUN',
+        dryRun: true,
+        riskLevel: input.tool.riskLevel,
+        requiresConfirmation: input.tool.requiresConfirmation,
+        idempotencyKey: input.idempotencyKey ?? undefined,
+        input: toJsonValue(aiInput),
+        audit: toJsonValue({
+          category: input.tool.audit.category,
+          event: input.tool.audit.event,
+          dryRun: true,
+        }),
+        rollback: toJsonValue(rollback),
+        output: toJsonValue({
+          summary: input.preview.summary,
+          changes: input.preview.changes,
+          warnings: input.preview.warnings ?? [],
+        }),
+      },
+    })
+
+    await tx.aiDecision.create({
+      data: {
+        aiRunId: aiRun.id,
+        aiStepId: aiStep.id,
+        companyId: input.companyId,
+        actorId: input.actorId,
+        decisionType: 'TOOL_SELECTION',
+        status: 'ACCEPTED',
+        rationale: `Selected governed tool ${input.tool.name} for action ${input.actionKind}.`,
+        inputs: toJsonValue(aiInput),
+        outputs: toJsonValue({ toolName: input.tool.name, actionKind: input.actionKind }),
+        policySnapshot: toJsonValue({
+          riskLevel: input.tool.riskLevel,
+          permissions: input.tool.permissions,
+          requiresConfirmation: input.tool.requiresConfirmation,
+          supportsDryRun: input.tool.supportsDryRun,
+          rollbackStrategy: input.tool.rollback.strategy,
+        }),
+        riskScore: input.tool.riskLevel === 'CRITICAL' ? 95 : input.tool.riskLevel === 'HIGH' ? 70 : input.tool.riskLevel === 'MEDIUM' ? 35 : 10,
+      },
+    })
+
     await tx.auditLog.create({
       data: {
         companyId: input.companyId,
@@ -314,6 +392,17 @@ export async function markAiActionExecuting(input: {
     data: { status: 'EXECUTING', phase: 'EXECUTE', startedAt: now },
   })
 
+  await prisma.$transaction([
+    prisma.aiStep.updateMany({
+      where: { aiRunId: input.aiRunId, companyId: input.companyId, sequence: 1 },
+      data: { status: 'EXECUTING', phase: 'EXECUTE', startedAt: now },
+    }),
+    prisma.aiToolExecution.updateMany({
+      where: { aiActionRunId: input.actionRunId, companyId: input.companyId },
+      data: { status: 'EXECUTING', dryRun: false, startedAt: now, attempts: { increment: 1 } },
+    }),
+  ])
+
   await prisma.auditLog.create({
     data: {
       companyId: input.companyId,
@@ -362,6 +451,25 @@ export async function markAiActionCompleted(input: {
         phase: 'EXECUTE',
         completedAt: now,
         result: toJsonValue(input.result),
+      },
+    }),
+    prisma.aiStep.updateMany({
+      where: { aiRunId: input.aiRunId, companyId: input.companyId, sequence: 1 },
+      data: {
+        status: 'COMPLETED',
+        phase: 'EXECUTE',
+        completedAt: now,
+        output: toJsonValue(input.result),
+      },
+    }),
+    prisma.aiToolExecution.updateMany({
+      where: { aiActionRunId: input.actionRunId, companyId: input.companyId },
+      data: {
+        status: 'COMPLETED',
+        dryRun: false,
+        completedAt: now,
+        output: toJsonValue(input.result),
+        receipt: toJsonValue(receipt),
       },
     }),
     prisma.auditLog.create({
@@ -414,6 +522,25 @@ export async function markAiActionFailed(input: {
         phase: 'EXECUTE',
         completedAt: now,
         error: message,
+      },
+    }),
+    prisma.aiStep.updateMany({
+      where: { aiRunId: input.aiRunId, companyId: input.companyId, sequence: 1 },
+      data: {
+        status: 'FAILED',
+        phase: 'EXECUTE',
+        completedAt: now,
+        error: message,
+      },
+    }),
+    prisma.aiToolExecution.updateMany({
+      where: { aiActionRunId: input.actionRunId, companyId: input.companyId },
+      data: {
+        status: 'FAILED',
+        dryRun: false,
+        completedAt: now,
+        error: message,
+        receipt: toJsonValue(receipt),
       },
     }),
     prisma.auditLog.create({

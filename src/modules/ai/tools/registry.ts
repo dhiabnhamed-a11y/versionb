@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { z } from 'zod'
 import type { AiToolDefinition } from '@/modules/ai/tools/types'
 
 const sharedPromptSchema = {
@@ -15,7 +16,50 @@ const sharedPromptSchema = {
   },
 } satisfies AiToolDefinition['schema']['input']
 
-export const AI_TOOL_REGISTRY: Record<string, AiToolDefinition> = {
+const sharedPromptZodSchema = z.object({
+  canonicalMessage: z.string().trim().min(1).max(4000),
+  rawMessage: z.string().trim().min(1).max(4000),
+})
+
+const genericToolOutputSchema = z.object({
+  dryRun: z.boolean().optional(),
+  summary: z.string().optional(),
+  receiptId: z.string().optional(),
+  targetType: z.string().optional(),
+  targetId: z.string().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+})
+
+function toolKey(name: string) {
+  return name.replace(/[A-Z]/g, (letter) => `_${letter.toLowerCase()}`).replace(/^_/, '')
+}
+
+function withEnterpriseDefaults(tool: AiToolDefinition): AiToolDefinition {
+  return {
+    key: tool.key ?? toolKey(tool.name),
+    inputSchema: tool.inputSchema ?? sharedPromptZodSchema,
+    outputSchema: tool.outputSchema ?? genericToolOutputSchema,
+    idempotency: tool.idempotency ?? {
+      required: tool.mutating,
+      scope: 'company',
+      keyFields: ['toolName', 'actionKind', 'canonicalMessage'],
+    },
+    execution: tool.execution ?? {
+      mode: tool.riskLevel === 'LOW' ? 'sync' : 'hybrid',
+      queue: tool.riskLevel === 'LOW' ? undefined : 'ai-execution',
+      maxAttempts: tool.riskLevel === 'CRITICAL' ? 1 : 3,
+      timeoutMs: tool.riskLevel === 'LOW' ? 15_000 : 60_000,
+    },
+    emitsEvents: tool.emitsEvents ?? [tool.audit.event],
+    confirmation: tool.confirmation ?? {
+      requiredForRisk: ['MEDIUM', 'HIGH', 'CRITICAL'],
+      expiresInMinutes: 10,
+    },
+    ...tool,
+  }
+}
+
+const RAW_AI_TOOL_REGISTRY: Record<string, AiToolDefinition> = {
   createClient: {
     name: 'createClient',
     displayName: 'Create client',
@@ -116,6 +160,146 @@ export const AI_TOOL_REGISTRY: Record<string, AiToolDefinition> = {
       notes: 'Rollback metadata captures invoice status, paidAt, and sentAt before the payment mutation.',
     },
   },
+  assignTask: {
+    name: 'assignTask',
+    displayName: 'Assign task',
+    description: 'Assign an existing task to a workspace member through the task service.',
+    actionKinds: ['assign_task'],
+    permissions: ['tasks.manage'],
+    riskLevel: 'MEDIUM',
+    mutating: true,
+    requiresConfirmation: true,
+    supportsDryRun: true,
+    supportsRollback: true,
+    tenantScoped: true,
+    rateLimit: { windowSeconds: 60, max: 10 },
+    schema: { input: sharedPromptSchema },
+    audit: { category: 'task', event: 'ai.task.assign' },
+    rollback: {
+      strategy: 'metadata_snapshot',
+      notes: 'Rollback metadata captures the previous assignee and assignment reason.',
+    },
+  },
+  generateContract: {
+    name: 'generateContract',
+    displayName: 'Generate contract',
+    description: 'Generate a draft contract from approved client, pricing, and delivery context.',
+    actionKinds: ['generate_contract'],
+    permissions: ['contracts.manage'],
+    riskLevel: 'HIGH',
+    mutating: true,
+    requiresConfirmation: true,
+    supportsDryRun: true,
+    supportsRollback: true,
+    tenantScoped: true,
+    rateLimit: { windowSeconds: 60, max: 4 },
+    schema: { input: sharedPromptSchema },
+    audit: { category: 'contract', event: 'ai.contract.generate' },
+    rollback: {
+      strategy: 'metadata_snapshot',
+      notes: 'Generated contracts remain drafts; rollback metadata captures draft identifiers and source context.',
+    },
+  },
+  approveExpense: {
+    name: 'approveExpense',
+    displayName: 'Approve expense',
+    description: 'Approve an expense through the finance approval service.',
+    actionKinds: ['approve_expense'],
+    permissions: ['finance.manage', 'approvals.manage'],
+    riskLevel: 'CRITICAL',
+    mutating: true,
+    requiresConfirmation: true,
+    supportsDryRun: true,
+    supportsRollback: true,
+    tenantScoped: true,
+    rateLimit: { windowSeconds: 60, max: 3 },
+    schema: { input: sharedPromptSchema },
+    audit: { category: 'finance', event: 'ai.expense.approve' },
+    rollback: {
+      strategy: 'compensating_action',
+      notes: 'Rollback is a governed reversal or escalation through finance controls, not a silent status rewrite.',
+    },
+  },
+  createBudget: {
+    name: 'createBudget',
+    displayName: 'Create budget',
+    description: 'Create a draft budget from financial planning context.',
+    actionKinds: ['create_budget'],
+    permissions: ['finance.manage'],
+    riskLevel: 'HIGH',
+    mutating: true,
+    requiresConfirmation: true,
+    supportsDryRun: true,
+    supportsRollback: true,
+    tenantScoped: true,
+    rateLimit: { windowSeconds: 60, max: 4 },
+    schema: { input: sharedPromptSchema },
+    audit: { category: 'finance', event: 'ai.budget.create' },
+    rollback: {
+      strategy: 'metadata_snapshot',
+      notes: 'Rollback metadata captures the draft budget, period, owner, and line-level assumptions.',
+    },
+  },
+  createProjectPlan: {
+    name: 'createProjectPlan',
+    displayName: 'Create project plan',
+    description: 'Create a governed project plan with tasks, owners, dates, and delivery risks.',
+    actionKinds: ['create_project_plan'],
+    permissions: ['projects.manage', 'tasks.manage'],
+    riskLevel: 'MEDIUM',
+    mutating: true,
+    requiresConfirmation: true,
+    supportsDryRun: true,
+    supportsRollback: true,
+    tenantScoped: true,
+    rateLimit: { windowSeconds: 60, max: 6 },
+    schema: { input: sharedPromptSchema },
+    audit: { category: 'project', event: 'ai.project_plan.create' },
+    rollback: {
+      strategy: 'metadata_snapshot',
+      notes: 'Rollback metadata captures created task identifiers and plan assumptions.',
+    },
+  },
+  generateFinancialReport: {
+    name: 'generateFinancialReport',
+    displayName: 'Generate financial report',
+    description: 'Generate an auditable financial report from permitted accounting, invoice, and treasury context.',
+    actionKinds: ['generate_financial_report'],
+    permissions: ['finance.manage', 'reports.generate'],
+    riskLevel: 'LOW',
+    mutating: false,
+    requiresConfirmation: false,
+    supportsDryRun: true,
+    supportsRollback: false,
+    tenantScoped: true,
+    rateLimit: { windowSeconds: 60, max: 8 },
+    schema: { input: sharedPromptSchema },
+    audit: { category: 'finance', event: 'ai.financial_report.generate' },
+    rollback: {
+      strategy: 'manual_review',
+      notes: 'Reports are read-only artifacts; generated outputs can be superseded with a corrected report.',
+    },
+  },
+  createWorkflowRule: {
+    name: 'createWorkflowRule',
+    displayName: 'Create workflow rule',
+    description: 'Create a disabled workflow rule draft for event-driven operational automation.',
+    actionKinds: ['create_workflow_rule'],
+    permissions: ['workflows.manage'],
+    riskLevel: 'HIGH',
+    mutating: true,
+    requiresConfirmation: true,
+    supportsDryRun: true,
+    supportsRollback: true,
+    tenantScoped: true,
+    rateLimit: { windowSeconds: 60, max: 4 },
+    schema: { input: sharedPromptSchema },
+    audit: { category: 'workflow', event: 'ai.workflow_rule.create' },
+    rollback: {
+      strategy: 'metadata_snapshot',
+      notes: 'Workflow rules are created disabled by default; rollback metadata captures rule definition and trigger scope.',
+    },
+  },
   sendClientReminder: {
     name: 'sendClientReminder',
     displayName: 'Send payment reminders',
@@ -157,6 +341,10 @@ export const AI_TOOL_REGISTRY: Record<string, AiToolDefinition> = {
     },
   },
 }
+
+export const AI_TOOL_REGISTRY: Record<string, AiToolDefinition> = Object.fromEntries(
+  Object.entries(RAW_AI_TOOL_REGISTRY).map(([key, tool]) => [key, withEnterpriseDefaults(tool)])
+)
 
 export function listAiTools() {
   return Object.values(AI_TOOL_REGISTRY)

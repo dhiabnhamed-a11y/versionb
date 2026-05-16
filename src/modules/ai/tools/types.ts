@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client'
+import type { z } from 'zod'
 
 export type AiToolRiskLevel = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL'
 
@@ -7,6 +8,12 @@ export type AiToolPermission =
   | 'finance.manage'
   | 'alerts.send'
   | 'records.delete'
+  | 'contracts.manage'
+  | 'projects.manage'
+  | 'tasks.manage'
+  | 'approvals.manage'
+  | 'workflows.manage'
+  | 'reports.generate'
 
 export type AiToolSchemaField = {
   type: 'string' | 'number' | 'boolean' | 'date' | 'array' | 'object'
@@ -15,6 +22,7 @@ export type AiToolSchemaField = {
 }
 
 export type AiToolDefinition = {
+  key?: string
   name: string
   displayName: string
   description: string
@@ -32,6 +40,24 @@ export type AiToolDefinition = {
   }
   schema: {
     input: Record<string, AiToolSchemaField>
+  }
+  inputSchema?: z.ZodType<unknown>
+  outputSchema?: z.ZodType<unknown>
+  idempotency?: {
+    required: boolean
+    scope: 'actor' | 'company' | 'target'
+    keyFields: string[]
+  }
+  execution?: {
+    mode: 'sync' | 'async' | 'hybrid'
+    queue?: string
+    maxAttempts: number
+    timeoutMs: number
+  }
+  emitsEvents?: string[]
+  confirmation?: {
+    requiredForRisk: AiToolRiskLevel[]
+    expiresInMinutes: number
   }
   audit: {
     category: string
