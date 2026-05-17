@@ -1,23 +1,23 @@
 /* REDLINE 00 - TASKIT design tokens: centralize color, spacing, type, and radius decisions for the dashboard redesign. */
 html:root {
-  --color-canvas: #f7f8fa;
+  --color-canvas: #f4f6fa;
   --color-surface: #ffffff;
-  --color-surface-muted: #f3f5f8;
-  --color-border: #e2e7ee;
-  --color-border-strong: #d3dbe6;
-  --color-text: #0b1628;
-  --color-text-soft: #2e4060;
-  --color-text-muted: #64748b;
+  --color-surface-muted: #eef2f8;
+  --color-border: #cbd3e0;
+  --color-border-strong: #94a3b8;
+  --color-text: #050b18;
+  --color-text-soft: #1e293b;
+  --color-text-muted: #475569;
   --color-teal: #0f766e;
   --color-teal-strong: #0d9488;
-  --color-teal-soft: #ecfdf5;
-  --color-blue: #0369a1;
-  --color-amber: #d97706;
-  --color-red: #dc2626;
-  --color-green: #059669;
+  --color-teal-soft: #d1fae5;
+  --color-blue: #035a8a;
+  --color-amber: #b45309;
+  --color-red: #b91c1c;
+  --color-green: #047857;
 
   --bg-primary: var(--color-canvas);
-  --bg-secondary: #eef1f5;
+  --bg-secondary: #e6ecf4;
   --bg-card: var(--color-surface);
   --bg-elevated: var(--color-surface-muted);
   --border: var(--color-border);
@@ -26,9 +26,12 @@ html:root {
   --text-secondary: var(--color-text-soft);
   --text-muted: var(--color-text-muted);
   --accent: var(--color-blue);
-  --accent-hover: #0284c7;
-  --accent-subtle: rgba(3, 105, 161, 0.07);
-  --accent-ring: rgba(8, 145, 178, 0.32);
+  --accent-hover: #024c75;
+  --accent-subtle: rgba(3, 90, 138, 0.10);
+  --accent-ring: rgba(3, 90, 138, 0.42);
+
+  --shadow-card: 0 1px 2px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-elevated: 0 4px 16px rgba(15, 23, 42, 0.12), 0 12px 32px rgba(15, 23, 42, 0.10);
 
   --space-1: 4px;
   --space-2: 8px;
@@ -43,16 +46,16 @@ html:root {
 
   --type-display-size: 28px;
   --type-display-line: 34px;
-  --type-display-weight: 500;
+  --type-display-weight: 600;
   --type-heading-size: 20px;
   --type-heading-line: 28px;
-  --type-heading-weight: 500;
+  --type-heading-weight: 600;
   --type-label-size: 13px;
   --type-label-line: 18px;
-  --type-label-weight: 500;
+  --type-label-weight: 600;
   --type-body-size: 15px;
   --type-body-line: 24px;
-  --type-body-weight: 400;
+  --type-body-weight: 450;
 
   --radius-xs: 6px;
   --radius-sm: 8px;
@@ -65,17 +68,17 @@ html:root {
 html[data-theme='dark'],
 html.dark,
 body[data-theme='dark'] {
-  --color-canvas: #0b1220;
-  --color-surface: #111827;
-  --color-surface-muted: #1f2937;
-  --color-border: #334155;
-  --color-border-strong: #475569;
-  --color-text: #f8fafc;
-  --color-text-soft: #cbd5e1;
-  --color-text-muted: #94a3b8;
-  --color-teal-soft: rgba(15, 118, 110, 0.18);
+  --color-canvas: #060b16;
+  --color-surface: #131c2d;
+  --color-surface-muted: #1f293c;
+  --color-border: #475569;
+  --color-border-strong: #64748b;
+  --color-text: #ffffff;
+  --color-text-soft: #e2e8f0;
+  --color-text-muted: #cbd5e1;
+  --color-teal-soft: rgba(15, 118, 110, 0.28);
   --bg-primary: var(--color-canvas);
-  --bg-secondary: #141d2c;
+  --bg-secondary: #0f1828;
   --bg-card: var(--color-surface);
   --bg-elevated: var(--color-surface-muted);
   --border: var(--color-border);
@@ -83,4 +86,128 @@ body[data-theme='dark'] {
   --text-primary: var(--color-text);
   --text-secondary: var(--color-text-soft);
   --text-muted: var(--color-text-muted);
+  --accent: #38bdf8;
+  --accent-hover: #7dd3fc;
+  --accent-subtle: rgba(56, 189, 248, 0.18);
+  --accent-ring: rgba(56, 189, 248, 0.48);
+  --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 4px 16px rgba(0, 0, 0, 0.45);
+  --shadow-elevated: 0 4px 16px rgba(0, 0, 0, 0.55), 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+
+/* Global contrast polish — applies on top of the existing rules so visibility is consistent everywhere. */
+html, body { color: var(--text-primary); }
+body { background: var(--bg-primary); }
+
+.taskit-card,
+.dashboard-card,
+.card,
+.compact-stat,
+.modal,
+.sidebar {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-card);
+}
+
+.taskit-label { color: var(--text-secondary); font-weight: 600; letter-spacing: 0.02em; }
+.taskit-body { color: var(--text-primary); }
+.taskit-heading, .taskit-display { color: var(--text-primary); }
+
+.input, input.input, select.input, textarea.input, .form-input, input[type="text"], input[type="email"], input[type="password"], input[type="date"], input[type="number"], select, textarea {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+}
+.input::placeholder, input::placeholder, textarea::placeholder { color: var(--text-muted); opacity: 1; }
+.input:focus, input:focus, select:focus, textarea:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-ring);
+}
+
+.btn-primary, button.btn-primary {
+  background: var(--accent);
+  color: #ffffff;
+  border: 1px solid var(--accent);
+  font-weight: 600;
+}
+.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn-secondary, button.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border-light);
+  font-weight: 600;
+}
+.btn-secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+a { color: var(--accent); }
+a:hover { color: var(--accent-hover); text-decoration: underline; }
+
+.sidebar-link {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.sidebar-link:hover {
+  background: var(--accent-subtle);
+  color: var(--accent);
+}
+.sidebar-link.active {
+  background: var(--accent-subtle);
+  color: var(--accent);
+  border-left: 3px solid var(--accent);
+}
+
+.badge { font-weight: 700; letter-spacing: 0.02em; }
+.badge-owner { background: rgba(220, 38, 38, 0.18); color: #b91c1c; border: 1px solid rgba(220, 38, 38, 0.35); }
+.badge-manager { background: rgba(217, 119, 6, 0.18); color: #92400e; border: 1px solid rgba(217, 119, 6, 0.35); }
+.badge-employee { background: rgba(5, 150, 105, 0.18); color: #047857; border: 1px solid rgba(5, 150, 105, 0.35); }
+
+html.dark .badge-owner, html[data-theme='dark'] .badge-owner { color: #fca5a5; border-color: rgba(248, 113, 113, 0.5); }
+html.dark .badge-manager, html[data-theme='dark'] .badge-manager { color: #fcd34d; border-color: rgba(252, 211, 77, 0.5); }
+html.dark .badge-employee, html[data-theme='dark'] .badge-employee { color: #6ee7b7; border-color: rgba(110, 231, 183, 0.5); }
+
+.taskit-tone-good { color: #047857; }
+.taskit-tone-watch { color: #b45309; }
+.taskit-tone-risk { color: #b91c1c; }
+.taskit-tone-critical { color: #7f1d1d; }
+html.dark .taskit-tone-good, html[data-theme='dark'] .taskit-tone-good { color: #6ee7b7; }
+html.dark .taskit-tone-watch, html[data-theme='dark'] .taskit-tone-watch { color: #fcd34d; }
+html.dark .taskit-tone-risk, html[data-theme='dark'] .taskit-tone-risk { color: #fca5a5; }
+html.dark .taskit-tone-critical, html[data-theme='dark'] .taskit-tone-critical { color: #fecaca; }
+
+.taskit-tone-badge {
+  padding: 2px 10px;
+  border-radius: var(--radius-pill);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  border: 1px solid currentColor;
+}
+
+.taskit-progress-track {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  height: 8px;
+  overflow: hidden;
+}
+.taskit-progress-fill {
+  display: block;
+  height: 100%;
+  background: var(--accent);
+  border-radius: var(--radius-pill);
+}
+
+table th { color: var(--text-secondary); font-weight: 700; }
+table td { color: var(--text-primary); }
+table { border-color: var(--border); }
+
+hr, .divider { border-color: var(--border); }
+
+::selection { background: var(--accent); color: #fff; }
+
+*:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
