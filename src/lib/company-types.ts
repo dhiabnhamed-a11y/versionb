@@ -246,6 +246,11 @@ export function getCompanyTypeCopy(type?: CompanyType | null) {
 
 export const AGENCY_COMPANY_TYPES = ['DIGITAL_AGENCY', 'CONTENT_CREATION_AGENCY'] as const satisfies readonly CompanyType[]
 
+export const HEALTHCARE_COMPANY_TYPES = [
+  'HEALTHCARE',
+  'CLINIC_HOSPITAL',
+] as const satisfies readonly CompanyType[]
+
 export const ENTERPRISE_OPERATIONS_COMPANY_TYPES = [
   'HEALTHCARE',
   'ENTERPRISE_OPERATIONS',
@@ -259,6 +264,15 @@ export function isAgencyCompanyType(type?: CompanyType | string | null) {
 
 export function isContentCreationCompanyType(type?: CompanyType | string | null) {
   return normalizeCompanyType(type) === 'CONTENT_CREATION_AGENCY'
+}
+
+export function isHealthcareCompanyType(type?: CompanyType | string | null) {
+  return Boolean(
+    type &&
+      HEALTHCARE_COMPANY_TYPES.includes(
+        normalizeCompanyType(type) as (typeof HEALTHCARE_COMPANY_TYPES)[number]
+      )
+  )
 }
 
 export function isEnterpriseOperationsCompanyType(type?: CompanyType | string | null) {

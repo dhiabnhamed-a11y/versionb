@@ -7,114 +7,129 @@
  */
 
 export const HEALTHCARE_NAVIGATION = {
-  // Main navigation items for healthcare workspace
+  // Main navigation items for healthcare workspace — operational platform structure
   mainNav: [
     {
       id: 'overview',
       label: 'Overview',
       href: '/dashboard/admin',
       icon: 'LayoutDashboard',
-      description: 'Executive dashboard and operational KPIs'
+      section: 'operations',
+      description: 'Executive dashboard and operational KPIs',
     },
     {
       id: 'patients',
       label: 'Patients',
       href: '/dashboard/admin/patients',
-      icon: 'Users',
-      description: 'Patient records, admissions, and care coordination'
-    },
-    {
-      id: 'appointments',
-      label: 'Appointments',
-      href: '/dashboard/admin/appointments',
-      icon: 'CalendarDays',
-      description: 'Scheduling, calendars, and patient flow'
+      icon: 'UserRound',
+      section: 'operations',
+      description: 'Patient records, admissions, and care coordination',
     },
     {
       id: 'departments',
       label: 'Departments',
       href: '/dashboard/admin/departments',
       icon: 'Building2',
-      description: 'Clinical departments and operational units'
+      section: 'operations',
+      description: 'Clinical departments and operational units',
     },
     {
-      id: 'staff-operations',
-      label: 'Staff Operations',
-      href: '/dashboard/admin/staff-operations',
-      icon: 'UserCog',
-      description: 'Scheduling, shifts, and workforce management'
+      id: 'operations',
+      label: 'Operations',
+      href: '/dashboard/admin/operations',
+      icon: 'Activity',
+      section: 'operations',
+      description: 'Enterprise operations center and incident command',
     },
     {
-      id: 'medical-assets',
-      label: 'Medical Assets',
-      href: '/dashboard/admin/medical-assets',
+      id: 'assets',
+      label: 'Assets',
+      href: '/dashboard/admin/assets',
       icon: 'HeartPulse',
-      description: 'Biomedical equipment and asset lifecycle'
+      section: 'management',
+      description: 'Biomedical equipment lifecycle and asset intelligence',
     },
     {
-      id: 'inventory',
-      label: 'Inventory',
-      href: '/dashboard/admin/inventory',
-      icon: 'Package',
-      description: 'Medical supplies and pharmacy inventory'
-    },
-    {
-      id: 'facility-operations',
-      label: 'Facility Operations',
-      href: '/dashboard/admin/facility-operations',
+      id: 'maintenance',
+      label: 'Maintenance',
+      href: '/dashboard/admin/maintenance',
       icon: 'Wrench',
-      description: 'Maintenance, work orders, and facility management'
+      section: 'management',
+      description: 'Preventive, corrective, and emergency maintenance',
     },
     {
-      id: 'patient-billing',
-      label: 'Patient Billing',
-      href: '/dashboard/admin/patient-billing',
-      icon: 'FileText',
-      description: 'Patient invoices and billing operations'
+      id: 'requests',
+      label: 'Requests',
+      href: '/dashboard/admin/requests',
+      icon: 'ClipboardList',
+      section: 'management',
+      description: 'Operational requests and incident reports',
     },
     {
-      id: 'insurance-claims',
-      label: 'Insurance Claims',
-      href: '/dashboard/admin/insurance-claims',
-      icon: 'Shield',
-      description: 'Claims processing and insurance coordination'
+      id: 'tasks',
+      label: 'Tasks',
+      href: '/dashboard/admin/tasks',
+      icon: 'CheckSquare',
+      section: 'management',
+      description: 'Clinical work orders and task orchestration',
     },
     {
-      id: 'procurement',
-      label: 'Procurement',
-      href: '/dashboard/admin/procurement',
-      icon: 'ShoppingCart',
-      description: 'Vendor management and purchase orders'
+      id: 'shifts',
+      label: 'Shifts',
+      href: '/dashboard/admin/shifts',
+      icon: 'Clock',
+      section: 'workforce',
+      description: 'Shift scheduling, on-call, and coverage',
+    },
+    {
+      id: 'calendar',
+      label: 'Calendar',
+      href: '/dashboard/admin/calendar',
+      icon: 'CalendarDays',
+      section: 'workforce',
+      description: 'Scheduling, appointments, and patient flow',
+    },
+    {
+      id: 'team',
+      label: 'Team',
+      href: '/dashboard/admin/employees',
+      icon: 'Users',
+      section: 'workforce',
+      description: 'Staff directory, roles, and assignments',
     },
     {
       id: 'compliance',
       label: 'Compliance',
       href: '/dashboard/admin/compliance',
       icon: 'ShieldCheck',
-      description: 'Audit trails, policies, and regulatory compliance'
-    },
-    {
-      id: 'emergency-center',
-      label: 'Emergency Center',
-      href: '/dashboard/admin/emergency-center',
-      icon: 'Siren',
-      description: 'Critical alerts and emergency operations'
+      section: 'governance',
+      description: 'Audit trails, policies, and regulatory compliance',
     },
     {
       id: 'reports',
       label: 'Reports',
       href: '/dashboard/admin/reports',
       icon: 'BarChart3',
-      description: 'Analytics and operational reporting'
+      section: 'governance',
+      description: 'Analytics and operational reporting',
     },
     {
-      id: 'ai-operations',
-      label: 'AI Operations',
-      href: '/dashboard/admin/ai-operations',
-      icon: 'Bot',
-      description: 'Predictive analytics and AI insights'
-    }
+      id: 'emergency-center',
+      label: 'Emergency Center',
+      href: '/dashboard/admin/emergency-center',
+      icon: 'Siren',
+      section: 'governance',
+      description: 'Critical alerts and emergency operations',
+    },
   ],
+
+  // Section labels for sidebar grouping
+  sections: {
+    operations: 'Clinical Operations',
+    management: 'Asset & Workflow',
+    workforce: 'Workforce',
+    governance: 'Governance',
+  } as Record<string, string>,
 
   // Department types for healthcare organizations
   departmentTypes: [
