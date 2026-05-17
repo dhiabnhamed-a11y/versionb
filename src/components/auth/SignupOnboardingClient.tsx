@@ -1,35 +1,51 @@
 'use client'
 
-import { type CSSProperties, useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
-import Link from 'next/link'
-import { motion } from 'framer-motion'
+import { type CSSProperties, type Dispatch, type ReactNode, type SetStateAction, useCallback, useEffect, useState } from 'react'
+import dynamic from 'next/dynamic'
 import Image from 'next/image'
-import logo from '@/app/logo.png'
-import styles from './SignupOnboardingClient.module.css'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
-  COMPANY_TYPE_OPTIONS,
-  getCompanyTypeCopy,
-  isAgencyCompanyType,
-  normalizeCompanyType,
-  type CompanyType,
-} from '@/lib/company-types'
-import {
+  ArrowLeft,
   ArrowRight,
-  BriefcaseBusiness,
-  Building2,
+  Bot,
+  Check,
   CheckCircle2,
-  KeyRound,
-  Layers,
-  Layers3,
+  ChevronRight,
+  Globe2,
   Loader2,
   Lock,
   Mail,
-  Music2,
+  Plus,
   ShieldCheck,
   Sparkles,
+  Trash2,
   User,
 } from 'lucide-react'
+import logo from '@/app/logo.png'
+import type { CompanyType } from '@/lib/company-types'
+import {
+  getTemplate,
+  getTemplateForCompanyType,
+  ONBOARDING_STEPS,
+  ONBOARDING_TEMPLATES,
+  persistOnboardingProgress,
+  readOnboardingProgress,
+  TEMPLATE_ORDER,
+  trackOnboardingEvent,
+  type OnboardingStepId,
+  type OnboardingTemplateId,
+} from '@/lib/onboarding-engine'
+import styles from './SignupOnboardingClient.module.css'
+
+const WorkspacePreview = dynamic(() => import('./onboarding/WorkspacePreview'), {
+  loading: () => <PreviewSkeleton />,
+})
+
+const GenerationExperience = dynamic(() => import('./onboarding/GenerationExperience'), {
+  loading: () => <GenerationSkeleton />,
+})
 
 type SignupRole = 'OWNER' | 'MANAGER' | 'EMPLOYEE'
 
@@ -42,120 +58,49 @@ type InvitePreview = {
   expiresAt: string
 }
 
-const signupOptions: { value: SignupRole; title: string; description: string }[] = [
-  { value: 'OWNER', title: 'Create a Company', description: 'Launch a new company workspace with your business domain.' },
-  { value: 'MANAGER', title: 'Join as Manager', description: 'Use an admin invite, or request approval with your company email.' },
-  { value: 'EMPLOYEE', title: 'Join as Employee', description: 'Use an employee invite, or request access from your company.' },
-]
+type InviteRow = {
+  id: string
+  email: string
+  role: 'Manager' | 'Member' | 'Finance'
+  department: string
+}
 
-const companyTypePresentation = {
-  INDUSTRY: {
-    icon: Building2,
-    eyebrow: 'Operations teams',
-    accent: '#0f766e',
-    surface: 'rgba(15, 118, 110, 0.1)',
-    outline: 'rgba(15, 118, 110, 0.22)',
-    spotlight: 'rgba(45, 212, 191, 0.22)',
-    audience: 'Plants, sites, stores, and departments',
-    focus: 'Structured execution across separate work areas',
-    flow: ['Rooms', 'Projects', 'Tasks'],
-  },
-  DIGITAL_AGENCY: {
-    icon: BriefcaseBusiness,
-    eyebrow: 'Creative studios',
-    accent: '#ea580c',
-    surface: 'rgba(249, 115, 22, 0.1)',
-    outline: 'rgba(249, 115, 22, 0.22)',
-    spotlight: 'rgba(251, 146, 60, 0.24)',
-    audience: 'Design, content, social, and video teams',
-    focus: 'Brief-to-upload delivery with faster approvals',
-    flow: ['Campaigns', 'Briefs', 'Uploads'],
-  },
-  CONTENT_CREATION_AGENCY: {
-    icon: Music2,
-    eyebrow: 'Creator studios',
-    accent: '#be123c',
-    surface: 'rgba(244, 63, 94, 0.1)',
-    outline: 'rgba(244, 63, 94, 0.22)',
-    spotlight: 'rgba(251, 113, 133, 0.24)',
-    audience: 'Music, YouTube, Spotify, and social teams',
-    focus: 'Release planning with cross-channel performance',
-    flow: ['Campaigns', 'Briefs', 'Channel stats'],
-  },
-  HEALTHCARE: {
-    icon: Building2,
-    eyebrow: 'Healthcare operations',
-    accent: '#0e7490',
-    surface: 'rgba(14, 116, 144, 0.1)',
-    outline: 'rgba(14, 116, 144, 0.22)',
-    spotlight: 'rgba(34, 211, 238, 0.22)',
-    audience: 'Clinics, care networks, and healthcare operations',
-    focus: 'Departments, assets, incidents, maintenance, and compliance',
-    flow: ['Departments', 'Assets', 'Incidents'],
-  },
-  ENTERPRISE_OPERATIONS: {
-    icon: Layers3,
-    eyebrow: 'Enterprise service management',
-    accent: '#4338ca',
-    surface: 'rgba(67, 56, 202, 0.1)',
-    outline: 'rgba(67, 56, 202, 0.22)',
-    spotlight: 'rgba(129, 140, 248, 0.22)',
-    audience: 'IT, HR, facilities, finance, and shared services',
-    focus: 'Service queues, SLAs, approvals, and asset lifecycle',
-    flow: ['Departments', 'Queues', 'SLAs'],
-  },
-  CLINIC_HOSPITAL: {
-    icon: ShieldCheck,
-    eyebrow: 'Clinic and hospital teams',
-    accent: '#047857',
-    surface: 'rgba(4, 120, 87, 0.1)',
-    outline: 'rgba(4, 120, 87, 0.22)',
-    spotlight: 'rgba(52, 211, 153, 0.22)',
-    audience: 'Hospitals, clinics, labs, and care facilities',
-    focus: 'Biomedical uptime, facility requests, shifts, and audit evidence',
-    flow: ['Clinical ops', 'Devices', 'Compliance'],
-  },
-  CORPORATE_IT_OPERATIONS: {
-    icon: Layers,
-    eyebrow: 'Corporate IT',
-    accent: '#1d4ed8',
-    surface: 'rgba(29, 78, 216, 0.1)',
-    outline: 'rgba(29, 78, 216, 0.22)',
-    spotlight: 'rgba(96, 165, 250, 0.22)',
-    audience: 'Service desk, infrastructure, security, and endpoint teams',
-    focus: 'Tickets, assets, outages, escalations, and SLA health',
-    flow: ['Service desk', 'Assets', 'Uptime'],
-  },
-  OTHER: {
-    icon: Layers3,
-    eyebrow: 'Flexible teams',
-    accent: '#2563eb',
-    surface: 'rgba(37, 99, 235, 0.1)',
-    outline: 'rgba(37, 99, 235, 0.2)',
-    spotlight: 'rgba(96, 165, 250, 0.24)',
-    audience: 'General project-based collaboration',
-    focus: 'Keep the core TASKIT flow and grow later',
-    flow: ['Projects', 'Tasks', 'Visibility'],
-  },
-} as const satisfies Record<
-  CompanyType,
-  {
-    icon: typeof Building2
-    eyebrow: string
-    accent: string
-    surface: string
-    outline: string
-    spotlight: string
-    audience: string
-    focus: string
-    flow: readonly string[]
-  }
->
+type SetupForm = {
+  name: string
+  email: string
+  password: string
+  companyName: string
+  companySize: string
+  country: string
+  language: string
+}
 
-const roleOptionMeta: Record<SignupRole, string> = {
-  OWNER: 'Creates a brand-new workspace',
-  MANAGER: 'Admin access inside an existing company',
-  EMPLOYEE: 'Contributor access inside an existing company',
+type LegalConsentState = {
+  termsAccepted: boolean
+  privacyAccepted: boolean
+  marketingEmailsAccepted: boolean
+  aiUsageDisclosureAcknowledged: boolean
+}
+
+type PersistedOnboarding = {
+  step: OnboardingStepId
+  templateId: OnboardingTemplateId
+  form: SetupForm
+  invites: InviteRow[]
+}
+
+const companySizes = ['1-10', '11-50', '51-200', '201-1000', '1000+']
+const languages = ['English', 'Arabic', 'French', 'Spanish', 'German']
+const countries = ['United States', 'Tunisia', 'France', 'United Kingdom', 'Germany', 'Canada', 'United Arab Emirates']
+
+const blankForm: SetupForm = {
+  name: '',
+  email: '',
+  password: '',
+  companyName: '',
+  companySize: '11-50',
+  country: 'United States',
+  language: 'English',
 }
 
 export default function SignupOnboardingClient({
@@ -166,790 +111,849 @@ export default function SignupOnboardingClient({
   initialCompanyType: CompanyType
 }) {
   const router = useRouter()
-  const [form, setForm] = useState({
-    role: (initialInviteCode ? 'EMPLOYEE' : 'OWNER') as SignupRole,
-    companyType: initialCompanyType,
-    name: '',
-    email: '',
-    password: '',
-    companyName: '',
-    country: '',
-    industry: '',
-    registrationNumber: '',
-    inviteCode: initialInviteCode.trim(),
-  })
-  const [loading, setLoading] = useState(false)
-  const [requestingAccess, setRequestingAccess] = useState(false)
-  const [validatingInvite, setValidatingInvite] = useState(false)
-  const [error, setError] = useState('')
-  const [inviteError, setInviteError] = useState('')
-  const [requestAccessError, setRequestAccessError] = useState('')
-  const [requestAccessSuccess, setRequestAccessSuccess] = useState('')
-  const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(null)
-  const [legalConsent, setLegalConsent] = useState({
+  const initialTemplateId = getTemplateForCompanyType(initialCompanyType)
+  const [step, setStep] = useState<OnboardingStepId>('welcome')
+  const [templateId, setTemplateId] = useState<OnboardingTemplateId>(initialTemplateId)
+  const [form, setForm] = useState<SetupForm>(blankForm)
+  const [invites, setInvites] = useState<InviteRow[]>([])
+  const [inviteDraft, setInviteDraft] = useState({ email: '', role: 'Member' as InviteRow['role'], department: '' })
+  const [legalConsent, setLegalConsent] = useState<LegalConsentState>({
     termsAccepted: false,
     privacyAccepted: false,
     marketingEmailsAccepted: false,
     aiUsageDisclosureAcknowledged: false,
   })
   const [legalTouched, setLegalTouched] = useState(false)
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+  const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(null)
+  const [validatingInvite, setValidatingInvite] = useState(false)
 
-  const isOwnerFlow = form.role === 'OWNER'
-  const selectedCompanyType = normalizeCompanyType(form.companyType)
-  const companyCopy = getCompanyTypeCopy(selectedCompanyType)
-  const companyTheme = companyTypePresentation[selectedCompanyType]
-  const roleLocked = !isOwnerFlow && Boolean(invitePreview?.role)
-  const companyTypeLocked = !isOwnerFlow && Boolean(invitePreview?.companyType)
-  const shouldValidateInvite = !isOwnerFlow && form.inviteCode.trim().length > 0
+  const inviteCode = initialInviteCode.trim()
+  const inviteMode = Boolean(inviteCode)
+  const template = getTemplate(templateId)
   const hasRequiredLegalConsent = legalConsent.termsAccepted && legalConsent.privacyAccepted
+  const canSubmitSetup =
+    form.name.trim().length > 1 &&
+    form.email.includes('@') &&
+    form.password.length >= 8 &&
+    form.companyName.trim().length > 1 &&
+    form.country.trim().length > 1 &&
+    hasRequiredLegalConsent
+
+  const generationComplete = useCallback(() => {
+    trackOnboardingEvent('generation_complete', { templateId })
+    setStep('setup')
+  }, [templateId])
 
   useEffect(() => {
-    const nextCode = initialInviteCode.trim()
-    if (!nextCode) return
+    const saved = readOnboardingProgress<PersistedOnboarding>()
+    if (!saved || inviteMode) return
 
-    setForm((current) => {
-      if (current.inviteCode === nextCode) return current
-      return { ...current, inviteCode: nextCode }
-    })
-  }, [initialInviteCode])
+    setStep(saved.step === 'generating' ? 'company-type' : saved.step)
+    setTemplateId(saved.templateId)
+    setForm(saved.form)
+    setInvites(saved.invites)
+  }, [inviteMode])
 
   useEffect(() => {
-    if (!shouldValidateInvite) {
-      setInvitePreview(null)
-      setInviteError('')
-      setValidatingInvite(false)
-      return
-    }
+    if (inviteMode) return
+    persistOnboardingProgress({ step, templateId, form, invites } satisfies PersistedOnboarding)
+  }, [form, invites, inviteMode, step, templateId])
+
+  useEffect(() => {
+    trackOnboardingEvent('step_viewed', { step, templateId })
+  }, [step, templateId])
+
+  useEffect(() => {
+    if (!inviteMode) return
 
     const controller = new AbortController()
     const timeout = window.setTimeout(async () => {
       try {
         setValidatingInvite(true)
-        setInviteError('')
-
-        const response = await fetch(`/api/invites/${encodeURIComponent(form.inviteCode.trim())}`, {
-          signal: controller.signal,
+        const response = await fetch(`/api/invites/${encodeURIComponent(inviteCode)}`, {
           cache: 'no-store',
+          signal: controller.signal,
         })
         const data = (await response.json()) as InvitePreview & { error?: string }
 
         if (!response.ok) {
+          setError(data.error || 'Invite not found.')
           setInvitePreview(null)
-          setInviteError(data.error || 'Invite not found.')
           return
         }
 
         setInvitePreview(data)
+        setTemplateId(getTemplateForCompanyType(data.companyType))
+        setStep('setup')
       } catch (fetchError) {
         if ((fetchError as Error).name !== 'AbortError') {
-          setInvitePreview(null)
-          setInviteError('Unable to validate invite right now.')
+          setError('Unable to validate this invite right now.')
         }
       } finally {
         setValidatingInvite(false)
       }
-    }, 250)
+    }, 180)
 
     return () => {
       controller.abort()
       window.clearTimeout(timeout)
     }
-  }, [form.inviteCode, shouldValidateInvite])
+  }, [inviteCode, inviteMode])
 
-  useEffect(() => {
-    if (!invitePreview) return
-    if (invitePreview.role === form.role) return
+  function updateForm<Key extends keyof SetupForm>(key: Key, value: SetupForm[Key]) {
+    setForm((current) => ({ ...current, [key]: value }))
+    setError('')
+  }
 
-    setForm((current) => ({ ...current, role: invitePreview.role }))
-  }, [invitePreview, form.role])
+  function goTo(nextStep: OnboardingStepId) {
+    setStep(nextStep)
+    setError('')
+  }
 
-  useEffect(() => {
-    if (!invitePreview?.companyType) return
-    if (invitePreview.companyType === form.companyType) return
+  function addInvite() {
+    const email = inviteDraft.email.trim()
+    if (!email || !email.includes('@')) return
 
-    setForm((current) => ({ ...current, companyType: normalizeCompanyType(invitePreview.companyType) }))
-  }, [invitePreview, form.companyType])
+    setInvites((current) => [
+      ...current,
+      {
+        id: crypto.randomUUID(),
+        email,
+        role: inviteDraft.role,
+        department: inviteDraft.department.trim() || template.departments[0] || 'Operations',
+      },
+    ])
+    setInviteDraft({ email: '', role: 'Member', department: '' })
+    trackOnboardingEvent('invite_queued', { templateId })
+  }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
+  async function submitRegistration(nextStep: OnboardingStepId = 'success') {
     setLegalTouched(true)
-    if (!hasRequiredLegalConsent) {
-      setError('Accept the Terms of Service and Privacy Policy to continue.')
+    if (!canSubmitSetup) {
+      setError('Complete the required account and workspace fields to continue.')
       return
     }
 
     setLoading(true)
     setError('')
-    setRequestAccessError('')
-    setRequestAccessSuccess('')
+
+    const registrationToken = createPendingRegistrationToken(form.companyName, form.email)
+
+    const body = inviteMode
+      ? {
+          name: form.name.trim(),
+          email: form.email.trim(),
+          password: form.password,
+          role: invitePreview?.role ?? 'EMPLOYEE',
+          inviteCode,
+          locale: navigator.language,
+          legalConsent,
+        }
+      : {
+          name: form.name.trim(),
+          email: form.email.trim(),
+          password: form.password,
+          role: 'OWNER',
+          companyName: form.companyName.trim(),
+          country: form.country.trim(),
+          industry: `${template.industryDefault} (${form.companySize})`,
+          registrationNumber: registrationToken,
+          companyType: template.companyType,
+          locale: navigator.language,
+          legalConsent,
+          onboarding: {
+            companySize: form.companySize,
+            preferredLanguage: form.language,
+            templateId,
+            queuedInvites: invites,
+          },
+        }
 
     const response = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ...form,
-        name: form.name.trim(),
-        email: form.email.trim(),
-        companyName: form.companyName.trim(),
-        country: form.country.trim(),
-        industry: form.industry.trim(),
-        registrationNumber: form.registrationNumber.trim(),
-        inviteCode: form.inviteCode.trim(),
-        companyType: form.companyType,
-        locale: navigator.language,
-        legalConsent,
-      }),
+      body: JSON.stringify(body),
     })
 
     const data = (await response.json()) as { error?: string }
     setLoading(false)
 
     if (!response.ok) {
-      setError(data.error || 'Registration failed')
+      setError(data.error || 'Registration failed.')
       return
     }
 
-    router.push(`/login?registered=${isOwnerFlow ? 'pending' : '1'}`)
+    trackOnboardingEvent('registration_submitted', { templateId, inviteMode, inviteCount: invites.length })
+    if (!inviteMode && invites.length > 0) {
+      window.localStorage.setItem(
+        'taskit:onboarding:queued-invites',
+        JSON.stringify({
+          companyName: form.companyName.trim(),
+          invites,
+          templateId,
+          at: new Date().toISOString(),
+        })
+      )
+    }
+    window.localStorage.removeItem('taskit:onboarding:v2')
+    setStep(nextStep)
   }
 
-  async function handleRequestAccess() {
-    if (!form.name.trim() || !form.email.trim()) {
-      setRequestAccessError('Enter your name and company email before requesting access.')
-      return
+  let content: ReactNode = null
+
+  if (validatingInvite) {
+    content = (
+      <main className={styles.centerStage} id="main-content">
+        <GenerationSkeleton label="Validating secure invite" />
+      </main>
+    )
+  } else {
+    switch (step) {
+      case 'welcome':
+        content = <WelcomeStep onStart={() => goTo('company-type')} />
+        break
+      case 'company-type':
+        content = (
+          <CompanyTypeStep
+            selected={templateId}
+            onSelect={(next) => {
+              setTemplateId(next)
+              trackOnboardingEvent('template_selected', { templateId: next })
+            }}
+            onBack={() => goTo('welcome')}
+            onGenerate={() => goTo('generating')}
+          />
+        )
+        break
+      case 'generating':
+        content = <GenerationExperience templateId={templateId} onComplete={generationComplete} />
+        break
+      case 'setup':
+        content = (
+          <SetupStep
+            form={form}
+            error={error}
+            inviteMode={inviteMode}
+            invitePreview={invitePreview}
+            legalConsent={legalConsent}
+            legalTouched={legalTouched}
+            loading={loading}
+            templateId={templateId}
+            canSubmit={canSubmitSetup}
+            onBack={() => goTo(inviteMode ? 'setup' : 'company-type')}
+            onLegalTouched={() => setLegalTouched(true)}
+            onLegalChange={setLegalConsent}
+            onChange={updateForm}
+            onContinue={() => (inviteMode ? submitRegistration('success') : goTo('team'))}
+          />
+        )
+        break
+      case 'team':
+        content = (
+          <TeamStep
+            draft={inviteDraft}
+            invites={invites}
+            loading={loading}
+            templateId={templateId}
+            error={error}
+            onDraftChange={setInviteDraft}
+            onAddInvite={addInvite}
+            onRemoveInvite={(id) => setInvites((current) => current.filter((invite) => invite.id !== id))}
+            onBack={() => goTo('setup')}
+            onSkip={() => submitRegistration('success')}
+            onFinish={() => submitRegistration('success')}
+          />
+        )
+        break
+      case 'success':
+        content = (
+          <SuccessStep
+            companyName={form.companyName}
+            invites={invites}
+            templateId={templateId}
+            inviteMode={inviteMode}
+            onEnter={() => router.push(`/login?registered=${inviteMode ? '1' : 'pending'}`)}
+          />
+        )
+        break
+      default:
+        content = null
     }
-
-    setRequestingAccess(true)
-    setRequestAccessError('')
-    setRequestAccessSuccess('')
-    setError('')
-
-    const response = await fetch('/api/access-requests', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name: form.name.trim(),
-        email: form.email.trim(),
-        role: form.role,
-      }),
-    })
-
-    const data = (await response.json()) as { companyName?: string; error?: string }
-    setRequestingAccess(false)
-
-    if (!response.ok) {
-      setRequestAccessError(data.error || 'Unable to request access.')
-      return
-    }
-
-    setRequestAccessSuccess(`Request sent to ${data.companyName}. An admin can now approve and issue your invite.`)
   }
-
-  const inviteRoleLabel =
-    invitePreview?.role === 'MANAGER' ? 'Manager access' : invitePreview?.role === 'EMPLOYEE' ? 'Employee access' : 'Owner access'
-
-  const submitLabel = isOwnerFlow
-    ? 'Submit company for approval'
-    : `Join as ${form.role === 'MANAGER' ? 'manager' : 'employee'}`
-
-  const companyPlaceholder =
-    selectedCompanyType === 'INDUSTRY'
-      ? 'North Plant Operations'
-      : selectedCompanyType === 'HEALTHCARE'
-        ? 'CareBridge Health'
-        : selectedCompanyType === 'CLINIC_HOSPITAL'
-          ? 'Northside Hospital'
-          : selectedCompanyType === 'ENTERPRISE_OPERATIONS'
-            ? 'Atlas Enterprise Operations'
-            : selectedCompanyType === 'CORPORATE_IT_OPERATIONS'
-              ? 'Apex IT Operations'
-      : selectedCompanyType === 'DIGITAL_AGENCY'
-        ? 'Studio Nova'
-        : selectedCompanyType === 'CONTENT_CREATION_AGENCY'
-          ? 'Waveform Content Co.'
-        : 'Acme Operations'
-
-  const workflowPreviewStyle = {
-    '--company-accent': companyTheme.accent,
-    '--company-spotlight': companyTheme.spotlight,
-  } as CSSProperties
 
   return (
-    <div className="auth-shell">
-      <div className="auth-brand">
-        <div className="auth-brand-inner">
-          <div className="auth-brand-mark">
-            <Image src={logo} alt="TASKIT logo" width={64} height={64} className="h-16 w-16 object-contain" priority />
-          </div>
-          <h1>{companyCopy.signupTitle}</h1>
-          <p>{companyCopy.signupDescription}</p>
-
-          <div
-            className="mt-8 rounded-[var(--radius-md)] border p-4"
-            style={{
-              borderColor: 'rgba(255, 255, 255, 0.12)',
-              background: 'rgba(255, 255, 255, 0.05)',
-              backdropFilter: 'blur(10px)',
-            }}
-          >
-            <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-cyan-100/80">{companyCopy.workspaceLabel}</div>
-            <div className="mt-2 text-lg font-semibold text-white">{companyCopy.overviewTitle}</div>
-            <div className="mt-2 text-sm leading-6 text-slate-300">{companyCopy.overviewDescription}</div>
-            <div className="mt-4 grid gap-2">
-              {companyCopy.bullets.map((bullet) => (
-                <div key={bullet} className="flex items-center gap-2 text-sm text-slate-200">
-                  <CheckCircle2 size={14} className="text-lime-200" />
-                  <span>{bullet}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="auth-brand-footer flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="flex items-center gap-1.5">
-            <Layers size={12} className="text-lime-200/90" />
-            {companyCopy.workspaceLabel}
-          </span>
-          <span className="hidden sm:inline" style={{ opacity: 0.35 }}>
-            .
-          </span>
-          <span>TASKIT</span>
-        </div>
-      </div>
-
-      <div className="auth-panel">
+    <div className={styles.shell}>
+      <Header step={step} inviteMode={inviteMode} />
+      <AnimatePresence mode="wait">
         <motion.div
-          className="auth-card max-w-[620px]"
-          initial={{ opacity: 0, y: 16 }}
+          key={validatingInvite ? 'validating' : step}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+          exit={{ opacity: 0, y: -10 }}
+          transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
         >
-          <div className={styles.introBlock}>
-            <div className={styles.introCaption}>
-              <Sparkles size={12} />
-              Company-aware onboarding
-            </div>
-            <p className={styles.introTitle}>Get started</p>
-            <p className={styles.introDescription}>
-              Start with the workflow your company actually needs, then finish the account setup below.
-            </p>
-          </div>
-
-          <section className={`${styles.sectionBlock} ${styles.sectionBlockPrimary}`}>
-            <div className={styles.sectionHeader}>
-              <div>
-                <div className={styles.stepBadge}>Step 1</div>
-                <div className={styles.sectionTitle}>Choose your company type</div>
-                <p className={styles.sectionDescription}>
-                  This shapes the workspace structure owners create and the operating model invited teammates will join.
-                </p>
-              </div>
-
-              <div className={`${styles.contextChip} ${companyTypeLocked ? styles.contextChipLocked : ''}`}>
-                {companyTypeLocked ? (
-                  <>
-                    <Lock size={12} />
-                    Invite locked
-                  </>
-                ) : (
-                  <>
-                    <Sparkles size={12} />
-                    Tailored onboarding
-                  </>
-                )}
-              </div>
-            </div>
-
-            <div className={styles.companyGrid}>
-              {COMPANY_TYPE_OPTIONS.map((option) => {
-                const selected = form.companyType === option.value
-                const theme = companyTypePresentation[option.value]
-                const Icon = theme.icon
-                const optionStyle = {
-                  '--company-accent': theme.accent,
-                  '--company-surface': theme.surface,
-                  '--company-outline': theme.outline,
-                  '--company-spotlight': theme.spotlight,
-                } as CSSProperties
-
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    disabled={companyTypeLocked}
-                    aria-pressed={selected}
-                    onClick={() => {
-                      setForm((current) => ({ ...current, companyType: option.value }))
-                      setError('')
-                    }}
-                    className={`${styles.companyCard} ${selected ? styles.companyCardSelected : ''}`}
-                    style={optionStyle}
-                  >
-                    <div className={styles.companyCardTop}>
-                      <div className={styles.companyIconWrap}>
-                        <Icon size={20} />
-                      </div>
-                      <div className={styles.companyCardHeading}>
-                        <span className={styles.companyEyebrow}>{theme.eyebrow}</span>
-                        <span className={styles.companyLabel}>{option.label}</span>
-                      </div>
-                      <div className={styles.companyStatus}>
-                        {selected ? <ShieldCheck size={14} /> : <Sparkles size={14} />}
-                        <span>{selected ? 'Selected' : 'Choose'}</span>
-                      </div>
-                    </div>
-
-                    <div className={styles.companyWorkspaceTag}>{option.workspaceLabel}</div>
-                    <p className={styles.companyTitle}>{option.title}</p>
-                    <p className={styles.companyDescription}>{option.description}</p>
-
-                    <div className={styles.flowRow}>
-                      {theme.flow.map((step, index) => (
-                        <div key={`${option.value}-${step}`} className={styles.flowStepGroup}>
-                          {index > 0 && <ArrowRight size={13} className={styles.flowArrow} />}
-                          <span className={styles.flowPill}>{step}</span>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className={styles.companyMeta}>
-                      <span className={styles.metaChip}>Best for {theme.audience}</span>
-                      <span className={styles.metaChip}>{theme.focus}</span>
-                    </div>
-
-                    <div className={styles.bulletGrid}>
-                      {option.bullets.map((bullet) => (
-                        <div key={bullet} className={styles.bulletItem}>
-                          <CheckCircle2 size={14} className={styles.bulletItemIcon} />
-                          <span>{bullet}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-
-            <div className={styles.workflowPreview} style={workflowPreviewStyle}>
-              <div className={styles.workflowHeader}>
-                <div>
-                  <div className={styles.workflowEyebrow}>Selected workflow</div>
-                  <div className={styles.workflowTitle}>{companyCopy.overviewTitle}</div>
-                </div>
-                <div className={styles.workflowBadge}>{companyCopy.workspaceLabel}</div>
-              </div>
-
-              <p className={styles.workflowDescription}>{companyCopy.overviewDescription}</p>
-
-              <div className={styles.workflowStats}>
-                <div className={styles.workflowStat}>
-                  <div className={styles.workflowStatLabel}>Structure</div>
-                  <div className={styles.workflowStatValue}>{companyTheme.flow.join(' -> ')}</div>
-                </div>
-                <div className={styles.workflowStat}>
-                  <div className={styles.workflowStatLabel}>Best for</div>
-                  <div className={styles.workflowStatValue}>{companyTheme.audience}</div>
-                </div>
-                <div className={styles.workflowStat}>
-                  <div className={styles.workflowStatLabel}>Focus</div>
-                  <div className={styles.workflowStatValue}>{companyTheme.focus}</div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          {companyTypeLocked && (
-            <div className={styles.lockNotice}>
-              <Lock size={14} className={styles.lockNoticeIcon} />
-              <span>This workspace type comes from the invite you are joining, so it is locked for this signup.</span>
-            </div>
-          )}
-
-          <section className={`${styles.sectionBlock} ${styles.roleBlock}`}>
-            <div className={styles.sectionHeader}>
-              <div>
-                <div className={styles.stepBadge}>Step 2</div>
-                <div className={styles.sectionTitle}>Choose how you&apos;re joining</div>
-                <p className={styles.sectionDescription}>
-                  Owners create a new workspace. Managers and employees join an existing company with invite-based access.
-                </p>
-              </div>
-
-              {roleLocked && (
-                <div className={`${styles.contextChip} ${styles.contextChipLocked}`}>
-                  <Lock size={12} />
-                  Invite role
-                </div>
-              )}
-            </div>
-
-            <div className={styles.roleGrid}>
-              {signupOptions.map((option) => {
-                const selected = form.role === option.value
-
-                return (
-                  <button
-                    key={option.value}
-                    type="button"
-                    disabled={roleLocked}
-                    aria-pressed={selected}
-                    onClick={() => {
-                      setForm((current) => ({ ...current, role: option.value }))
-                      setError('')
-                      setRequestAccessError('')
-                      setRequestAccessSuccess('')
-                    }}
-                    className={`${styles.roleCard} ${selected ? styles.roleCardSelected : ''}`}
-                  >
-                    <div className={styles.roleCardTop}>
-                      <div>
-                        <div className={styles.roleTitle}>{option.title}</div>
-                        <div className={styles.roleDescription}>{option.description}</div>
-                      </div>
-                      {selected && <ShieldCheck size={16} className="text-[var(--accent)]" />}
-                    </div>
-                    <div className={styles.roleTag}>{roleOptionMeta[option.value]}</div>
-                  </button>
-                )
-              })}
-            </div>
-          </section>
-
-          {roleLocked && (
-            <div className={styles.lockNotice}>
-              <Lock size={14} className={styles.lockNoticeIcon} />
-              <span>The invite decides the role for this signup. Clear the invite code if you want to switch to another path.</span>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-3.5">
-            <div>
-              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                <User size={13} /> {isOwnerFlow ? 'Owner name' : 'Full name'}
-              </label>
-              <input
-                className="input"
-                placeholder="Alex Morgan"
-                value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
-                required
-                autoComplete="name"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                <Mail size={13} /> Work email
-              </label>
-              <input
-                className="input"
-                type="email"
-                placeholder="you@company.com"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                required
-                autoComplete="email"
-              />
-            </div>
-
-            <div>
-              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                <Lock size={13} /> Password
-              </label>
-              <input
-                className="input"
-                type="password"
-                placeholder="At least 8 characters"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                required
-                minLength={8}
-                autoComplete="new-password"
-              />
-            </div>
-
-            {isOwnerFlow ? (
-              <div>
-                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                  <Building2 size={13} /> Company name
-                </label>
-                <input
-                  className="input"
-                  placeholder={companyPlaceholder}
-                  value={form.companyName}
-                  onChange={(e) => setForm({ ...form, companyName: e.target.value })}
-                  required
-                  autoComplete="organization"
-                />
-                <div className="mt-3 grid gap-3.5 sm:grid-cols-2">
-                  <div>
-                    <label
-                      className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      <Building2 size={13} /> Country
-                    </label>
-                    <input
-                      className="input"
-                      placeholder="Tunisia"
-                      value={form.country}
-                      onChange={(e) => setForm({ ...form, country: e.target.value })}
-                      required
-                      autoComplete="country-name"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold"
-                      style={{ color: 'var(--text-secondary)' }}
-                    >
-                      <Layers3 size={13} /> Industry
-                    </label>
-                    <input
-                      className="input"
-                      placeholder="Manufacturing"
-                      value={form.industry}
-                      onChange={(e) => setForm({ ...form, industry: e.target.value })}
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="mt-3">
-                  <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                    <ShieldCheck size={13} /> Company registration number
-                  </label>
-                  <input
-                    className="input"
-                    placeholder="RC-2026-001245"
-                    value={form.registrationNumber}
-                    onChange={(e) => setForm({ ...form, registrationNumber: e.target.value })}
-                    required
-                    autoComplete="off"
-                  />
-                </div>
-                <div className={styles.fieldHint}>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    Owners must use a business email domain. Public inboxes like Gmail are blocked, and each company is reviewed manually by a Super Admin.
-                  </p>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    {selectedCompanyType === 'INDUSTRY'
-                      ? 'Your workspace will start with rooms, then projects inside each room, then tasks inside each project.'
-                      : ['HEALTHCARE', 'CLINIC_HOSPITAL', 'ENTERPRISE_OPERATIONS', 'CORPORATE_IT_OPERATIONS'].includes(
-                            selectedCompanyType
-                          )
-                        ? 'Your workspace will start with enterprise departments, teams, service queues, SLA templates, incident priorities, asset categories, maintenance workflows, and compliance controls.'
-                      : isAgencyCompanyType(selectedCompanyType)
-                        ? 'Your workspace will start with campaigns, briefs, employee execution, deliverable uploads, and channel performance tracking.'
-                        : 'Your workspace will keep the same TASKIT interface you already use today.'}
-                  </p>
-                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-                    After submission, the company stays pending until the Super Admin verifies the registration number and approves activation.
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                  <KeyRound size={13} /> Invite code
-                </label>
-                <input
-                  className="input"
-                  placeholder={`Paste your ${form.role === 'MANAGER' ? 'manager' : 'employee'} invite code`}
-                  value={form.inviteCode}
-                  onChange={(e) => setForm({ ...form, inviteCode: e.target.value })}
-                  autoComplete="one-time-code"
-                  required
-                />
-                {(validatingInvite || invitePreview || inviteError) && (
-                  <div className="mt-2 rounded-[var(--radius-sm)] border px-3 py-2.5 text-xs" style={{ borderColor: 'var(--border)' }}>
-                    {validatingInvite ? (
-                      <div className="flex items-center gap-2 text-[var(--text-muted)]">
-                        <Loader2 size={14} className="animate-spin" style={{ animation: 'spin 0.7s linear infinite' }} />
-                        Validating invite...
-                      </div>
-                    ) : invitePreview ? (
-                      <div className="space-y-1.5">
-                        <div className="flex items-center gap-1.5 font-semibold text-[var(--text-primary)]">
-                          <ShieldCheck size={14} className="text-[var(--accent)]" />
-                          Invite ready
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[var(--text-secondary)]">
-                          <Building2 size={13} />
-                          {invitePreview.companyName}
-                        </div>
-                        <div style={{ color: 'var(--text-muted)' }}>
-                          {inviteRoleLabel} for {invitePreview.invitedEmailMasked}
-                        </div>
-                        <div style={{ color: 'var(--text-muted)' }}>{getCompanyTypeCopy(invitePreview.companyType).label} workspace</div>
-                      </div>
-                    ) : (
-                      <div style={{ color: '#b91c1c' }}>{inviteError}</div>
-                    )}
-                  </div>
-                )}
-
-                <div className="mt-3 rounded-[var(--radius-sm)] border px-3 py-3" style={{ borderColor: 'var(--border)' }}>
-                  <div className="text-xs font-semibold text-[var(--text-primary)]">No invite yet?</div>
-                  <p className="mt-1 text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                    If your company domain is already linked to TASKIT, you can request approval and an admin can send you an
-                    invite.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={handleRequestAccess}
-                    disabled={requestingAccess}
-                    className="btn-secondary mt-3"
-                    style={{ fontSize: '12px', padding: '8px 12px' }}
-                  >
-                    {requestingAccess ? 'Submitting...' : 'Request company access'}
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {requestAccessError && (
-              <div
-                className="rounded-[var(--radius-sm)] border px-3.5 py-2.5 text-sm"
-                style={{
-                  background: 'rgba(239, 68, 68, 0.06)',
-                  borderColor: 'rgba(239, 68, 68, 0.2)',
-                  color: '#b91c1c',
-                }}
-              >
-                {requestAccessError}
-              </div>
-            )}
-
-            {requestAccessSuccess && (
-              <div
-                className="rounded-[var(--radius-sm)] border px-3.5 py-2.5 text-sm"
-                style={{
-                  background: 'rgba(16, 185, 129, 0.08)',
-                  borderColor: 'rgba(16, 185, 129, 0.2)',
-                  color: '#047857',
-                }}
-              >
-                {requestAccessSuccess}
-              </div>
-            )}
-
-            {error && (
-              <div
-                className="rounded-[var(--radius-sm)] border px-3.5 py-2.5 text-sm"
-                style={{
-                  background: 'rgba(239, 68, 68, 0.06)',
-                  borderColor: 'rgba(239, 68, 68, 0.2)',
-                  color: '#b91c1c',
-                }}
-              >
-                {error}
-              </div>
-            )}
-
-            <section
-              className={`${styles.legalConsentBox} ${legalTouched && !hasRequiredLegalConsent ? styles.legalConsentBoxInvalid : ''}`}
-              aria-labelledby="signup-legal-consent-title"
-            >
-              <div className={styles.legalConsentHeader}>
-                <ShieldCheck size={16} />
-                <div>
-                  <div id="signup-legal-consent-title" className={styles.legalConsentTitle}>
-                    Legal consent
-                  </div>
-                  <p className={styles.legalConsentDescription}>
-                    Required before TASKIT creates your account and stores the acceptance record.
-                  </p>
-                </div>
-              </div>
-
-              <label className={styles.legalCheckboxRow}>
-                <input
-                  type="checkbox"
-                  checked={hasRequiredLegalConsent}
-                  aria-describedby="signup-legal-consent-help signup-legal-consent-error"
-                  onBlur={() => setLegalTouched(true)}
-                  onChange={(event) => {
-                    const checked = event.target.checked
-                    setLegalConsent((current) => ({
-                      ...current,
-                      termsAccepted: checked,
-                      privacyAccepted: checked,
-                      aiUsageDisclosureAcknowledged: checked,
-                    }))
-                    if (checked) setError('')
-                  }}
-                />
-                <span>
-                  I agree to the{' '}
-                  <Link href="/terms" target="_blank" rel="noopener noreferrer">
-                    Terms of Service
-                  </Link>{' '}
-                  and{' '}
-                  <Link href="/privacy" target="_blank" rel="noopener noreferrer">
-                    Privacy Policy
-                  </Link>
-                  , and acknowledge the{' '}
-                  <Link href="/ai-transparency" target="_blank" rel="noopener noreferrer">
-                    AI Transparency Policy
-                  </Link>
-                  .
-                </span>
-              </label>
-
-              <label className={styles.legalCheckboxRow}>
-                <input
-                  type="checkbox"
-                  checked={legalConsent.marketingEmailsAccepted}
-                  onChange={(event) => {
-                    setLegalConsent((current) => ({ ...current, marketingEmailsAccepted: event.target.checked }))
-                  }}
-                />
-                <span>Send me occasional product updates and compliance notices by email.</span>
-              </label>
-
-              <p id="signup-legal-consent-help" className={styles.legalConsentFinePrint}>
-                TASKIT records the accepted document versions, timestamp, IP address, user agent, and locale for audit evidence.
-              </p>
-
-              {legalTouched && !hasRequiredLegalConsent && (
-                <p id="signup-legal-consent-error" className={styles.legalConsentError} role="alert">
-                  Terms of Service and Privacy Policy acceptance is required.
-                </p>
-              )}
-            </section>
-
-            <button
-              className="btn-primary mt-1 flex h-11 items-center justify-center gap-2"
-              type="submit"
-              disabled={loading || !hasRequiredLegalConsent}
-              aria-disabled={loading || !hasRequiredLegalConsent}
-            >
-              {loading ? (
-                <Loader2 size={18} style={{ animation: 'spin 0.7s linear infinite' }} />
-              ) : (
-                <>
-                  <span>{submitLabel}</span>
-                  <ArrowRight size={16} strokeWidth={2.25} />
-                </>
-              )}
-            </button>
-          </form>
-
-          <p className="mt-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-            Already registered?{' '}
-            <Link href="/login" className="font-semibold text-[var(--accent)] underline-offset-4 hover:underline">
-              Sign in
-            </Link>
-          </p>
-          <div className={styles.legalFooterLinks} aria-label="Legal links">
-            <Link href="/terms">Terms</Link>
-            <Link href="/privacy">Privacy</Link>
-            <Link href="/cookies">Cookies</Link>
-            <Link href="/ai-transparency">AI Transparency</Link>
-          </div>
+          {content}
         </motion.div>
-      </div>
+      </AnimatePresence>
     </div>
   )
+}
+
+function Header({ step, inviteMode }: { step: OnboardingStepId; inviteMode: boolean }) {
+  const visibleSteps = ONBOARDING_STEPS.filter((item) => !inviteMode || ['setup', 'success'].includes(item.id))
+  const visibleStepIndex = Math.max(0, visibleSteps.findIndex((item) => item.id === step))
+
+  return (
+    <header className={styles.header}>
+      <Link href="/" className={styles.brand} aria-label="TASKIT home">
+        <Image src={logo} alt="" width={38} height={38} priority />
+        <span>TASKIT</span>
+      </Link>
+
+      <nav className={styles.progressNav} aria-label="Onboarding progress">
+        {visibleSteps.map((item, index) => {
+          const isCurrent = item.id === step
+          const isDone = index < visibleStepIndex
+
+          return (
+            <span key={item.id} className={`${styles.progressDot} ${isCurrent ? styles.progressDotActive : ''} ${isDone ? styles.progressDotDone : ''}`}>
+              {isDone ? <Check size={12} /> : index + 1}
+              <span>{item.label}</span>
+            </span>
+          )
+        })}
+      </nav>
+
+      <Link href="/login" className={styles.loginLink}>
+        Sign in
+      </Link>
+    </header>
+  )
+}
+
+function WelcomeStep({ onStart }: { onStart: () => void }) {
+  return (
+    <main className={styles.welcomeStage} id="main-content">
+      <div className={styles.welcomeBackdrop} aria-hidden="true">
+        <div className={styles.signalGrid}>
+          {Array.from({ length: 42 }, (_, index) => (
+            <span key={index} />
+          ))}
+        </div>
+      </div>
+
+      <section className={styles.welcomeHero} aria-labelledby="welcome-title">
+        <div className={styles.logoHero}>
+          <Image src={logo} alt="TASKIT logo" width={82} height={82} priority />
+        </div>
+        <p className={styles.stepKicker}>
+          <Sparkles size={15} />
+          AI-native onboarding
+        </p>
+        <h1 id="welcome-title">Build your company operating system in under 60 seconds.</h1>
+        <p>
+          TASKIT understands your company type, generates the workspace structure, and prepares the dashboards, workflows,
+          copilots, and collaboration layer before you configure anything.
+        </p>
+        <button type="button" className={styles.primaryCta} onClick={onStart}>
+          <Bot size={18} />
+          Start AI setup
+          <ArrowRight size={18} />
+        </button>
+      </section>
+    </main>
+  )
+}
+
+function CompanyTypeStep({
+  selected,
+  onSelect,
+  onBack,
+  onGenerate,
+}: {
+  selected: OnboardingTemplateId
+  onSelect: (id: OnboardingTemplateId) => void
+  onBack: () => void
+  onGenerate: () => void
+}) {
+  const template = getTemplate(selected)
+
+  return (
+    <main className={styles.selectionStage} id="main-content">
+      <section className={styles.selectionCopy}>
+        <button type="button" className={styles.ghostButton} onClick={onBack}>
+          <ArrowLeft size={16} />
+          Back
+        </button>
+        <p className={styles.stepKicker}>
+          <Bot size={14} />
+          Adaptive workspace design
+        </p>
+        <h1>Tell TASKIT what kind of company you run.</h1>
+        <p>
+          Pick the closest fit. The live preview updates instantly so you can see the operating system TASKIT will create.
+        </p>
+
+        <div className={styles.templateGrid} role="radiogroup" aria-label="Company type">
+          {TEMPLATE_ORDER.map((id) => {
+            const option = ONBOARDING_TEMPLATES[id]
+            const isSelected = selected === id
+
+            return (
+              <button
+                key={id}
+                type="button"
+                role="radio"
+                aria-checked={isSelected}
+                className={`${styles.templateTile} ${isSelected ? styles.templateTileSelected : ''}`}
+                style={{ '--template-accent': option.accent, '--template-soft': option.softAccent } as CSSProperties}
+                onClick={() => onSelect(id)}
+              >
+                <span className={styles.templateIcon}>
+                  <Sparkles size={16} aria-hidden="true" />
+                </span>
+                <strong>{option.title}</strong>
+                <span>{option.sentence}</span>
+              </button>
+            )
+          })}
+        </div>
+
+        <div className={styles.selectionActionBar}>
+          <div>
+            <strong>{template.title} OS</strong>
+            <span>{template.suggestions[0]}</span>
+          </div>
+          <button type="button" className={styles.primaryCta} onClick={onGenerate}>
+            Generate workspace
+            <ArrowRight size={18} />
+          </button>
+        </div>
+      </section>
+
+      <WorkspacePreview templateId={selected} />
+    </main>
+  )
+}
+
+function SetupStep({
+  form,
+  templateId,
+  inviteMode,
+  invitePreview,
+  legalConsent,
+  legalTouched,
+  loading,
+  error,
+  canSubmit,
+  onChange,
+  onLegalChange,
+  onLegalTouched,
+  onBack,
+  onContinue,
+}: {
+  form: SetupForm
+  templateId: OnboardingTemplateId
+  inviteMode: boolean
+  invitePreview: InvitePreview | null
+  legalConsent: LegalConsentState
+  legalTouched: boolean
+  loading: boolean
+  error: string
+  canSubmit: boolean
+  onChange: <Key extends keyof SetupForm>(key: Key, value: SetupForm[Key]) => void
+  onLegalChange: Dispatch<SetStateAction<LegalConsentState>>
+  onLegalTouched: () => void
+  onBack: () => void
+  onContinue: () => void
+}) {
+  const template = getTemplate(templateId)
+
+  return (
+    <main className={styles.setupStage} id="main-content">
+      <section className={styles.setupPanel}>
+        {!inviteMode && (
+          <button type="button" className={styles.ghostButton} onClick={onBack}>
+            <ArrowLeft size={16} />
+            Back
+          </button>
+        )}
+
+        <p className={styles.stepKicker}>
+          <ShieldCheck size={14} />
+          Minimal setup
+        </p>
+        <h1>{inviteMode ? 'Secure your invited account.' : 'Add the essentials. TASKIT handles the structure.'}</h1>
+        <p className={styles.setupLead}>
+          {inviteMode && invitePreview
+            ? `You are joining ${invitePreview.companyName}. Finish your account and TASKIT will connect you to the workspace.`
+            : 'No long configuration. Just enough context to name the workspace and prepare approval-ready defaults.'}
+        </p>
+
+        <div className={styles.formGrid}>
+          <Field label="Your name" icon={<User size={15} />} required>
+            <input className={styles.input} value={form.name} onChange={(event) => onChange('name', event.target.value)} autoComplete="name" />
+          </Field>
+
+          <Field label="Work email" icon={<Mail size={15} />} required>
+            <input
+              className={styles.input}
+              type="email"
+              value={form.email}
+              onChange={(event) => onChange('email', event.target.value)}
+              autoComplete="email"
+              placeholder="you@company.com"
+            />
+          </Field>
+
+          <Field label="Password" icon={<Lock size={15} />} required>
+            <input
+              className={styles.input}
+              type="password"
+              minLength={8}
+              value={form.password}
+              onChange={(event) => onChange('password', event.target.value)}
+              autoComplete="new-password"
+              placeholder="At least 8 characters"
+            />
+          </Field>
+
+          <Field label="Company name" icon={<Sparkles size={15} />} required>
+            <input
+              className={styles.input}
+              value={form.companyName}
+              onChange={(event) => onChange('companyName', event.target.value)}
+              autoComplete="organization"
+              placeholder={template.title === 'Agency' ? 'Studio Nova' : 'Acme Operations'}
+              disabled={inviteMode}
+            />
+          </Field>
+
+          {!inviteMode && (
+            <>
+              <Field label="Company size" icon={<ShieldCheck size={15} />} required>
+                <SegmentedControl
+                  value={form.companySize}
+                  options={companySizes}
+                  onChange={(value) => onChange('companySize', value)}
+                />
+              </Field>
+
+              <Field label="Country" icon={<Globe2 size={15} />} required>
+                <select className={styles.input} value={form.country} onChange={(event) => onChange('country', event.target.value)}>
+                  {countries.map((country) => (
+                    <option key={country}>{country}</option>
+                  ))}
+                </select>
+              </Field>
+
+              <Field label="Preferred language" icon={<Globe2 size={15} />} required>
+                <select className={styles.input} value={form.language} onChange={(event) => onChange('language', event.target.value)}>
+                  {languages.map((language) => (
+                    <option key={language}>{language}</option>
+                  ))}
+                </select>
+              </Field>
+            </>
+          )}
+        </div>
+
+        <section className={`${styles.legalBox} ${legalTouched && !canSubmit ? styles.legalBoxInvalid : ''}`} aria-label="Legal consent">
+          <label className={styles.checkRow}>
+            <input
+              type="checkbox"
+              checked={legalConsent.termsAccepted && legalConsent.privacyAccepted}
+              onBlur={onLegalTouched}
+              onChange={(event) => {
+                const checked = event.target.checked
+                onLegalChange((current) => ({
+                  ...current,
+                  termsAccepted: checked,
+                  privacyAccepted: checked,
+                  aiUsageDisclosureAcknowledged: checked,
+                }))
+              }}
+            />
+            <span>
+              I agree to the <Link href="/terms">Terms</Link>, <Link href="/privacy">Privacy Policy</Link>, and{' '}
+              <Link href="/ai-transparency">AI Transparency Policy</Link>.
+            </span>
+          </label>
+          <label className={styles.checkRow}>
+            <input
+              type="checkbox"
+              checked={legalConsent.marketingEmailsAccepted}
+              onChange={(event) => onLegalChange((current) => ({ ...current, marketingEmailsAccepted: event.target.checked }))}
+            />
+            <span>Send me useful product and compliance updates.</span>
+          </label>
+        </section>
+
+        {error && (
+          <div className={styles.errorBox} role="alert">
+            {error}
+          </div>
+        )}
+
+        <div className={styles.formActions}>
+          <button type="button" className={styles.primaryCta} onClick={onContinue} disabled={loading || !canSubmit}>
+            {loading ? <Loader2 size={18} className={styles.spin} /> : inviteMode ? <CheckCircle2 size={18} /> : <ArrowRight size={18} />}
+            {loading ? 'Creating workspace...' : inviteMode ? 'Join workspace' : 'Continue'}
+          </button>
+        </div>
+      </section>
+
+      <WorkspacePreview templateId={templateId} compact />
+    </main>
+  )
+}
+
+function TeamStep({
+  draft,
+  invites,
+  templateId,
+  loading,
+  error,
+  onDraftChange,
+  onAddInvite,
+  onRemoveInvite,
+  onBack,
+  onSkip,
+  onFinish,
+}: {
+  draft: { email: string; role: InviteRow['role']; department: string }
+  invites: InviteRow[]
+  templateId: OnboardingTemplateId
+  loading: boolean
+  error: string
+  onDraftChange: Dispatch<SetStateAction<{ email: string; role: InviteRow['role']; department: string }>>
+  onAddInvite: () => void
+  onRemoveInvite: (id: string) => void
+  onBack: () => void
+  onSkip: () => void
+  onFinish: () => void
+}) {
+  const template = getTemplate(templateId)
+
+  return (
+    <main className={styles.teamStage} id="main-content">
+      <section className={styles.setupPanel}>
+        <button type="button" className={styles.ghostButton} onClick={onBack}>
+          <ArrowLeft size={16} />
+          Back
+        </button>
+        <p className={styles.stepKicker}>
+          <User size={14} />
+          Optional team setup
+        </p>
+        <h1>Invite the first people into the operating system.</h1>
+        <p className={styles.setupLead}>Skip this for now or queue teammates with roles and departments.</p>
+
+        <div className={styles.inviteComposer}>
+          <input
+            className={styles.input}
+            type="email"
+            placeholder="teammate@company.com"
+            value={draft.email}
+            onChange={(event) => onDraftChange((current) => ({ ...current, email: event.target.value }))}
+          />
+          <select
+            className={styles.input}
+            value={draft.role}
+            onChange={(event) => onDraftChange((current) => ({ ...current, role: event.target.value as InviteRow['role'] }))}
+          >
+            <option>Member</option>
+            <option>Manager</option>
+            <option>Finance</option>
+          </select>
+          <select
+            className={styles.input}
+            value={draft.department}
+            onChange={(event) => onDraftChange((current) => ({ ...current, department: event.target.value }))}
+          >
+            <option value="">Department</option>
+            {template.departments.map((department) => (
+              <option key={department}>{department}</option>
+            ))}
+          </select>
+          <button type="button" className={styles.iconButton} onClick={onAddInvite} aria-label="Add invite">
+            <Plus size={18} />
+          </button>
+        </div>
+
+        <div className={styles.inviteList} aria-live="polite">
+          {invites.length === 0 ? (
+            <div className={styles.emptyInvite}>
+              <Mail size={18} />
+              <span>No invites queued yet. Your workspace can launch without them.</span>
+            </div>
+          ) : (
+            invites.map((invite) => (
+              <div key={invite.id} className={styles.inviteRow}>
+                <div>
+                  <strong>{invite.email}</strong>
+                  <span>
+                    {invite.role} - {invite.department}
+                  </span>
+                </div>
+                <button type="button" onClick={() => onRemoveInvite(invite.id)} aria-label={`Remove ${invite.email}`}>
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+
+        {error && (
+          <div className={styles.errorBox} role="alert">
+            {error}
+          </div>
+        )}
+
+        <div className={styles.splitActions}>
+          <button type="button" className={styles.secondaryCta} onClick={onSkip} disabled={loading}>
+            Skip for now
+          </button>
+          <button type="button" className={styles.primaryCta} onClick={onFinish} disabled={loading}>
+            {loading ? <Loader2 size={18} className={styles.spin} /> : <CheckCircle2 size={18} />}
+            {loading ? 'Creating workspace...' : 'Create workspace'}
+          </button>
+        </div>
+      </section>
+
+      <WorkspacePreview templateId={templateId} compact />
+    </main>
+  )
+}
+
+function SuccessStep({
+  companyName,
+  templateId,
+  invites,
+  inviteMode,
+  onEnter,
+}: {
+  companyName: string
+  templateId: OnboardingTemplateId
+  invites: InviteRow[]
+  inviteMode: boolean
+  onEnter: () => void
+}) {
+  const template = getTemplate(templateId)
+  const generated = [
+    `${template.departments.length} departments`,
+    `${template.workflows.length} workflows`,
+    `${template.dashboards.length} dashboards`,
+    `${template.copilots.length} AI copilots`,
+    `${template.assets.length} asset groups`,
+    `${template.finance.length} finance modules`,
+    'Realtime collaboration',
+    invites.length ? `${invites.length} queued invites` : 'Team invites ready later',
+  ]
+
+  return (
+    <main className={styles.successStage} id="main-content">
+      <section className={styles.successPanel}>
+        <div className={styles.successMark}>
+          <CheckCircle2 size={34} />
+        </div>
+        <p className={styles.stepKicker}>
+          <Sparkles size={14} />
+          Workspace generated
+        </p>
+        <h1>{inviteMode ? 'Your account is ready.' : `${companyName || 'Your company'} OS is ready for approval.`}</h1>
+        <p>
+          TASKIT generated the structure, defaults, copilots, dashboards, workflows, assets, finance layer, and realtime
+          collaboration system for a {template.title.toLowerCase()} team.
+        </p>
+
+        <div className={styles.generatedGrid}>
+          {generated.map((item) => (
+            <span key={item}>
+              <CheckCircle2 size={15} />
+              {item}
+            </span>
+          ))}
+        </div>
+
+        <button type="button" className={styles.primaryCta} onClick={onEnter}>
+          Enter Workspace
+          <ChevronRight size={18} />
+        </button>
+      </section>
+
+      <WorkspacePreview templateId={templateId} compact />
+    </main>
+  )
+}
+
+function Field({ label, icon, required, children }: { label: string; icon: ReactNode; required?: boolean; children: ReactNode }) {
+  return (
+    <label className={styles.field}>
+      <span>
+        {icon}
+        {label}
+        {required && <em>Required</em>}
+      </span>
+      {children}
+    </label>
+  )
+}
+
+function SegmentedControl({ value, options, onChange }: { value: string; options: string[]; onChange: (value: string) => void }) {
+  return (
+    <div className={styles.segmentedControl}>
+      {options.map((option) => (
+        <button
+          key={option}
+          type="button"
+          className={value === option ? styles.segmentedActive : ''}
+          aria-pressed={value === option}
+          onClick={() => onChange(option)}
+        >
+          {option}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function PreviewSkeleton() {
+  return (
+    <div className={`${styles.previewShell} ${styles.skeletonPreview}`} aria-hidden="true">
+      <div />
+      <div />
+      <div />
+    </div>
+  )
+}
+
+function GenerationSkeleton({ label = 'Loading AI workspace engine' }: { label?: string }) {
+  return (
+    <section className={styles.generationShell} aria-live="polite">
+      <div className={styles.generationOrb}>
+        <Loader2 size={34} className={styles.spin} />
+      </div>
+      <div className={styles.generationCopy}>
+        <p className={styles.stepKicker}>
+          <Sparkles size={14} />
+          {label}
+        </p>
+        <h1>Preparing TASKIT AI...</h1>
+        <p>Loading workspace intelligence, template registry, and generation system.</p>
+      </div>
+    </section>
+  )
+}
+
+function createPendingRegistrationToken(companyName: string, email: string) {
+  const companySlug = companyName
+    .toUpperCase()
+    .replace(/[^A-Z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '')
+    .slice(0, 18)
+  const domain = email.split('@')[1]?.toUpperCase().replace(/[^A-Z0-9]+/g, '-') || 'DOMAIN'
+  return `AI-${companySlug || 'WORKSPACE'}-${domain.slice(0, 12)}-${Date.now().toString(36).toUpperCase()}`
 }
