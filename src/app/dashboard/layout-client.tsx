@@ -17,22 +17,17 @@ import { getLocalizedCompanyCopy } from '@/lib/company-copy-i18n'
 import {
   isAgencyCompanyType,
   isContentCreationCompanyType,
-  isEnterpriseOperationsCompanyType,
   normalizeCompanyType,
 } from '@/lib/company-types'
+import { getWorkspaceNav } from '@/lib/workspace-nav'
 import { normalizeDashboardDesignConfig } from '@/lib/dashboard-design'
 import { isRealtimeAlertsEnabled } from '@/lib/socket-client'
 import type { UserDashboardDesignSettings, WorkspaceThemeSettings } from '@/lib/settings'
 import logo from '@/app/logo.png'
 import {
-  LayoutDashboard,
-  FolderKanban,
-  CheckSquare,
-  Users,
   Bell,
   ListTodo,
   BarChart3,
-  CalendarDays,
   LogOut,
   Radio,
   Menu,
@@ -42,11 +37,7 @@ import {
   Search,
   Plus,
   Settings,
-  ReceiptText,
-  Building2,
-  Landmark,
   FileCheck2,
-  HeartPulse,
 } from 'lucide-react'
 
 type DashboardLayoutClientProps = {
@@ -91,7 +82,6 @@ function DashboardLayoutChrome({
   const companyCopy = getLocalizedCompanyCopy(companyType, t)
   const isAgencyWorkspace = isAgencyCompanyType(companyType)
   const isContentCreationWorkspace = isContentCreationCompanyType(companyType)
-  const isEnterpriseOperationsWorkspace = isEnterpriseOperationsCompanyType(companyType)
   useEffect(() => {
     function handleUserDesign(event: Event) {
       const nextDesign = (event as CustomEvent<UserDashboardDesignSettings>).detail
@@ -106,6 +96,7 @@ function DashboardLayoutChrome({
   const brandName = dashboardDesignConfig.brand.name || 'TASKIT'
   const brandLogo = dashboardDesignConfig.brand.logoDataUrl || logo
   const hasCustomLogo = Boolean(dashboardDesignConfig.brand.logoDataUrl)
+  const industryProjectsLabel = `${companyCopy.groupPluralLabel} & ${companyCopy.projectPluralLabel}`
   const links = isSuperAdmin
     ? [
         { href: '/dashboard/super-admin', label: t('nav.companyApprovals'), icon: ShieldCheck },
@@ -121,32 +112,11 @@ function DashboardLayoutChrome({
         { href: '/dashboard/employee/alerts', label: t('nav.alerts'), icon: Bell },
         { href: '/dashboard/employee/progress', label: t('nav.progress'), icon: BarChart3 },
       ]
-    : [
-        { href: '/dashboard/admin', label: t('nav.overview'), icon: LayoutDashboard },
-        ...(isEnterpriseOperationsWorkspace
-          ? [{ href: '/dashboard/admin/operations', label: 'Operations', icon: HeartPulse }]
-          : []),
-        ...(isContentCreationWorkspace
-          ? [{ href: '/dashboard/admin/social-analytics', label: t('nav.socialStats'), icon: BarChart3 }]
-          : []),
-        { href: '/dashboard/admin/clients', label: t('nav.clients'), icon: Building2 },
-        {
-          href: '/dashboard/admin/projects',
-          label:
-            companyType === 'INDUSTRY'
-              ? `${companyCopy.groupPluralLabel} & ${companyCopy.projectPluralLabel}`
-              : isAgencyWorkspace
-                ? t('nav.campaigns')
-                : t('nav.projects'),
-          icon: FolderKanban,
-        },
-        { href: '/dashboard/admin/tasks', label: isAgencyWorkspace ? t('nav.briefs') : t('nav.tasks'), icon: CheckSquare },
-        { href: '/dashboard/admin/invoices', label: t('nav.invoices'), icon: ReceiptText },
-        { href: '/dashboard/admin/finance', label: t('nav.finance'), icon: Landmark },
-        { href: '/dashboard/admin/calendar', label: t('nav.calendar'), icon: CalendarDays },
-        { href: '/dashboard/admin/employees', label: t('nav.team'), icon: Users },
-        { href: '/dashboard/admin/alerts', label: t('nav.sendAlert'), icon: Bell },
-      ]
+    : getWorkspaceNav({ companyType, industryProjectsLabel }).map((item) => ({
+        href: item.href,
+        label: item.labelKey ? t(item.labelKey) : (item.label ?? ''),
+        icon: item.icon,
+      }))
   const workspaceNavLabel = isSuperAdmin
     ? t('nav.approvalCenter')
     :

@@ -24,6 +24,32 @@ import {
   updateTaskInTransaction,
 } from '@/modules/tasks/task.repository'
 
+async function resolveEnterpriseAssignment(
+  companyId: string,
+  input: { enterpriseAssignedTeamId?: string | null; enterpriseDepartmentId?: string | null }
+) {
+  let teamId: string | null | undefined = input.enterpriseAssignedTeamId === undefined ? undefined : input.enterpriseAssignedTeamId || null
+  let departmentId: string | null | undefined =
+    input.enterpriseDepartmentId === undefined ? undefined : input.enterpriseDepartmentId || null
+
+  if (teamId) {
+    const team = await prisma.enterpriseTeam.findFirst({
+      where: { id: teamId, companyId, deletedAt: null },
+      select: { id: true, departmentId: true },
+    })
+    if (!team) throw notFound('Selected team was not found in this workspace.')
+    if (departmentId === undefined || !departmentId) departmentId = team.departmentId
+  }
+  if (departmentId) {
+    const department = await prisma.enterpriseDepartment.findFirst({
+      where: { id: departmentId, companyId, deletedAt: null },
+      select: { id: true },
+    })
+    if (!department) throw notFound('Selected department was not found in this workspace.')
+  }
+  return { teamId, departmentId }
+}
+
 registerEnterpriseEventListeners()
 
 const EMPLOYEE_ALLOWED_STAGE_TRANSITIONS: Record<string, string[]> = {
@@ -91,6 +117,8 @@ export async function createTask(user: SessionUser, rawInput: unknown) {
     if (!assignee) throw notFound('Selected assignee was not found in this workspace.')
   }
 
+  const enterpriseAssignment = await resolveEnterpriseAssignment(companyId, input)
+
   const task = await prisma.$transaction(async (tx) => {
     const created = await createTaskInTransaction(tx, {
       title: input.title,
@@ -103,6 +131,8 @@ export async function createTask(user: SessionUser, rawInput: unknown) {
       projectId: deliverable.campaignId,
       stage: 'TODO',
       progress: 0,
+      enterpriseAssignedTeamId: enterpriseAssignment.teamId ?? null,
+      enterpriseDepartmentId: enterpriseAssignment.departmentId ?? null,
     })
 
     await replaceTaskDependencies(tx, created.id, input.dependencyIds)
@@ -165,6 +195,15 @@ export async function updateTask(user: SessionUser, id: string, rawInput: unknow
         if (!assignee) throw notFound('Selected assignee was not found in this workspace.')
       }
       updateData.assigneeId = input.assigneeId || null
+    }
+    if (input.enterpriseAssignedTeamId !== undefined || input.enterpriseDepartmentId !== undefined) {
+      const enterpriseAssignment = await resolveEnterpriseAssignment(companyId, input)
+      if (input.enterpriseAssignedTeamId !== undefined) {
+        updateData.enterpriseAssignedTeamId = enterpriseAssignment.teamId ?? null
+      }
+      if (input.enterpriseDepartmentId !== undefined || enterpriseAssignment.teamId) {
+        updateData.enterpriseDepartmentId = enterpriseAssignment.departmentId ?? null
+      }
     }
     if (input.deliverableId !== undefined && input.deliverableId !== existing.deliverableId) {
       const deliverable = await assertDeliverableInCompany(input.deliverableId, companyId)

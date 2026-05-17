@@ -13,6 +13,8 @@ export const createTaskSchema = z.object({
   deadline: optionalText,
   assigneeId: optionalText,
   projectId: optionalText,
+  enterpriseAssignedTeamId: nullableText,
+  enterpriseDepartmentId: nullableText,
 })
 
 export const updateTaskSchema = z.object({
@@ -27,6 +29,8 @@ export const updateTaskSchema = z.object({
   assigneeId: nullableText,
   projectId: optionalText,
   reviewComment: optionalText,
+  enterpriseAssignedTeamId: nullableText,
+  enterpriseDepartmentId: nullableText,
 })
 
 export type CreateTaskInput = z.infer<typeof createTaskSchema>

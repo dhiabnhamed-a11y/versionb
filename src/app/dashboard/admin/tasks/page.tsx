@@ -10,6 +10,7 @@ import {
   getCompanyTypeCopy,
   getDeliverableTypeLabel,
   isAgencyCompanyType,
+  isEnterpriseOperationsCompanyType,
   normalizeCompanyType,
 } from '@/lib/company-types'
 import { Plus, CheckSquare, Trash2, Clock, FolderKanban, User, Loader2, ListTodo, Link2, Pencil, CheckCircle2, RotateCcw } from 'lucide-react'
@@ -40,9 +41,21 @@ interface Task {
   stage: string
   progress: number
   assignee?: { id: string; name: string; email: string }
+  enterpriseAssignedTeam?: { id: string; name: string; code: string } | null
+  enterpriseDepartment?: { id: string; name: string; code: string } | null
   project: { id: string; title: string; room?: { id: string; name: string } | null }
   submissions: TaskSubmission[]
   activities: { id: string; action: string; createdAt: string; user: { name: string } }[]
+}
+
+interface EnterpriseTeamOption {
+  id: string
+  name: string
+  code: string
+  queueKey?: string
+  department: { id: string; name: string; code: string }
+  leader?: { id: string; name: string } | null
+  members?: { user: { id: string; name: string } }[]
 }
 
 interface Project {
@@ -77,10 +90,13 @@ export default function AdminTasksPage() {
   const companyType = normalizeCompanyType((session?.user as { companyType?: string | null } | undefined)?.companyType)
   const companyCopy = getCompanyTypeCopy(companyType)
   const isAgency = isAgencyCompanyType(companyType)
+  const supportsTeamAssignment = isEnterpriseOperationsCompanyType(companyType)
 
   const [tasks, setTasks] = useState<Task[]>([])
   const [projects, setProjects] = useState<Project[]>([])
   const [employees, setEmployees] = useState<Employee[]>([])
+  const [enterpriseTeams, setEnterpriseTeams] = useState<EnterpriseTeamOption[]>([])
+  const [assignTarget, setAssignTarget] = useState<'INDIVIDUAL' | 'TEAM'>('INDIVIDUAL')
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
   const [editingTask, setEditingTask] = useState<Task | null>(null)
@@ -99,28 +115,36 @@ export default function AdminTasksPage() {
     assigneeId: '',
     projectId: '',
     stage: 'TODO',
+    enterpriseAssignedTeamId: '',
   })
   const [saving, setSaving] = useState(false)
 
   const fetchTasksPageData = useCallback(async () => {
-    const [tasksResponse, projectsResponse, employeesResponse] = await Promise.all([
+    const [tasksResponse, projectsResponse, employeesResponse, teamsResponse] = await Promise.all([
       fetch('/api/tasks', { cache: 'no-store' }).then((response) => response.json()),
       fetch('/api/projects', { cache: 'no-store' }).then((response) => response.json()),
       fetch('/api/employees', { cache: 'no-store' }).then((response) => response.json()),
+      supportsTeamAssignment
+        ? fetch('/api/enterprise/teams', { cache: 'no-store' })
+            .then((response) => (response.ok ? response.json() : []))
+            .catch(() => [])
+        : Promise.resolve([]),
     ])
 
     return {
       tasks: Array.isArray(tasksResponse) ? tasksResponse : [],
       projects: Array.isArray(projectsResponse) ? projectsResponse : [],
       employees: Array.isArray(employeesResponse) ? employeesResponse : [],
+      teams: Array.isArray(teamsResponse) ? teamsResponse : [],
     }
-  }, [])
+  }, [supportsTeamAssignment])
 
   const reloadTasksPageData = useCallback(async () => {
     const data = await fetchTasksPageData()
     setTasks(data.tasks)
     setProjects(data.projects)
     setEmployees(data.employees)
+    setEnterpriseTeams(data.teams)
     setLoading(false)
   }, [fetchTasksPageData])
 
@@ -173,7 +197,9 @@ export default function AdminTasksPage() {
       assigneeId: '',
       projectId: '',
       stage: 'TODO',
+      enterpriseAssignedTeamId: '',
     })
+    setAssignTarget('INDIVIDUAL')
   }
 
   function openCreateTaskModal() {
@@ -193,7 +219,9 @@ export default function AdminTasksPage() {
       assigneeId: task.assignee?.id ?? '',
       projectId: task.project.id,
       stage: task.stage,
+      enterpriseAssignedTeamId: task.enterpriseAssignedTeam?.id ?? '',
     })
+    setAssignTarget(task.enterpriseAssignedTeam?.id ? 'TEAM' : 'INDIVIDUAL')
     setShowModal(true)
   }
 
@@ -202,10 +230,16 @@ export default function AdminTasksPage() {
     if (!form.projectId) return
     setSaving(true)
 
+    const payload = supportsTeamAssignment
+      ? assignTarget === 'TEAM'
+        ? { ...form, assigneeId: null, enterpriseAssignedTeamId: form.enterpriseAssignedTeamId || null }
+        : { ...form, enterpriseAssignedTeamId: null }
+      : { ...form, enterpriseAssignedTeamId: undefined }
+
     await fetch(editingTask ? `/api/tasks/${editingTask.id}` : '/api/tasks', {
       method: editingTask ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     })
 
     setSaving(false)
@@ -391,6 +425,12 @@ export default function AdminTasksPage() {
                     {task.assignee && (
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <User size={12} /> {task.assignee.name}
+                      </span>
+                    )}
+                    {task.enterpriseAssignedTeam && (
+                      <span style={{ fontSize: '11px', color: 'var(--accent)', display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600 }}>
+                        <User size={12} /> Team · {task.enterpriseAssignedTeam.name}
+                        {task.enterpriseDepartment ? ` (${task.enterpriseDepartment.name})` : ''}
                       </span>
                     )}
                     {task.deadline && (
@@ -666,14 +706,62 @@ export default function AdminTasksPage() {
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
                   Assign to
                 </label>
-                <select className="input" value={form.assigneeId} onChange={(event) => setForm({ ...form, assigneeId: event.target.value })}>
-                  <option value="">Unassigned</option>
-                  {employees.map((employee) => (
-                    <option key={employee.id} value={employee.id}>
-                      {employee.name}
-                    </option>
-                  ))}
-                </select>
+                {supportsTeamAssignment && (
+                  <div style={{ display: 'flex', gap: '8px', marginBottom: '8px' }}>
+                    <button
+                      type="button"
+                      onClick={() => setAssignTarget('INDIVIDUAL')}
+                      className={assignTarget === 'INDIVIDUAL' ? 'btn-primary' : 'btn-secondary'}
+                      style={{ fontSize: '12px', padding: '6px 12px' }}
+                    >
+                      Individual
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAssignTarget('TEAM')}
+                      className={assignTarget === 'TEAM' ? 'btn-primary' : 'btn-secondary'}
+                      style={{ fontSize: '12px', padding: '6px 12px' }}
+                    >
+                      Team
+                    </button>
+                  </div>
+                )}
+                {supportsTeamAssignment && assignTarget === 'TEAM' ? (
+                  <select
+                    className="input"
+                    value={form.enterpriseAssignedTeamId}
+                    onChange={(event) => setForm({ ...form, enterpriseAssignedTeamId: event.target.value })}
+                  >
+                    <option value="">Select a team</option>
+                    {Object.entries(
+                      enterpriseTeams.reduce<Record<string, EnterpriseTeamOption[]>>((acc, team) => {
+                        const key = team.department?.name ?? 'Unassigned department'
+                        acc[key] = acc[key] || []
+                        acc[key].push(team)
+                        return acc
+                      }, {})
+                    ).map(([departmentName, teams]) => (
+                      <optgroup key={departmentName} label={departmentName}>
+                        {teams.map((team) => (
+                          <option key={team.id} value={team.id}>
+                            {team.name}
+                            {team.queueKey ? ` · ${team.queueKey}` : ''}
+                            {team.members?.length ? ` (${team.members.length} members)` : ''}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                ) : (
+                  <select className="input" value={form.assigneeId} onChange={(event) => setForm({ ...form, assigneeId: event.target.value })}>
+                    <option value="">Unassigned</option>
+                    {employees.map((employee) => (
+                      <option key={employee.id} value={employee.id}>
+                        {employee.name}
+                      </option>
+                    ))}
+                  </select>
+                )}
               </div>
 
               <div className="modal-actions" style={{ marginTop: '4px' }}>

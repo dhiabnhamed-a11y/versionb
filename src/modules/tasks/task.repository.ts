@@ -17,9 +17,13 @@ const taskBaseSelect = {
   projectId: true,
   stage: true,
   progress: true,
+  enterpriseAssignedTeamId: true,
+  enterpriseDepartmentId: true,
   createdAt: true,
   updatedAt: true,
   assignee: { select: { id: true, name: true, email: true, avatar: true } },
+  enterpriseAssignedTeam: { select: { id: true, name: true, code: true, queueKey: true } },
+  enterpriseDepartment: { select: { id: true, name: true, code: true } },
   project: {
     select: {
       id: true,
