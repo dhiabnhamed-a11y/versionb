@@ -1,29 +1,36 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { type CSSProperties, useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import NextImage from 'next/image'
 import logo from '@/app/logo.png'
+import { COMPANY_TYPE_OPTIONS, type CompanyType } from '@/lib/company-types'
 import {
   AlertTriangle,
   ArrowRight,
   BarChart3,
   Bell,
   Bot,
+  BriefcaseBusiness,
+  Building2,
   ChevronDown,
+  CheckCircle2,
   CircleDollarSign,
   Clock3,
   Download,
   FileText,
   Grid3X3,
   Image as ImageIcon,
+  Layers,
   Layers3,
   Megaphone,
   Monitor,
+  Music2,
   Plus,
   Search,
   Send,
   Settings,
+  ShieldCheck,
   Sparkles,
   TrendingUp,
   Upload,
@@ -105,6 +112,101 @@ const features: Feature[] = [
   { title: 'Media & Files', description: 'Organize, preview, approve and manage every creative asset.', icon: FileText },
   { title: 'Analytics & Reports', description: 'Live dashboards and clean reports that drive better decisions.', icon: BarChart3, tone: 'green' },
 ]
+
+const workflowTypePresentation = {
+  INDUSTRY: {
+    icon: Building2,
+    eyebrow: 'Operations teams',
+    accent: '#2dd4bf',
+    surface: 'rgba(45, 212, 191, 0.1)',
+    outline: 'rgba(45, 212, 191, 0.22)',
+    audience: 'Plants, sites, stores, and departments',
+    focus: 'Structured execution across separate work areas',
+    flow: ['Rooms', 'Projects', 'Tasks'],
+  },
+  DIGITAL_AGENCY: {
+    icon: BriefcaseBusiness,
+    eyebrow: 'Creative studios',
+    accent: '#fb923c',
+    surface: 'rgba(251, 146, 60, 0.1)',
+    outline: 'rgba(251, 146, 60, 0.22)',
+    audience: 'Design, content, social, and video teams',
+    focus: 'Brief-to-upload delivery with faster approvals',
+    flow: ['Campaigns', 'Briefs', 'Uploads'],
+  },
+  CONTENT_CREATION_AGENCY: {
+    icon: Music2,
+    eyebrow: 'Creator studios',
+    accent: '#fb7185',
+    surface: 'rgba(251, 113, 133, 0.1)',
+    outline: 'rgba(251, 113, 133, 0.22)',
+    audience: 'Music, YouTube, Spotify, and social teams',
+    focus: 'Release planning with cross-channel performance',
+    flow: ['Campaigns', 'Briefs', 'Channel stats'],
+  },
+  HEALTHCARE: {
+    icon: Building2,
+    eyebrow: 'Healthcare operations',
+    accent: '#22d3ee',
+    surface: 'rgba(34, 211, 238, 0.1)',
+    outline: 'rgba(34, 211, 238, 0.22)',
+    audience: 'Clinics, care networks, and healthcare operations',
+    focus: 'Departments, assets, incidents, maintenance, and compliance',
+    flow: ['Departments', 'Assets', 'Incidents'],
+  },
+  ENTERPRISE_OPERATIONS: {
+    icon: Layers3,
+    eyebrow: 'Enterprise service management',
+    accent: '#818cf8',
+    surface: 'rgba(129, 140, 248, 0.1)',
+    outline: 'rgba(129, 140, 248, 0.22)',
+    audience: 'IT, HR, facilities, finance, and shared services',
+    focus: 'Service queues, SLAs, approvals, and asset lifecycle',
+    flow: ['Departments', 'Queues', 'SLAs'],
+  },
+  CLINIC_HOSPITAL: {
+    icon: ShieldCheck,
+    eyebrow: 'Clinic and hospital teams',
+    accent: '#34d399',
+    surface: 'rgba(52, 211, 153, 0.1)',
+    outline: 'rgba(52, 211, 153, 0.22)',
+    audience: 'Hospitals, clinics, labs, and care facilities',
+    focus: 'Biomedical uptime, facility requests, shifts, and audit evidence',
+    flow: ['Clinical ops', 'Devices', 'Compliance'],
+  },
+  CORPORATE_IT_OPERATIONS: {
+    icon: Layers,
+    eyebrow: 'Corporate IT',
+    accent: '#60a5fa',
+    surface: 'rgba(96, 165, 250, 0.1)',
+    outline: 'rgba(96, 165, 250, 0.22)',
+    audience: 'Service desk, infrastructure, security, and endpoint teams',
+    focus: 'Tickets, assets, outages, escalations, and SLA health',
+    flow: ['Service desk', 'Assets', 'Uptime'],
+  },
+  OTHER: {
+    icon: Layers3,
+    eyebrow: 'Flexible teams',
+    accent: '#4a8fff',
+    surface: 'rgba(74, 143, 255, 0.1)',
+    outline: 'rgba(74, 143, 255, 0.22)',
+    audience: 'General project-based collaboration',
+    focus: 'Keep the core TASKIT flow and grow later',
+    flow: ['Projects', 'Tasks', 'Visibility'],
+  },
+} as const satisfies Record<
+  CompanyType,
+  {
+    icon: LucideIcon
+    eyebrow: string
+    accent: string
+    surface: string
+    outline: string
+    audience: string
+    focus: string
+    flow: readonly string[]
+  }
+>
 
 const initialChat: ChatMessage[] = [
   { id: 'risk-question', role: 'user', content: 'Which campaigns are at risk?' },
@@ -195,7 +297,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
 
         <nav className={styles.navLinks} aria-label="Landing navigation">
           <a href="#product">Product <ChevronDown size={12} aria-hidden="true" /></a>
-          <a href="#features">Solutions <ChevronDown size={12} aria-hidden="true" /></a>
+          <a href="#solutions">Solutions <ChevronDown size={12} aria-hidden="true" /></a>
           <a href="#ai-assistant">Resources <ChevronDown size={12} aria-hidden="true" /></a>
           <a href="#cta">Pricing</a>
           <a href="#features">Enterprise</a>
@@ -257,6 +359,81 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
               {logo}
             </span>
           ))}
+        </div>
+      </section>
+
+      <section className={styles.productTypes} id="solutions">
+        <div className={styles.productTypesHeader}>
+          <div>
+            <div className={styles.sectionEyebrow}>Product workflows</div>
+            <h2 className={styles.productTypesTitle}>
+              Choose the operating model
+              <br />
+              your team actually runs.
+            </h2>
+          </div>
+          <p>
+            Start with a purpose-built workspace for operations, agencies, creator teams, healthcare, enterprise service
+            management, IT, or the standard TASKIT flow.
+          </p>
+        </div>
+
+        <div className={styles.productTypesGrid}>
+          {COMPANY_TYPE_OPTIONS.map((option) => {
+            const presentation = workflowTypePresentation[option.value]
+            const Icon = presentation.icon
+            const isDefault = option.value === 'OTHER'
+            const href = isSignedIn ? dashboardHref : `/signup?companyType=${option.slug}`
+            const productStyle = {
+              '--workflow-accent': presentation.accent,
+              '--workflow-surface': presentation.surface,
+              '--workflow-outline': presentation.outline,
+            } as CSSProperties
+
+            return (
+              <article key={option.value} className={styles.productTypeCard} style={productStyle}>
+                <div className={styles.productTypeTop}>
+                  <div className={styles.productTypeIcon}>
+                    <Icon size={20} aria-hidden="true" />
+                  </div>
+                  <div className={styles.productTypeHeading}>
+                    <span>{presentation.eyebrow}</span>
+                    <strong>{option.label}</strong>
+                  </div>
+                  <Link href={href} className={cx(styles.productTypeAction, isDefault && styles.productTypeActionSelected)}>
+                    {isSignedIn ? 'Open' : isDefault ? 'Selected' : 'Choose'}
+                  </Link>
+                </div>
+
+                <div className={styles.productTypeWorkspace}>{option.workspaceLabel}</div>
+                <h3>{option.title}</h3>
+                <p>{option.description}</p>
+
+                <div className={styles.productTypeFlow} aria-label={`${option.label} workflow`}>
+                  {presentation.flow.map((step, index) => (
+                    <span key={`${option.value}-${step}`}>
+                      {index > 0 ? <ArrowRight size={13} aria-hidden="true" /> : null}
+                      {step}
+                    </span>
+                  ))}
+                </div>
+
+                <div className={styles.productTypeMeta}>
+                  <span>Best for {presentation.audience}</span>
+                  <span>{presentation.focus}</span>
+                </div>
+
+                <div className={styles.productTypeBullets}>
+                  {option.bullets.map((bullet) => (
+                    <div key={bullet}>
+                      <CheckCircle2 size={14} aria-hidden="true" />
+                      <span>{bullet}</span>
+                    </div>
+                  ))}
+                </div>
+              </article>
+            )
+          })}
         </div>
       </section>
 
@@ -382,7 +559,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
           TASKIT OS
         </Link>
         <div className={styles.footerLinks}>
-          <a href="#product">Product</a>
+          <a href="#solutions">Product</a>
           <a href="#cta">Pricing</a>
           <a href="#features">About</a>
           <a href="#ai-assistant">Blog</a>
