@@ -7,7 +7,8 @@ import { useSession } from 'next-auth/react'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { useLocale } from '@/components/i18n/LocaleProvider'
 import { getLocalizedCompanyCopy } from '@/lib/company-copy-i18n'
-import { isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
+import { isAgencyCompanyType, isHealthcareCompanyType, normalizeCompanyType } from '@/lib/company-types'
+import HealthcareOverview from '@/components/healthcare/HealthcareOverview'
 import type { TranslationKey } from '@/lib/i18n'
 import {
   AlertTriangle,
@@ -918,6 +919,12 @@ export default function AdminDashboard() {
 
   const user = session?.user as { name?: string; companyType?: string | null }
   const companyType = normalizeCompanyType(stats?.companyType ?? user?.companyType)
+
+  // Healthcare workspaces get a dedicated operations dashboard
+  if (isHealthcareCompanyType(companyType)) {
+    return <HealthcareOverview />
+  }
+
   const entityCopy = getLocalizedCompanyCopy(companyType, t)
   const isAgency = isAgencyCompanyType(companyType)
   const isIndustry = companyType === 'INDUSTRY'
