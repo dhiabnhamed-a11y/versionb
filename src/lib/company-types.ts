@@ -97,23 +97,27 @@ export const COMPANY_TYPE_CONFIG = {
   HEALTHCARE: {
     label: 'Healthcare',
     slug: 'healthcare',
-    title: 'Run clinical operations, service requests, and regulated assets.',
+    title: 'Enterprise healthcare operations and asset intelligence platform.',
     description:
-      'For healthcare organizations coordinating biomedical equipment, internal requests, compliance, facilities, and incident response.',
-    bullets: ['Provision clinical departments', 'Track biomedical and facility assets', 'Start with healthcare SLAs'],
-    signupTitle: 'Build a healthcare operations workspace for assets, incidents, and compliance.',
+      'For hospitals, clinics, and medical centers managing patients, departments, biomedical assets, compliance, and clinical operations.',
+    bullets: [
+      'Patient-centered operations with admissions and care coordination',
+      'Biomedical asset lifecycle management with predictive maintenance',
+      'Clinical department workflows with shift management and staffing'
+    ],
+    signupTitle: 'Build an enterprise healthcare operations platform.',
     signupDescription:
-      'TASKIT provisions departments, teams, incident priorities, SLA policies, asset categories, maintenance plans, and compliance controls for healthcare operations.',
-    overviewTitle: 'Healthcare operations connects departments, assets, incidents, maintenance, and governance.',
+      'TASKIT Healthcare provisions patient management, clinical departments, biomedical assets, staff scheduling, emergency operations, compliance tracking, and revenue cycle management.',
+    overviewTitle: 'Healthcare operations connects patients, departments, assets, staff, and clinical workflows.',
     overviewDescription:
-      'Designed for teams that need service-desk style execution across biomedical, facilities, nursing, IT, compliance, and medical operations.',
-    projectLabel: 'Operational Project',
-    projectPluralLabel: 'Operational Projects',
-    taskLabel: 'Work Order',
-    taskPluralLabel: 'Work Orders',
+      'Designed for hospitals and clinics that need patient-centered operations, asset intelligence, emergency response, and regulatory compliance in one platform.',
+    projectLabel: 'Clinical Department',
+    projectPluralLabel: 'Clinical Departments',
+    taskLabel: 'Clinical Work Order',
+    taskPluralLabel: 'Clinical Work Orders',
     groupLabel: 'Department',
     groupPluralLabel: 'Departments',
-    workspaceLabel: 'Healthcare operations',
+    workspaceLabel: 'Hospital operations',
   },
   ENTERPRISE_OPERATIONS: {
     label: 'Enterprise operations',
@@ -139,23 +143,27 @@ export const COMPANY_TYPE_CONFIG = {
   CLINIC_HOSPITAL: {
     label: 'Clinic / Hospital',
     slug: 'clinic-hospital',
-    title: 'Operate hospital departments, biomedical assets, and facility workflows.',
+    title: 'Complete hospital management and clinical operations platform.',
     description:
-      'For clinics, hospitals, and care facilities coordinating rooms, devices, biomedical teams, nursing support, and compliance work.',
-    bullets: ['Provision hospital departments', 'Create biomedical and facilities queues', 'Seed medical asset categories'],
-    signupTitle: 'Build a clinic or hospital operations command center.',
+      'For hospitals and clinics managing patient care, clinical departments, medical assets, staff scheduling, and healthcare compliance.',
+    bullets: [
+      'Patient admissions, appointments, and care coordination',
+      'Medical asset tracking with QR codes and maintenance schedules',
+      'Staff scheduling, shift management, and workload balancing'
+    ],
+    signupTitle: 'Build a complete hospital operations command center.',
     signupDescription:
-      'TASKIT starts with nursing, medical operations, laboratory, biomedical, facilities, security, compliance, procurement, and administration workflows.',
-    overviewTitle: 'Hospital operations combines clinical departments, device uptime, maintenance, and compliance.',
+      'TASKIT provisions patient management, clinical departments (Emergency, ICU, Radiology, Laboratory, Surgery), biomedical engineering, pharmacy inventory, facility maintenance, and emergency operations.',
+    overviewTitle: 'Hospital operations combines patient care, clinical workflows, asset intelligence, and regulatory compliance.',
     overviewDescription:
-      'Designed for care environments where equipment health, incident response, shift coordination, and audit evidence need to stay visible.',
-    projectLabel: 'Operational Program',
-    projectPluralLabel: 'Operational Programs',
-    taskLabel: 'Service Request',
-    taskPluralLabel: 'Service Requests',
+      'Built for healthcare environments where patient outcomes, equipment uptime, staff coordination, and audit readiness are critical.',
+    projectLabel: 'Clinical Department',
+    projectPluralLabel: 'Clinical Departments',
+    taskLabel: 'Medical Work Order',
+    taskPluralLabel: 'Medical Work Orders',
     groupLabel: 'Department',
     groupPluralLabel: 'Departments',
-    workspaceLabel: 'Hospital operations',
+    workspaceLabel: 'Hospital command center',
   },
   CORPORATE_IT_OPERATIONS: {
     label: 'Corporate IT Operations',

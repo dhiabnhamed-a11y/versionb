@@ -3932,4 +3932,610 @@ html[dir="rtl"] .taskit-agent-drawer {
   .sidebar, .marketing-nav-wrap, .dash-header { display: none !important; }
   .main-content { margin-inline-start: 0; height: auto; overflow: visible; }
 }
+
+/* ============================================================
+   HEALTHCARE DASHBOARD STYLES
+   Enterprise healthcare operations and asset intelligence
+   ============================================================ */
+
+/* Healthcare color palette - Medical/Clinical theme */
+:root {
+  --healthcare-primary: #0369a1;
+  --healthcare-primary-light: #0ea5e9;
+  --healthcare-primary-dark: #0c4a6e;
+  --healthcare-accent: #06b6d4;
+  --healthcare-success: #10b981;
+  --healthcare-warning: #f59e0b;
+  --healthcare-danger: #ef4444;
+  --healthcare-info: #3b82f6;
+  
+  /* Clinical backgrounds */
+  --clinical-bg: #f0f9ff;
+  --clinical-surface: #ffffff;
+  --clinical-border: #bae6fd;
+  --clinical-text: #0c4a6e;
+  
+  /* Emergency colors */
+  --emergency-red: #dc2626;
+  --emergency-red-light: #fef2f2;
+  --emergency-orange: #ea580c;
+  --emergency-yellow: #eab308;
+  --emergency-green: #22c55e;
+  --emergency-blue: #3b82f6;
+}
+
+/* Healthcare dashboard layout */
+.healthcare-dashboard-page {
+  background: var(--clinical-bg);
+  min-height: 100vh;
+}
+
+/* Healthcare stat cards */
+.healthcare-stat-card {
+  background: var(--clinical-surface);
+  border: 1px solid var(--clinical-border);
+  border-radius: var(--radius-lg);
+  padding: 1.25rem;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--t-normal);
+}
+
+.healthcare-stat-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+
+/* Healthcare KPI display */
+.healthcare-kpi-value {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.healthcare-kpi-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.healthcare-kpi-detail {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-top: 0.25rem;
+}
+
+/* Healthcare status badges */
+.healthcare-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.healthcare-status-badge.critical {
+  background: var(--emergency-red);
+  color: white;
+}
+
+.healthcare-status-badge.warning {
+  background: var(--emergency-yellow);
+  color: #78350f;
+}
+
+.healthcare-status-badge.good {
+  background: var(--emergency-green);
+  color: white;
+}
+
+.healthcare-status-badge.normal {
+  background: var(--healthcare-info);
+  color: white;
+}
+
+/* Healthcare priority indicators */
+.healthcare-priority-critical {
+  border-left: 4px solid var(--emergency-red);
+}
+
+.healthcare-priority-high {
+  border-left: 4px solid var(--emergency-orange);
+}
+
+.healthcare-priority-medium {
+  border-left: 4px solid var(--emergency-yellow);
+}
+
+.healthcare-priority-low {
+  border-left: 4px solid var(--emergency-green);
+}
+
+/* Healthcare asset health bar */
+.healthcare-health-bar {
+  height: 0.5rem;
+  background: var(--bg-elevated);
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.healthcare-health-bar-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width var(--t-normal);
+}
+
+.healthcare-health-bar-fill.good {
+  background: var(--healthcare-success);
+}
+
+.healthcare-health-bar-fill.warning {
+  background: var(--healthcare-warning);
+}
+
+.healthcare-health-bar-fill.critical {
+  background: var(--healthcare-danger);
+}
+
+/* Healthcare emergency code cards */
+.healthcare-emergency-code {
+  background: var(--emergency-red-light);
+  border-left: 4px solid var(--emergency-red);
+  border-radius: var(--radius-lg);
+  padding: 1rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.healthcare-emergency-code-title {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--emergency-red);
+}
+
+.healthcare-emergency-code-location {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+  color: #991b1b;
+  margin-top: 0.5rem;
+}
+
+.healthcare-emergency-code-time {
+  font-size: 0.75rem;
+  color: #b91c1c;
+  margin-top: 0.25rem;
+}
+
+/* Healthcare department cards */
+.healthcare-department-card {
+  background: var(--clinical-surface);
+  border: 1px solid var(--clinical-border);
+  border-radius: var(--radius-md);
+  padding: 1rem;
+  transition: all var(--t-normal);
+}
+
+.healthcare-department-card:hover {
+  border-color: var(--healthcare-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.healthcare-department-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.healthcare-department-stats {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.25rem;
+}
+
+/* Healthcare activity timeline */
+.healthcare-activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.healthcare-activity-item:last-child {
+  border-bottom: none;
+}
+
+.healthcare-activity-icon {
+  flex-shrink: 0;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.healthcare-activity-icon.admission {
+  background: var(--emergency-red);
+  color: white;
+}
+
+.healthcare-activity-icon.asset {
+  background: var(--healthcare-success);
+  color: white;
+}
+
+.healthcare-activity-icon.incident {
+  background: var(--healthcare-warning);
+  color: #78350f;
+}
+
+.healthcare-activity-icon.staff {
+  background: var(--healthcare-info);
+  color: white;
+}
+
+.healthcare-activity-icon.compliance {
+  background: #8b5cf6;
+  color: white;
+}
+
+.healthcare-activity-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.healthcare-activity-title {
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.healthcare-activity-detail {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-top: 0.125rem;
+}
+
+.healthcare-activity-time {
+  font-size: 0.75rem;
+  color: var(--text-light);
+  white-space: nowrap;
+}
+
+/* Healthcare table styles */
+.healthcare-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.healthcare-table th {
+  text-align: left;
+  padding: 0.75rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+}
+
+.healthcare-table td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.healthcare-table tr:last-child td {
+  border-bottom: none;
+}
+
+.healthcare-table tr:hover td {
+  background: var(--bg-hover);
+}
+
+/* Healthcare section headers */
+.healthcare-section-header {
+  margin-bottom: 1rem;
+}
+
+.healthcare-section-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.healthcare-section-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-top: 0.125rem;
+}
+
+/* Healthcare quick actions */
+.healthcare-quick-action {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--clinical-surface);
+  text-align: left;
+  transition: all var(--t-normal);
+}
+
+.healthcare-quick-action:hover {
+  border-color: var(--healthcare-primary);
+  background: var(--clinical-bg);
+}
+
+.healthcare-quick-action-icon {
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.healthcare-quick-action-icon.red {
+  background: var(--emergency-red);
+  color: white;
+}
+
+.healthcare-quick-action-icon.orange {
+  background: var(--emergency-orange);
+  color: white;
+}
+
+.healthcare-quick-action-icon.blue {
+  background: var(--healthcare-info);
+  color: white;
+}
+
+.healthcare-quick-action-icon.green {
+  background: var(--healthcare-success);
+  color: white;
+}
+
+.healthcare-quick-action-icon.gray {
+  background: #6b7280;
+  color: white;
+}
+
+.healthcare-quick-action-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.healthcare-quick-action-description {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.125rem;
+}
+
+/* Healthcare contact card */
+.healthcare-contact-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.healthcare-contact-item:last-child {
+  border-bottom: none;
+}
+
+.healthcare-contact-name {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.healthcare-contact-role {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.125rem;
+}
+
+.healthcare-contact-phone {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-md);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: white;
+}
+
+.healthcare-contact-phone.emergency {
+  background: var(--healthcare-success);
+}
+
+.healthcare-contact-phone.security {
+  background: #374151;
+}
+
+.healthcare-contact-phone.facilities {
+  background: var(--healthcare-info);
+}
+
+/* Healthcare live indicator */
+.healthcare-live-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.healthcare-live-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--emergency-red);
+  animation: healthcare-pulse 2s ease-in-out infinite;
+}
+
+@keyframes healthcare-pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.8);
+  }
+}
+
+.healthcare-live-text {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--emergency-red);
+}
+
+/* Healthcare alert banner */
+.healthcare-alert-banner {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+  border-radius: var(--radius-lg);
+  margin-bottom: 1rem;
+}
+
+.healthcare-alert-banner.critical {
+  background: var(--emergency-red-light);
+  border: 1px solid var(--emergency-red);
+}
+
+.healthcare-alert-banner.warning {
+  background: #fffbeb;
+  border: 1px solid var(--healthcare-warning);
+}
+
+.healthcare-alert-banner.info {
+  background: #eff6ff;
+  border: 1px solid var(--healthcare-info);
+}
+
+.healthcare-alert-banner.success {
+  background: #f0fdf4;
+  border: 1px solid var(--healthcare-success);
+}
+
+.healthcare-alert-icon {
+  flex-shrink: 0;
+}
+
+.healthcare-alert-content {
+  flex: 1;
+}
+
+.healthcare-alert-title {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.healthcare-alert-message {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  margin-top: 0.125rem;
+}
+
+/* Healthcare card header */
+.healthcare-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 1rem;
+}
+
+.healthcare-card-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.healthcare-card-subtitle {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 0.125rem;
+}
+
+.healthcare-card-action {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--healthcare-primary);
+  text-decoration: none;
+  transition: color var(--t-fast);
+}
+
+.healthcare-card-action:hover {
+  color: var(--healthcare-primary-dark);
+  text-decoration: underline;
+}
+
+/* Healthcare empty state */
+.healthcare-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  text-align: center;
+}
+
+.healthcare-empty-state-icon {
+  margin-bottom: 1rem;
+  color: var(--text-light);
+}
+
+.healthcare-empty-state-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.healthcare-empty-state-message {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin-top: 0.5rem;
+  max-width: 24rem;
+}
+
+/* Healthcare responsive adjustments */
+@media (max-width: 768px) {
+  .healthcare-kpi-value {
+    font-size: 1.5rem;
+  }
+  
+  .healthcare-stat-card {
+    padding: 1rem;
+  }
+  
+  .healthcare-emergency-code {
+    padding: 0.875rem 1rem;
+  }
+}
+
+/* Healthcare RTL support */
+[dir="rtl"] .healthcare-priority-critical,
+[dir="rtl"] .healthcare-priority-high,
+[dir="rtl"] .healthcare-priority-medium,
+[dir="rtl"] .healthcare-priority-low {
+  border-left: none;
+  border-right: 4px solid;
+}
  
