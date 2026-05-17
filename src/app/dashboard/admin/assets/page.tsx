@@ -54,8 +54,8 @@ export default async function AssetsPage() {
   })
 
   const totalAssets = assets.length
-  const operational = assets.filter((a) => a.status === 'OPERATIONAL').length
-  const inMaintenance = assets.filter((a) => a.status === 'MAINTENANCE').length
+  const operational = assets.filter((a) => a.operationalStatus === 'OPERATIONAL').length
+  const inMaintenance = assets.filter((a) => a.operationalStatus === 'MAINTENANCE').length
   const critical = assets.filter((a) => a.riskScore > 70).length
   const avgHealth = totalAssets > 0 ? Math.round(assets.reduce((s, a) => s + a.healthScore, 0) / totalAssets) : 0
 
@@ -158,7 +158,7 @@ export default async function AssetsPage() {
                       </span>
                     </td>
                     <td>
-                      <span className={`hc-badge ${statusBadge(asset.status)}`}>{statusLabel(asset.status)}</span>
+                      <span className={`hc-badge ${statusBadge(asset.operationalStatus)}`}>{statusLabel(asset.operationalStatus)}</span>
                     </td>
                     <td>{asset.assignedUser?.name || <span style={{ color: 'var(--text-light)' }}>—</span>}</td>
                     <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>
