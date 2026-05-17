@@ -1,6 +1,5 @@
 import type { NextRequest } from 'next/server'
 import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
-import { NO_STORE_HEADERS } from '@/lib/http'
 import { deleteClient, getClientDetail, updateClient } from '@/modules/clients/service'
 
 export const runtime = 'nodejs'
@@ -10,9 +9,8 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   return handleApiRoute(
     req,
     ctx,
-    async ({ params, user }) =>
-      apiData(await getClientDetail(user, params.id), { headers: NO_STORE_HEADERS }),
-    { auth: 'required', responseMode: 'legacy', route: '/api/clients/[id]' }
+    async ({ params, user }) => apiData(await getClientDetail(user, params.id), { code: 'CLIENT_RETRIEVED' }),
+    { auth: 'required', responseMode: 'canonical', route: '/api/v1/clients/{id}' }
   )
 }
 
@@ -22,14 +20,14 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     ctx,
     async ({ params, user }) => {
       const body = await parseJsonObject(req)
-      return apiData(await updateClient(user, params.id, body))
+      return apiData(await updateClient(user, params.id, body), { code: 'CLIENT_UPDATED' })
     },
     {
       auth: 'required',
       idempotency: true,
       rateLimit: { max: 30, namespace: 'clients.write', windowMs: 60_000 },
-      responseMode: 'legacy',
-      route: '/api/clients/[id]',
+      responseMode: 'canonical',
+      route: '/api/v1/clients/{id}',
     }
   )
 }
@@ -38,13 +36,13 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
   return handleApiRoute(
     req,
     ctx,
-    async ({ params, user }) => apiData(await deleteClient(user, params.id)),
+    async ({ params, user }) => apiData(await deleteClient(user, params.id), { code: 'CLIENT_DELETED' }),
     {
       auth: 'required',
       idempotency: true,
       rateLimit: { max: 30, namespace: 'clients.write', windowMs: 60_000 },
-      responseMode: 'legacy',
-      route: '/api/clients/[id]',
+      responseMode: 'canonical',
+      route: '/api/v1/clients/{id}',
     }
   )
 }

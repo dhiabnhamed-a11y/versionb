@@ -1,7 +1,8 @@
 import { z } from 'zod'
 import { createAlertSchema, markAlertReadSchema } from '@/modules/alerts/validation'
-import { clientCreateSchema } from '@/modules/clients/validation'
+import { clientCreateSchema, clientPatchSchema } from '@/modules/clients/validation'
 import { createInvoiceSchema, deleteInvoiceSchema, updateInvoiceSchema } from '@/modules/invoices/invoice.validation'
+import { createProjectSchema, updateProjectSchema } from '@/modules/projects/validation'
 import { createTaskSchema, updateTaskSchema } from '@/modules/tasks/task.validation'
 
 type HttpMethod = 'get' | 'post' | 'patch' | 'delete'
@@ -248,6 +249,105 @@ export const apiRouteContracts = [
     summary: 'Delete an invoice',
     tags: ['Invoices'],
   },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/ProjectList',
+    method: 'get',
+    operationId: 'listProjects',
+    path: '/projects',
+    permission: 'projects:read',
+    summary: 'List projects',
+    tags: ['Projects'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/Project',
+    idempotency: 'optional',
+    method: 'post',
+    operationId: 'createProject',
+    path: '/projects',
+    permission: 'projects:create',
+    requestSchema: createProjectSchema,
+    requestSchemaName: 'CreateProjectRequest',
+    responseDescription: 'Project created',
+    status: 201,
+    summary: 'Create a project',
+    tags: ['Projects'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/Project',
+    method: 'get',
+    operationId: 'getProject',
+    parameters: [idParameter],
+    path: '/projects/{id}',
+    permission: 'projects:read',
+    summary: 'Get a project',
+    tags: ['Projects'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/Project',
+    idempotency: 'optional',
+    method: 'patch',
+    operationId: 'updateProject',
+    parameters: [idParameter],
+    path: '/projects/{id}',
+    permission: 'projects:update',
+    requestSchema: updateProjectSchema,
+    requestSchemaName: 'UpdateProjectRequest',
+    summary: 'Update a project',
+    tags: ['Projects'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/DeleteProjectResponse',
+    idempotency: 'optional',
+    method: 'delete',
+    operationId: 'deleteProject',
+    parameters: [idParameter],
+    path: '/projects/{id}',
+    permission: 'projects:delete',
+    summary: 'Delete a project',
+    tags: ['Projects'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/ClientDetailResponse',
+    method: 'get',
+    operationId: 'getClient',
+    parameters: [idParameter],
+    path: '/clients/{id}',
+    permission: 'clients:read',
+    summary: 'Get a client with related projects, invoices, activities',
+    tags: ['Clients'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/Client',
+    idempotency: 'optional',
+    method: 'patch',
+    operationId: 'updateClient',
+    parameters: [idParameter],
+    path: '/clients/{id}',
+    permission: 'clients:update',
+    requestSchema: clientPatchSchema,
+    requestSchemaName: 'UpdateClientRequest',
+    summary: 'Update a client',
+    tags: ['Clients'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/DeleteClientResponse',
+    idempotency: 'optional',
+    method: 'delete',
+    operationId: 'deleteClient',
+    parameters: [idParameter],
+    path: '/clients/{id}',
+    permission: 'clients:delete',
+    summary: 'Delete a client',
+    tags: ['Clients'],
+  },
 ] satisfies RouteContract[]
 
 function schemaFromZod(schema: z.ZodType): JsonSchema {
@@ -359,6 +459,7 @@ export function generateOpenApiV1Spec(contracts: readonly RouteContract[] = apiR
     tags: [
       { name: 'Alerts' },
       { name: 'Clients' },
+      { name: 'Projects' },
       { name: 'Tasks' },
       { name: 'Invoices' },
     ],
@@ -528,6 +629,50 @@ export function generateOpenApiV1Spec(contracts: readonly RouteContract[] = apiR
           },
         },
         DeleteInvoiceResponse: {
+          type: 'object',
+          required: ['ok'],
+          properties: {
+            ok: { type: 'boolean' },
+          },
+        },
+        Project: {
+          type: 'object',
+          additionalProperties: true,
+          required: ['id', 'title'],
+          properties: {
+            id: { type: 'string' },
+            title: { type: 'string' },
+            description: { type: ['string', 'null'] },
+            roomId: { type: ['string', 'null'] },
+            managerId: { type: ['string', 'null'] },
+            hasCamera: { type: 'boolean' },
+            cameraType: { enum: ['device', 'external'], type: 'string' },
+            createdAt: { type: 'string', format: 'date-time' },
+            updatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+        ProjectList: {
+          type: 'array',
+          items: { $ref: '#/components/schemas/Project' },
+        },
+        DeleteProjectResponse: {
+          type: 'object',
+          required: ['success', 'projectId'],
+          properties: {
+            success: { type: 'boolean' },
+            projectId: { type: 'string' },
+          },
+        },
+        ClientDetailResponse: {
+          type: 'object',
+          required: ['client'],
+          properties: {
+            client: { $ref: '#/components/schemas/Client' },
+            stats: { type: 'object', additionalProperties: true },
+            recentDeliverables: { type: 'array', items: { type: 'object', additionalProperties: true } },
+          },
+        },
+        DeleteClientResponse: {
           type: 'object',
           required: ['ok'],
           properties: {

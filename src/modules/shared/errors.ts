@@ -44,6 +44,10 @@ export function conflict(message: string, details?: unknown) {
   return new AppError(message, { status: 409, code: 'CONFLICT', details })
 }
 
+export function serviceUnavailable(message = 'Service unavailable') {
+  return new AppError(message, { status: 503, code: 'SERVICE_UNAVAILABLE' })
+}
+
 export function normalizeError(error: unknown): AppError {
   if (error instanceof AppError) return error
 

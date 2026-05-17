@@ -1,6 +1,6 @@
 export type ProjectSessionUser = {
   id: string
-  role: string
+  role?: string | null
   companyId?: string | null
   companyType?: string | null
 }

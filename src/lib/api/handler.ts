@@ -4,6 +4,7 @@ import { REQUEST_ID_HEADER, getRequestId } from '@/lib/api/request-id'
 import { apiError, apiOk, legacyJson } from '@/lib/api/response'
 import { requireSessionUser, type SessionUser } from '@/lib/api/auth'
 import type { ApiMeta, ApiPagination, ApiRequestContext, ApiResponseMode } from '@/lib/api/types'
+import { getIdempotencyKey, runIdempotent } from '@/lib/idempotency'
 import { enforceDistributedRateLimit } from '@/lib/rate-limit'
 import { requirePermission, requireRole } from '@/modules/security/access-control'
 import { recordSecurityAudit } from '@/modules/security/audit'
@@ -48,8 +49,18 @@ export type AuthenticatedApiHandlerContext<TParams extends ApiParams = ApiParams
   user: SessionUser
 }
 
+export type ApiIdempotencyOptions = {
+  enabled?: boolean
+  required?: boolean
+  processingTtlMs?: number
+  responseStatus?: number
+  ttlMs?: number
+  bodyMode?: 'json' | 'request'
+}
+
 export type ApiRouteOptions<TParams extends ApiParams = ApiParams> = {
   auth?: 'none' | 'required'
+  idempotency?: ApiIdempotencyOptions | boolean
   permission?: (context: AuthenticatedApiHandlerContext<TParams>) => boolean | void | Promise<boolean | void>
   requiredPermission?: {
     action: PermissionAction
@@ -60,6 +71,55 @@ export type ApiRouteOptions<TParams extends ApiParams = ApiParams> = {
   rateLimit?: RateLimitOptions
   responseMode?: ApiResponseMode
   route?: string
+}
+
+const MUTATION_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE'])
+
+function resolveIdempotencyOptions(value: ApiRouteOptions['idempotency']): ApiIdempotencyOptions | null {
+  if (!value) return null
+  if (value === true) return { enabled: true }
+  return value.enabled === false ? null : value
+}
+
+type IdempotentStoredResult = {
+  kind: 'data'
+  data: unknown
+  options: ApiRouteDataOptions
+}
+
+function serializeIdempotentResult<TData>(result: ApiRouteResult<TData>): IdempotentStoredResult {
+  if (result instanceof Response) {
+    throw {
+      code: 'IDEMPOTENCY_UNSUPPORTED_RESPONSE',
+      expose: false,
+      message: 'Handlers using idempotency must return apiData(...) or plain data, not a Response.',
+      status: 500,
+    }
+  }
+  if (isApiRouteDataResult<TData>(result)) {
+    return { kind: 'data', data: result.data, options: result.options }
+  }
+  return { kind: 'data', data: result, options: {} }
+}
+
+function deserializeIdempotentResult<TData>(stored: IdempotentStoredResult): ApiRouteDataResult<TData> {
+  return apiData(stored.data as TData, stored.options ?? {})
+}
+
+async function readIdempotencyBody(req: NextRequest, mode: ApiIdempotencyOptions['bodyMode']) {
+  if (mode === 'request') return null
+  try {
+    const cloned = req.clone()
+    const text = await cloned.text()
+    if (!text) return null
+    try {
+      return JSON.parse(text)
+    } catch {
+      return text
+    }
+  } catch {
+    return null
+  }
 }
 
 type ApiHandler<TParams extends ApiParams, TData> = (context: ApiHandlerContext<TParams>) => Promise<ApiRouteResult<TData>> | ApiRouteResult<TData>
@@ -258,7 +318,50 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
       if (allowed === false) throw forbidden()
     }
 
-    const response = await handler(nextContext as AuthenticatedApiHandlerContext<TParams> & ApiHandlerContext<TParams>)
+    const runHandler = () => handler(nextContext as AuthenticatedApiHandlerContext<TParams> & ApiHandlerContext<TParams>)
+    const idempotencyOptions = resolveIdempotencyOptions(options.idempotency)
+    let response: ApiRouteResult<TData>
+
+    if (idempotencyOptions && MUTATION_METHODS.has(req.method.toUpperCase())) {
+      const key = getIdempotencyKey(req)
+      if (!key) {
+        if (idempotencyOptions.required) {
+          throw {
+            code: 'IDEMPOTENCY_KEY_REQUIRED',
+            expose: true,
+            message: 'Idempotency-Key header is required for this endpoint.',
+            status: 400,
+          }
+        }
+        response = await runHandler()
+      } else {
+        if (!user?.companyId) {
+          throw {
+            code: 'IDEMPOTENCY_REQUIRES_WORKSPACE',
+            expose: true,
+            message: 'A workspace is required to use Idempotency-Key.',
+            status: 400,
+          }
+        }
+        const body = await readIdempotencyBody(req, idempotencyOptions.bodyMode)
+        const stored = (await runIdempotent(
+          key,
+          body,
+          async () => serializeIdempotentResult(await runHandler()),
+          {
+            companyId: user.companyId,
+            method: req.method,
+            processingTtlMs: idempotencyOptions.processingTtlMs,
+            responseStatus: idempotencyOptions.responseStatus,
+            route,
+            ttlMs: idempotencyOptions.ttlMs,
+          }
+        )) as IdempotentStoredResult
+        response = deserializeIdempotentResult<TData>(stored)
+      }
+    } else {
+      response = await runHandler()
+    }
     const finalResponse = applyResponseHeaders(toResponse(response, requestId, responseMode), buildTraceHeaders({ rateLimit, requestId }))
     logger.info('api.request_completed', {
       companyId: user?.companyId,

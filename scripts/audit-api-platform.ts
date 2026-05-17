@@ -70,6 +70,16 @@ for (const file of routeFiles) {
       findings.push({ file: fileLabel, issue: 'Canonical v1 route does not explicitly use canonical response mode.', severity: 'error' })
     }
 
+    const mutationMethods = exportedMethods(source).filter((method) => ['post', 'put', 'patch', 'delete'].includes(method))
+    const hasIdempotency = /\bidempotency\s*:/.test(source) || /runIdempotent\s*\(/.test(source)
+    if (mutationMethods.length > 0 && !hasIdempotency) {
+      findings.push({
+        file: fileLabel,
+        issue: `Canonical v1 route exposes mutating method(s) [${mutationMethods.join(', ')}] without idempotency.`,
+        severity: 'error',
+      })
+    }
+
     const routePath = apiPathFromRouteFile(file)
     for (const method of exportedMethods(source)) {
       const contractKey = `${method} ${routePath}`
