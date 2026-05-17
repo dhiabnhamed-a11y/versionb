@@ -4,7 +4,7 @@ import { Prisma, type Invite } from '@prisma/client'
 
 import { prisma } from '@/lib/db'
 import { persistSignupLegalConsents, type LegalRequestContext, type SignupLegalAcceptance } from '@/lib/legal'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { createSignupAuthUser, rollbackSignupAuthUser } from '@/lib/signup-auth-user'
 
 export const INVITABLE_ROLES = ['MANAGER', 'EMPLOYEE'] as const
 export type InvitableRole = (typeof INVITABLE_ROLES)[number]
@@ -335,29 +335,17 @@ export async function redeemInviteSignup(input: RedeemInviteInput) {
     throw new OnboardingFlowError('Email already exists.', 409)
   }
 
-  const supabaseAdmin = getSupabaseAdmin()
-  const { data, error } = await supabaseAdmin.auth.admin.createUser({
+  const { authUserId } = await createSignupAuthUser({
     email,
     password,
-    email_confirm: true,
-    user_metadata: {
+    source: 'invite_signup',
+    metadata: {
       name,
       invite_code: inviteCode,
       signup_role: requestedRole,
       company_type: invite.company.companyType,
-      taskit_onboarding: true,
     },
   })
-
-  if (error || !data.user) {
-    if (error?.message?.toLowerCase().includes('already')) {
-      throw new OnboardingFlowError('That email is already registered in Supabase Auth.', 409)
-    }
-
-    throw new OnboardingFlowError(error?.message ?? 'Supabase Auth user creation failed.', 500)
-  }
-
-  const authUserId = data.user.id
 
   try {
     // Supabase Auth and Prisma are separate systems, so we create the auth user first
@@ -380,7 +368,7 @@ export async function redeemInviteSignup(input: RedeemInviteInput) {
 
     return createdUser
   } catch (error) {
-    await rollbackSupabaseUser(authUserId)
+    await rollbackSignupAuthUser(authUserId, 'invite_signup')
     throw error
   }
 }
@@ -388,7 +376,7 @@ export async function redeemInviteSignup(input: RedeemInviteInput) {
 async function createInvitedUser(
   tx: Prisma.TransactionClient,
   input: {
-    authUserId: string
+    authUserId: string | null
     invite: {
       id: string
       companyId: string
@@ -432,7 +420,7 @@ async function createInvitedUser(
       role: freshInvite.role,
       accountStatus: 'ACTIVE',
       companyId: freshInvite.companyId,
-      authUserId: input.authUserId,
+      authUserId: input.authUserId ?? undefined,
     },
     select: {
       id: true,
@@ -468,15 +456,4 @@ async function createInvitedUser(
   })
 
   return user
-}
-
-async function rollbackSupabaseUser(authUserId: string) {
-  try {
-    const { error } = await getSupabaseAdmin().auth.admin.deleteUser(authUserId)
-    if (error) {
-      console.error('[invites] failed to rollback Supabase Auth user', error)
-    }
-  } catch (error) {
-    console.error('[invites] unexpected Supabase Auth rollback failure', error)
-  }
 }

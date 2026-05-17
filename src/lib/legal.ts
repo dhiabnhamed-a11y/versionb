@@ -3,8 +3,10 @@ import { LegalConsentType as PrismaLegalConsentType, Prisma } from '@prisma/clie
 
 import { prisma } from '@/lib/db'
 import { getAuthSecret } from '@/lib/env'
+import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'
 import { badRequest } from '@/modules/shared/errors'
 import { toJsonValue } from '@/modules/shared/json'
+import { logger } from '@/modules/shared/logger'
 
 export const LEGAL_DOCUMENT_VERSION = '2026.05'
 
@@ -174,12 +176,18 @@ export function getDefaultLegalVersions(): Record<LegalConsentTypeValue, LegalVe
 
 export async function getActiveLegalVersions(client: LegalPrismaClient = prisma) {
   const fallback = getDefaultLegalVersions()
-  const active = await client.legalDocumentVersion.findMany({
-    where: {
-      isActive: true,
-    },
-    orderBy: [{ effectiveAt: 'desc' }, { createdAt: 'desc' }],
-  })
+  const active = await client.legalDocumentVersion
+    .findMany({
+      where: {
+        isActive: true,
+      },
+      orderBy: [{ effectiveAt: 'desc' }, { createdAt: 'desc' }],
+    })
+    .catch((error) => {
+      if (!isMissingDatabaseObjectError(error)) throw error
+      logger.warn('legal.active_versions_missing_schema_fallback')
+      return []
+    })
 
   for (const version of active) {
     if (!isLegalConsentType(version.documentType)) continue
@@ -275,9 +283,18 @@ export async function persistSignupLegalConsents(
     }
   })
 
-  await tx.legalConsent.createMany({
-    data: consentRecords,
-  })
+  await tx.legalConsent
+    .createMany({
+      data: consentRecords,
+    })
+    .catch((error) => {
+      if (!isMissingDatabaseObjectError(error)) throw error
+      logger.warn('legal.signup_consent_records_skipped_missing_schema', {
+        companyId: input.companyId,
+        userId: input.userId,
+        consentTypes: consentRecords.map((record) => record.consentType),
+      })
+    })
 
   await tx.auditLog.create({
     data: {

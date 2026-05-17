@@ -4,8 +4,10 @@ import { Prisma } from '@prisma/client'
 import { isCompanyType, type CompanyType } from '@/lib/company-types'
 import { prisma } from '@/lib/db'
 import { persistSignupLegalConsents, type LegalRequestContext, type SignupLegalAcceptance } from '@/lib/legal'
-import { getSupabaseAdmin } from '@/lib/supabase-admin'
+import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'
+import { createSignupAuthUser, rollbackSignupAuthUser } from '@/lib/signup-auth-user'
 import { provisionEnterpriseOperationsWorkspace } from '@/modules/enterprise/enterprise-onboarding'
+import { logger } from '@/modules/shared/logger'
 import {
   createCompanyInvite,
   getInviteTtlHours,
@@ -234,11 +236,11 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
     throw new InviteFlowError('That company registration number is already registered.', 409)
   }
 
-  const { data, error } = await getSupabaseAdmin().auth.admin.createUser({
+  const { authUserId } = await createSignupAuthUser({
     email,
     password,
-    email_confirm: true,
-    user_metadata: {
+    source: 'owner_signup',
+    metadata: {
       name,
       signup_role: 'OWNER',
       company_name: companyName,
@@ -247,19 +249,8 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
       company_industry: industry,
       company_registration_number: registrationNumber,
       company_type: companyType,
-      taskit_onboarding: true,
     },
   })
-
-  if (error || !data.user) {
-    if (error?.message?.toLowerCase().includes('already')) {
-      throw new InviteFlowError('That email is already registered in Supabase Auth.', 409)
-    }
-
-    throw new InviteFlowError(error?.message ?? 'Supabase Auth user creation failed.', 500)
-  }
-
-  const authUserId = data.user.id
 
   try {
     const createdUser = await prisma.$transaction(
@@ -308,11 +299,19 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
           userId: user.id,
         })
 
-        await provisionEnterpriseOperationsWorkspace(tx, {
-          companyId: company.id,
-          ownerId: user.id,
-          companyType,
-        })
+        try {
+          await provisionEnterpriseOperationsWorkspace(tx, {
+            companyId: company.id,
+            ownerId: user.id,
+            companyType,
+          })
+        } catch (error) {
+          if (!isMissingDatabaseObjectError(error)) throw error
+          logger.warn('signup.enterprise_workspace_provisioning_skipped_missing_schema', {
+            companyId: company.id,
+            companyType,
+          })
+        }
 
         return {
           userId: user.id,
@@ -326,7 +325,7 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
 
     return createdUser
   } catch (error) {
-    await rollbackSupabaseUser(authUserId)
+    await rollbackSignupAuthUser(authUserId, 'owner_signup')
     throw error
   }
 }
@@ -577,16 +576,5 @@ export async function reviewCompanyAccessRequest(input: ReviewAccessRequestInput
   return {
     request: serializeAccessRequest(approved),
     invite,
-  }
-}
-
-async function rollbackSupabaseUser(authUserId: string) {
-  try {
-    const { error } = await getSupabaseAdmin().auth.admin.deleteUser(authUserId)
-    if (error) {
-      console.error('[onboarding] failed to rollback Supabase Auth user', error)
-    }
-  } catch (error) {
-    console.error('[onboarding] unexpected Supabase Auth rollback failure', error)
   }
 }
