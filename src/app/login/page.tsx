@@ -7,7 +7,19 @@ import Link from 'next/link'
 import { motion } from 'framer-motion'
 import Image from 'next/image'
 import logo from '@/app/logo.png'
-import { Mail, Lock, ArrowRight, Loader2, Sparkles, Eye, EyeOff } from 'lucide-react'
+import {
+  AlertCircle,
+  ArrowRight,
+  Bot,
+  CheckCircle2,
+  Eye,
+  EyeOff,
+  Loader2,
+  Lock,
+  Mail,
+  ShieldCheck,
+  Sparkles,
+} from 'lucide-react'
 
 async function readLoginCheckData(response: Response) {
   return (await response.json().catch(() => ({}))) as { error?: string }
@@ -81,124 +93,164 @@ function LoginContent() {
 
   return (
     <div className="auth-shell">
-      <div className="auth-brand">
-        <div className="auth-brand-inner">
-          <div className="auth-brand-mark">
-            <Image src={logo} alt="TASKIT logo" width={64} height={64} className="h-16 w-16 object-contain" priority />
-          </div>
-          <h1>Calm control for how your team ships work.</h1>
-          <p>
-            TASKIT brings projects, ownership, and live signals into one refined surface so nothing important gets lost in
-            the noise.
-          </p>
-        </div>
-        <div className="auth-brand-footer flex flex-wrap items-center gap-x-4 gap-y-2">
-          <span className="flex items-center gap-1.5">
-            <Sparkles size={12} className="text-cyan-200/80" />
-            Crafted for clarity
-          </span>
-          <span className="hidden sm:inline" style={{ opacity: 0.35 }}>
-            .
-          </span>
-          <span>Copyright TASKIT</span>
+      <header className="auth-header">
+        <Link href="/" className="auth-logo-link" aria-label="TASKIT home">
+          <Image src={logo} alt="" width={38} height={38} priority />
+          <span>TASKIT</span>
+        </Link>
+        <Link href="/signup" className="auth-header-link">
+          Create workspace
+          <ArrowRight size={15} />
+        </Link>
+      </header>
+
+      <div className="auth-backdrop" aria-hidden="true">
+        <div className="auth-signal-grid">
+          {Array.from({ length: 42 }, (_, index) => (
+            <span key={index} />
+          ))}
         </div>
       </div>
 
-      <div className="auth-panel">
-        <motion.div
-          className="auth-card"
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-        >
-          <div className="mb-8 text-center md:text-left">
-            <p className="font-display text-2xl font-semibold tracking-tight text-[var(--text-primary)]">Welcome back</p>
-            <p className="mt-1.5 text-sm" style={{ color: 'var(--text-muted)' }}>
-              Sign in to your approved workspace
-            </p>
+      <main className="auth-stage" id="main-content">
+        <section className="auth-brand" aria-labelledby="login-title">
+          <div className="auth-brand-mark">
+            <Image src={logo} alt="TASKIT logo" width={72} height={72} priority />
           </div>
+          <p className="auth-kicker">
+            <Bot size={14} />
+            Workspace command center
+          </p>
+          <h1>Calm control for every operating signal.</h1>
+          <p>
+            Sign in to the same structured TASKIT operating system built during onboarding, with projects, alerts,
+            approvals, finance, and realtime work in one focused surface.
+          </p>
 
-          {notice && (
-            <div className="alert-banner alert-info mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-              {notice}
-            </div>
-          )}
+          <div className="auth-proof-grid" aria-label="Workspace capabilities">
+            <span>
+              <CheckCircle2 size={15} />
+              Realtime workspace
+            </span>
+            <span>
+              <ShieldCheck size={15} />
+              Secure approval flow
+            </span>
+            <span>
+              <Sparkles size={15} />
+              AI-native operations
+            </span>
+          </div>
+        </section>
 
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div>
-              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                <Mail size={13} strokeWidth={2} /> Email
-              </label>
-              <input
-                id="login-email"
-                className="input"
-                type="email"
-                placeholder="you@company.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                autoComplete="email"
-              />
-            </div>
-            <div>
-              <label className="mb-1.5 flex items-center gap-1.5 text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>
-                <Lock size={13} strokeWidth={2} /> Password
-              </label>
-              <div className="relative">
-                <input
-                  id="login-password"
-                  className="input pr-11"
-                  type={showPassword ? 'text' : 'password'}
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  autoComplete="current-password"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                </button>
-              </div>
+        <div className="auth-panel">
+          <motion.section
+            className="auth-card"
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
+            aria-label="Sign in"
+          >
+            <div className="auth-card-head">
+              <p>Welcome back</p>
+              <h2 id="login-title">Sign in to your approved workspace.</h2>
             </div>
 
-            {error && (
-              <div className="alert-banner alert-danger">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                {error}
+            {notice && (
+              <div className="auth-alert auth-alert-info">
+                <ShieldCheck size={16} />
+                {notice}
               </div>
             )}
 
-            <button
-              id="login-submit"
-              className="btn-primary mt-1 flex h-11 items-center justify-center gap-2"
-              type="submit"
-              disabled={loading}
-            >
-              {loading ? (
-                <Loader2 size={18} className="animate-spin" style={{ animation: 'spin 0.7s linear infinite' }} />
-              ) : (
-                <>
-                  <span>Sign in</span>
-                  <ArrowRight size={16} strokeWidth={2.25} />
-                </>
-              )}
-            </button>
-          </form>
+            <form onSubmit={handleSubmit} className="auth-form">
+              <div className="auth-field">
+                <label htmlFor="login-email">
+                  <Mail size={14} strokeWidth={2} /> Email
+                </label>
+                <input
+                  id="login-email"
+                  className="auth-input"
+                  type="email"
+                  placeholder="you@company.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  autoComplete="email"
+                />
+              </div>
+              <div className="auth-field">
+                <label htmlFor="login-password">
+                  <Lock size={14} strokeWidth={2} /> Password
+                </label>
+                <div className="auth-password-wrap">
+                  <input
+                    id="login-password"
+                    className="auth-input"
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Enter your password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                    autoComplete="current-password"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="auth-eye-button"
+                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                  >
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
+              </div>
 
-          <p className="mt-6 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-            Have an invite?{' '}
-            <Link href="/signup" className="font-semibold text-[var(--accent)] underline-offset-4 hover:underline">
-              Join your workspace
-            </Link>
-          </p>
-        </motion.div>
-      </div>
+              {error && (
+                <div className="auth-alert auth-alert-danger">
+                  <AlertCircle size={16} />
+                  {error}
+                </div>
+              )}
+
+              <button id="login-submit" className="auth-primary" type="submit" disabled={loading}>
+                {loading ? (
+                  <Loader2 size={18} className="auth-spin" />
+                ) : (
+                  <>
+                    <span>Sign in</span>
+                    <ArrowRight size={16} strokeWidth={2.25} />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <p className="auth-card-footer">
+              Have an invite? <Link href="/signup">Join your workspace</Link>
+            </p>
+          </motion.section>
+
+          <aside className="auth-mini-preview" aria-label="Workspace preview">
+            <div className="auth-mini-topbar">
+              <span />
+              <span />
+              <span />
+              <strong>Live OS</strong>
+            </div>
+            <div className="auth-mini-row">
+              <span>Inbox</span>
+              <strong>18</strong>
+            </div>
+            <div className="auth-mini-row">
+              <span>Approvals</span>
+              <strong>6</strong>
+            </div>
+            <div className="auth-mini-row">
+              <span>Healthy workflows</span>
+              <strong>94%</strong>
+            </div>
+          </aside>
+        </div>
+      </main>
     </div>
   )
 }

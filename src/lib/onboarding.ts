@@ -20,6 +20,9 @@ import {
 export const SIGNUP_ROLES = ['OWNER', 'MANAGER', 'EMPLOYEE'] as const
 export type SignupRole = (typeof SIGNUP_ROLES)[number]
 
+const SIGNUP_TRANSACTION_MAX_WAIT_MS = 10_000
+const SIGNUP_TRANSACTION_TIMEOUT_MS = 30_000
+
 const DEFAULT_BLOCKED_OWNER_EMAIL_DOMAINS = [
   'gmail.com',
   'yahoo.com',
@@ -236,6 +239,8 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
     throw new InviteFlowError('That company registration number is already registered.', 409)
   }
 
+  const passwordHash = await bcrypt.hash(password, 12)
+
   const { authUserId } = await createSignupAuthUser({
     email,
     password,
@@ -255,8 +260,6 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
   try {
     const createdUser = await prisma.$transaction(
       async (tx) => {
-        const passwordHash = await bcrypt.hash(password, 12)
-
         const user = await tx.user.create({
           data: {
             name,
@@ -319,6 +322,8 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
         }
       },
       {
+        maxWait: SIGNUP_TRANSACTION_MAX_WAIT_MS,
+        timeout: SIGNUP_TRANSACTION_TIMEOUT_MS,
         isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
       }
     )
