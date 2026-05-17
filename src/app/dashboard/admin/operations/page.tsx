@@ -11,7 +11,6 @@ import {
   BarChart3,
   CalendarDays,
   ClipboardCheck,
-  DatabaseZap,
   Factory,
   HeartPulse,
   LayoutGrid,
@@ -96,9 +95,21 @@ export default async function EnterpriseOperationsPage() {
           </p>
         </div>
         <div className="taskit-overview-header-actions">
-          <Link href="/api/enterprise/operations/dashboard" className="taskit-secondary-action">
-            <DatabaseZap size={20} />
-            API
+          <Link href="/dashboard/admin/requests" className="taskit-secondary-action">
+            <ClipboardCheck size={20} />
+            Service requests
+          </Link>
+          <Link href="/dashboard/admin/assets" className="taskit-secondary-action">
+            <Factory size={20} />
+            Assets
+          </Link>
+          <Link href="/dashboard/admin/maintenance" className="taskit-secondary-action">
+            <Wrench size={20} />
+            Maintenance
+          </Link>
+          <Link href="/dashboard/admin/compliance" className="taskit-secondary-action">
+            <ShieldCheck size={20} />
+            Compliance
           </Link>
         </div>
       </section>
