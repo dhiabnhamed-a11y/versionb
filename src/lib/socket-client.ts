@@ -5,6 +5,12 @@ let socket: Socket | null = null
 let socketInitPromise: Promise<Socket | null> | null = null
 const LAST_REALTIME_EVENT_ID_KEY = 'taskit:lastRealtimeEventId'
 
+function rememberRealtimeEvent(event: { id?: string } | null | undefined) {
+  if (!event?.id) return
+  window.localStorage.setItem(LAST_REALTIME_EVENT_ID_KEY, event.id)
+  socket?.emit('realtime:ack', { eventId: event.id })
+}
+
 function envFlag(value: string | undefined) {
   if (value === 'true') return true
   if (value === 'false') return false
@@ -55,7 +61,7 @@ export async function getSocket(): Promise<Socket | null> {
     socketInitPromise = (async () => {
       const { io } = await import('socket.io-client')
       socket = io(configuredSocketIoUrl(), {
-        path: '/api/socketio',
+        path: process.env.NEXT_PUBLIC_SOCKET_IO_PATH || '/api/socketio',
         addTrailingSlash: false,
         withCredentials: true,
         transports: ['websocket', 'polling'],
@@ -70,10 +76,11 @@ export async function getSocket(): Promise<Socket | null> {
         if (afterEventId) socket?.emit('realtime:replay', { afterEventId })
       })
 
-      socket.on('realtime:event', (event: { id?: string }) => {
-        if (!event?.id) return
-        window.localStorage.setItem(LAST_REALTIME_EVENT_ID_KEY, event.id)
-        socket?.emit('realtime:ack', { eventId: event.id })
+      socket.on('realtime:event', rememberRealtimeEvent)
+
+      socket.on('realtime:replay', (events: Array<{ id?: string }> | null | undefined) => {
+        const last = Array.isArray(events) && events.length ? events[events.length - 1] : null
+        rememberRealtimeEvent(last)
       })
 
       return socket

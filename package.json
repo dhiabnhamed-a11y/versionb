@@ -10,6 +10,7 @@
     "build": "prisma generate && next build",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy -- --keep-vars",
     "start": "NODE_ENV=production tsx server.ts",
+    "gateway:realtime": "tsx server.realtime.ts",
     "worker": "tsx src/workers/index.ts",
     "worker:realtime": "tsx src/workers/realtime.worker.ts",
     "worker:notifications": "tsx src/workers/notifications.worker.ts",

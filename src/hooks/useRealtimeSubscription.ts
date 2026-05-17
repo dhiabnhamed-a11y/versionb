@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { getSocket } from '@/lib/socket-client'
 import { getSupabaseBrowserClient } from '@/lib/supabaseClient'
-import type { RealtimeEventName } from '@/lib/realtime-events'
+import { legacyRealtimeEventName, type RealtimeEventName } from '@/lib/realtime-events'
 
 let supabaseChannelSequence = 0
 
@@ -47,7 +47,7 @@ export function useRealtimeSubscription(
   const pollingIntervalMs = typeof options === 'number' ? false : options.pollingIntervalMs ?? false
   const onEventRef = useRef(onEvent)
   const timerRef = useRef<number | null>(null)
-  const pendingRef = useRef<{ eventName: RealtimeEventName; payload: unknown } | null>(null)
+  const pendingRef = useRef<Array<{ eventName: RealtimeEventName; payload: unknown }>>([])
   const eventsKey = events.join('|')
   const channelKey = eventsKey.replace(/[^a-zA-Z0-9_-]/g, '-')
 
@@ -65,18 +65,17 @@ export function useRealtimeSubscription(
     let supabaseLive = false
 
     const emitDebounced = (eventName: RealtimeEventName, payload: unknown) => {
-      pendingRef.current = { eventName, payload }
+      pendingRef.current.push({ eventName, payload })
 
       if (timerRef.current) {
         window.clearTimeout(timerRef.current)
       }
 
       timerRef.current = window.setTimeout(() => {
-        const pending = pendingRef.current
-        if (pending) {
-          onEventRef.current(pending.eventName, pending.payload)
+        const pending = pendingRef.current.splice(0, pendingRef.current.length)
+        for (const item of pending) {
+          onEventRef.current(item.eventName, item.payload)
         }
-        pendingRef.current = null
         timerRef.current = null
       }, debounceMs)
     }
@@ -118,7 +117,10 @@ export function useRealtimeSubscription(
       })
       const handleReplay = (items: Array<{ type?: RealtimeEventName; payload?: unknown }>) => {
         for (const item of items ?? []) {
-          if (item.type && eventList.includes(item.type)) emitDebounced(item.type, item.payload)
+          if (!item.type) continue
+          const legacyType = legacyRealtimeEventName(item.type)
+          const eventName = eventList.includes(item.type) ? item.type : legacyType && eventList.includes(legacyType) ? legacyType : null
+          if (eventName) emitDebounced(eventName, item.payload)
         }
       }
       const handleConnect = () => {
@@ -192,7 +194,7 @@ export function useRealtimeSubscription(
         window.clearTimeout(timerRef.current)
         timerRef.current = null
       }
-      pendingRef.current = null
+      pendingRef.current = []
     }
   }, [channelKey, debounceMs, eventsKey, pollingIntervalMs])
 }

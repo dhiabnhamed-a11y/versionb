@@ -16,6 +16,8 @@ export type RealtimeMetricName =
   | 'event.replayed'
   | 'redis.latency'
   | 'queue.latency'
+  | 'room.joined'
+  | 'event.replay_requested'
 
 const METRIC_TTL_SECONDS = Math.max(Number(process.env.REALTIME_METRIC_TTL_SECONDS ?? 60 * 60 * 24), 60)
 const queueEventState = globalThis as typeof globalThis & {
@@ -48,6 +50,30 @@ export async function measureRedisLatency() {
   const latencyMs = Date.now() - startedAt
   recordRealtimeMetric('redis.latency', { latencyMs })
   return latencyMs
+}
+
+export async function getRealtimeMetricSnapshot() {
+  const redis = getRealtimeRedis()
+  if (!redis) return null
+
+  const now = new Date().toISOString()
+  const dateKey = now.slice(0, 13).replace(/[-:T]/g, '')
+  const [counters, redisInfo] = await Promise.all([
+    redis.hgetall(`taskit:realtime:metrics:${dateKey}`),
+    redis.info('stats').catch(() => ''),
+  ])
+
+  const expiredKeysMatch = redisInfo.match(/expired_keys:(\d+)/)
+  const rejectedConnectionsMatch = redisInfo.match(/rejected_connections:(\d+)/)
+
+  return {
+    window: dateKey,
+    counters,
+    redis: {
+      expiredKeys: expiredKeysMatch ? Number(expiredKeysMatch[1]) : null,
+      rejectedConnections: rejectedConnectionsMatch ? Number(rejectedConnectionsMatch[1]) : null,
+    },
+  }
 }
 
 export function registerRealtimeQueueMetrics(queueName = 'realtime-delivery') {

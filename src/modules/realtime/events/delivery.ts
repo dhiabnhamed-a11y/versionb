@@ -11,10 +11,11 @@ import {
   workspaceRoom,
   userRoom,
 } from '@/modules/realtime/events/contracts'
+import { appendRealtimeEventLog } from '@/modules/realtime/events/event-log'
 import { recordRealtimeMetric } from '@/modules/realtime/metrics/metrics'
 import { logger } from '@/modules/shared/logger'
 import { toJsonValue } from '@/modules/shared/json'
-import type { RealtimeEventName, RealtimeWorkspaceEvent } from '@/lib/realtime-events'
+import { legacyRealtimeEventName, type RealtimeEventName, type RealtimeWorkspaceEvent } from '@/lib/realtime-events'
 
 export const REALTIME_DELIVERY_QUEUE = 'realtime-delivery'
 
@@ -28,6 +29,12 @@ function realtimeWorkspaceEvent(envelope: RealtimeEnvelope): RealtimeWorkspaceEv
     payload: envelope.payload,
     at: envelope.timestamp,
   }
+}
+
+function extractRealtimePatch(payload: unknown) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return null
+  if (!('realtimePatch' in payload)) return null
+  return (payload as { realtimePatch?: unknown }).realtimePatch ?? null
 }
 
 function queueRedisUrl() {
@@ -110,10 +117,17 @@ export function emitRealtimeEnvelopeDirect(input: RealtimeDeliveryJob) {
 
   const room = parsed.target.scope === 'workspace' ? workspaceRoom(parsed.target.workspaceId) : userRoom(parsed.target.userId)
   const channel = broadcaster.to(room)
+  const legacyEvent = legacyRealtimeEventName(parsed.envelope.type)
 
-  if (parsed.emitLegacyEvent) {
-    channel.emit(parsed.envelope.type, parsed.envelope.payload)
+  void appendRealtimeEventLog(parsed.envelope, parsed.target).catch((error) =>
+    logger.warn('realtime.event_log_append_failed', { eventId: parsed.envelope.id, error: error instanceof Error ? error.message : String(error) })
+  )
+
+  if (parsed.emitLegacyEvent && legacyEvent) {
+    channel.emit(legacyEvent, parsed.envelope.payload)
   }
+  const patch = extractRealtimePatch(parsed.envelope.payload)
+  if (patch) channel.emit('realtime:patch', patch)
   channel.emit('workspace_event', realtimeWorkspaceEvent(parsed.envelope))
   channel.emit('realtime:event', parsed.envelope)
 

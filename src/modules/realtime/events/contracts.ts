@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { REALTIME_EVENTS, type RealtimeEventName } from '@/lib/realtime-events'
+import { REALTIME_EVENTS, canonicalRealtimeEventName, type RealtimeEventName } from '@/lib/realtime-events'
 
 export const REALTIME_CONTRACT_VERSION = 1
 
@@ -46,9 +46,10 @@ export function buildRealtimeEnvelope(input: {
   id?: string
   timestamp?: string
 }): RealtimeEnvelope {
+  const type = canonicalRealtimeEventName(input.type)
   return realtimeEnvelopeSchema.parse({
     id: input.id ?? makeEventId(input.type),
-    type: input.type,
+    type,
     workspaceId: input.workspaceId ?? null,
     entityId: input.entityId ?? null,
     actorId: input.actorId ?? null,

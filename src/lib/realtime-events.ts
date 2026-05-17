@@ -1,4 +1,43 @@
 export const REALTIME_EVENTS = [
+  'task.created',
+  'task.updated',
+  'task.deleted',
+  'task.submission.created',
+  'comment.created',
+  'comment.updated',
+  'project.created',
+  'project.updated',
+  'project.deleted',
+  'project.media.created',
+  'room.created',
+  'project.category.created',
+  'client.created',
+  'client.updated',
+  'client.deleted',
+  'invoice.created',
+  'invoice.updated',
+  'invoice.deleted',
+  'invoice.paid',
+  'employee.invited',
+  'notification.created',
+  'notification.read',
+  'presence.user.online',
+  'presence.user.offline',
+  'presence.snapshot',
+  'workspace.event',
+  'social.account.connected',
+  'social.account.disconnected',
+  'social.sync.completed',
+  'social.metrics.updated',
+  'social.insight.created',
+  'social.webhook.processed',
+  'ai.run.completed',
+  'team.member.assigned',
+  'asset.updated',
+  'incident.created',
+  'incident.updated',
+  'approval.completed',
+  'finance.invoice.paid',
   'task_created',
   'task_updated',
   'task_deleted',
@@ -38,4 +77,50 @@ export type RealtimeWorkspaceEvent = {
   type: RealtimeEventName
   payload: unknown
   at: string
+}
+
+const LEGACY_TO_CANONICAL_EVENT = {
+  task_created: 'task.created',
+  task_updated: 'task.updated',
+  task_deleted: 'task.deleted',
+  task_submission_created: 'task.submission.created',
+  comment_created: 'comment.created',
+  comment_updated: 'comment.updated',
+  project_created: 'project.created',
+  project_updated: 'project.updated',
+  project_deleted: 'project.deleted',
+  project_media_created: 'project.media.created',
+  room_created: 'room.created',
+  project_category_created: 'project.category.created',
+  client_created: 'client.created',
+  client_updated: 'client.updated',
+  client_deleted: 'client.deleted',
+  invoice_created: 'invoice.created',
+  invoice_updated: 'invoice.updated',
+  invoice_deleted: 'invoice.deleted',
+  employee_invited: 'employee.invited',
+  alert: 'notification.created',
+  alert_read: 'notification.read',
+  user_online: 'presence.user.online',
+  user_offline: 'presence.user.offline',
+  presence_snapshot: 'presence.snapshot',
+  workspace_event: 'workspace.event',
+  social_account_connected: 'social.account.connected',
+  social_account_disconnected: 'social.account.disconnected',
+  social_sync_completed: 'social.sync.completed',
+  social_metrics_updated: 'social.metrics.updated',
+  social_insight_created: 'social.insight.created',
+  social_webhook_processed: 'social.webhook.processed',
+} satisfies Partial<Record<RealtimeEventName, RealtimeEventName>>
+
+const CANONICAL_TO_LEGACY_EVENT = Object.fromEntries(
+  Object.entries(LEGACY_TO_CANONICAL_EVENT).map(([legacy, canonical]) => [canonical, legacy])
+) as Partial<Record<RealtimeEventName, RealtimeEventName>>
+
+export function canonicalRealtimeEventName(type: RealtimeEventName): RealtimeEventName {
+  return (LEGACY_TO_CANONICAL_EVENT as Partial<Record<RealtimeEventName, RealtimeEventName>>)[type] ?? type
+}
+
+export function legacyRealtimeEventName(type: RealtimeEventName): RealtimeEventName | null {
+  return CANONICAL_TO_LEGACY_EVENT[type] ?? (type.includes('.') ? null : type)
 }

@@ -3,7 +3,7 @@ import { Server as SocketIOServer, type Socket } from 'socket.io'
 import { getToken } from 'next-auth/jwt'
 import { getAuthSecret } from '@/lib/env'
 import { emitPresence } from '@/lib/realtime-server'
-import { assertRealtimeRedisReadyForProduction, attachRedisAdapter, isRealtimeRedisRequired } from '@/modules/realtime/adapters/redis'
+import { assertRealtimeRedisReadyForProduction, attachRedisAdapter, getRealtimeRedis, isRealtimeRedisRequired } from '@/modules/realtime/adapters/redis'
 import { channelRoom, workspaceRoom } from '@/modules/realtime/events/contracts'
 import { recordRealtimeMetric } from '@/modules/realtime/metrics/metrics'
 import {
@@ -34,9 +34,28 @@ function makeInstanceId() {
   return process.env.INSTANCE_ID || process.env.HOSTNAME || `taskit-${process.pid}`
 }
 
-function checkSocketRateLimit(socket: Socket, key: string, limit: number, windowMs: number) {
+async function checkSocketRateLimit(socket: Socket, key: string, limit: number, windowMs: number) {
   const data = socket.data as RealtimeSocketData
   const now = Date.now()
+  const redis = getRealtimeRedis()
+
+  if (redis) {
+    const bucket = Math.floor(now / windowMs)
+    const rateKey = `taskit:realtime:rate:${data.user.companyId ?? data.user.id}:${data.user.id}:${key}:${bucket}`
+    const count = await redis.incr(rateKey)
+    if (count === 1) await redis.pexpire(rateKey, windowMs + 1_000)
+    if (count <= limit) return true
+
+    recordRealtimeMetric('socket.rate_limited', {
+      socketId: socket.id,
+      userId: data.user.id,
+      workspaceId: data.user.companyId,
+      key,
+      distributed: true,
+    })
+    return false
+  }
+
   const current = data.buckets.get(key)
   if (!current || current.resetAt <= now) {
     data.buckets.set(key, { count: 1, resetAt: now + windowMs })
@@ -149,28 +168,30 @@ export async function createSocketServer(httpServer: HttpServer) {
       )
     }, Math.max(Number(process.env.REALTIME_HEARTBEAT_REFRESH_MS ?? 15_000), 5_000))
 
-    socket.on('join', (userId: string) => {
-      if (userId === user.id && checkSocketRateLimit(socket, 'join:user', 20, 10_000)) {
+    socket.on('join', async (userId: string) => {
+      if (userId === user.id && (await checkSocketRateLimit(socket, 'join:user', 20, 10_000))) {
         socket.join(`user:${user.id}`)
       }
     })
 
     socket.on('workspace:subscribe', async (workspaceId: string) => {
-      if (!checkSocketRateLimit(socket, 'workspace:subscribe', 30, 10_000)) return
+      if (!(await checkSocketRateLimit(socket, 'workspace:subscribe', 30, 10_000))) return
       if (!workspaceId || workspaceId !== companyId) {
         socket.emit('realtime:error', { code: 'FORBIDDEN', message: 'Unauthorized workspace subscription.' })
         return
       }
       await socket.join(workspaceRoom(workspaceId))
       await cleanupStalePresence(workspaceId)
+      recordRealtimeMetric('room.joined', { socketId: socket.id, userId: user.id, workspaceId, room: 'workspace' })
       socket.emit('presence_snapshot', await getPresenceSnapshot(workspaceId))
     })
 
     socket.on('channel:subscribe', async (channelId: string) => {
-      if (!companyId || !channelId || !checkSocketRateLimit(socket, 'channel:subscribe', 60, 10_000)) return
+      if (!companyId || !channelId || !(await checkSocketRateLimit(socket, 'channel:subscribe', 60, 10_000))) return
       const normalizedChannelId = String(channelId).slice(0, 128)
       await socket.join(channelRoom(companyId, normalizedChannelId))
       await markActiveChannel(socket.id, normalizedChannelId)
+      recordRealtimeMetric('room.joined', { socketId: socket.id, userId: user.id, workspaceId: companyId, room: 'channel' })
     })
 
     socket.on('channel:unsubscribe', async (channelId: string) => {
@@ -181,7 +202,7 @@ export async function createSocketServer(httpServer: HttpServer) {
     })
 
     socket.on('typing:start', async (payload: { channelId?: string }) => {
-      if (!companyId || !payload?.channelId || !checkSocketRateLimit(socket, 'typing', 80, 10_000)) return
+      if (!companyId || !payload?.channelId || !(await checkSocketRateLimit(socket, 'typing', 80, 10_000))) return
       const channelId = String(payload.channelId).slice(0, 128)
       await setTypingIndicator({ workspaceId: companyId, channelId, user, typing: true })
       socket.to(channelRoom(companyId, channelId)).emit('typing:start', { userId: user.id, name: user.name ?? null, channelId })
@@ -195,12 +216,13 @@ export async function createSocketServer(httpServer: HttpServer) {
     })
 
     socket.on('realtime:ack', (payload: { eventId?: string }) => {
-      if (payload?.eventId) void recordSocketRecoveryOffset(user.id, String(payload.eventId))
+      if (payload?.eventId) void recordSocketRecoveryOffset(user.id, String(payload.eventId), companyId)
     })
 
     socket.on('realtime:replay', async (payload: { afterEventId?: string | null }) => {
-      if (!companyId || !checkSocketRateLimit(socket, 'realtime:replay', 10, 60_000)) return
-      const missed = await loadMissedRealtimeEvents({ workspaceId: companyId, afterEventId: payload?.afterEventId ?? null })
+      if (!companyId || !(await checkSocketRateLimit(socket, 'realtime:replay', 10, 60_000))) return
+      recordRealtimeMetric('event.replay_requested', { socketId: socket.id, userId: user.id, workspaceId: companyId })
+      const missed = await loadMissedRealtimeEvents({ workspaceId: companyId, afterEventId: payload?.afterEventId ?? null, userId: user.id })
       socket.emit('realtime:replay', missed)
     })
 

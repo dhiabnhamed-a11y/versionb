@@ -2640,6 +2640,38 @@ model JobRun {
   @@index([externalId])
 }
 
+model RealtimeEventLog {
+  id            String   @id
+  sequence      BigInt   @default(autoincrement())
+  workspaceId   String?
+  targetScope   String
+  targetId      String
+  type          String
+  entityId      String?
+  actorId       String?
+  correlationId String?
+  payload       Json?
+  envelope      Json
+  streamId      String?
+  createdAt     DateTime @default(now())
+
+  @@index([workspaceId, sequence])
+  @@index([workspaceId, createdAt])
+  @@index([targetScope, targetId, sequence])
+  @@index([type, createdAt])
+  @@index([entityId])
+}
+
+model RealtimeConsumerOffset {
+  consumerId  String
+  workspaceId String
+  lastEventId String
+  updatedAt   DateTime @updatedAt
+
+  @@id([consumerId, workspaceId])
+  @@index([workspaceId, updatedAt])
+}
+
 model IdempotencyKey {
   id             String    @id @default(cuid())
   companyId      String

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { formatDate, formatTimeAgo } from '@/lib/utils'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import { applyRealtimeEntityPatch, runOptimisticMutation, type RealtimeEntityPatch } from '@/lib/realtime-state'
 import {
   DELIVERABLE_TYPE_OPTIONS,
   getCompanyTypeCopy,
@@ -138,10 +139,28 @@ export default function AdminTasksPage() {
     }
   }, [reloadTasksPageData])
 
-  useRealtimeSubscription(TASK_REALTIME_EVENTS, () => {
-    void (async () => {
-      await reloadTasksPageData()
-    })()
+  useRealtimeSubscription(TASK_REALTIME_EVENTS, (eventName, payload) => {
+    const eventPayload = payload && typeof payload === 'object' ? (payload as { realtimePatch?: RealtimeEntityPatch<Task>; task?: Task; taskId?: string }) : null
+
+    if (eventName === 'task_deleted' && eventPayload?.taskId) {
+      setTasks((current) => current.filter((task) => task.id !== eventPayload.taskId))
+      return
+    }
+
+    if (eventPayload?.realtimePatch?.entityType === 'task') {
+      setTasks((current) => applyRealtimeEntityPatch(current, eventPayload.realtimePatch as RealtimeEntityPatch<Task>))
+      return
+    }
+
+    if ((eventName === 'task_created' || eventName === 'task_updated') && eventPayload?.task) {
+      setTasks((current) => {
+        const withoutExisting = current.filter((task) => task.id !== eventPayload.task?.id)
+        return [eventPayload.task as Task, ...withoutExisting]
+      })
+      return
+    }
+
+    void reloadTasksPageData()
   })
 
   function resetTaskForm() {
@@ -199,24 +218,45 @@ export default function AdminTasksPage() {
   async function handleDelete(id: string) {
     if (!confirm(`Delete this ${companyCopy.taskLabel.toLowerCase()}?`)) return
     setActionError('')
-    const response = await fetch(`/api/tasks/${id}`, { method: 'DELETE' })
-    if (!response.ok) {
-      const body = (await response.json().catch(() => ({}))) as { error?: string; detail?: string }
-      setActionError(body.error || `${companyCopy.taskLabel} could not be deleted.`)
-      return
+    const previousTasks = tasks
+    try {
+      await runOptimisticMutation({
+        apply: () => setTasks((current) => current.filter((task) => task.id !== id)),
+        rollback: () => setTasks(previousTasks),
+        commit: async () => {
+          const response = await fetch(`/api/tasks/${id}`, { method: 'DELETE' })
+          if (!response.ok) {
+            const body = (await response.json().catch(() => ({}))) as { error?: string; detail?: string }
+            throw new Error(body.error || `${companyCopy.taskLabel} could not be deleted.`)
+          }
+          return response.json().catch(() => ({ ok: true }))
+        },
+      })
+    } catch (error) {
+      setActionError(error instanceof Error ? error.message : `${companyCopy.taskLabel} could not be deleted.`)
     }
-    await reloadTasksPageData()
   }
 
   async function handleAcceptReview(task: Task) {
     setReviewSaving(true)
-    await fetch(`/api/tasks/${task.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stage: 'DONE' }),
-    })
-    setReviewSaving(false)
-    await reloadTasksPageData()
+    const previousTasks = tasks
+    try {
+      await runOptimisticMutation({
+        apply: () => setTasks((current) => current.map((item) => (item.id === task.id ? { ...item, stage: 'DONE', progress: 100 } : item))),
+        rollback: () => setTasks(previousTasks),
+        commit: async () => {
+          const response = await fetch(`/api/tasks/${task.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stage: 'DONE' }),
+          })
+          if (!response.ok) throw new Error('Review could not be accepted.')
+          return response.json()
+        },
+      })
+    } finally {
+      setReviewSaving(false)
+    }
   }
 
   function openRejectReviewModal(task: Task) {
@@ -237,15 +277,28 @@ export default function AdminTasksPage() {
 
     setReviewSaving(true)
     setReviewError('')
-    await fetch(`/api/tasks/${rejectingTask.id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ stage: 'IN_PROGRESS', reviewComment: comment }),
-    })
-    setReviewSaving(false)
-    setRejectingTask(null)
-    setReviewComment('')
-    await reloadTasksPageData()
+    const previousTasks = tasks
+    try {
+      await runOptimisticMutation({
+        apply: () => setTasks((current) => current.map((item) => (item.id === rejectingTask.id ? { ...item, stage: 'IN_PROGRESS', progress: 50 } : item))),
+        rollback: () => setTasks(previousTasks),
+        commit: async () => {
+          const response = await fetch(`/api/tasks/${rejectingTask.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stage: 'IN_PROGRESS', reviewComment: comment }),
+          })
+          if (!response.ok) throw new Error('Review could not be returned.')
+          return response.json()
+        },
+      })
+      setRejectingTask(null)
+      setReviewComment('')
+    } catch (error) {
+      setReviewError(error instanceof Error ? error.message : 'Review could not be returned.')
+    } finally {
+      setReviewSaving(false)
+    }
   }
 
   const filtered = filterStage === 'ALL' ? tasks : tasks.filter((task) => task.stage === filterStage)

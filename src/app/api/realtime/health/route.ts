@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { Queue } from 'bullmq'
 import { getRealtimeRedis, isRealtimeRedisConfigured, parseRedisConnection } from '@/modules/realtime/adapters/redis'
 import { REALTIME_DELIVERY_QUEUE } from '@/modules/realtime/events/delivery'
-import { measureRedisLatency } from '@/modules/realtime/metrics/metrics'
+import { getRealtimeMetricSnapshot, measureRedisLatency } from '@/modules/realtime/metrics/metrics'
 
 export const runtime = 'nodejs'
 
@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
 
   const redis = getRealtimeRedis()
   const redisLatencyMs = redis ? await measureRedisLatency().catch(() => null) : null
+  const metrics = redis ? await getRealtimeMetricSnapshot().catch(() => null) : null
   const queueUrl = queueRedisUrl()
   let queue: Record<string, number> | null = null
 
@@ -43,6 +44,7 @@ export async function GET(req: NextRequest) {
       latencyMs: redisLatencyMs,
     },
     queue,
+    metrics,
     socket: {
       adapter: isRealtimeRedisConfigured() ? 'redis' : 'in-memory-local',
       recovery: true,

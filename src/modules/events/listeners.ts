@@ -3,6 +3,7 @@ import { emitCompanyRealtime } from '@/lib/realtime-server'
 import { logClientActivity } from '@/lib/clients'
 import type { DomainEvent, DomainEventName } from '@/modules/events/event-bus'
 import { subscribeDomainEvent } from '@/modules/events/event-bus'
+import { buildRealtimeEntityPatch } from '@/modules/realtime/events/delta'
 import { recordActivityForEvent } from '@/modules/activity/activity.repository'
 import { recordAuditForEvent } from '@/modules/audit/audit.repository'
 import { syncSearchIndexForEvent } from '@/modules/search/search.repository'
@@ -20,10 +21,26 @@ const REALTIME_EVENT_MAP: Partial<Record<DomainEventName, RealtimeEventName>> = 
   'invoice.updated': 'invoice_updated',
   'invoice.deleted': 'invoice_deleted',
   'invoice.paid': 'invoice_updated',
+  'approval.completed': 'approval.completed',
+  'notification.created': 'notification.created',
+  'notification.read': 'notification.read',
+  'team.member.assigned': 'team.member.assigned',
+  'ai.action.completed': 'ai.run.completed',
+  'ai.run.completed': 'ai.run.completed',
+  'enterprise.asset.updated': 'asset.updated',
+  'enterprise.incident.created': 'incident.created',
+  'enterprise.incident.updated': 'incident.updated',
   'client.created': 'client_created',
   'client.updated': 'client_updated',
   'client.deleted': 'client_deleted',
   'comment.created': 'comment_created',
+}
+
+function realtimePayloadForEvent(event: DomainEvent) {
+  const base = event.payload ?? { entityId: event.entityId }
+  const patch = buildRealtimeEntityPatch(event)
+  if (!patch || !base || typeof base !== 'object' || Array.isArray(base)) return base
+  return { ...base, realtimePatch: patch }
 }
 
 function invoiceActivityTitle(event: DomainEvent, invoice: Record<string, unknown>) {
@@ -86,7 +103,7 @@ export function registerEnterpriseEventListeners() {
 
     const realtimeEvent = REALTIME_EVENT_MAP[event.type]
     if (realtimeEvent) {
-      emitCompanyRealtime(event.companyId, realtimeEvent, event.payload ?? { entityId: event.entityId })
+      emitCompanyRealtime(event.companyId, realtimeEvent, realtimePayloadForEvent(event))
     }
   })
 }
