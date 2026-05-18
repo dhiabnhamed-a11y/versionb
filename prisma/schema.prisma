@@ -2878,6 +2878,26 @@ model CalendarEvent {
   @@index([taskId])
 }
 
+// EnterpriseShift stores planned shift schedules and staffing targets for companies.
+model EnterpriseShift {
+  id         String   @id @default(cuid())
+  companyId  String
+  name       String
+  department String?
+  startsAt   DateTime
+  endsAt     DateTime
+  type       String   @default("day") // day | night | oncall
+  staffCount Int      @default(0)
+  coverage   Int      @default(100) // 0-100 percent
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, startsAt])
+}
+
 model PushToken {
   id         String   @id @default(cuid())
   token      String   @unique

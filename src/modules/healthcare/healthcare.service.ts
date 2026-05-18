@@ -227,8 +227,85 @@ export class HealthcareService {
    * Get staff shift summaries for current operations
    */
   static async getStaffShiftSummaries(companyId: string): Promise<StaffShiftSummary[]> {
-    // In production, query actual shift data
-    return []
+    // Try to read persisted shifts from EnterpriseShift (new Prisma model). If no shifts exist,
+    // fall back to an empty array so callers can render fallback UI.
+    try {
+      const shifts = await prisma.enterpriseShift.findMany({
+        where: { companyId },
+        orderBy: { startsAt: 'asc' },
+        take: 100,
+      })
+
+      return shifts.map((s: any) => ({
+        id: s.id,
+        staffName: s.name,
+        role: s.department || 'General',
+        department: s.department || 'General',
+        shiftStart: s.startsAt,
+        shiftEnd: s.endsAt,
+        status: (s.type === 'oncall' ? 'on-call' : 'on-duty') as any,
+      }))
+    } catch (err) {
+      // If the EnterpriseShift model isn't present in the database yet, return an empty list.
+      return []
+    }
+  }
+
+  /**
+   * List persisted enterprise shifts for a company
+   */
+  static async listShifts(companyId: string) {
+    const where = { companyId }
+    const rows = await prisma.enterpriseShift.findMany({ where, orderBy: { startsAt: 'asc' } })
+    return rows.map((r: any) => ({
+      id: r.id,
+      name: r.name,
+      department: r.department,
+      startsAt: r.startsAt,
+      endsAt: r.endsAt,
+      type: r.type,
+      staffCount: r.staffCount,
+      coverage: r.coverage,
+      metadata: r.metadata,
+    }))
+  }
+
+  static async createShift(companyId: string, input: any) {
+    const payload = {
+      companyId,
+      name: String(input.name || 'Unnamed Shift'),
+      department: input.department || null,
+      startsAt: new Date(input.startsAt),
+      endsAt: new Date(input.endsAt),
+      type: input.type || 'day',
+      staffCount: Number(input.staffCount || 0),
+      coverage: Number(input.coverage ?? 100),
+      metadata: input.metadata || null,
+    }
+    return prisma.enterpriseShift.create({ data: payload })
+  }
+
+  static async updateShift(companyId: string, id: string, input: any) {
+    const existing = await prisma.enterpriseShift.findUnique({ where: { id } })
+    if (!existing || existing.companyId !== companyId) throw new Error('Not found')
+    const data: any = {}
+    if (input.name !== undefined) data.name = String(input.name)
+    if (input.department !== undefined) data.department = input.department
+    if (input.startsAt !== undefined) data.startsAt = new Date(input.startsAt)
+    if (input.endsAt !== undefined) data.endsAt = new Date(input.endsAt)
+    if (input.type !== undefined) data.type = input.type
+    if (input.staffCount !== undefined) data.staffCount = Number(input.staffCount)
+    if (input.coverage !== undefined) data.coverage = Number(input.coverage)
+    if (input.metadata !== undefined) data.metadata = input.metadata
+
+    return prisma.enterpriseShift.update({ where: { id }, data })
+  }
+
+  static async deleteShift(companyId: string, id: string) {
+    const existing = await prisma.enterpriseShift.findUnique({ where: { id } })
+    if (!existing || existing.companyId !== companyId) throw new Error('Not found')
+    await prisma.enterpriseShift.delete({ where: { id } })
+    return { success: true }
   }
 
   /**

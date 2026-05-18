@@ -2,12 +2,16 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { isHealthcareCompanyType } from '@/lib/company-types'
 import type { SessionUser } from '@/modules/shared/session'
+import { healthcareService } from '@/modules/healthcare/healthcare.service'
 import { Clock, Sun, Moon, Phone, AlertCircle, Users } from 'lucide-react'
+import dynamic from 'next/dynamic'
+
+const ShiftsManager = dynamic(() => import('@/components/healthcare/ShiftsManager'), { ssr: false })
 
 export const dynamic = 'force-dynamic'
 
-// Shift management with demo data — in production this reads from a shifts table
-const SHIFTS = [
+// Shift management — read from DB via healthcareService; fall back to demo if empty
+const DEMO_SHIFTS = [
   { id: '1', name: 'Morning Shift A', department: 'Emergency', time: '06:00 – 14:00', type: 'day', staffCount: 12, coverage: 100 },
   { id: '2', name: 'Morning Shift B', department: 'ICU', time: '06:00 – 14:00', type: 'day', staffCount: 8, coverage: 100 },
   { id: '3', name: 'Afternoon Shift A', department: 'Emergency', time: '14:00 – 22:00', type: 'day', staffCount: 10, coverage: 83 },
@@ -18,7 +22,7 @@ const SHIFTS = [
   { id: '8', name: 'On-Call Cardiology', department: 'Cardiology', time: '22:00 – 06:00', type: 'oncall', staffCount: 2, coverage: 100 },
 ]
 
-const ON_CALL_STAFF = [
+const DEMO_ON_CALL = [
   { name: 'Dr. Ahmed Hassan', role: 'Surgeon', dept: 'Surgery', phone: '+974 5xxx xxxx', since: '22:00' },
   { name: 'Dr. Fatima Al-Thani', role: 'Cardiologist', dept: 'Cardiology', phone: '+974 5xxx xxxx', since: '22:00' },
   { name: 'Dr. Omar Nasser', role: 'Anesthesiologist', dept: 'Surgery', phone: '+974 5xxx xxxx', since: '22:00' },
@@ -30,8 +34,20 @@ export default async function ShiftsPage() {
   const user = session.user as SessionUser
   if (!isHealthcareCompanyType(user.companyType)) redirect('/dashboard/admin')
 
-  const totalStaff = SHIFTS.reduce((s, sh) => s + sh.staffCount, 0)
-  const gaps = SHIFTS.filter((s) => s.coverage < 100)
+  // attempt to load persisted shifts from DB; if none, use demo data so UI stays useful
+  const shiftsFromDb = await healthcareService.getStaffShiftSummaries(user.companyId)
+
+  // Normalize to the frontend shape. The HealthcareService will return lightweight summaries
+  const SHIFTS = (shiftsFromDb && shiftsFromDb.length > 0)
+    ? shiftsFromDb.map((s) => ({ id: s.id, name: s.staffName || s.id, department: s.department || s.role || 'General', time: `${new Date(s.shiftStart).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} – ${new Date(s.shiftEnd).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`, type: s.status === 'on-call' ? 'oncall' : (new Date(s.shiftStart).getHours() >= 18 ? 'night' : 'day'), staffCount: 1, coverage: 100 }))
+    : DEMO_SHIFTS
+
+  const ON_CALL_STAFF = (shiftsFromDb && shiftsFromDb.length > 0)
+    ? shiftsFromDb.filter((s) => s.status === 'on-call').map((s) => ({ name: s.staffName || s.id, role: s.role || s.department || 'On-Call', dept: s.department || '', phone: '', since: new Date(s.shiftStart).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) }))
+    : DEMO_ON_CALL
+
+  const totalStaff = SHIFTS.reduce((s, sh) => s + (sh.staffCount || 0), 0)
+  const gaps = SHIFTS.filter((s) => (s.coverage ?? 100) < 100)
 
   return (
     <div>
@@ -61,24 +77,7 @@ export default async function ShiftsPage() {
             <Clock size={20} style={{ color: 'var(--text-muted)' }} />
           </div>
           <div className="hc-list">
-            {SHIFTS.map((shift) => (
-              <div key={shift.id} className="hc-list-item">
-                <div className={`hc-list-icon ${shift.type === 'night' ? 'hc-list-icon-blue' : shift.type === 'oncall' ? 'hc-list-icon-amber' : 'hc-list-icon-green'}`}>
-                  {shift.type === 'night' ? <Moon size={16} /> : shift.type === 'oncall' ? <Phone size={16} /> : <Sun size={16} />}
-                </div>
-                <div className="hc-list-content">
-                  <div className="hc-list-title">{shift.name}</div>
-                  <div className="hc-list-sub">{shift.department} · {shift.time} · {shift.staffCount} staff</div>
-                </div>
-                <div>
-                  {shift.coverage < 100 ? (
-                    <span className="hc-badge hc-badge-maintenance">{shift.coverage}%</span>
-                  ) : (
-                    <span className="hc-badge hc-badge-operational">Full</span>
-                  )}
-                </div>
-              </div>
-            ))}
+            <ShiftsManager initialShifts={SHIFTS} initialOnCall={ON_CALL_STAFF} />
           </div>
         </div>
 
