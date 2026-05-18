@@ -266,10 +266,11 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
   const responseMode = options.responseMode ?? 'legacy'
   let rateLimit: RateLimitResult | undefined
 
-  assertSafeApiOrigin(req)
-  const rateLimitPolicy = options.rateLimit ?? defaultRateLimitForRequest(req)
-  rateLimit = await enforceDistributedRateLimit(req, rateLimitPolicy)
-  if (!rateLimit.allowed) {
+  try {
+    assertSafeApiOrigin(req)
+    const rateLimitPolicy = options.rateLimit ?? defaultRateLimitForRequest(req)
+    rateLimit = await enforceDistributedRateLimit(req, rateLimitPolicy)
+    if (!rateLimit.allowed) {
       logger.warn('api.rate_limited', { requestId, route, namespace: rateLimitPolicy.namespace })
       await recordSecurityAudit({
         action: 'api.rate_limited',
@@ -293,9 +294,8 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
         ),
         buildTraceHeaders({ rateLimit, requestId })
       )
-  }
+    }
 
-  try {
     const params = await resolveParams(context)
     const baseContext: ApiHandlerContext<TParams> = { params, req, requestId, route, startedAt }
     const shouldRequireAuth = options.auth === 'required' || Boolean(options.permission) || Boolean(options.requiredRole || options.requiredPermission)

@@ -917,6 +917,31 @@
   font-weight: 750;
 }
 
+.fieldHint {
+  margin: 0.45rem 0 0;
+  color: #94a3b8;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  font-weight: 600;
+}
+
+.fieldError {
+  margin: 0.45rem 0 0;
+  color: #fecaca;
+  font-size: 0.74rem;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.passwordHints {
+  margin: 0.55rem 0 0;
+  padding-left: 1.1rem;
+  color: #94a3b8;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
 .formActions,
 .splitActions {
   display: flex;

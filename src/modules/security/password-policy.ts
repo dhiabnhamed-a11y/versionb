@@ -16,6 +16,17 @@ const COMMON_PASSWORDS = new Set([
   'taskit123',
 ])
 
+export const PASSWORD_MIN_LENGTH = 12
+
+export const PASSWORD_REQUIREMENT_HINTS = [
+  `At least ${PASSWORD_MIN_LENGTH} characters`,
+  'One uppercase letter (A–Z)',
+  'One lowercase letter (a–z)',
+  'One number (0–9)',
+  'One symbol (!@#$…)',
+  'Must not contain your name or email username',
+] as const
+
 export type PasswordPolicyResult = {
   ok: boolean
   errors: string[]
@@ -42,7 +53,7 @@ export function evaluatePasswordPolicy(password: string, identity: { email?: str
   const nameParts = identity.name?.toLowerCase().split(/\s+/).filter((part) => part.length >= 3) ?? []
   const sha1 = passwordSha1(password)
 
-  if (password.length < 12) errors.push('Password must be at least 12 characters.')
+  if (password.length < PASSWORD_MIN_LENGTH) errors.push(`Password must be at least ${PASSWORD_MIN_LENGTH} characters.`)
   if (!/[a-z]/.test(password)) errors.push('Password must include a lowercase letter.')
   if (!/[A-Z]/.test(password)) errors.push('Password must include an uppercase letter.')
   if (!/[0-9]/.test(password)) errors.push('Password must include a number.')
@@ -61,10 +72,14 @@ export function evaluatePasswordPolicy(password: string, identity: { email?: str
   return { ok: errors.length === 0, errors, sha1 }
 }
 
+export function formatPasswordPolicyErrors(errors: string[]) {
+  return errors.join(' ')
+}
+
 export function assertPasswordPolicy(password: string, identity: { email?: string; name?: string } = {}) {
   const result = evaluatePasswordPolicy(password, identity)
   if (!result.ok) {
-    throw badRequest('Password does not meet security requirements.', { password: result.errors })
+    throw badRequest(formatPasswordPolicyErrors(result.errors), { password: result.errors })
   }
 
   return result

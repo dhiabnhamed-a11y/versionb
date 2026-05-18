@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { AlertTriangle, Copy, Filter, KeyRound, Link2, MailPlus, Plus, Search, Signal, Users } from 'lucide-react'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import type { RealtimeEventName } from '@/lib/realtime-events'
+import { readJsonResponse } from '@/lib/read-json'
 
 interface Employee {
   id: string
@@ -68,12 +69,14 @@ export default function EmployeesPage() {
   const canInviteAdmins = (session?.user as { role?: string } | undefined)?.role !== 'EMPLOYEE'
 
   async function fetchEmployees() {
-    const data = await fetch('/api/employees', { cache: 'no-store' }).then((response) => response.json())
+    const response = await fetch('/api/employees', { cache: 'no-store' })
+    const data = await readJsonResponse<Employee[] | { error?: string }>(response, [])
     return Array.isArray(data) ? data : []
   }
 
   async function fetchInvites() {
-    const data = await fetch('/api/invites', { cache: 'no-store' }).then((response) => response.json())
+    const response = await fetch('/api/invites', { cache: 'no-store' })
+    const data = await readJsonResponse<InviteRecord[] | { error?: string }>(response, [])
     return Array.isArray(data) ? data : []
   }
 

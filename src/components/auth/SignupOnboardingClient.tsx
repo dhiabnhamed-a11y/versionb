@@ -38,6 +38,12 @@ import {
   type OnboardingTemplateId,
 } from '@/lib/onboarding-engine'
 import styles from './SignupOnboardingClient.module.css'
+import { isBlockedOwnerEmailDomain } from '@/lib/signup-hints'
+import {
+  evaluatePasswordPolicy,
+  PASSWORD_MIN_LENGTH,
+  PASSWORD_REQUIREMENT_HINTS,
+} from '@/modules/security/password-policy'
 
 const WorkspacePreview = dynamic(() => import('./onboarding/WorkspacePreview'), {
   loading: () => <PreviewSkeleton />,
@@ -133,13 +139,19 @@ export default function SignupOnboardingClient({
   const inviteMode = Boolean(inviteCode)
   const template = getTemplate(templateId)
   const hasRequiredLegalConsent = legalConsent.termsAccepted && legalConsent.privacyAccepted
+  const passwordPolicy = evaluatePasswordPolicy(form.password, {
+    email: form.email.trim(),
+    name: form.name.trim(),
+  })
+  const ownerEmailBlocked = !inviteMode && isBlockedOwnerEmailDomain(form.email)
   const canSubmitSetup =
     form.name.trim().length > 1 &&
     form.email.includes('@') &&
-    form.password.length >= 8 &&
+    passwordPolicy.ok &&
     form.companyName.trim().length > 1 &&
     form.country.trim().length > 1 &&
-    hasRequiredLegalConsent
+    hasRequiredLegalConsent &&
+    !ownerEmailBlocked
 
   const generationComplete = useCallback(() => {
     trackOnboardingEvent('generation_complete', { templateId })
@@ -232,6 +244,14 @@ export default function SignupOnboardingClient({
   async function submitRegistration(nextStep: OnboardingStepId = 'success') {
     setLegalTouched(true)
     if (!canSubmitSetup) {
+      if (ownerEmailBlocked) {
+        setError('Owner signup requires a company email address (not Gmail, Yahoo, Outlook, iCloud, etc.).')
+        return
+      }
+      if (!passwordPolicy.ok) {
+        setError(passwordPolicy.errors.join(' '))
+        return
+      }
       setError('Complete the required account and workspace fields to continue.')
       return
     }
@@ -277,11 +297,15 @@ export default function SignupOnboardingClient({
       body: JSON.stringify(body),
     })
 
-    const data = (await response.json()) as { error?: string }
+    const data = (await response.json().catch(() => ({}))) as {
+      error?: string
+      details?: { password?: string[] }
+    }
     setLoading(false)
 
     if (!response.ok) {
-      setError(data.error || 'Registration failed.')
+      const passwordErrors = Array.isArray(data.details?.password) ? data.details.password : []
+      setError(passwordErrors.length > 0 ? passwordErrors.join(' ') : data.error || 'Registration failed.')
       return
     }
 
@@ -342,6 +366,8 @@ export default function SignupOnboardingClient({
             loading={loading}
             templateId={templateId}
             canSubmit={canSubmitSetup}
+            passwordErrors={passwordPolicy.errors}
+            ownerEmailBlocked={ownerEmailBlocked}
             onBack={() => goTo(inviteMode ? 'setup' : 'company-type')}
             onLegalTouched={() => setLegalTouched(true)}
             onLegalChange={setLegalConsent}
@@ -548,6 +574,8 @@ function SetupStep({
   loading,
   error,
   canSubmit,
+  passwordErrors,
+  ownerEmailBlocked,
   onChange,
   onLegalChange,
   onLegalTouched,
@@ -563,6 +591,8 @@ function SetupStep({
   loading: boolean
   error: string
   canSubmit: boolean
+  passwordErrors: string[]
+  ownerEmailBlocked: boolean
   onChange: <Key extends keyof SetupForm>(key: Key, value: SetupForm[Key]) => void
   onLegalChange: Dispatch<SetStateAction<LegalConsentState>>
   onLegalTouched: () => void
@@ -604,20 +634,37 @@ function SetupStep({
               value={form.email}
               onChange={(event) => onChange('email', event.target.value)}
               autoComplete="email"
-              placeholder="you@company.com"
+              placeholder={inviteMode ? 'you@company.com' : 'owner@yourcompany.com'}
             />
+            {!inviteMode && (
+              <p className={styles.fieldHint}>
+                Use your company domain email. Personal inboxes (Gmail, Yahoo, Outlook, iCloud, etc.) are not accepted for
+                owner accounts.
+              </p>
+            )}
+            {ownerEmailBlocked && (
+              <p className={styles.fieldError}>This email domain cannot be used for owner signup. Use your company email.</p>
+            )}
           </Field>
 
           <Field label="Password" icon={<Lock size={15} />} required>
             <input
               className={styles.input}
               type="password"
-              minLength={8}
+              minLength={PASSWORD_MIN_LENGTH}
               value={form.password}
               onChange={(event) => onChange('password', event.target.value)}
               autoComplete="new-password"
-              placeholder="At least 8 characters"
+              placeholder={`At least ${PASSWORD_MIN_LENGTH} characters`}
             />
+            <ul className={styles.passwordHints}>
+              {PASSWORD_REQUIREMENT_HINTS.map((hint) => (
+                <li key={hint}>{hint}</li>
+              ))}
+            </ul>
+            {form.password.length > 0 && passwordErrors.length > 0 && (
+              <p className={styles.fieldError}>{passwordErrors.join(' ')}</p>
+            )}
           </Field>
 
           <Field label="Company name" icon={<Sparkles size={15} />} required>

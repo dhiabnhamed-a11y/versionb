@@ -15,6 +15,7 @@ import {
 } from '@/lib/company-types'
 import { Plus, CheckSquare, Trash2, Clock, FolderKanban, User, Loader2, ListTodo, Link2, Pencil, CheckCircle2, RotateCcw } from 'lucide-react'
 import { MediaPlayer } from '@/components/media/MediaPlayer'
+import { readJsonResponse } from '@/lib/read-json'
 
 interface TaskSubmission {
   id: string
@@ -121,21 +122,24 @@ export default function AdminTasksPage() {
 
   const fetchTasksPageData = useCallback(async () => {
     const [tasksResponse, projectsResponse, employeesResponse, teamsResponse] = await Promise.all([
-      fetch('/api/tasks', { cache: 'no-store' }).then((response) => response.json()),
-      fetch('/api/projects', { cache: 'no-store' }).then((response) => response.json()),
-      fetch('/api/employees', { cache: 'no-store' }).then((response) => response.json()),
-      supportsTeamAssignment
-        ? fetch('/api/enterprise/teams', { cache: 'no-store' })
-            .then((response) => (response.ok ? response.json() : []))
-            .catch(() => [])
-        : Promise.resolve([]),
+      fetch('/api/tasks', { cache: 'no-store' }),
+      fetch('/api/projects', { cache: 'no-store' }),
+      fetch('/api/employees', { cache: 'no-store' }),
+      supportsTeamAssignment ? fetch('/api/enterprise/teams', { cache: 'no-store' }).catch(() => null) : Promise.resolve(null),
+    ])
+
+    const [tasksBody, projectsBody, employeesBody, teamsBody] = await Promise.all([
+      readJsonResponse(tasksResponse, []),
+      readJsonResponse(projectsResponse, []),
+      readJsonResponse(employeesResponse, []),
+      teamsResponse && teamsResponse.ok ? readJsonResponse(teamsResponse, []) : Promise.resolve([]),
     ])
 
     return {
-      tasks: Array.isArray(tasksResponse) ? tasksResponse : [],
-      projects: Array.isArray(projectsResponse) ? projectsResponse : [],
-      employees: Array.isArray(employeesResponse) ? employeesResponse : [],
-      teams: Array.isArray(teamsResponse) ? teamsResponse : [],
+      tasks: Array.isArray(tasksBody) ? tasksBody : [],
+      projects: Array.isArray(projectsBody) ? projectsBody : [],
+      employees: Array.isArray(employeesBody) ? employeesBody : [],
+      teams: Array.isArray(teamsBody) ? teamsBody : [],
     }
   }, [supportsTeamAssignment])
 

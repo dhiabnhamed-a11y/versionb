@@ -8,6 +8,7 @@ import { Camera, ChevronRight, FolderKanban, Plus, Loader2, User, Building2, Tag
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 
 import { getCompanyTypeCopy, isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
+import { readJsonResponse } from '@/lib/read-json'
 
 interface Project {
   id: string
@@ -126,11 +127,11 @@ export default function ProjectsPage() {
     ])
 
     const [projectBody, employeeBody, roomBody, categoryBody, clientBody] = await Promise.all([
-      projectResponse.json(),
-      employeeResponse.json(),
-      roomResponse.json(),
-      categoryResponse.json(),
-      clientResponse.json(),
+      readJsonResponse<Project[] | ApiFailure>(projectResponse, []),
+      readJsonResponse<Employee[] | ApiFailure>(employeeResponse, []),
+      readJsonResponse<Room[] | ApiFailure>(roomResponse, []),
+      readJsonResponse<ProjectCategory[] | ApiFailure>(categoryResponse, []),
+      readJsonResponse<{ items?: Client[] } | ApiFailure>(clientResponse, { items: [] }),
     ])
 
     return {
@@ -139,7 +140,10 @@ export default function ProjectsPage() {
       employees: Array.isArray(employeeBody) ? employeeBody : [],
       rooms: Array.isArray(roomBody) ? roomBody : [],
       categories: Array.isArray(categoryBody) ? categoryBody : [],
-      clients: Array.isArray(clientBody?.items) ? clientBody.items : [],
+      clients:
+        clientBody && typeof clientBody === 'object' && 'items' in clientBody && Array.isArray(clientBody.items)
+          ? clientBody.items
+          : [],
       projectError: Array.isArray(projectBody) ? null : ((projectBody as ApiFailure) ?? null),
     }
   }, [])

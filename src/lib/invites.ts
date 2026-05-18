@@ -299,10 +299,6 @@ export async function redeemInviteSignup(input: RedeemInviteInput) {
     throw new OnboardingFlowError('Invalid signup role.', 400)
   }
 
-  if (password.length < 8) {
-    throw new OnboardingFlowError('Password must be at least 8 characters long.')
-  }
-
   const invite = await getActiveInviteForCode(inviteCode)
 
   if (!invite) {

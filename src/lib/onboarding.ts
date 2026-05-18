@@ -186,10 +186,6 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
     throw new InviteFlowError('Enter a valid email address.')
   }
 
-  if (password.length < 8) {
-    throw new InviteFlowError('Password must be at least 8 characters long.')
-  }
-
   if (!companyName) {
     throw new InviteFlowError('Company name is required for Owner signup.')
   }

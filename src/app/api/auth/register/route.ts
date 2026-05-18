@@ -94,6 +94,7 @@ export async function POST(req: NextRequest) {
         windowMs: 60 * 60 * 1000,
         max: 8,
       },
+      route: '/api/auth/register',
     }
   )
 }

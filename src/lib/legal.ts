@@ -303,28 +303,36 @@ export async function persistSignupLegalConsents(
       })
     })
 
-  await tx.auditLog.create({
-    data: {
-      action: 'legal.signup_consent_accepted',
-      actorId: input.userId,
-      companyId: input.companyId,
-      entityId: input.userId,
-      entityType: 'legal_consent',
-      after: toJsonValue({
-        consentTypes: consentRecords.map((record) => record.consentType),
-        documentVersions: Object.fromEntries(consentRecords.map((record) => [record.consentType, record.documentVersion])),
-        hashes: consentRecords.map((record) => record.consentHash),
-      }),
-      metadata: toJsonValue({
-        source: 'SIGNUP',
-        ipAddressCaptured: Boolean(input.context.ipAddress),
-        userAgentCaptured: Boolean(input.context.userAgent),
-      }),
-      requestId: input.context.requestId,
-      ipAddress: input.context.ipAddress,
-      userAgent: input.context.userAgent,
-    },
-  })
+  await tx.auditLog
+    .create({
+      data: {
+        action: 'legal.signup_consent_accepted',
+        actorId: input.userId,
+        companyId: input.companyId,
+        entityId: input.userId,
+        entityType: 'legal_consent',
+        after: toJsonValue({
+          consentTypes: consentRecords.map((record) => record.consentType),
+          documentVersions: Object.fromEntries(consentRecords.map((record) => [record.consentType, record.documentVersion])),
+          hashes: consentRecords.map((record) => record.consentHash),
+        }),
+        metadata: toJsonValue({
+          source: 'SIGNUP',
+          ipAddressCaptured: Boolean(input.context.ipAddress),
+          userAgentCaptured: Boolean(input.context.userAgent),
+        }),
+        requestId: input.context.requestId,
+        ipAddress: input.context.ipAddress,
+        userAgent: input.context.userAgent,
+      },
+    })
+    .catch((error) => {
+      if (!isMissingDatabaseObjectError(error)) throw error
+      logger.warn('legal.signup_consent_audit_skipped_missing_schema', {
+        companyId: input.companyId,
+        userId: input.userId,
+      })
+    })
 
   return consentRecords
 }

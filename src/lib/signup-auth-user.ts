@@ -35,7 +35,11 @@ export async function createSignupAuthUser(input: CreateSignupAuthUserInput) {
       throw new AppError('That email is already registered in Supabase Auth.', { status: 409, code: 'CONFLICT' })
     }
 
-    throw new AppError(error?.message ?? 'Supabase Auth user creation failed.', { status: 500, code: 'SUPABASE_AUTH_ERROR' })
+    throw new AppError(error?.message ?? 'Supabase Auth user creation failed.', {
+      status: 503,
+      code: 'SUPABASE_AUTH_ERROR',
+      expose: true,
+    })
   }
 
   return { authUserId: data.user.id }
