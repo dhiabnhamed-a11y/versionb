@@ -1,5 +1,5 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import { buildOperationalCommandCenter } from '@/modules/operations/operational-intelligence.service'
 
@@ -10,12 +10,12 @@ type SessionUser = {
 }
 
 export async function GET() {
-  const session = await auth()
-  if (!session?.user) {
+  const user = await requireSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE_HEADERS })
   }
 
-  const user = session.user as SessionUser
+  const typedUser = user as SessionUser
   const commandCenter = await buildOperationalCommandCenter({
     id: user.id ?? '',
     role: user.role,

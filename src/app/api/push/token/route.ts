@@ -1,5 +1,5 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { getFirebaseProjectDiagnostics } from '@/lib/firebase-admin'
 import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'
@@ -57,12 +57,8 @@ function logProjectMismatches(client?: PushTokenBody['client']) {
 
 export async function POST(req: Request) {
   try {
-    const session = await auth()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const user = session.user as SessionUser
+    const user = await requireSessionUser()
+    const typedUser = user as SessionUser
     const { token, previousToken, client } = (await req.json()) as PushTokenBody
     const normalizedToken = normalizeToken(token)
     const normalizedPreviousToken = normalizeToken(previousToken)
@@ -112,12 +108,8 @@ export async function POST(req: Request) {
 
 export async function GET() {
   try {
-    const session = await auth()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const user = session.user as SessionUser
+    const user = await requireSessionUser()
+    const typedUser = user as SessionUser
     const tokenCount = await prisma.pushToken.count({
       where: { userId: user.id },
     })
@@ -139,12 +131,8 @@ export async function GET() {
 
 export async function DELETE(req: Request) {
   try {
-    const session = await auth()
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const user = session.user as SessionUser
+    const user = await requireSessionUser()
+    const typedUser = user as SessionUser
     const { token } = (await req.json()) as PushTokenBody
     const normalizedToken = normalizeToken(token)
 

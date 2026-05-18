@@ -15,6 +15,9 @@ function getClientIp(req: Request) {
 export async function enforceDistributedRateLimit(req: Request, options: RateLimitOptions): Promise<RateLimitResult> {
   const key = options.key || getClientIp(req)
   const redisResult = await redisRateLimit(key, options).catch(() => null)
+  if (process.env.NODE_ENV === 'production' && !redisResult) {
+    throw new Error('REDIS_URL is required for distributed rate limiting in production.')
+  }
   return redisResult ?? rateLimitRequest(req, options)
 }
 

@@ -1,5 +1,5 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
 type SessionUser = {
@@ -51,10 +51,7 @@ async function assertTaskAccess(companyId: string, taskId?: string | null) {
 }
 
 export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/calendar-events/[id]'>) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
   if (!user.companyId) return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
   if (user.role === 'EMPLOYEE') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
@@ -112,10 +109,7 @@ export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/calendar-e
 }
 
 export async function DELETE(_req: NextRequest, ctx: RouteContext<'/api/calendar-events/[id]'>) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
   if (!user.companyId) return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
   if (user.role === 'EMPLOYEE') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 

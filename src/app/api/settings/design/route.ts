@@ -1,6 +1,6 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 
-import { auth } from '@/lib/auth'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import {
   getUserDashboardDesignSettings,
@@ -19,18 +19,18 @@ function inferSourceType(file: File) {
 }
 
 export async function GET() {
-  const session = await auth()
-  if (!session?.user) {
+  const user = await requireSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const design = await getUserDashboardDesignSettings(session.user.id)
+  const design = await getUserDashboardDesignSettings(user.id)
   return NextResponse.json({ design }, { headers: NO_STORE_HEADERS })
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) {
+  const user = await requireSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       throw new SettingsAccessError('Design file must end in .json or .css.')
     }
 
-    const design = await updateUserDashboardDesign(session.user as SettingsSessionUser, {
+    const design = await updateUserDashboardDesign(user as SettingsSessionUser, {
       sourceType,
       fileName: file.name,
       content: await file.text(),
@@ -65,8 +65,8 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) {
+  const user = await requireSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -76,7 +76,7 @@ export async function PATCH(req: NextRequest) {
       throw new SettingsAccessError('Dashboard design is required.')
     }
 
-    const design = await updateUserDashboardDesignBuilder(session.user as SettingsSessionUser, body.design)
+    const design = await updateUserDashboardDesignBuilder(user as SettingsSessionUser, body.design)
     return NextResponse.json({ design }, { headers: NO_STORE_HEADERS })
   } catch (error) {
     if (error instanceof SettingsAccessError) {
@@ -89,13 +89,13 @@ export async function PATCH(req: NextRequest) {
 }
 
 export async function DELETE() {
-  const session = await auth()
-  if (!session?.user) {
+  const user = await requireSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
-    const design = await resetUserDashboardDesign(session.user as SettingsSessionUser)
+    const design = await resetUserDashboardDesign(user as SettingsSessionUser)
     return NextResponse.json({ design }, { headers: NO_STORE_HEADERS })
   } catch (error) {
     if (error instanceof SettingsAccessError) {

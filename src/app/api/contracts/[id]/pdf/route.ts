@@ -1,5 +1,5 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { generateContractPdf } from '@/lib/contract-pdf'
 import { getContractVersionContent, recordContractDownload } from '@/modules/contracts/contract.service'
 import type { SessionUser } from '@/modules/shared/session'
@@ -113,12 +113,12 @@ export async function GET(req: NextRequest, context: RouteCtx) {
     if (!contractId) return jsonError('Contract id is required.', 400, reqId)
 
     phase = 'auth'
-    const session = await auth()
-    if (!session) return jsonError('Unauthorized', 401, reqId)
+    const user = await requireSessionUser()
+    if (!user) return jsonError('Unauthorized', 401, reqId)
 
     phase = 'load-contract'
     const versionId = req.nextUrl.searchParams.get('versionId')
-    const user = session.user as SessionUser
+    const typedUser = user as SessionUser
     const { contract, version, content } = await getContractVersionContent(user, contractId, versionId)
 
     phase = 'generate-pdf'

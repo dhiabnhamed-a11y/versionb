@@ -1,6 +1,6 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { NO_STORE_HEADERS } from '@/lib/http'
 
@@ -24,10 +24,7 @@ function normalizeType(type?: string | null) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
   if (!user.companyId) return NextResponse.json([], { headers: NO_STORE_HEADERS })
 
   const briefId = req.nextUrl.searchParams.get('briefId')?.trim()
@@ -65,10 +62,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
   if (!user.companyId) return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
   if (user.role === 'EMPLOYEE') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 

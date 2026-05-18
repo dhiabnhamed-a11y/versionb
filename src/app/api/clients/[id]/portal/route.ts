@@ -1,5 +1,5 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { createClientPortalToken, getClientPortalUrl } from '@/lib/client-portal'
 import { canManageClients, type BillingSessionUser } from '@/lib/clients'
@@ -24,10 +24,7 @@ async function authorizeClient(user: BillingSessionUser, id: string) {
 }
 
 export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as BillingSessionUser
+  const user = await requireSessionUser()
   const { id } = await context.params
   const existing = await authorizeClient(user, id)
   if (!existing) return NextResponse.json({ error: 'Client not found.' }, { status: 404 })

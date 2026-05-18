@@ -1,5 +1,5 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { getAiConversationReplay } from '@/lib/ai-conversation-state'
 import { NO_STORE_HEADERS } from '@/lib/http'
 
@@ -16,10 +16,10 @@ function cleanConversationId(value: string | null) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE_HEADERS })
+  const user = await requireSessionUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE_HEADERS })
 
-  const user = session.user as SessionUser
+  const typedUser = user as SessionUser
   const conversationId = cleanConversationId(req.nextUrl.searchParams.get('conversationId'))
   const replay = await getAiConversationReplay({ user, conversationId })
 

@@ -1,5 +1,5 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import { normalizeAppLocale } from '@/lib/i18n'
 import { createOperationalAiPlan } from '@/modules/ai/services/operational-ai.service'
@@ -22,10 +22,7 @@ function sessionActor(user: SessionUser, locale?: string | null) {
 }
 
 export async function GET() {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
   if (!user.companyId) return NextResponse.json({ error: 'Workspace is required.' }, { status: 400 })
 
   const summary = await getAiObservabilitySummary(user.companyId)
@@ -33,16 +30,14 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
+  const user = await requireSessionUser()
   const body = (await req.json().catch(() => ({}))) as {
     goal?: unknown
     conversationId?: unknown
     locale?: unknown
     idempotencyKey?: unknown
   }
-  const actor = sessionActor(session.user as SessionUser, typeof body.locale === 'string' ? body.locale : null)
+  const actor = sessionActor(user as SessionUser, typeof body.locale === 'string' ? body.locale : null)
   if (!actor) return NextResponse.json({ error: 'Workspace is required.' }, { status: 400 })
 
   const goal = typeof body.goal === 'string' ? body.goal.trim() : ''

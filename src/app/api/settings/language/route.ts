@@ -1,5 +1,5 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import {
   SettingsAccessError,
@@ -9,25 +9,25 @@ import {
 } from '@/lib/settings'
 
 export async function GET() {
-  const session = await auth()
-  if (!session?.user) {
+  const user = await requireSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const user = session.user as SettingsSessionUser
+  const typedUser = user as SettingsSessionUser
   const language = await getUserLanguageSettings(user.id)
   return NextResponse.json({ language }, { headers: NO_STORE_HEADERS })
 }
 
 export async function PATCH(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) {
+  const user = await requireSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
     const body = (await req.json().catch(() => ({}))) as { locale?: string | null }
-    const language = await updateUserLanguageSettings(session.user as SettingsSessionUser, body)
+    const language = await updateUserLanguageSettings(user as SettingsSessionUser, body)
     return NextResponse.json({ language }, { headers: NO_STORE_HEADERS })
   } catch (error) {
     if (error instanceof SettingsAccessError) {

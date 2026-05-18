@@ -2,12 +2,11 @@ import { prisma } from '@/lib/db'
 import { getProjectIfAllowed, type SessionUser } from '@/lib/project-access'
 import { getRuntimeStreamStatus } from '@/lib/camera-stream-manager'
 
-export type CameraSessionUser = SessionUser & {
-  role: string
-}
+export type CameraSessionUser = SessionUser
 
 export function canManageProjectCamera(user: CameraSessionUser) {
-  return user.role === 'OWNER' || user.role === 'MANAGER'
+  const role = user.role ?? 'EMPLOYEE'
+  return role === 'OWNER' || role === 'MANAGER'
 }
 
 export function toCameraDto(camera: {

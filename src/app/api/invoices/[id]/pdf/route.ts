@@ -1,5 +1,5 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { getDatabaseConfigHint, prisma } from '@/lib/db'
 import { generateInvoicePdf, normalizePdfInvoice, validateInvoiceForPdf, type PdfInvoice } from '@/lib/invoice-pdf'
 import { serializeInvoice } from '@/lib/invoices'
@@ -177,16 +177,8 @@ export async function GET(req: NextRequest, context: RouteCtx) {
     })
 
     phase = 'auth'
-    const session = await auth()
-    if (!session) {
-      return logAndReturnJsonError('Unauthorized', 401, reqId, {
-        phase,
-        invoiceId,
-        durationMs: Date.now() - startedAt,
-      })
-    }
-
-    const user = session.user as SessionUser
+    const user = await requireSessionUser()
+    const typedUser = user as SessionUser
     if (!user.companyId) {
       return logAndReturnJsonError('No company found for this account.', 400, reqId, {
         phase,

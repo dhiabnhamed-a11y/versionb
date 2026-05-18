@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
+import { isPublicApiPath } from '@/lib/security/config'
 
 function securityHeaders(req: NextRequest) {
   const isDev = process.env.NODE_ENV !== 'production'
@@ -24,9 +25,10 @@ function securityHeaders(req: NextRequest) {
     'Content-Security-Policy': csp,
     'X-DNS-Prefetch-Control': 'on',
     'Cross-Origin-Opener-Policy': 'same-origin',
+    'Cross-Origin-Resource-Policy': 'same-site',
     'Origin-Agent-Cluster': '?1',
     'Permissions-Policy': 'camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), browsing-topics=()',
-    'Referrer-Policy': 'no-referrer',
+    'Referrer-Policy': 'strict-origin-when-cross-origin',
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'X-Permitted-Cross-Domain-Policies': 'none',
@@ -56,15 +58,30 @@ function hasAuthSessionCookie(req: NextRequest) {
     )
 }
 
+function rejectUnauthorizedApi(req: NextRequest) {
+  return applySecurityHeaders(
+    NextResponse.json({ error: 'Unauthorized', code: 'UNAUTHORIZED' }, { status: 401 }),
+    req
+  )
+}
+
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
   const hasSessionCookie = hasAuthSessionCookie(req)
+
+  if (pathname.startsWith('/api')) {
+    if (isPublicApiPath(pathname)) {
+      return applySecurityHeaders(NextResponse.next(), req)
+    }
+    if (!hasSessionCookie) {
+      return rejectUnauthorizedApi(req)
+    }
+  }
 
   if (pathname === '/login' || pathname === '/signup' || pathname === '/') {
     if (hasSessionCookie) {
       return applySecurityHeaders(NextResponse.redirect(new URL('/dashboard', req.url)), req)
     }
-
     return applySecurityHeaders(NextResponse.next(), req)
   }
 

@@ -3,7 +3,7 @@ import { getProjectCameraSupport, withProjectCameraDefaults } from '@/lib/projec
 
 export type SessionUser = {
   id: string
-  role: string
+  role?: string | null
   companyId?: string | null
 }
 

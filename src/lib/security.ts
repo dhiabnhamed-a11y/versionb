@@ -73,10 +73,16 @@ export function isAuthorizedSuperAdminIdentity(user: RoleIdentity) {
 
   const allowedEmails = getConfiguredSuperAdminEmails()
   if (allowedEmails.length === 0) {
-    return true
+    return process.env.NODE_ENV !== 'production'
   }
 
   return allowedEmails.includes(normalizeEmailValue(user.email))
+}
+
+export function assertSuperAdminConfigured() {
+  if (process.env.NODE_ENV === 'production' && getConfiguredSuperAdminEmails().length === 0) {
+    throw new Error('SUPER_ADMIN_EMAILS must be set in production.')
+  }
 }
 
 export function isCompanyOperational(status?: string | null) {

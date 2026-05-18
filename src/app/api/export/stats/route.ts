@@ -1,7 +1,7 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 import type { Prisma } from '@prisma/client'
 
-import { auth } from '@/lib/auth'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import {
   buildStatsCsv,
@@ -111,10 +111,10 @@ export async function GET(req: NextRequest) {
   let companyId: string | undefined
 
   try {
-    const session = await auth()
-    if (!session?.user) return jsonError('Unauthorized', 401, reqId)
+    const user = await requireSessionUser()
+    if (!user) return jsonError('Unauthorized', 401, reqId)
 
-    const user = session.user as SettingsSessionUser
+    const typedUser = user as SettingsSessionUser
     if (!user.id) return jsonError('Unauthorized', 401, reqId)
     if (!user.companyId) return jsonError('No company found for this account.', 400, reqId)
     if (!canManageSettings(user.role)) return jsonError('Forbidden', 403, reqId)

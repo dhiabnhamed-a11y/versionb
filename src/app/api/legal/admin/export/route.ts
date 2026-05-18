@@ -1,6 +1,6 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest } from 'next/server'
 
-import { auth } from '@/lib/auth'
 import { exportLegalConsentRows } from '@/lib/legal'
 import { isAuthorizedSuperAdminIdentity } from '@/lib/security'
 import { withApiError } from '@/modules/shared/api'
@@ -16,8 +16,8 @@ function csvCell(value: unknown) {
 
 export async function GET(req: NextRequest) {
   return withApiError(req, async () => {
-    const session = await auth()
-    if (!session?.user?.id || !isAuthorizedSuperAdminIdentity(session.user)) {
+    const user = await requireSessionUser()
+    if (!user?.id || !isAuthorizedSuperAdminIdentity(user)) {
       throw forbidden('Forbidden')
     }
 

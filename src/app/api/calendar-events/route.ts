@@ -1,5 +1,5 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
 type SessionUser = {
@@ -63,10 +63,7 @@ async function assertTaskAccess(companyId: string, taskId?: string | null) {
 }
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
   if (!user.companyId) return NextResponse.json([])
 
   const { from, to } = getDateRange(req)
@@ -133,10 +130,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
   if (!user.companyId) return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
   if (user.role === 'EMPLOYEE') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 

@@ -1,5 +1,5 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { buildGroundedOperationalAnswer, type AiMessageInput } from '@/lib/ai-operations'
 import { polishGroundedAnswerWithOpenAi } from '@/lib/ai-openai'
 import { loadAiMemoryContext, persistAiTurn } from '@/lib/ai-memory'
@@ -63,10 +63,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: NO_STORE_HEADERS })
   }
 
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
   const body = (await req.json().catch(() => ({}))) as ChatBody
   const message = cleanMessage(body.message)
   const messages = cleanMessages(body.messages)

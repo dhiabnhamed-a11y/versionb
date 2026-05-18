@@ -1,6 +1,6 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { commentSelect, getAllowedCommentFile } from '@/lib/media-comments'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
@@ -11,10 +11,7 @@ type UpdateCommentBody = {
 }
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
   const { id } = await params
   const existing = await prisma.comment.findUnique({
     where: { id },

@@ -1,6 +1,6 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 
-import { auth } from '@/lib/auth'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import {
   getWorkspaceThemeSettings,
@@ -10,20 +10,20 @@ import {
 } from '@/lib/settings'
 
 export async function GET() {
-  const session = await auth()
-  if (!session?.user) {
+  const user = await requireSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const user = session.user as SettingsSessionUser
+  const typedUser = user as SettingsSessionUser
   const appearance = await getWorkspaceThemeSettings(user.companyId)
 
   return NextResponse.json({ appearance }, { headers: NO_STORE_HEADERS })
 }
 
 export async function PATCH(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) {
+  const user = await requireSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest) {
       themeMode?: 'light' | 'dark'
     }
 
-    const appearance = await updateWorkspaceThemeSettings(session.user as SettingsSessionUser, body)
+    const appearance = await updateWorkspaceThemeSettings(user as SettingsSessionUser, body)
 
     return NextResponse.json({ appearance }, { headers: NO_STORE_HEADERS })
   } catch (error) {

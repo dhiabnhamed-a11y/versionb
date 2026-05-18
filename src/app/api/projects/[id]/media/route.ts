@@ -1,3 +1,4 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 
 import {
@@ -7,7 +8,6 @@ import {
   uploadAgencyMediaBuffer,
 } from '@/lib/cloudinary'
 import { isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { getProjectIfAllowed } from '@/lib/project-access'
 import { getProjectMediaSupport } from '@/lib/project-media-support'
@@ -16,7 +16,7 @@ import { NO_STORE_HEADERS } from '@/lib/http'
 
 type SessionUser = {
   id: string
-  role: string
+  role?: string | null
   companyId?: string | null
   companyType?: string | null
 }
@@ -57,10 +57,7 @@ async function getAllowedAgencyProject(projectId: string, user: SessionUser) {
 }
 
 export async function GET(_req: NextRequest, context: RouteContext<'/api/projects/[id]/media'>) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
   const { id } = await context.params
   const allowed = await getAllowedAgencyProject(id, user)
   if ('response' in allowed) return allowed.response
@@ -80,10 +77,7 @@ export async function GET(_req: NextRequest, context: RouteContext<'/api/project
 }
 
 export async function POST(req: NextRequest, context: RouteContext<'/api/projects/[id]/media'>) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
   const { id } = await context.params
   const allowed = await getAllowedAgencyProject(id, user)
   if ('response' in allowed) return allowed.response

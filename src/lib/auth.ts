@@ -14,6 +14,7 @@ import {
   isAuthorizedSuperAdminIdentity,
 } from '@/lib/security'
 import { logger } from '@/modules/shared/logger'
+import { assertLoginNotLocked } from '@/lib/security/brute-force'
 
 type AuthUserRecord = {
   id: string
@@ -147,6 +148,7 @@ function buildAuthSessionUser(user: AuthUserRecord): AuthSessionShape {
 }
 
 export async function validateCredentialsForLogin(email: string, password: string) {
+  await assertLoginNotLocked(email)
   const logContext = getSafeAuthLogContext(email)
   const user = await loadAuthUserByEmail(email)
   if (!user) {
@@ -270,7 +272,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
     signIn: '/login',
   },
-  session: { strategy: 'jwt' },
+  session: {
+    strategy: 'jwt',
+    maxAge: 60 * 60 * 8,
+    updateAge: 60 * 15,
+  },
+  cookies: {
+    sessionToken: {
+      name: process.env.NODE_ENV === 'production' ? '__Secure-authjs.session-token' : 'authjs.session-token',
+      options: {
+        httpOnly: true,
+        sameSite: 'lax',
+        path: '/',
+        secure: process.env.NODE_ENV === 'production',
+      },
+    },
+  },
   secret: getAuthSecret(),
 })
 

@@ -2,6 +2,8 @@ import type { Server as HttpServer } from 'http'
 import { Server as SocketIOServer, type Socket } from 'socket.io'
 import { getToken } from 'next-auth/jwt'
 import { getAuthSecret } from '@/lib/env'
+import { prisma } from '@/lib/db'
+import { canAuthenticateAuthState } from '@/lib/security'
 import { emitPresence } from '@/lib/realtime-server'
 import { assertRealtimeRedisReadyForProduction, attachRedisAdapter, getRealtimeRedis, isRealtimeRedisRequired } from '@/modules/realtime/adapters/redis'
 import { channelRoom, workspaceRoom } from '@/modules/realtime/events/contracts'
@@ -85,11 +87,33 @@ async function authenticateSocket(socket: Socket) {
 
   if (!token?.id) throw new Error('Unauthorized')
 
+  const liveUser = await prisma.user.findUnique({
+    where: { id: String(token.id) },
+    select: {
+      id: true,
+      name: true,
+      role: true,
+      accountStatus: true,
+      companyId: true,
+      company: { select: { status: true } },
+    },
+  })
+  if (!liveUser) throw new Error('Unauthorized')
+
+  const authState = {
+    id: liveUser.id,
+    role: liveUser.role,
+    accountStatus: liveUser.accountStatus,
+    companyStatus: liveUser.company?.status ?? null,
+    email: typeof token.email === 'string' ? token.email : null,
+  }
+  if (!canAuthenticateAuthState(authState)) throw new Error('Unauthorized')
+
   return {
-    id: String(token.id),
-    name: typeof token.name === 'string' ? token.name : null,
-    role: typeof token.role === 'string' ? token.role : null,
-    companyId: typeof token.companyId === 'string' ? token.companyId : null,
+    id: liveUser.id,
+    name: liveUser.name,
+    role: liveUser.role,
+    companyId: liveUser.companyId,
   } satisfies PresenceUser
 }
 

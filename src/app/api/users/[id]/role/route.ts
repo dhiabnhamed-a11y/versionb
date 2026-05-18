@@ -1,6 +1,6 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 
-import { auth } from '@/lib/auth'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import {
   changeWorkspaceUserRole,
@@ -9,17 +9,14 @@ import {
 } from '@/lib/settings'
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  const requester = await requireSessionUser()
 
   try {
     const { id } = await params
     const body = (await req.json().catch(() => ({}))) as { role?: string }
 
     const user = await changeWorkspaceUserRole({
-      requester: session.user as SettingsSessionUser,
+      requester: requester as SettingsSessionUser,
       targetUserId: id,
       nextRole: body.role ?? '',
     })

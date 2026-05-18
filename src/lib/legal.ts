@@ -205,7 +205,14 @@ export async function getActiveLegalVersions(client: LegalPrismaClient = prisma)
 }
 
 function getConsentSigningSecret() {
-  return process.env.LEGAL_CONSENT_SIGNING_SECRET || getAuthSecret('legal-consent') || 'taskit-development-legal-consent-secret'
+  const configured = process.env.LEGAL_CONSENT_SIGNING_SECRET?.trim()
+  if (configured) return configured
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('LEGAL_CONSENT_SIGNING_SECRET is required in production.')
+  }
+  const fallback = getAuthSecret('legal-consent')
+  if (fallback) return fallback
+  throw new Error('LEGAL_CONSENT_SIGNING_SECRET is not configured.')
 }
 
 export function buildConsentHash(input: {

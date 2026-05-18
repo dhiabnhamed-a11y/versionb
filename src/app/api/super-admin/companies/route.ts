@@ -1,38 +1,17 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 
-import { auth } from '@/lib/auth'
 import { listSuperAdminCompanies, reviewCompanyRegistration } from '@/lib/company-approvals'
 import { isAuthorizedSuperAdminIdentity } from '@/lib/security'
 
-type SessionUser = {
-  id?: string
-  email?: string | null
-  role?: string | null
-}
-
-type AuthorizedSuperAdminUser = {
-  id: string
-  email?: string | null
-  role?: string | null
-}
-
-function getSuperAdminUser(session: { user?: SessionUser | null } | null): AuthorizedSuperAdminUser | null {
-  const user = session?.user
-  if (!user?.id || !isAuthorizedSuperAdminIdentity(user)) {
-    return null
-  }
-
-  return {
-    id: user.id,
-    email: user.email,
-    role: user.role,
-  }
+function getSuperAdminUser(user: Awaited<ReturnType<typeof requireSessionUser>>) {
+  if (!user.id || !isAuthorizedSuperAdminIdentity(user)) return null
+  return user
 }
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  const user = getSuperAdminUser(session)
-  if (!user) {
+  const actor = getSuperAdminUser(await requireSessionUser())
+  if (!actor) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -51,9 +30,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const session = await auth()
-  const user = getSuperAdminUser(session)
-  if (!user) {
+  const actor = getSuperAdminUser(await requireSessionUser())
+  if (!actor) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -64,27 +42,20 @@ export async function PATCH(req: NextRequest) {
       note?: string
     }
 
-    const company = await reviewCompanyRegistration({
-      companyId: body.companyId ?? '',
-      reviewerId: user.id,
-      action: body.action ?? 'REJECT',
-      note: body.note,
-    })
-
-    return NextResponse.json({ company })
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Failed to update company status.'
-    const status =
-      message.includes('not found') || message.includes('not found.')
-        ? 404
-        : message.includes('Only') || message.includes('Invalid') || message.includes('required')
-          ? 400
-          : 500
-
-    if (status === 500) {
-      console.error(error)
+    if (!body.companyId || !body.action) {
+      return NextResponse.json({ error: 'companyId and action are required.' }, { status: 400 })
     }
 
-    return NextResponse.json({ error: message }, { status })
+    const result = await reviewCompanyRegistration({
+      companyId: body.companyId,
+      action: body.action,
+      note: body.note,
+      reviewerId: actor.id,
+    })
+
+    return NextResponse.json(result)
+  } catch (error) {
+    console.error(error)
+    return NextResponse.json({ error: 'Failed to review company registration.' }, { status: 500 })
   }
 }

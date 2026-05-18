@@ -1,6 +1,6 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 
-import { auth } from '@/lib/auth'
 import { listCompanyAccessRequests, reviewCompanyAccessRequest, submitDomainAccessRequest } from '@/lib/onboarding'
 import { InviteFlowError } from '@/lib/invites'
 
@@ -11,12 +11,12 @@ type SessionUser = {
 }
 
 export async function GET() {
-  const session = await auth()
-  if (!session?.user) {
+  const user = await requireSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const user = session.user as SessionUser
+  const typedUser = user as SessionUser
   if (!user.companyId) {
     return NextResponse.json([])
   }
@@ -60,12 +60,12 @@ export async function POST(req: NextRequest) {
 }
 
 export async function PATCH(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) {
+  const user = await requireSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const user = session.user as SessionUser
+  const typedUser = user as SessionUser
   if (!user.companyId || !user.id || user.role === 'EMPLOYEE') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

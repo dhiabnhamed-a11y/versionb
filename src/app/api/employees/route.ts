@@ -1,5 +1,5 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextResponse } from 'next/server'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { createCompanyInvite, getInviteTtlHours, InviteFlowError } from '@/lib/invites'
 
@@ -10,10 +10,10 @@ type SessionUser = {
 
 // GET employees for this company
 export async function GET() {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
+  if (user.role === 'EMPLOYEE') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
   if (!user.companyId) {
     return NextResponse.json([])
   }
@@ -46,14 +46,11 @@ export async function GET() {
 
 // POST add employee to company
 export async function POST(req: Request) {
-  const session = await auth()
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
   if (!user.companyId) {
     return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
   }
-  if (!('id' in session.user) || user.role === 'EMPLOYEE') {
+  if (!('id' in user) || user.role === 'EMPLOYEE') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -62,7 +59,7 @@ export async function POST(req: Request) {
 
     const invite = await createCompanyInvite({
       companyId: user.companyId,
-      companyAdminId: session.user.id,
+      companyAdminId: user.id,
       companyAdminRole: user.role ?? 'EMPLOYEE',
       email,
       role: role || 'EMPLOYEE',

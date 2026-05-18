@@ -1,16 +1,13 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 
-import { auth } from '@/lib/auth'
 import { getCameraForUser, toCameraDto } from '@/lib/camera-access'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as { id: string; role: string; companyId?: string | null }
+  const user = await requireSessionUser()
   const { id } = await params
   const result = await getCameraForUser(id, user)
 

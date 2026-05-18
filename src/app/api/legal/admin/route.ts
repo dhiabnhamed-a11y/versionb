@@ -1,6 +1,6 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 
-import { auth } from '@/lib/auth'
 import { listLegalAdminSnapshot, publishLegalDocumentVersion } from '@/lib/legal'
 import { isAuthorizedSuperAdminIdentity } from '@/lib/security'
 import { withApiError } from '@/modules/shared/api'
@@ -15,19 +15,16 @@ type SessionUser = {
   role?: string | null
 }
 
-function getSuperAdminUser(session: { user?: SessionUser | null } | null): SessionUser & { id: string } {
-  const user = session?.user
-  if (!user?.id || !isAuthorizedSuperAdminIdentity(user)) {
+function getSuperAdminUser(user: SessionUser & { id: string }) {
+  if (!user.id || !isAuthorizedSuperAdminIdentity(user)) {
     throw forbidden('Forbidden')
   }
-
-  return { ...user, id: user.id }
+  return user
 }
 
 export async function GET(req: NextRequest) {
   return withApiError(req, async () => {
-    const session = await auth()
-    getSuperAdminUser(session)
+    const user = getSuperAdminUser(await requireSessionUser())
 
     return NextResponse.json(await listLegalAdminSnapshot())
   })
@@ -35,8 +32,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   return withApiError(req, async () => {
-    const session = await auth()
-    const user = getSuperAdminUser(session)
+    const user = getSuperAdminUser(await requireSessionUser())
     const body = (await req.json().catch(() => ({}))) as {
       contentHash?: string
       documentType?: string

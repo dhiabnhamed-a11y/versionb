@@ -1,3 +1,4 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { createReadStream, createWriteStream } from 'fs'
 import { mkdir, rm, stat } from 'fs/promises'
 import { join } from 'path'
@@ -11,7 +12,6 @@ import {
   validateAgencyMediaFile,
 } from '@/lib/cloudinary'
 import { isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { getProjectIfAllowed } from '@/lib/project-access'
 import { getProjectMediaSupport } from '@/lib/project-media-support'
@@ -19,7 +19,7 @@ import { emitCompanyRealtime } from '@/lib/realtime-server'
 
 type SessionUser = {
   id: string
-  role: string
+  role?: string | null
   companyId?: string | null
   companyType?: string | null
 }
@@ -109,10 +109,7 @@ async function assembleChunks(dir: string, totalChunks: number, target: string) 
 }
 
 export async function POST(req: NextRequest, context: RouteContext<'/api/projects/[id]/media/chunk'>) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
   const { id } = await context.params
   const allowed = await getAllowedAgencyProject(id, user)
   if ('response' in allowed) return allowed.response

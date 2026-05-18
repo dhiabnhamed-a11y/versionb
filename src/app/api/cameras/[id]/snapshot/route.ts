@@ -1,6 +1,6 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 
-import { auth } from '@/lib/auth'
 import { decryptCameraSecret } from '@/lib/camera-crypto'
 import { getCameraForUser } from '@/lib/camera-access'
 import { buildRtspUrl, captureCameraSnapshot } from '@/lib/camera-stream-manager'
@@ -10,10 +10,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function POST(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as { id: string; role: string; companyId?: string | null }
+  const user = await requireSessionUser()
   const { id } = await params
   const result = await getCameraForUser(id, user)
   if (!result) return NextResponse.json({ error: 'Camera not found.' }, { status: 404 })

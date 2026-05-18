@@ -1,6 +1,6 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 
-import { auth } from '@/lib/auth'
 import { encryptCameraSecret } from '@/lib/camera-crypto'
 import { canManageProjectCamera, getProjectCameraForUser, toCameraDto } from '@/lib/camera-access'
 import { normalizeCameraInput } from '@/lib/camera-validation'
@@ -11,10 +11,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as { id: string; role: string; companyId?: string | null }
+  const user = await requireSessionUser()
   const projectId = req.nextUrl.searchParams.get('projectId')
 
   if (!projectId) {
@@ -28,10 +25,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as { id: string; role: string; companyId?: string | null }
+  const user = await requireSessionUser()
   if (!canManageProjectCamera(user)) {
     return NextResponse.json({ error: 'Only owners and managers can configure project cameras.' }, { status: 403 })
   }

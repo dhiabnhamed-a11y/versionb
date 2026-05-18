@@ -1,6 +1,6 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 import { Prisma } from '@prisma/client'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 
 type SessionUser = {
@@ -24,10 +24,7 @@ const DELIVERABLE_STATUSES = new Set(['INTERNAL_REVIEW', 'CLIENT_REVIEW', 'APPRO
 const APPROVAL_STATES = new Set(['PENDING', 'CHANGES_REQUESTED', 'APPROVED'])
 
 export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
   if (!user.companyId) return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
 
   const { id } = await ctx.params
@@ -57,10 +54,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ id: string
 }
 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
   if (!user.companyId) return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
   if (user.role === 'EMPLOYEE') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 

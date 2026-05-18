@@ -1,16 +1,18 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 import { randomUUID } from 'crypto'
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { getProjectIfAllowed } from '@/lib/project-access'
 import { getProjectCameraSupport } from '@/lib/project-camera-support'
 import { getSupabaseAdmin, PROJECT_CAMERA_BUCKET } from '@/lib/supabase-admin'
+import { API_RATE_LIMITS } from '@/lib/api-defaults'
+import { enforceDistributedRateLimit } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  const rate = await enforceDistributedRateLimit(req, API_RATE_LIMITS.upload)
+  if (!rate.allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
 
-  const user = session.user as { id: string; role: string; companyId?: string | null }
+  const user = await requireSessionUser()
 
   let form: FormData
   try {
@@ -45,9 +47,13 @@ export async function POST(req: NextRequest) {
     )
   }
 
+  const maxBytes = type === 'image' ? 12 * 1024 * 1024 : 80 * 1024 * 1024
   const buffer = Buffer.from(await file.arrayBuffer())
   if (buffer.length === 0) {
     return NextResponse.json({ error: 'Empty file' }, { status: 400 })
+  }
+  if (buffer.length > maxBytes) {
+    return NextResponse.json({ error: 'File exceeds allowed size' }, { status: 413 })
   }
 
   const ext = type === 'image' ? 'jpg' : 'webm'

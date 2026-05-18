@@ -1,6 +1,6 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 
-import { auth } from '@/lib/auth'
 import {
   getDashboardDesignImageUrl,
   uploadDashboardDesignImageBuffer,
@@ -10,13 +10,13 @@ import { NO_STORE_HEADERS } from '@/lib/http'
 import { SettingsAccessError, type SettingsSessionUser } from '@/lib/settings'
 
 export async function POST(req: NextRequest) {
-  const session = await auth()
-  if (!session?.user) {
+  const user = await requireSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   try {
-    const user = session.user as SettingsSessionUser
+    const typedUser = user as SettingsSessionUser
     if (!user.id) throw new SettingsAccessError('Unauthorized', 401)
 
     const formData = await req.formData()

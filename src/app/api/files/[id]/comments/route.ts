@@ -1,16 +1,13 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 
-import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import { COMMENT_TIME_TOLERANCE_SECONDS, commentSelect, getAllowedCommentFile } from '@/lib/media-comments'
 import type { SessionUser } from '@/lib/project-access'
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const session = await auth()
-  if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-
-  const user = session.user as SessionUser
+  const user = await requireSessionUser()
   const { id } = await params
   const file = await getAllowedCommentFile(id, user)
   if (!file) return NextResponse.json({ error: 'File not found.' }, { status: 404 })

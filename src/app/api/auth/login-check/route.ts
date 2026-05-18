@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { validateCredentialsForLogin } from '@/lib/auth'
 import { getDatabaseConfigHint } from '@/lib/db'
+import { assertLoginNotLocked, enforceAuthRateLimit } from '@/lib/security/brute-force'
 import { withApiError } from '@/modules/shared/api'
 import { logger } from '@/modules/shared/logger'
 
@@ -24,6 +25,17 @@ export async function POST(req: NextRequest) {
       if (!email || !password) {
         return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 })
       }
+
+      if (process.env.NODE_ENV === 'production' && process.env.ALLOW_LOGIN_CHECK !== 'true') {
+        return NextResponse.json({ error: 'Not found' }, { status: 404 })
+      }
+
+      const authRate = await enforceAuthRateLimit(req, 'auth.login_check')
+      if (!authRate.allowed) {
+        return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+      }
+
+      await assertLoginNotLocked(email)
 
       try {
         const result = await validateCredentialsForLogin(email, password)

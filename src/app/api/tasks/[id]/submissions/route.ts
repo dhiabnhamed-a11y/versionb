@@ -1,7 +1,7 @@
+import { requireSessionUser } from '@/modules/shared/session'
 import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 
-import { auth } from '@/lib/auth'
 import {
   AGENCY_MEDIA_LIMITS,
   getCloudinaryDeliveryUrls,
@@ -17,7 +17,7 @@ import { getSupabaseAdmin, TASK_DELIVERABLE_BUCKET } from '@/lib/supabase-admin'
 
 type SessionUser = {
   id: string
-  role: string
+  role?: string | null
   companyId?: string | null
   companyType?: string | null
 }
@@ -48,12 +48,12 @@ async function getTaskForSubmission(taskId: string, user: SessionUser) {
 }
 
 export async function GET(_req: NextRequest, context: RouteContext<'/api/tasks/[id]/submissions'>) {
-  const session = await auth()
-  if (!session?.user) {
+  const user = await requireSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const user = session.user as SessionUser
+  const typedUser = user as SessionUser
   const { id } = await context.params
   const task = await getTaskForSubmission(id, user)
 
@@ -96,12 +96,12 @@ export async function GET(_req: NextRequest, context: RouteContext<'/api/tasks/[
 }
 
 export async function POST(req: NextRequest, context: RouteContext<'/api/tasks/[id]/submissions'>) {
-  const session = await auth()
-  if (!session?.user) {
+  const user = await requireSessionUser()
+  if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const user = session.user as SessionUser
+  const typedUser = user as SessionUser
   const { id } = await context.params
   const task = await getTaskForSubmission(id, user)
 
