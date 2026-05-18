@@ -1597,4 +1597,114 @@
   .footerMeta {
     align-items: center;
   }
+
+  .statsBar {
+    grid-template-columns: repeat(2, 1fr);
+    padding: 0 24px 40px;
+  }
+
+  .enterpriseBand {
+    padding: 48px 24px;
+  }
+
+  .enterpriseInner {
+    grid-template-columns: 1fr;
+  }
+
+  .enterpriseBadges {
+    grid-template-columns: 1fr;
+  }
+}
+
+.statsBar {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0 auto;
+  max-width: 1100px;
+  padding: 0 40px 48px;
+  border: 1px solid var(--landing-border);
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--landing-card);
+}
+
+.statItem {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 28px 16px;
+  text-align: center;
+  background: var(--landing-bg-2);
+}
+
+.statItem strong {
+  font-family: var(--landing-display);
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--landing-cyan);
+}
+
+.statItem span {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--landing-muted);
+}
+
+.enterpriseBand {
+  padding: 72px 40px;
+  border-top: 1px solid var(--landing-border);
+  border-bottom: 1px solid var(--landing-border);
+  background: linear-gradient(180deg, rgba(74, 143, 255, 0.06), transparent);
+}
+
+.enterpriseInner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: center;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.enterpriseTitle {
+  margin: 12px 0 16px;
+  font-family: var(--landing-display);
+  font-size: 36px;
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.enterpriseCopy {
+  max-width: 480px;
+  color: var(--landing-muted);
+  font-size: 16px;
+}
+
+.enterpriseBadges {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.enterpriseBadge {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 18px;
+  border: 1px solid var(--landing-border);
+  border-radius: 12px;
+  background: var(--landing-card);
+  color: var(--landing-text);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.enterpriseBadge svg {
+  color: var(--landing-cyan);
+  flex-shrink: 0;
 }

@@ -33,3 +33,11 @@ export const prisma =
   })
 
 if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+
+export async function disconnectDatabase() {
+  await prisma.$disconnect()
+}
+
+export async function pingDatabase() {
+  await prisma.$queryRaw`SELECT 1`
+}

@@ -22,6 +22,7 @@ function securityHeaders(req: NextRequest) {
 
   const headers: Record<string, string> = {
     'Content-Security-Policy': csp,
+    'X-DNS-Prefetch-Control': 'on',
     'Cross-Origin-Opener-Policy': 'same-origin',
     'Origin-Agent-Cluster': '?1',
     'Permissions-Policy': 'camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), browsing-topics=()',

@@ -4,9 +4,15 @@ import ClientAnalyticsGuard from '@/components/analytics/ClientAnalyticsGuard.cl
 import './globals.css'
 
 export const metadata: Metadata = {
-  title: 'TASKIT OS | Agency Operations Platform',
+  title: 'TASKIT OS | Enterprise Operations Platform',
   description:
-    'A premium agency operations platform for clients, projects, billing, approvals, automations, analytics, AI assistance, and client portals.',
+    'Enterprise-grade operations platform for agencies and teams — clients, projects, finance, AI, realtime alerts, and multi-tenant workspaces at scale.',
+  metadataBase: process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL) : undefined,
+  openGraph: {
+    title: 'TASKIT OS',
+    description: 'The operating system for modern agencies and operations teams.',
+    type: 'website',
+  },
   manifest: '/manifest.json',
   icons: {
     icon: [

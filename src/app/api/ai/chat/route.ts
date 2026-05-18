@@ -8,7 +8,9 @@ import {
   handleAiConversationStateTurn,
   syncConversationStateFromGrounded,
 } from '@/lib/ai-conversation-state'
+import { API_RATE_LIMITS } from '@/lib/api-defaults'
 import { NO_STORE_HEADERS } from '@/lib/http'
+import { enforceDistributedRateLimit } from '@/lib/rate-limit'
 import { normalizeAppLocale } from '@/lib/i18n'
 
 type SessionUser = {
@@ -44,7 +46,7 @@ function cleanMessages(messages: unknown): AiMessageInput[] {
       return { role, content }
     })
     .filter((message): message is AiMessageInput => Boolean(message))
-    .slice(-12)
+    .slice(-20)
 }
 
 function cleanConversationId(value: unknown) {
@@ -56,6 +58,11 @@ function cleanConfirmationToken(value: unknown) {
 }
 
 export async function POST(req: NextRequest) {
+  const rateLimit = await enforceDistributedRateLimit(req, API_RATE_LIMITS.ai)
+  if (!rateLimit.allowed) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: NO_STORE_HEADERS })
+  }
+
   const session = await auth()
   if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -101,7 +108,7 @@ export async function POST(req: NextRequest) {
         confirmationToken,
         conversationId: durableConversationId ?? conversationId,
       })
-  const keepDeterministic = Boolean(grounded.ambiguity || grounded.facts.actionPreview || grounded.facts.executionReceipt)
+  const keepDeterministic = Boolean(grounded.ambiguity || grounded.facts.actionPreview)
   const polished = keepDeterministic
     ? {
         answer: grounded.answer,

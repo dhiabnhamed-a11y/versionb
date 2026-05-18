@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { NO_STORE_HEADERS } from '@/lib/http'
+import { DEFAULT_API_TIMEOUT_MS, withTimeout } from '@/lib/request-timeout'
 import { enforceDistributedRateLimit } from '@/lib/rate-limit'
 import { recordSecurityAudit } from '@/modules/security/audit'
 import { logger } from '@/modules/shared/logger'
@@ -15,6 +16,7 @@ export type ApiRequestContext = {
 type WithApiErrorOptions = {
   route?: string
   rateLimit?: RateLimitOptions
+  timeoutMs?: number
 }
 
 export function okJson<T>(body: T, init?: ResponseInit) {
@@ -122,9 +124,15 @@ export async function withApiError(
   }
 
   try {
-    const response = await handler({ requestId })
+    const response = await withTimeout(handler({ requestId }), options.timeoutMs ?? DEFAULT_API_TIMEOUT_MS)
     return applyResponseHeaders(response, extraHeaders)
   } catch (error) {
+    if (error instanceof Error && error.message === 'REQUEST_TIMEOUT') {
+      return NextResponse.json(
+        { error: 'Request timed out', code: 'TIMEOUT', requestId },
+        { status: 504, headers: { ...NO_STORE_HEADERS, ...extraHeaders } }
+      )
+    }
     const normalized = normalizeError(error)
     if (normalized.status >= 500) {
       logger.error('api.unhandled_error', error, { code: normalized.code, requestId, route })

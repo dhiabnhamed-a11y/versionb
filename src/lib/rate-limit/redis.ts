@@ -6,7 +6,15 @@ let redis: Redis | null | undefined
 function getRedis() {
   if (redis !== undefined) return redis
   const url = process.env.REDIS_URL
-  redis = url ? new Redis(url, { enableOfflineQueue: false, maxRetriesPerRequest: 1 }) : null
+  redis = url
+    ? new Redis(url, {
+        enableOfflineQueue: false,
+        maxRetriesPerRequest: 1,
+        connectTimeout: 5_000,
+        commandTimeout: 3_000,
+        lazyConnect: true,
+      })
+    : null
   return redis
 }
 

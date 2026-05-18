@@ -162,20 +162,23 @@ type WorkflowContext = {
 
 const starterPrompts = [
   'What should management focus on today?',
+  'Give me a deep operational audit of the workspace',
   'What is blocking the launch?',
-  'Analyze delayed projects',
-  'Find overdue invoices',
-  'Analyze team workload',
-  'What do you remember about our risks?',
+  'Analyze delayed projects and root causes',
+  'Find overdue invoices and cash risk',
+  'Analyze team workload and rebalance plan',
+  'Summarize pending approvals and bottlenecks',
+  'Which clients need follow-up?',
   'Create client',
   'Create campaign',
   'Create brief',
   'Create invoice',
+  'Create task for overdue project',
   'Mark invoice paid',
   'Delete record',
   'Send payment deadline alerts',
-  'Summarize pending approvals',
-  'Which clients need follow-up?',
+  'Generate executive summary',
+  'Detect operational risks',
 ]
 
 const quickActionLabels: Record<AppLocale, Record<string, string>> = {
@@ -472,37 +475,31 @@ const workflowDefinitions: Record<AppLocale, Record<WorkflowKind, WorkflowDefini
 }
 
 const workflowCreateWords = [
-  'create',
-  'make',
-  'add',
-  'draft',
-  'generate',
-  'start',
-  'creer',
-  'créer',
-  'ajouter',
-  'generer',
-  'générer',
-  'انشاء',
-  'إنشاء',
-  'انشئ',
-  'أنشئ',
-  'اضافة',
-  'إضافة',
+  'create', 'make', 'add', 'draft', 'generate', 'start', 'new', 'setup', 'open', 'build',
+  'creer', 'créer', 'ajouter', 'generer', 'générer', 'demarrer', 'démarrer',
+  'انشاء', 'إنشاء', 'انشئ', 'أنشئ', 'اضافة', 'إضافة', 'اصنع', 'ابدأ',
 ]
 
 const workflowKindWords: Record<WorkflowKind, string[]> = {
   invoice: ['invoice', 'bill', 'facture', 'فاتورة', 'فواتير'],
-  brief: ['brief', 'بريف', 'ملخص'],
-  client: ['client', 'customer', 'account', 'عميل', 'عملاء', 'زبون'],
-  campaign: ['campaign', 'project', 'campagne', 'projet', 'حملة', 'مشروع'],
+  brief: ['brief', 'briefs', 'بريف', 'ملخص'],
+  client: ['client', 'customer', 'account', 'compte', 'عميل', 'عملاء', 'زبون'],
+  campaign: ['campaign', 'campagne', 'حملة', 'حملات'],
 }
+
+const deepAnalysisWords = [
+  'analyze', 'audit', 'deep', 'think', 'strategy', 'root cause', 'why', 'breakdown', 'overthink',
+  'analyser', 'analyse', 'audit', 'strategie', 'pourquoi', 'تحليل', 'تدقيق', 'عميق', 'لماذا',
+]
 
 const knownSectionHeadings = new Set([
   'Direct Answer',
+  'Operational Reasoning',
   'Key Insights',
   'Risks',
+  'Workflow Path',
   'Recommendations',
+  'Execution Checklist',
   'Suggested Next Actions',
   'Priority Follow-Ups',
   'Client Profile',
@@ -513,8 +510,11 @@ const knownSectionHeadings = new Set([
   'What I can do from live workspace records',
   'Useful prompts',
   'Réponse directe',
+  'Raisonnement opérationnel',
   'Points clés',
   'Risques',
+  'Parcours workflow',
+  'Checklist d’exécution',
   'Recommandations',
   'Actions suggérées',
   'Suivis prioritaires',
@@ -524,8 +524,11 @@ const knownSectionHeadings = new Set([
   'Champs requis',
   'Prochaine étape',
   'الجواب المباشر',
+  'التعليل التشغيلي',
   'أهم المؤشرات',
   'المخاطر',
+  'مسار العمل',
+  'قائمة التنفيذ',
   'التوصيات',
   'الإجراءات المقترحة',
   'المتابعات ذات الأولوية',
@@ -548,14 +551,12 @@ function quickActionLabel(prompt: string, locale: AppLocale) {
 
 function welcomeMessage(locale: AppLocale) {
   if (locale === 'fr') {
-    return 'Je suis TASKIT Brain : une intelligence opérationnelle avec accès contrôlé aux risques, lancements, charge, approbations, clients, factures, mémoire et créations guidées. Je réponds uniquement depuis les données autorisées par votre rôle.'
+    return '**TASKIT Brain** — copilote opérationnel senior.\n\nJe réfléchis en profondeur avant de répondre : audit, risques, finances, charge, approbations, clients, mémoire, et **tous les workflows** (créer client/campagne/brief/facture, tâches, marquer payé, supprimer, alertes).\n\nPosez une question ou lancez une action — réponses détaillées avec raisonnement, checklist et prochaines étapes.'
   }
-
   if (locale === 'ar') {
-    return 'أنا TASKIT Brain: ذكاء تشغيلي بصلاحيات محددة للمخاطر، الإطلاقات، عبء العمل، الموافقات، العملاء، الفواتير، الذاكرة والإنشاء الموجه. أجيب فقط من السجلات التي يسمح بها دورك.'
+    return '**TASKIT Brain** — مساعد تشغيلي متقدم.\n\nأفكر بعمق قبل الإجابة: تدقيق، مخاطر، مالية، عبء عمل، موافقات، عملاء، ذاكرة، و**كل مسارات العمل** (إنشاء عميل/حملة/بريف/فاتورة، مهام، تحديد مدفوع، حذف، تنبيهات).\n\nاطرح سؤالاً أو نفّذ إجراءً — إجابات مفصلة مع تعليل وخطوات تنفيذ.'
   }
-
-  return 'I am TASKIT Brain: scoped operating intelligence for risks, launches, workload, approvals, clients, invoices, memory, and guided workflow creation. I only answer from records your role can access.'
+  return '**TASKIT Brain** — senior operations copilot.\n\nI overthink before I answer: audits, risks, finance, workload, approvals, clients, memory, and **all workflows** (create client/campaign/brief/invoice, tasks, mark paid, delete, alerts).\n\nAsk anything or run an action — detailed answers with reasoning, checklists, and next steps.'
 }
 
 function normalizeCommand(value: string) {
@@ -1009,6 +1010,12 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
     async (prompt: string) => {
       const message = prompt.trim()
       if (!message || loading || disabled) return
+
+      const normalized = normalizeCommand(message)
+      if (hasAny(normalized, deepAnalysisWords) || hasAny(normalized, ['mark', 'paid', 'delete', 'remove', 'alert', 'notify', 'task', 'assign'])) {
+        await sendChatPrompt(message)
+        return
+      }
 
       const workflowKind = detectWorkflowKind(message)
       if (workflowKind) {

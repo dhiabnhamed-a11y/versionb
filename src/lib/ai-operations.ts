@@ -1041,6 +1041,15 @@ function buildExecutiveAnswer(input: {
     'Direct Answer',
     directAnswer,
     '',
+    'Operational Reasoning',
+    `- Delivery pressure comes from ${input.taskSummary.open} open tasks with ${input.taskSummary.overdue.length} overdue and ${input.approvalQueue.length} items waiting on approval.`,
+    signals.atRiskProjects[0]
+      ? `- ${signals.atRiskProjects[0].project.title} is the highest-signal project risk because blockers compound across tasks and approvals.`
+      : '- No single project is dominating risk signals; systemic risk is distributed across deadlines and approvals.',
+    input.financeVisible && input.finance.overdueTotal > 0
+      ? `- Cash exposure is tied to overdue invoice value (${formatMoney(input.finance.overdueTotal, input.finance.primaryCurrency)}), which can delay reinvestment even when production looks busy.`
+      : '',
+    '',
     'Key Insights',
     `- Open tasks: ${input.taskSummary.open}`,
     `- Overdue tasks: ${input.taskSummary.overdue.length}`,
@@ -1075,6 +1084,15 @@ function buildExecutiveAnswer(input: {
     input.financeVisible
       ? '- Use overdue invoice value as the cash-risk floor; true margin impact is unavailable without cost/time tracking.'
       : '- Ask an Owner or Manager for finance visibility if cash-flow decisions are required.',
+    '',
+    'Workflow Path',
+    '- Use analysis prompts for audits; use guided creation for client/campaign/brief/invoice; use direct commands for mark paid, delete, alerts, and task updates.',
+  '',
+    'Execution Checklist',
+    '1. Clear overdue approvals blocking delivery.',
+    '2. Reassign overloaded owners on the top at-risk project.',
+    signals.overloaded.length ? '3. Rebalance tasks for overloaded team members before adding new scope.' : '3. Validate capacity before accepting new client work.',
+    input.financeVisible && input.finance.overdueTotal > 0 ? '4. Chase overdue invoices tied to active delivery.' : '4. Confirm finance visibility if cash decisions are needed.',
     '',
     'Suggested Next Actions',
     ...(signals.nextActions.length ? compactList(signals.nextActions, 6).map((action) => `- ${action}`) : ['- No immediate corrective action is required from the current scoped records.']),

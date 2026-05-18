@@ -102,6 +102,20 @@ const tasks = [
 
 const logos = ['inspire', 'vertex', 'brightly', 'horizon', 'nova', 'stack', 'craftwork']
 
+const platformStats = [
+  { value: '1K+', label: 'Concurrent users' },
+  { value: '99.9%', label: 'Uptime SLA' },
+  { value: '<120ms', label: 'API p95' },
+  { value: 'SOC2', label: 'Security ready' },
+]
+
+const enterpriseBadges = [
+  { label: 'Role-based access', icon: ShieldCheck },
+  { label: 'Audit trails', icon: FileText },
+  { label: 'Multi-tenant isolation', icon: Building2 },
+  { label: 'Realtime ops', icon: Zap },
+]
+
 const features: Feature[] = [
   { title: 'Client & CRM', description: 'Manage relationships, track deals, and grow client lifetime value.', icon: UserRound },
   { title: 'Campaign OS', description: 'Plan, execute, and monitor campaigns with complete visibility.', icon: Monitor },
@@ -350,6 +364,15 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
         <DashboardMockup />
       </section>
 
+      <section className={styles.statsBar} aria-label="Platform scale">
+        {platformStats.map((stat) => (
+          <div key={stat.label} className={styles.statItem}>
+            <strong>{stat.value}</strong>
+            <span>{stat.label}</span>
+          </div>
+        ))}
+      </section>
+
       <section className={styles.logosStrip} aria-label="Trusted agencies">
         <p>Trusted by leading agencies</p>
         <div className={styles.logosRow}>
@@ -535,6 +558,29 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
         </div>
       </section>
 
+      <section className={styles.enterpriseBand} id="enterprise">
+        <div className={styles.enterpriseInner}>
+          <div>
+            <div className={styles.sectionEyebrow}>Enterprise grade</div>
+            <h2 className={styles.enterpriseTitle}>Built for serious SaaS scale</h2>
+            <p className={styles.enterpriseCopy}>
+              Distributed rate limits, Redis-backed realtime, job queues, health probes, and tenant isolation — ready for teams operating at volume.
+            </p>
+          </div>
+          <div className={styles.enterpriseBadges}>
+            {enterpriseBadges.map((badge) => {
+              const Icon = badge.icon
+              return (
+                <div key={badge.label} className={styles.enterpriseBadge}>
+                  <Icon size={18} aria-hidden="true" />
+                  <span>{badge.label}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      </section>
+
       <section className={styles.ctaBand} id="cta">
         <h2>
           Ready to run your agency
@@ -564,8 +610,8 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
           <a href="#features">About</a>
           <a href="#ai-assistant">Blog</a>
           <a href="#cta">Careers</a>
-          <a href="#cta">Privacy</a>
-          <a href="#cta">Terms</a>
+          <Link href="/privacy">Privacy</Link>
+          <Link href="/terms">Terms</Link>
         </div>
         <div className={styles.footerMeta}>
           <p>developped by Hamed Dhieb</p>
