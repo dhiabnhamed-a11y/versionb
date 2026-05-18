@@ -190,7 +190,7 @@ export async function createSocketServer(httpServer: HttpServer) {
       void refreshSocketHeartbeat(socket.id).catch((error) =>
         logger.warn('realtime.heartbeat_failed', { socketId: socket.id, error: error instanceof Error ? error.message : String(error) })
       )
-    }, Math.max(Number(process.env.REALTIME_HEARTBEAT_REFRESH_MS ?? 15_000), 5_000))
+    }, Math.max(Number(process.env.REALTIME_HEARTBEAT_REFRESH_MS ?? 30_000), 10_000))
 
     socket.on('join', async (userId: string) => {
       if (userId === user.id && (await checkSocketRateLimit(socket, 'join:user', 20, 10_000))) {

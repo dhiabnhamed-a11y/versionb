@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { cleanPortalText } from '@/lib/client-portal'
 import { NO_STORE_HEADERS } from '@/lib/http'
+import { API_RATE_LIMITS } from '@/lib/api-defaults'
 import { enforceDistributedRateLimit } from '@/lib/rate-limit'
 
 type PortalClientRow = {
@@ -131,6 +132,9 @@ export async function GET(req: NextRequest, context: { params: Promise<{ token: 
 }
 
 export async function POST(req: NextRequest, context: { params: Promise<{ token: string }> }) {
+  const rate = await enforceDistributedRateLimit(req, API_RATE_LIMITS.portal)
+  if (!rate.allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: NO_STORE_HEADERS })
+
   const { token } = await context.params
   const client = await getPortalClient(token)
   if (!client) return NextResponse.json({ error: 'Portal not found.' }, { status: 404 })

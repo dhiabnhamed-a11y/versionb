@@ -1,17 +1,12 @@
-import Redis from 'ioredis'
+import { getSharedRedis } from '@/lib/infra/redis-shared'
 
 type CacheEntry<T> = { value: T; expiresAt: number }
 
 const memory = new Map<string, CacheEntry<unknown>>()
-const MAX_MEMORY_ENTRIES = 500
-
-let redis: Redis | null | undefined
+const MAX_MEMORY_ENTRIES = 2_000
 
 function getRedis() {
-  if (redis !== undefined) return redis
-  const url = process.env.REDIS_URL || process.env.REALTIME_REDIS_URL
-  redis = url ? new Redis(url, { enableOfflineQueue: false, maxRetriesPerRequest: 1, lazyConnect: true }) : null
-  return redis
+  return getSharedRedis()
 }
 
 function pruneMemory() {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import { DEFAULT_API_TIMEOUT_MS, withTimeout } from '@/lib/request-timeout'
+import { assertSafeApiOrigin, defaultRateLimitForRequest } from '@/lib/security/request-guard'
 import { enforceDistributedRateLimit } from '@/lib/rate-limit'
 import { recordSecurityAudit } from '@/modules/security/audit'
 import { logger } from '@/modules/shared/logger'
@@ -92,18 +93,20 @@ export async function withApiError(
   const route = options.route || (req ? new URL(req.url).pathname : undefined)
   let extraHeaders: HeadersInit = { [REQUEST_ID_HEADER]: requestId }
 
-  if (req && options.rateLimit) {
-    const rateLimit = await enforceDistributedRateLimit(req, options.rateLimit)
+  if (req) {
+    assertSafeApiOrigin(req)
+    const rateLimitPolicy = options.rateLimit ?? defaultRateLimitForRequest(req)
+    const rateLimit = await enforceDistributedRateLimit(req, rateLimitPolicy)
     extraHeaders = { ...extraHeaders, ...rateLimitHeaders(rateLimit) }
 
     if (!rateLimit.allowed) {
-      logger.warn('api.rate_limited', { requestId, route, namespace: options.rateLimit.namespace })
+      logger.warn('api.rate_limited', { requestId, route, namespace: rateLimitPolicy.namespace })
       await recordSecurityAudit({
         action: 'api.rate_limited',
         entityId: route,
         entityType: 'api_route',
         ipAddress: getClientIp(req),
-        metadata: { namespace: options.rateLimit.namespace },
+        metadata: { namespace: rateLimitPolicy.namespace },
         requestId,
         userAgent: req.headers.get('user-agent'),
       })

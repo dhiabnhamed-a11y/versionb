@@ -1,7 +1,12 @@
 import { requireSessionUser } from '@/modules/shared/session'
+import { requireMinimumRole } from '@/modules/security/access-control'
 import { NextResponse } from 'next/server'
+import { cached } from '@/lib/cache'
+import { API_RATE_LIMITS } from '@/lib/api-defaults'
+import { INFRA } from '@/lib/infra/config'
 import { prisma } from '@/lib/db'
 import { NO_STORE_HEADERS } from '@/lib/http'
+import { enforceDistributedRateLimit } from '@/lib/rate-limit'
 
 type SessionUser = {
   companyId?: string | null
@@ -22,8 +27,14 @@ function percentChange(current: number, previous: number) {
   return Math.round(((current - previous) / previous) * 100)
 }
 
-export async function GET() {
+export async function GET(req: Request) {
+  const rate = await enforceDistributedRateLimit(req, API_RATE_LIMITS.read)
+  if (!rate.allowed) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: NO_STORE_HEADERS })
+  }
+
   const user = await requireSessionUser()
+  requireMinimumRole(user, 'MANAGER')
   if (!user.companyId) {
     return NextResponse.json(
       {
@@ -55,6 +66,8 @@ export async function GET() {
   }
 
   try {
+    const companyId = user.companyId
+    const payload = await cached(`analytics:${companyId}`, INFRA.analyticsCacheTtlSec, async () => {
     const now = new Date()
     const thisWeekStart = addDays(startOfDay(now), -6)
     const lastWeekStart = addDays(thisWeekStart, -7)
@@ -62,7 +75,7 @@ export async function GET() {
     const rangeDays = Array.from({ length: 7 }, (_, index) => addDays(thisWeekStart, index))
 
     const company = await prisma.company.findUnique({
-      where: { id: user.companyId },
+      where: { id: companyId },
       select: {
         companyType: true,
       },
@@ -92,39 +105,39 @@ export async function GET() {
       completedLastWeek,
     ] =
       await Promise.all([
-        prisma.task.count({ where: { project: { companyId: user.companyId } } }),
-        prisma.task.count({ where: { stage: 'DONE', project: { companyId: user.companyId } } }),
-        prisma.task.count({ where: { stage: 'IN_PROGRESS', project: { companyId: user.companyId } } }),
-        prisma.task.count({ where: { stage: 'REVIEW', project: { companyId: user.companyId } } }),
-        prisma.task.count({ where: { stage: 'TODO', project: { companyId: user.companyId } } }),
+        prisma.task.count({ where: { project: { companyId } } }),
+        prisma.task.count({ where: { stage: 'DONE', project: { companyId } } }),
+        prisma.task.count({ where: { stage: 'IN_PROGRESS', project: { companyId } } }),
+        prisma.task.count({ where: { stage: 'REVIEW', project: { companyId } } }),
+        prisma.task.count({ where: { stage: 'TODO', project: { companyId } } }),
         prisma.task.count({
           where: {
             stage: { not: 'DONE' },
             deadline: { lt: new Date() },
-            project: { companyId: user.companyId },
+            project: { companyId },
           },
         }),
-        prisma.user.count({ where: { companyId: user.companyId, role: 'EMPLOYEE' } }),
-        prisma.user.count({ where: { companyId: user.companyId } }),
+        prisma.user.count({ where: { companyId, role: 'EMPLOYEE' } }),
+        prisma.user.count({ where: { companyId } }),
         prisma.user.count({
           where: {
-            companyId: user.companyId,
+            companyId,
             activities: { some: { createdAt: { gte: thisWeekStart } } },
           },
         }),
-        prisma.project.count({ where: { companyId: user.companyId } }),
-        prisma.room.count({ where: { companyId: user.companyId } }),
-        prisma.taskSubmission.count({ where: { task: { project: { companyId: user.companyId } } } }),
-        prisma.user.count({ where: { companyId: user.companyId, createdAt: { gte: thisWeekStart } } }),
+        prisma.project.count({ where: { companyId } }),
+        prisma.room.count({ where: { companyId } }),
+        prisma.taskSubmission.count({ where: { task: { project: { companyId } } } }),
+        prisma.user.count({ where: { companyId, createdAt: { gte: thisWeekStart } } }),
         prisma.user.count({
           where: {
-            companyId: user.companyId,
+            companyId,
             createdAt: { gte: lastWeekStart, lt: lastWeekEnd },
           },
         }),
         prisma.user.count({
           where: {
-            companyId: user.companyId,
+            companyId,
             activities: {
               some: {
                 createdAt: { gte: lastWeekStart, lt: lastWeekEnd },
@@ -132,19 +145,19 @@ export async function GET() {
             },
           },
         }),
-        prisma.project.count({ where: { companyId: user.companyId, createdAt: { gte: thisWeekStart } } }),
+        prisma.project.count({ where: { companyId, createdAt: { gte: thisWeekStart } } }),
         prisma.project.count({
-          where: { companyId: user.companyId, createdAt: { gte: lastWeekStart, lt: lastWeekEnd } },
+          where: { companyId, createdAt: { gte: lastWeekStart, lt: lastWeekEnd } },
         }),
-        prisma.task.count({ where: { project: { companyId: user.companyId }, createdAt: { gte: thisWeekStart } } }),
+        prisma.task.count({ where: { project: { companyId }, createdAt: { gte: thisWeekStart } } }),
         prisma.task.count({
-          where: { project: { companyId: user.companyId }, createdAt: { gte: lastWeekStart, lt: lastWeekEnd } },
+          where: { project: { companyId }, createdAt: { gte: lastWeekStart, lt: lastWeekEnd } },
         }),
-        prisma.task.count({ where: { stage: 'DONE', project: { companyId: user.companyId }, updatedAt: { gte: thisWeekStart } } }),
+        prisma.task.count({ where: { stage: 'DONE', project: { companyId }, updatedAt: { gte: thisWeekStart } } }),
         prisma.task.count({
           where: {
             stage: 'DONE',
-            project: { companyId: user.companyId },
+            project: { companyId },
             updatedAt: { gte: lastWeekStart, lt: lastWeekEnd },
           },
         }),
@@ -152,7 +165,7 @@ export async function GET() {
 
     // Employee performance: tasks done per person
     const employeePerf = await prisma.user.findMany({
-      where: { companyId: user.companyId, role: 'EMPLOYEE' },
+      where: { companyId, role: 'EMPLOYEE' },
       select: {
         id: true,
         name: true,
@@ -163,14 +176,14 @@ export async function GET() {
 
     const roles = await prisma.user.groupBy({
       by: ['role'],
-      where: { companyId: user.companyId },
+      where: { companyId },
       _count: { role: true },
     })
 
     const [tasksCreatedThisWeek, tasksCompletedThisWeek, recentActivities] = await Promise.all([
       prisma.task.findMany({
         where: {
-          project: { companyId: user.companyId },
+          project: { companyId },
           createdAt: { gte: thisWeekStart },
         },
         select: { createdAt: true },
@@ -178,14 +191,14 @@ export async function GET() {
       prisma.task.findMany({
         where: {
           stage: 'DONE',
-          project: { companyId: user.companyId },
+          project: { companyId },
           updatedAt: { gte: thisWeekStart },
         },
         select: { updatedAt: true },
       }),
       prisma.activity.findMany({
         where: {
-          task: { project: { companyId: user.companyId } },
+          task: { project: { companyId } },
         },
         include: {
           user: { select: { id: true, name: true, role: true, avatar: true } },
@@ -224,8 +237,7 @@ export async function GET() {
     }))
     const completionRate = totalTasks ? Math.round((doneTasks / totalTasks) * 100) : 0
 
-    return NextResponse.json(
-      {
+    return {
         companyType: company?.companyType ?? 'OTHER',
         totalTasks,
         doneTasks,
@@ -291,9 +303,10 @@ export async function GET() {
             completedTasks: completedLastWeek,
           },
         },
-      },
-      { headers: NO_STORE_HEADERS }
-    )
+      }
+    })
+
+    return NextResponse.json(payload, { headers: NO_STORE_HEADERS })
   } catch (err) {
     console.error(err)
     return NextResponse.json({ error: 'Server error' }, { status: 500 })

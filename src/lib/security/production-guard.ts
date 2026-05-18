@@ -19,4 +19,8 @@ export function assertProductionSecurityConfig() {
   if (!process.env.REALTIME_HEALTH_TOKEN?.trim()) {
     throw new Error('REALTIME_HEALTH_TOKEN must be configured in production.')
   }
+
+  if (!(process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL)?.trim()) {
+    throw new Error('NEXT_PUBLIC_APP_URL or APP_URL must be configured in production.')
+  }
 }

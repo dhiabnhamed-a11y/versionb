@@ -1,0 +1,16 @@
+name: Platform
+
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch:
+
+jobs:
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Probe production health
+        if: vars.PRODUCTION_HEALTH_URL != ''
+        run: |
+          curl -fsS "${{ vars.PRODUCTION_HEALTH_URL }}/api/health"
+          curl -fsS "${{ vars.PRODUCTION_HEALTH_URL }}/api/ready"

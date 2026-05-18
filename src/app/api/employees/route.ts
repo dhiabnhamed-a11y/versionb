@@ -1,24 +1,15 @@
-import { requireSessionUser } from '@/modules/shared/session'
 import { NextResponse } from 'next/server'
+import { withLegacyApiGuard } from '@/lib/api/legacy-guard'
 import { prisma } from '@/lib/db'
 import { createCompanyInvite, getInviteTtlHours, InviteFlowError } from '@/lib/invites'
 
-type SessionUser = {
-  role?: string
-  companyId?: string | null
-}
+export async function GET(req: Request) {
+  return withLegacyApiGuard(req, async (user) => {
+    if (user.role === 'EMPLOYEE') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+    if (!user.companyId) return NextResponse.json([])
 
-// GET employees for this company
-export async function GET() {
-  const user = await requireSessionUser()
-  if (user.role === 'EMPLOYEE') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-  if (!user.companyId) {
-    return NextResponse.json([])
-  }
-
-  try {
     const employees = await prisma.user.findMany({
       where: { companyId: user.companyId },
       select: {
@@ -38,41 +29,35 @@ export async function GET() {
       },
     })
     return NextResponse.json(employees)
-  } catch (err) {
-    console.error(err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
-  }
+  })
 }
 
-// POST add employee to company
 export async function POST(req: Request) {
-  const user = await requireSessionUser()
-  if (!user.companyId) {
-    return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
-  }
-  if (!('id' in user) || user.role === 'EMPLOYEE') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+  return withLegacyApiGuard(req, async (user) => {
+    try {
+      if (!user.companyId) {
+        return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
+      }
+      if (user.role === 'EMPLOYEE') {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
 
-  try {
-    const { email, role, ttlHours } = (await req.json()) as { email: string; role?: string; ttlHours?: number }
-
-    const invite = await createCompanyInvite({
-      companyId: user.companyId,
-      companyAdminId: user.id,
-      companyAdminRole: user.role ?? 'EMPLOYEE',
-      email,
-      role: role || 'EMPLOYEE',
-      ttlHours: ttlHours ?? getInviteTtlHours(),
-    })
-
-    return NextResponse.json(invite, { status: 201 })
-  } catch (err) {
-    if (err instanceof InviteFlowError) {
-      return NextResponse.json({ error: err.message }, { status: err.status })
+      const { email, role, ttlHours } = (await req.json()) as { email: string; role?: string; ttlHours?: number }
+      const invite = await createCompanyInvite({
+        companyId: user.companyId,
+        companyAdminId: user.id,
+        companyAdminRole: user.role ?? 'EMPLOYEE',
+        email,
+        role: role || 'EMPLOYEE',
+        ttlHours: ttlHours ?? getInviteTtlHours(),
+      })
+      return NextResponse.json(invite, { status: 201 })
+    } catch (err) {
+      if (err instanceof InviteFlowError) {
+        return NextResponse.json({ error: err.message }, { status: err.status })
+      }
+      console.error(err)
+      return NextResponse.json({ error: 'Server error' }, { status: 500 })
     }
-
-    console.error(err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
-  }
+  })
 }

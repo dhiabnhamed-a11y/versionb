@@ -928,6 +928,7 @@ model Project {
   @@index([companyId, roomId])
   @@index([companyId, categoryId])
   @@index([companyId, clientId])
+  @@index([companyId, updatedAt])
 }
 
 model ChartOfAccount {

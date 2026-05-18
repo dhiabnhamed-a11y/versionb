@@ -3,6 +3,7 @@ import Credentials from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import { createClient } from '@supabase/supabase-js'
 import { createHash, randomUUID } from 'crypto'
+import { isSessionJtiRevoked } from '@/lib/security/session-revocation'
 
 import { prisma } from '@/lib/db'
 import { getAuthSecret } from '@/lib/env'
@@ -241,6 +242,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
+        const jti = randomUUID()
+        token.jti = jti
         token.id = user.id
         token.email = user.email
         token.role = (user as AuthSessionShape).role
@@ -249,7 +252,22 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.preferredLocale = (user as AuthSessionShape).preferredLocale
         token.companyType = (user as AuthSessionShape).companyType
         token.companyStatus = (user as AuthSessionShape).companyStatus
+        const expiresAt = new Date(Date.now() + 60 * 60 * 8 * 1000)
+        await prisma.authSession.create({
+          data: {
+            userId: user.id!,
+            companyId: (user as AuthSessionShape).companyId,
+            jti,
+            status: 'ACTIVE',
+            expiresAt,
+          },
+        }).catch(() => undefined)
         return token
+      }
+
+      const jti = typeof token.jti === 'string' ? token.jti : null
+      if (jti && (await isSessionJtiRevoked(jti))) {
+        throw new Error('SESSION_REVOKED')
       }
 
       return token

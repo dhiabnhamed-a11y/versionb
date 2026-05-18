@@ -1,3 +1,4 @@
+import { cached } from '@/lib/cache'
 import { prisma } from '@/lib/db'
 import { executeAiWorkspaceAction } from '@/lib/ai-actions'
 import type { AiAmbiguityPanelPayload, AILanguage, ResolvedIntent } from '@/lib/ai-intent'
@@ -217,7 +218,7 @@ async function loadWorkspaceContext(user: AiSessionUser) {
         },
       },
       orderBy: [{ deadline: 'asc' }, { updatedAt: 'desc' }],
-      take: 200,
+      take: 120,
     }),
     prisma.project.findMany({
       where: {
@@ -244,6 +245,8 @@ async function loadWorkspaceContext(user: AiSessionUser) {
             progress: true,
             assigneeId: true,
           },
+          orderBy: { updatedAt: 'desc' },
+          take: 30,
         },
         deliverables: {
           select: {
@@ -254,10 +257,12 @@ async function loadWorkspaceContext(user: AiSessionUser) {
             dueAt: true,
             deliveredAt: true,
           },
+          orderBy: { updatedAt: 'desc' },
+          take: 15,
         },
       },
       orderBy: { updatedAt: 'desc' },
-      take: 120,
+      take: 80,
     }),
     prisma.deliverable.findMany({
       where: {
@@ -1275,7 +1280,11 @@ export async function buildGroundedOperationalAnswer(input: {
   }
 
   const now = new Date()
-  const context = await loadWorkspaceContext(input.user)
+  const context = await cached(
+    `ai-context:${input.user.companyId ?? 'none'}:${input.user.id}:${input.user.role ?? 'unknown'}`,
+    30,
+    () => loadWorkspaceContext(input.user)
+  )
   const intent = detectIntent(input.question)
   const taskSummary = summarizeTasks(context.tasks, now)
   const projectRisk = summarizeProjects(context.projects, now)

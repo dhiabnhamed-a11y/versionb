@@ -49,7 +49,7 @@ export function isQueueConfigured() {
   return Boolean(redisUrl())
 }
 
-function parseRedisConnection(url: string): RedisConnectionOptions {
+export function parseRedisConnection(url: string): RedisConnectionOptions {
   const parsed = new URL(url)
   return {
     host: parsed.hostname,

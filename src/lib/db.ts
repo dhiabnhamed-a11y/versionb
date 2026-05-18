@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client'
+import { createTenantAuditExtension } from '@/lib/prisma-tenant'
 
 // Prisma Client always uses DATABASE_URL. If it points at db.*.supabase.co:5432, sign-up/API
 // calls often fail from Vercel or IPv4-only networks; use the Transaction pooler (6543) there.
@@ -23,16 +24,18 @@ export function getDatabaseConfigHint() {
 }
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined
+  prisma: ReturnType<typeof createPrismaClient> | undefined
 }
 
-export const prisma =
-  globalForPrisma.prisma ??
-  new PrismaClient({
+function createPrismaClient() {
+  return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
-  })
+  }).$extends(createTenantAuditExtension())
+}
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+export const prisma = (globalForPrisma.prisma ?? createPrismaClient()) as unknown as PrismaClient
+
+if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma as ReturnType<typeof createPrismaClient>
 
 export async function disconnectDatabase() {
   await prisma.$disconnect()

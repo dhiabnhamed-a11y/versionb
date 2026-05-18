@@ -1,21 +1,8 @@
-import Redis from 'ioredis'
+import { getSharedRedis } from '@/lib/infra/redis-shared'
 import type { RateLimitOptions, RateLimitResult } from '@/modules/shared/rate-limit'
 
-let redis: Redis | null | undefined
-
 function getRedis() {
-  if (redis !== undefined) return redis
-  const url = process.env.REDIS_URL
-  redis = url
-    ? new Redis(url, {
-        enableOfflineQueue: false,
-        maxRetriesPerRequest: 1,
-        connectTimeout: 5_000,
-        commandTimeout: 3_000,
-        lazyConnect: true,
-      })
-    : null
-  return redis
+  return getSharedRedis()
 }
 
 export async function redisRateLimit(key: string, options: RateLimitOptions): Promise<RateLimitResult | null> {

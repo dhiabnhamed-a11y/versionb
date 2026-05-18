@@ -5,12 +5,14 @@ import { apiError, apiOk, legacyJson } from '@/lib/api/response'
 import { requireSessionUser, type SessionUser } from '@/lib/api/auth'
 import type { ApiMeta, ApiPagination, ApiRequestContext, ApiResponseMode } from '@/lib/api/types'
 import { getIdempotencyKey, runIdempotent } from '@/lib/idempotency'
+import { assertSafeApiOrigin, defaultRateLimitForRequest } from '@/lib/security/request-guard'
 import { enforceDistributedRateLimit } from '@/lib/rate-limit'
 import { requirePermission, requireRole } from '@/modules/security/access-control'
 import { recordSecurityAudit } from '@/modules/security/audit'
 import type { UserRole } from '@/lib/security'
 import type { PermissionAction, PermissionResource, PermissionSubject } from '@/modules/permissions/permissions'
 import { logger } from '@/modules/shared/logger'
+import { runWithPrismaTenantContext } from '@/lib/tenant/prisma-context'
 import type { RateLimitOptions, RateLimitResult } from '@/modules/shared/rate-limit'
 
 const API_ROUTE_RESULT = Symbol('API_ROUTE_RESULT')
@@ -264,16 +266,17 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
   const responseMode = options.responseMode ?? 'legacy'
   let rateLimit: RateLimitResult | undefined
 
-  if (options.rateLimit) {
-    rateLimit = await enforceDistributedRateLimit(req, options.rateLimit)
-    if (!rateLimit.allowed) {
-      logger.warn('api.rate_limited', { requestId, route, namespace: options.rateLimit.namespace })
+  assertSafeApiOrigin(req)
+  const rateLimitPolicy = options.rateLimit ?? defaultRateLimitForRequest(req)
+  rateLimit = await enforceDistributedRateLimit(req, rateLimitPolicy)
+  if (!rateLimit.allowed) {
+      logger.warn('api.rate_limited', { requestId, route, namespace: rateLimitPolicy.namespace })
       await recordSecurityAudit({
         action: 'api.rate_limited',
         entityId: route,
         entityType: 'api_route',
         ipAddress: getClientIp(req),
-        metadata: { method: req.method, namespace: options.rateLimit.namespace },
+        metadata: { method: req.method, namespace: rateLimitPolicy.namespace },
         requestId,
         userAgent: req.headers.get('user-agent'),
       })
@@ -290,7 +293,6 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
         ),
         buildTraceHeaders({ rateLimit, requestId })
       )
-    }
   }
 
   try {
@@ -318,7 +320,14 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
       if (allowed === false) throw forbidden()
     }
 
-    const runHandler = () => handler(nextContext as AuthenticatedApiHandlerContext<TParams> & ApiHandlerContext<TParams>)
+    const runHandler = () => {
+      if (user) {
+        return runWithPrismaTenantContext(user, () =>
+          handler(nextContext as AuthenticatedApiHandlerContext<TParams> & ApiHandlerContext<TParams>)
+        )
+      }
+      return handler(nextContext as AuthenticatedApiHandlerContext<TParams> & ApiHandlerContext<TParams>)
+    }
     const idempotencyOptions = resolveIdempotencyOptions(options.idempotency)
     let response: ApiRouteResult<TData>
 

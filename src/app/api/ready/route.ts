@@ -1,14 +1,24 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/db'
+import { collectInfraHealth } from '@/lib/infra/health'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function GET() {
-  try {
-    await prisma.$queryRaw`SELECT 1`
-    return NextResponse.json({ ready: true }, { headers: { 'Cache-Control': 'no-store' } })
-  } catch {
-    return NextResponse.json({ ready: false }, { status: 503, headers: { 'Cache-Control': 'no-store' } })
+function authorized(req: Request) {
+  const token = process.env.OPS_HEALTH_TOKEN?.trim()
+  if (!token) return process.env.NODE_ENV !== 'production'
+  const header = req.headers.get('authorization')
+  return header === `Bearer ${token}`
+}
+
+export async function GET(req: Request) {
+  if (!authorized(req)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: { 'Cache-Control': 'no-store' } })
   }
+  const snapshot = await collectInfraHealth()
+  const ready = snapshot.ok && snapshot.redis.configured
+  return NextResponse.json(
+    { ready, db: snapshot.db, redis: snapshot.redis, queues: snapshot.queues },
+    { status: ready ? 200 : 503, headers: { 'Cache-Control': 'no-store' } }
+  )
 }

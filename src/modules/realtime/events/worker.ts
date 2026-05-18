@@ -4,6 +4,7 @@ import { parseRedisConnection } from '@/modules/realtime/adapters/redis'
 import { emitRealtimeEnvelopeDirect, REALTIME_DELIVERY_QUEUE } from '@/modules/realtime/events/delivery'
 import { realtimeDeliveryJobSchema } from '@/modules/realtime/events/contracts'
 import { recordRealtimeMetric, registerRealtimeQueueMetrics } from '@/modules/realtime/metrics/metrics'
+import { moveToDeadLetter } from '@/modules/jobs/dead-letter'
 import { logger } from '@/modules/shared/logger'
 import { toJsonValue } from '@/modules/shared/json'
 
@@ -76,6 +77,15 @@ export function startRealtimeDeliveryWorker() {
       error: error.message,
     }).catch((markError) => logger.error('realtime.worker_mark_failed', markError, { jobId: job?.id }))
     logger.error('realtime.worker_job_failed', error, { jobId: job?.id, jobName: job?.name })
+    if (finalAttempt && job) {
+      void moveToDeadLetter({
+        sourceQueue: REALTIME_DELIVERY_QUEUE,
+        jobId: job.id,
+        name: job.name,
+        payload: job.data,
+        error: error.message,
+      })
+    }
   })
 
   worker.on('error', (error) => logger.error('realtime.worker_error', error))

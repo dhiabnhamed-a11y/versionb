@@ -1,7 +1,11 @@
 import { auth } from '@/lib/auth'
 import { prisma } from '@/lib/db'
 import { canAuthenticateAuthState, getAuthBlockReason } from '@/lib/security'
+import { isSessionJtiRevoked } from '@/lib/security/session-revocation'
 import { forbidden, unauthorized } from '@/modules/shared/errors'
+import { getToken } from 'next-auth/jwt'
+import { getAuthSecret } from '@/lib/env'
+import { headers } from 'next/headers'
 
 export type SessionUser = {
   id: string
@@ -18,10 +22,19 @@ function sameNullable(left?: string | null, right?: string | null) {
   return (left ?? null) === (right ?? null)
 }
 
-export async function requireSessionUser() {
+export async function requireSessionUser(req?: Request) {
   const session = await auth()
   if (!session?.user) throw unauthorized()
   const user = session.user as SessionUser
+
+  const hdrs = req?.headers ?? (await headers())
+  const token = await getToken({
+    req: { headers: hdrs } as Parameters<typeof getToken>[0]['req'],
+    secret: getAuthSecret(),
+    secureCookie: process.env.NODE_ENV === 'production',
+  })
+  const jti = typeof token?.jti === 'string' ? token.jti : null
+  if (jti && (await isSessionJtiRevoked(jti))) throw unauthorized('Session revoked.')
 
   const liveUser = await prisma.user.findUnique({
     where: { id: user.id },

@@ -355,6 +355,8 @@ export async function buildOperationalCommandCenter(user: CommandCenterUser): Pr
             updatedAt: true,
             assigneeId: true,
           },
+          orderBy: { updatedAt: 'desc' },
+          take: 40,
         },
         deliverables: {
           select: {
@@ -367,6 +369,8 @@ export async function buildOperationalCommandCenter(user: CommandCenterUser): Pr
             revisionCount: true,
             updatedAt: true,
           },
+          orderBy: { updatedAt: 'desc' },
+          take: 20,
         },
         invoices: financeVisible
           ? {
@@ -378,6 +382,7 @@ export async function buildOperationalCommandCenter(user: CommandCenterUser): Pr
                 dueDate: true,
                 paidAt: true,
               },
+              take: 10,
             }
           : false,
       },
