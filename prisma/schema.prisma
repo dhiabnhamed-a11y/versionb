@@ -228,6 +228,7 @@ model Company {
   enterpriseApprovalWorkflows  EnterpriseApprovalWorkflow[]
   enterpriseRoleAssignments    EnterpriseRoleAssignment[]
   enterpriseAuditEvents        EnterpriseAuditEvent[]
+  enterpriseShifts             EnterpriseShift[]
 
   @@index([status, createdAt])
   @@index([name, registrationNumber, status])
