@@ -28,7 +28,7 @@ export default async function RequestsPage() {
     include: {
       assignedTeam: { select: { name: true } },
       department: { select: { name: true } },
-      reporter: { select: { name: true } },
+      reportedBy: { select: { name: true } },
     },
     orderBy: { createdAt: 'desc' },
     take: 100,
@@ -78,7 +78,7 @@ export default async function RequestsPage() {
                     <td style={{ fontWeight: 600 }}>{inc.title}</td>
                     <td><span className={`hc-badge ${priorityBadge(inc.priority)}`}>{inc.priority}</span></td>
                     <td>{inc.department?.name || '—'}</td>
-                    <td>{inc.reporter?.name || '—'}</td>
+                    <td>{inc.reportedBy?.name || '—'}</td>
                     <td>{inc.assignedTeam?.name || <span style={{ color: 'var(--text-light)' }}>Unassigned</span>}</td>
                     <td style={{ fontSize: 12, textTransform: 'capitalize' }}>{inc.status.toLowerCase().replace(/_/g, ' ')}</td>
                     <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(inc.createdAt)}</td>

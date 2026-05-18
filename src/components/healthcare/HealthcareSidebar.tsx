@@ -62,7 +62,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
 type NavSection = {
   key: string
   label: string
-  items: typeof HEALTHCARE_NAVIGATION.mainNav
+  items: (typeof HEALTHCARE_NAVIGATION.mainNav)[number][]
 }
 
 function buildNavSections(): NavSection[] {
