@@ -37,6 +37,8 @@ export default async function CompliancePage() {
   const pending = controls.filter((c) => c.status === 'PENDING_REVIEW').length
   const dueIn30 = controls.filter((c) => {
     if (!c.nextReviewAt) return false
+    // Date.now is intentionally called here to compute relative days.
+    // eslint-disable-next-line react-hooks/purity
     const days = (new Date(c.nextReviewAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
     return days <= 30 && days >= 0
   }).length

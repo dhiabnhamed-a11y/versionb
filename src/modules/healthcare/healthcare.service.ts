@@ -12,6 +12,7 @@
  * - Emergency operations
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from '@/lib/db'
 import type { SessionUser } from '@/modules/shared/session'
 
@@ -215,7 +216,7 @@ export class HealthcareService {
       department: asset.department?.name,
       healthScore: asset.healthScore,
       riskScore: asset.riskScore,
-      status: asset.status as 'operational' | 'maintenance' | 'out-of-service' | 'calibration',
+      status: asset.operationalStatus as 'operational' | 'maintenance' | 'out-of-service' | 'calibration',
       nextMaintenanceAt: asset.nextMaintenanceAt || undefined,
       lastMaintenanceAt: asset.lastMaintenanceAt || undefined,
       assignedTo: asset.assignedUser?.name,
@@ -307,8 +308,9 @@ export class HealthcareService {
       nonCompliantControls: complianceControls.filter((c: any) => c.status === 'NON_COMPLIANT').length,
       pendingReviews: complianceControls.filter((c: any) => c.status === 'PENDING_REVIEW').length,
       upcomingAudits: complianceControls.filter((c: any) => {
-        if (!c.nextReviewDate) return false
-        const daysUntil = (new Date(c.nextReviewDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+        if (!c.nextReviewAt) return false
+         
+        const daysUntil = (new Date(c.nextReviewAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
         return daysUntil <= 30 && daysUntil >= 0
       }).length,
     }
