@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next'
 import PWARegistration from '@/components/pwa/PWARegistration'
+import ClientAnalyticsGuard from '@/components/analytics/ClientAnalyticsGuard.client'
 import './globals.css'
 
 export const metadata: Metadata = {
@@ -37,6 +38,7 @@ export default function RootLayout({
     >
       <body suppressHydrationWarning>
         <PWARegistration />
+        <ClientAnalyticsGuard />
         {/* Skip to main content link for accessibility */}
         <a
           href="#main-content"
