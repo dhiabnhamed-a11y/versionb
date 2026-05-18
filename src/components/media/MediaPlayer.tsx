@@ -874,9 +874,19 @@ function DeliverableCard({ media }: { media: AgencyMediaItem }) {
           >
             <Link2 className="h-4 w-4" />
           </a>
-          <button type="button" className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-white text-slate-500 shadow-sm ring-1 ring-slate-200 transition hover:text-slate-950 hover:shadow-md" aria-label="More actions">
-            <MoreHorizontal className="h-4 w-4" />
-          </button>
+          <details className="relative">
+            <summary className="grid h-10 w-10 shrink-0 cursor-pointer list-none place-items-center rounded-full bg-white text-slate-500 shadow-sm ring-1 ring-slate-200 transition hover:text-slate-950 hover:shadow-md [&::-webkit-details-marker]:hidden" aria-label="More actions">
+              <MoreHorizontal className="h-4 w-4" />
+            </summary>
+            <section className="absolute right-0 z-20 mt-2 min-w-[180px] overflow-hidden rounded-xl border border-slate-200 bg-white p-1 shadow-lg">
+              <a href={media.url} download className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50">
+                <Download className="h-4 w-4" /> Download
+              </a>
+              <button type="button" className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-slate-700 hover:bg-slate-50" onClick={() => void navigator.clipboard.writeText(media.url)}>
+                <Link2 className="h-4 w-4" /> Copy link
+              </button>
+            </section>
+          </details>
         </div>
       </header>
 

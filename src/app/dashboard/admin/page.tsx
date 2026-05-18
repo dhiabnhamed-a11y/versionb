@@ -920,7 +920,18 @@ export default function AdminDashboard() {
   const user = session?.user as { name?: string; companyType?: string | null }
   const companyType = normalizeCompanyType(stats?.companyType ?? user?.companyType)
 
-  // Healthcare workspaces get a dedicated operations dashboard
+  const localizedRisks = useMemo(
+    () => commandCenter?.risks.slice(0, 4).map((risk) => localizeRisk(risk, commandCenter, t, locale)) ?? [],
+    [commandCenter, locale, t]
+  )
+  const topRisk = localizedRisks[0]
+  const localizedAgents = useMemo(
+    () => commandCenter?.agentSignals.map((agent) => localizeAgent(agent, commandCenter, topRisk, t)) ?? [],
+    [commandCenter, topRisk, t]
+  )
+  const pipelineClusters = useMemo(() => buildPipelineClusters(commandCenter, t), [commandCenter, t])
+  const healthComponents = useMemo(() => buildHealthComponents(stats, commandCenter, t), [stats, commandCenter, t])
+
   if (isHealthcareCompanyType(companyType)) {
     return <HealthcareOverview />
   }
@@ -934,22 +945,6 @@ export default function AdminDashboard() {
     month: 'long',
     day: 'numeric',
   }).format(new Date())
-
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const localizedRisks = useMemo(
-    () => commandCenter?.risks.slice(0, 4).map((risk) => localizeRisk(risk, commandCenter, t, locale)) ?? [],
-    [commandCenter, locale, t]
-  )
-  const topRisk = localizedRisks[0]
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const localizedAgents = useMemo(
-    () => commandCenter?.agentSignals.map((agent) => localizeAgent(agent, commandCenter, topRisk, t)) ?? [],
-    [commandCenter, topRisk, t]
-  )
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const pipelineClusters = useMemo(() => buildPipelineClusters(commandCenter, t), [commandCenter, t])
-  // eslint-disable-next-line react-hooks/rules-of-hooks
-  const healthComponents = useMemo(() => buildHealthComponents(stats, commandCenter, t), [stats, commandCenter, t])
   const healthTone = commandCenter?.briefing.tone ?? 'neutral'
   const healthScore = commandCenter?.briefing.healthScore ?? stats?.completionRate ?? 0
   const agentStatus = agentStatusLabel(healthTone, t)

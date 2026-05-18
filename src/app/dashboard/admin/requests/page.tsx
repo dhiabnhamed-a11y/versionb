@@ -1,21 +1,13 @@
+import { Suspense } from 'react'
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { isHealthcareCompanyType } from '@/lib/company-types'
 import type { SessionUser } from '@/modules/shared/session'
 import { prisma } from '@/lib/db'
-import { ClipboardList, AlertTriangle } from 'lucide-react'
+import { ClipboardList } from 'lucide-react'
+import IncidentsTableClient from '@/components/healthcare/IncidentsTableClient'
 
 export const dynamic = 'force-dynamic'
-
-function priorityBadge(p: string) {
-  const m: Record<string, string> = { CRITICAL: 'hc-badge-critical', HIGH: 'hc-badge-maintenance', MEDIUM: 'hc-badge-inspection', LOW: 'hc-badge-operational' }
-  return m[p] || 'hc-badge-offline'
-}
-
-function formatDate(v?: Date | string | null) {
-  if (!v) return '—'
-  return new Date(v).toLocaleDateString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
-}
 
 export default async function RequestsPage() {
   const session = await auth()
@@ -36,7 +28,7 @@ export default async function RequestsPage() {
 
   const total = incidents.length
   const open = incidents.filter((i) => !['RESOLVED', 'CLOSED', 'CANCELLED'].includes(i.status)).length
-  const critical = incidents.filter((i) => i.priority === 'CRITICAL' && !['RESOLVED', 'CLOSED', 'CANCELLED'].includes(i.status)).length
+  const critical = incidents.filter((i) => ['P1', 'CRITICAL'].includes(i.priority) && !['RESOLVED', 'CLOSED', 'CANCELLED'].includes(i.status)).length
   const resolved = incidents.filter((i) => ['RESOLVED', 'CLOSED'].includes(i.status)).length
 
   return (
@@ -68,25 +60,22 @@ export default async function RequestsPage() {
             <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Requests and incidents will appear here as they are submitted.</div>
           </div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table className="hc-table">
-              <thead><tr><th>ID</th><th>Title</th><th>Priority</th><th>Department</th><th>Reporter</th><th>Assigned Team</th><th>Status</th><th>Reported</th></tr></thead>
-              <tbody>
-                {incidents.map((inc) => (
-                  <tr key={inc.id}>
-                    <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{inc.incidentNumber}</td>
-                    <td style={{ fontWeight: 600 }}>{inc.title}</td>
-                    <td><span className={`hc-badge ${priorityBadge(inc.priority)}`}>{inc.priority}</span></td>
-                    <td>{inc.department?.name || '—'}</td>
-                    <td>{inc.reportedBy?.name || '—'}</td>
-                    <td>{inc.assignedTeam?.name || <span style={{ color: 'var(--text-light)' }}>Unassigned</span>}</td>
-                    <td style={{ fontSize: 12, textTransform: 'capitalize' }}>{inc.status.toLowerCase().replace(/_/g, ' ')}</td>
-                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{formatDate(inc.createdAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Suspense fallback={<p className="hc-card-body">Loading incidents…</p>}>
+            <IncidentsTableClient
+              incidents={incidents.map((inc) => ({
+                id: inc.id,
+                incidentNumber: inc.incidentNumber,
+                title: inc.title,
+                description: inc.description,
+                priority: inc.priority,
+                status: inc.status,
+                createdAt: inc.createdAt.toISOString(),
+                department: inc.department,
+                reportedBy: inc.reportedBy,
+                assignedTeam: inc.assignedTeam,
+              }))}
+            />
+          </Suspense>
         )}
       </div>
     </div>

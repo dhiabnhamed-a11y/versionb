@@ -593,7 +593,7 @@ function DashboardMockup() {
             <span><Plus size={12} /></span>
             <span><Clock3 size={12} /></span>
             <span><Bell size={12} /></span>
-            <button type="button"><Plus size={11} /> New</button>
+            <span className="pointer-events-none opacity-80"><Plus size={11} /> New</span>
           </div>
         </div>
 
