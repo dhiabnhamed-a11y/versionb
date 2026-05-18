@@ -153,9 +153,12 @@ export async function withApiError(
     }
 
     const payload: ApiErrorPayload = {
-      error: normalized.expose ? normalized.message : 'Server error',
+      // In production keep generic unless the error explicitly marks itself as exposable.
+      // For local debugging show the underlying message to speed up diagnosis.
+      error:
+        normalized.expose || process.env.NODE_ENV !== 'production' ? normalized.message : 'Server error',
       code: normalized.code,
-      details: normalized.expose ? normalized.details : undefined,
+      details: normalized.expose || process.env.NODE_ENV !== 'production' ? normalized.details : undefined,
       requestId,
     }
 
