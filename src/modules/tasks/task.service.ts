@@ -28,7 +28,7 @@ async function resolveEnterpriseAssignment(
   companyId: string,
   input: { enterpriseAssignedTeamId?: string | null; enterpriseDepartmentId?: string | null }
 ) {
-  let teamId: string | null | undefined = input.enterpriseAssignedTeamId === undefined ? undefined : input.enterpriseAssignedTeamId || null
+  const teamId: string | null | undefined = input.enterpriseAssignedTeamId === undefined ? undefined : input.enterpriseAssignedTeamId || null
   let departmentId: string | null | undefined =
     input.enterpriseDepartmentId === undefined ? undefined : input.enterpriseDepartmentId || null
 

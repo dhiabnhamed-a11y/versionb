@@ -21,7 +21,7 @@ export default async function CompliancePage() {
   const [controls, auditEvents] = await Promise.all([
     prisma.enterpriseComplianceControl.findMany({
       where: { companyId: user.companyId! },
-      orderBy: { nextReviewDate: 'asc' },
+      orderBy: { nextReviewAt: 'asc' },
     }),
     prisma.enterpriseAuditEvent.findMany({
       where: { companyId: user.companyId! },
@@ -36,8 +36,10 @@ export default async function CompliancePage() {
   const nonCompliant = controls.filter((c) => c.status === 'NON_COMPLIANT').length
   const pending = controls.filter((c) => c.status === 'PENDING_REVIEW').length
   const dueIn30 = controls.filter((c) => {
-    if (!c.nextReviewDate) return false
-    const days = (new Date(c.nextReviewDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+    if (!c.nextReviewAt) return false
+    // Date.now is intentionally called here to compute relative days.
+    // eslint-disable-next-line react-hooks/purity
+    const days = (new Date(c.nextReviewAt).getTime() - Date.now()) / (1000 * 60 * 60 * 24)
     return days <= 30 && days >= 0
   }).length
   const score = total > 0 ? Math.round((compliant / total) * 100) : 0
@@ -85,7 +87,7 @@ export default async function CompliancePage() {
                   </div>
                   <div className="hc-list-content">
                     <div className="hc-list-title">{ctrl.name}</div>
-                    <div className="hc-list-sub">{ctrl.framework} · Next review: {formatDate(ctrl.nextReviewDate)}</div>
+                    <div className="hc-list-sub">{ctrl.framework} · Next review: {formatDate(ctrl.nextReviewAt)}</div>
                   </div>
                   <span className={`hc-badge ${ctrl.status === 'COMPLIANT' ? 'hc-badge-operational' : ctrl.status === 'NON_COMPLIANT' ? 'hc-badge-critical' : 'hc-badge-maintenance'}`}>
                     {ctrl.status === 'COMPLIANT' ? 'Compliant' : ctrl.status === 'NON_COMPLIANT' ? 'Non-Compliant' : 'Pending'}

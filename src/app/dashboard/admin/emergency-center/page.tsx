@@ -63,6 +63,7 @@ const EMERGENCY_CODES = {
   'Code Gray': { color: 'gray', icon: ShieldAlert, description: 'Security Threat' },
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function EmergencyCodeCard({ incident }: { incident: any }) {
   const codeInfo = EMERGENCY_CODES[incident.priority as keyof typeof EMERGENCY_CODES] || { color: 'red', icon: AlertCircle, description: 'Emergency' }
   const Icon = codeInfo.icon
@@ -127,6 +128,7 @@ function EmergencyCodeCard({ incident }: { incident: any }) {
   )
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function StatCard({ label, value, icon: Icon, trend, color = 'blue' }: any) {
   const colorStyles = {
     red: 'bg-red-50 text-red-600',
@@ -190,6 +192,7 @@ export default async function EmergencyCenterPage() {
       title: 'Cardiac Arrest - Room 304',
       location: 'ICU - Room 304',
       status: 'Active',
+      // eslint-disable-next-line react-hooks/purity
       createdAt: new Date(Date.now() - 120000),
       assignedTeam: { name: 'Code Blue Team Alpha' },
     },

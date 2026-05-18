@@ -48,7 +48,7 @@ export default async function ReportsPage() {
     }),
     prisma.enterpriseAsset.findMany({
       where: { companyId },
-      select: { status: true, healthScore: true, riskScore: true },
+      select: { operationalStatus: true, healthScore: true, riskScore: true },
     }),
     prisma.enterpriseIncident.findMany({
       where: { companyId },
@@ -71,8 +71,8 @@ export default async function ReportsPage() {
 
   // Asset metrics
   const totalAssets = assets.length
-  const operationalAssets = assets.filter((a) => a.status === 'OPERATIONAL').length
-  const maintenanceAssets = assets.filter((a) => a.status === 'MAINTENANCE').length
+  const operationalAssets = assets.filter((a) => a.operationalStatus === 'OPERATIONAL').length
+  const maintenanceAssets = assets.filter((a) => a.operationalStatus === 'MAINTENANCE').length
   const criticalAssets = assets.filter((a) => a.riskScore > 70).length
   const avgHealth = totalAssets > 0 ? Math.round(assets.reduce((s, a) => s + a.healthScore, 0) / totalAssets) : 0
   const assetUptime = totalAssets > 0 ? Math.round((operationalAssets / totalAssets) * 100) : 0
