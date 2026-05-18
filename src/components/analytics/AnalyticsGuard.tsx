@@ -1,5 +1,8 @@
 import { useEffect } from 'react'
 
+type XhrOpen = typeof XMLHttpRequest.prototype.open
+type XhrSend = typeof XMLHttpRequest.prototype.send
+
 export default function AnalyticsGuard() {
   useEffect(() => {
     if (typeof window === 'undefined') return
@@ -15,69 +18,85 @@ export default function AnalyticsGuard() {
       'app-measurement.com',
     ]
 
-    // patch fetch
     const originalFetch = window.fetch
-    // @ts-ignore
-    window.fetch = function (input: RequestInfo, init?: RequestInit) {
+    window.fetch = function (input: RequestInfo | URL, init?: RequestInit) {
       try {
-        const url = typeof input === 'string' ? input : input instanceof Request ? input.url : String(input)
+        const url =
+          typeof input === 'string'
+            ? input
+            : input instanceof Request
+              ? input.url
+              : String(input)
         if (blockedHosts.some((h) => url.includes(h))) {
           return Promise.resolve(new Response(null, { status: 204 }))
         }
-      } catch (e) {
+      } catch {
         // ignore
       }
-      return originalFetch.apply(this, [input, init])
+      return originalFetch.call(this, input, init)
     }
 
-    // patch navigator.sendBeacon
-    const nav = navigator as any
-    const originalBeacon = nav.sendBeacon?.bind(navigator)
+    const originalBeacon = navigator.sendBeacon?.bind(navigator)
     if (originalBeacon) {
-      nav.sendBeacon = function (url: string, data?: BodyInit | null) {
-        if (blockedHosts.some((h) => url.includes(h))) {
+      navigator.sendBeacon = function (url: string | URL, data?: BodyInit | null) {
+        const urlStr = typeof url === 'string' ? url : url.toString()
+        if (blockedHosts.some((h) => urlStr.includes(h))) {
           return true
         }
         return originalBeacon(url, data)
       }
     }
 
-    // patch XHR open/send to block GA endpoints
-    const XHR = (window as any).XMLHttpRequest
+    const XHR = window.XMLHttpRequest
+    let originalXhrOpen: XhrOpen | undefined
+    let originalXhrSend: XhrSend | undefined
+
     if (XHR) {
-      const OriginalXHR = XHR.prototype.open
-      const OriginalSend = XHR.prototype.send
-      XHR.prototype.open = function (method: string, url: string | URL) {
-        this.__analytics_block_url = typeof url === 'string' ? url : String(url)
-        return OriginalXHR.apply(this, arguments)
+      originalXhrOpen = XHR.prototype.open
+      originalXhrSend = XHR.prototype.send
+
+      XHR.prototype.open = function (
+        method: string,
+        url: string | URL,
+        async?: boolean,
+        username?: string | null,
+        password?: string | null,
+      ) {
+        ;(this as XMLHttpRequest & { __analytics_block_url?: string }).__analytics_block_url =
+          typeof url === 'string' ? url : url.toString()
+        return originalXhrOpen!.call(this, method, url, async ?? true, username, password)
       }
-      XHR.prototype.send = function (body?: any) {
+
+      XHR.prototype.send = function (body?: Document | XMLHttpRequestBodyInit | null) {
         try {
-          if (this.__analytics_block_url && blockedHosts.some((h: string) => this.__analytics_block_url.includes(h))) {
-            this.readyState = 4
-            this.status = 204
-            this.onreadystatechange && this.onreadystatechange()
-            this.onload && this.onload()
+          const blockUrl = (this as XMLHttpRequest & { __analytics_block_url?: string })
+            .__analytics_block_url
+          if (blockUrl && blockedHosts.some((h) => blockUrl.includes(h))) {
+            Object.defineProperty(this, 'readyState', { value: 4, configurable: true })
+            Object.defineProperty(this, 'status', { value: 204, configurable: true })
+            const evt = new ProgressEvent('load')
+            this.onreadystatechange?.call(this, evt)
+            this.onload?.call(this, evt)
             return
           }
-        } catch (e) {
+        } catch {
           // ignore
         }
-        return OriginalSend.apply(this, arguments)
+        return originalXhrSend!.call(this, body)
       }
     }
 
     return () => {
       try {
-        // restore fetch
-        // @ts-ignore
         window.fetch = originalFetch
-        if (originalBeacon) nav.sendBeacon = originalBeacon
-        if (XHR) {
-          XHR.prototype.open = OriginalXHR
-          XHR.prototype.send = OriginalSend
+        if (originalBeacon) {
+          navigator.sendBeacon = originalBeacon
         }
-      } catch (e) {
+        if (XHR && originalXhrOpen && originalXhrSend) {
+          XHR.prototype.open = originalXhrOpen
+          XHR.prototype.send = originalXhrSend
+        }
+      } catch {
         // ignore
       }
     }
