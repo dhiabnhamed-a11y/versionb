@@ -1,5 +1,6 @@
 import { rateLimitRequest, type RateLimitOptions, type RateLimitResult } from '@/modules/shared/rate-limit'
 import { redisRateLimit } from '@/lib/rate-limit/redis'
+import { logger } from '@/modules/shared/logger'
 
 export type { RateLimitOptions, RateLimitResult }
 
@@ -15,8 +16,8 @@ function getClientIp(req: Request) {
 export async function enforceDistributedRateLimit(req: Request, options: RateLimitOptions): Promise<RateLimitResult> {
   const key = options.key || getClientIp(req)
   const redisResult = await redisRateLimit(key, options).catch(() => null)
-  if (process.env.NODE_ENV === 'production' && !redisResult) {
-    throw new Error('REDIS_URL is required for distributed rate limiting in production.')
+  if (!redisResult && process.env.NODE_ENV === 'production') {
+    logger.warn('rate_limit.redis_unavailable', { namespace: options.namespace })
   }
   return redisResult ?? rateLimitRequest(req, options)
 }

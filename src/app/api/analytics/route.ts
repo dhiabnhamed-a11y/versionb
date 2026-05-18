@@ -7,6 +7,8 @@ import { INFRA } from '@/lib/infra/config'
 import { prisma } from '@/lib/db'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import { enforceDistributedRateLimit } from '@/lib/rate-limit'
+import { normalizeError } from '@/modules/shared/errors'
+import { getRequestId } from '@/lib/api/request-id'
 
 type SessionUser = {
   companyId?: string | null
@@ -28,6 +30,9 @@ function percentChange(current: number, previous: number) {
 }
 
 export async function GET(req: Request) {
+  const requestId = getRequestId(req)
+
+  try {
   const rate = await enforceDistributedRateLimit(req, API_RATE_LIMITS.read)
   if (!rate.allowed) {
     return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: NO_STORE_HEADERS })
@@ -65,7 +70,6 @@ export async function GET(req: Request) {
     )
   }
 
-  try {
     const companyId = user.companyId
     const payload = await cached(`analytics:${companyId}`, INFRA.analyticsCacheTtlSec, async () => {
     const now = new Date()
@@ -308,7 +312,15 @@ export async function GET(req: Request) {
 
     return NextResponse.json(payload, { headers: NO_STORE_HEADERS })
   } catch (err) {
+    const normalized = normalizeError(err)
     console.error(err)
-    return NextResponse.json({ error: 'Server error' }, { status: 500 })
+    return NextResponse.json(
+      {
+        error: normalized.expose ? normalized.message : 'Server error',
+        code: normalized.code,
+        requestId,
+      },
+      { status: normalized.status, headers: NO_STORE_HEADERS }
+    )
   }
 }

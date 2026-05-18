@@ -1,5 +1,5 @@
 import { prisma } from '@/lib/db'
-import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'
+import { isMissingDatabaseObjectError, runPrismaSafely } from '@/lib/prisma-errors'
 
 export type IntelligenceTone = 'good' | 'watch' | 'risk' | 'critical' | 'neutral'
 
@@ -389,23 +389,27 @@ export async function buildOperationalCommandCenter(user: CommandCenterUser): Pr
       orderBy: { updatedAt: 'desc' },
       take: 180,
     }),
-    prisma.deliverable.findMany({
-      where: { companyId },
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        approvalState: true,
-        dueAt: true,
-        deliveredAt: true,
-        revisionCount: true,
-        updatedAt: true,
-        campaignId: true,
-        campaign: { select: { id: true, title: true, clientId: true, clientName: true } },
-      },
-      orderBy: [{ dueAt: 'asc' }, { updatedAt: 'desc' }],
-      take: 250,
-    }),
+    runPrismaSafely(
+      () =>
+        prisma.deliverable.findMany({
+          where: { companyId },
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            approvalState: true,
+            dueAt: true,
+            deliveredAt: true,
+            revisionCount: true,
+            updatedAt: true,
+            campaignId: true,
+            campaign: { select: { id: true, title: true, clientId: true, clientName: true } },
+          },
+          orderBy: [{ dueAt: 'asc' }, { updatedAt: 'desc' }],
+          take: 250,
+        }),
+      []
+    ),
     financeVisible
       ? prisma.invoice.findMany({
           where: { companyId },
@@ -477,24 +481,28 @@ export async function buildOperationalCommandCenter(user: CommandCenterUser): Pr
       orderBy: { name: 'asc' },
       take: 120,
     }),
-    prisma.brief.findMany({
-      where: { companyId },
-      select: {
-        id: true,
-        title: true,
-        status: true,
-        campaignId: true,
-        clientId: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-      orderBy: { updatedAt: 'desc' },
-      take: 180,
-    }),
+    runPrismaSafely(
+      () =>
+        prisma.brief.findMany({
+          where: { companyId },
+          select: {
+            id: true,
+            title: true,
+            status: true,
+            campaignId: true,
+            clientId: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { updatedAt: 'desc' },
+          take: 180,
+        }),
+      []
+    ),
     loadJobRuns(companyId),
-    prisma.activity.count({ where: { companyId } }),
-    prisma.aiMemory.count({ where: { companyId } }),
-    prisma.searchIndex.count({ where: { companyId } }),
+    runPrismaSafely(() => prisma.activity.count({ where: { companyId } }), 0),
+    runPrismaSafely(() => prisma.aiMemory.count({ where: { companyId } }), 0),
+    runPrismaSafely(() => prisma.searchIndex.count({ where: { companyId } }), 0),
   ])
 
   const openTasks = tasks.filter((task) => task.stage !== 'DONE')

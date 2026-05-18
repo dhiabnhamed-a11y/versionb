@@ -13,3 +13,12 @@ export function isMissingDatabaseObjectError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error)
   return /relation .* does not exist|column .* does not exist|table .* does not exist/i.test(message)
 }
+
+export async function runPrismaSafely<T>(operation: () => Promise<T>, fallback: T) {
+  try {
+    return await operation()
+  } catch (error) {
+    if (isMissingDatabaseObjectError(error)) return fallback
+    throw error
+  }
+}

@@ -1,5 +1,6 @@
 import { createHash } from 'crypto'
 import { prisma } from '@/lib/db'
+import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'
 
 export function sessionJtiFromToken(jti: string | undefined | null) {
   if (!jti || typeof jti !== 'string') return null
@@ -7,13 +8,18 @@ export function sessionJtiFromToken(jti: string | undefined | null) {
 }
 
 export async function isSessionJtiRevoked(jti: string) {
-  const row = await prisma.revokedToken.findUnique({
-    where: { jti },
-    select: { id: true, expiresAt: true },
-  })
-  if (!row) return false
-  if (row.expiresAt.getTime() < Date.now()) return false
-  return true
+  try {
+    const row = await prisma.revokedToken.findUnique({
+      where: { jti },
+      select: { id: true, expiresAt: true },
+    })
+    if (!row) return false
+    if (row.expiresAt.getTime() < Date.now()) return false
+    return true
+  } catch (error) {
+    if (isMissingDatabaseObjectError(error)) return false
+    throw error
+  }
 }
 
 export async function revokeSessionJti(input: {
