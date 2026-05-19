@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useState, useRef } from 'react'
 import { signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
@@ -33,6 +33,10 @@ function LoginContent() {
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [emailExists, setEmailExists] = useState<boolean | null>(null)
+  const [checkingEmail, setCheckingEmail] = useState(false)
+  const emailCheckErrorRef = useRef<string | null>(null)
+  const emailDebounceRef = useRef<number | null>(null)
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -152,10 +156,53 @@ function LoginContent() {
                   type="email"
                   placeholder="you@company.com"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => {
+                    setEmail(e.target.value)
+                    setEmailExists(null)
+                    emailCheckErrorRef.current = null
+                    if (emailDebounceRef.current) window.clearTimeout(emailDebounceRef.current)
+                    emailDebounceRef.current = window.setTimeout(() => {
+                      void (async () => {
+                        const val = e.target.value.trim()
+                        if (!val || !val.includes('@')) return
+                        setCheckingEmail(true)
+                        try {
+                          const resp = await fetch('/api/auth/email-exists', {
+                            method: 'POST',
+                            headers: { 'content-type': 'application/json' },
+                            body: JSON.stringify({ email: val }),
+                          })
+                          if (!resp.ok) {
+                            // endpoint might be disabled in production
+                            emailCheckErrorRef.current = 'Email check unavailable'
+                            setEmailExists(null)
+                          } else {
+                            const data = await resp.json()
+                            setEmailExists(Boolean(data.exists))
+                          }
+                        } catch (err) {
+                          emailCheckErrorRef.current = 'Email check failed'
+                          setEmailExists(null)
+                        } finally {
+                          setCheckingEmail(false)
+                        }
+                      })()
+                    }, 550)
+                  }}
                   required
                   autoComplete="email"
                 />
+                <div className="auth-field-note">
+                  {checkingEmail ? (
+                    <span className="muted">Checking email...</span>
+                  ) : emailCheckErrorRef.current ? (
+                    <span className="muted">{emailCheckErrorRef.current}</span>
+                  ) : emailExists === true ? (
+                    <span className="auth-note-success">Account found for this email.</span>
+                  ) : emailExists === false ? (
+                    <span className="auth-note-warning">No account found for this email. <Link href="/signup">Create workspace</Link></span>
+                  ) : null}
+                </div>
               </div>
               <div className="auth-field">
                 <label htmlFor="login-password">

@@ -47,46 +47,59 @@ export async function POST(req: NextRequest) {
         if (!companyName?.trim()) {
           return NextResponse.json({ error: 'Company name is required for Owner signup.' }, { status: 400 })
         }
+        try {
+          const owner = await createOwnerSignup({
+            name,
+            email,
+            password,
+            companyName,
+            country: country ?? '',
+            industry: industry ?? '',
+            registrationNumber: registrationNumber ?? '',
+            companyType: (companyType ?? 'OTHER').trim().toUpperCase() as CompanyType,
+            legalAcceptance,
+            legalContext,
+          })
 
-        const owner = await createOwnerSignup({
-          name,
-          email,
-          password,
-          companyName,
-          country: country ?? '',
-          industry: industry ?? '',
-          registrationNumber: registrationNumber ?? '',
-          companyType: (companyType ?? 'OTHER').trim().toUpperCase() as CompanyType,
-          legalAcceptance,
-          legalContext,
-        })
-
-        return NextResponse.json(
-          {
-            success: true,
-            userId: owner.userId,
-            companyId: owner.companyId,
-            message: 'Registration submitted. A Super Admin must approve your company before you can sign in.',
-          },
-          { status: 201 }
-        )
+          return NextResponse.json(
+            {
+              success: true,
+              userId: owner.userId,
+              companyId: owner.companyId,
+              message: 'Registration submitted. A Super Admin must approve your company before you can sign in.',
+            },
+            { status: 201 }
+          )
+        } catch (err) {
+          if (err instanceof Error && err.message.includes('LEGAL_CONSENT_SIGNING_SECRET')) {
+            return NextResponse.json({ error: 'Server misconfiguration: legal consent signing secret missing.' }, { status: 500 })
+          }
+          throw err
+        }
       }
 
       if (!inviteCode?.trim()) {
         return NextResponse.json({ error: 'Invalid invite code.' }, { status: 400 })
       }
 
-      const user = await redeemInviteSignup({
-        name,
-        email,
-        password,
-        inviteCode,
-        requestedRole: normalizedRole,
-        legalAcceptance,
-        legalContext,
-      })
+      try {
+        const user = await redeemInviteSignup({
+          name,
+          email,
+          password,
+          inviteCode,
+          requestedRole: normalizedRole,
+          legalAcceptance,
+          legalContext,
+        })
 
-      return NextResponse.json({ success: true, userId: user.id }, { status: 201 })
+        return NextResponse.json({ success: true, userId: user.id }, { status: 201 })
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('LEGAL_CONSENT_SIGNING_SECRET')) {
+          return NextResponse.json({ error: 'Server misconfiguration: legal consent signing secret missing.' }, { status: 500 })
+        }
+        throw err
+      }
     },
     {
       rateLimit: {
