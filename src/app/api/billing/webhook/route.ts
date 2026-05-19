@@ -31,8 +31,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   const planType: PlanType = planKey ? (PLAN_KEY_TO_PLAN_TYPE[planKey] ?? 'STARTER') : 'STARTER'
   const billingInterval: BillingInterval = planKey ? (PLAN_KEY_TO_INTERVAL[planKey] ?? 'MONTHLY') : 'MONTHLY'
 
+  const rawSession = session as unknown as { subscription?: string | { id: string } | null }
   const subscriptionId =
-    typeof session.subscription === 'string' ? session.subscription : session.subscription?.id ?? null
+    typeof rawSession.subscription === 'string' ? rawSession.subscription : rawSession.subscription?.id ?? null
 
   let currentPeriodEnd: Date | null = null
 
