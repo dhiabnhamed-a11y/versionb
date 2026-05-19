@@ -37,6 +37,8 @@ import {
   UserRound,
   UsersRound,
   Zap,
+  Infinity,
+  Users,
   type LucideIcon,
 } from 'lucide-react'
 import styles from './TaskitLandingPage.module.css'
@@ -107,6 +109,93 @@ const tasks = [
 ]
 
 const productModules = sidebarItems.map((item) => item.label)
+
+type PricingPlan = {
+  key: string
+  name: string
+  price: string
+  priceUnit: string
+  desc: string
+  features: string[]
+  cta: string
+  featured?: boolean
+  badge?: string
+  icon: LucideIcon
+  href: string
+}
+
+const pricingPlans: PricingPlan[] = [
+  {
+    key: 'trial',
+    name: 'Free Trial',
+    price: '$0',
+    priceUnit: '7 days free',
+    desc: 'Full access to every module for 7 days. No card required.',
+    features: [
+      'All 10 dashboard modules',
+      'Up to 5 team members',
+      'AI assistant included',
+      'Client portal & CRM',
+      'Projects, tasks & campaigns',
+    ],
+    cta: 'Start free trial',
+    icon: Zap,
+    href: '/register',
+  },
+  {
+    key: 'starter',
+    name: 'Starter',
+    price: '$3',
+    priceUnit: '/seat / month',
+    desc: 'For teams up to 49 seats. Billed monthly or annually.',
+    features: [
+      'Everything in Free Trial',
+      '1 – 49 seats',
+      'Annual billing saves 2 months',
+      'Priority support',
+      'Seat management dashboard',
+    ],
+    cta: 'Get started',
+    featured: true,
+    badge: 'Most popular',
+    icon: CheckCircle2,
+    href: '/billing/upgrade',
+  },
+  {
+    key: 'team',
+    name: 'Team',
+    price: '$2.50',
+    priceUnit: '/seat / month',
+    desc: 'Volume pricing for organisations with 50 or more seats.',
+    features: [
+      'Everything in Starter',
+      '50+ seats (volume pricing)',
+      'Dedicated onboarding',
+      'SLA-backed support',
+      'Advanced usage analytics',
+    ],
+    cta: 'Talk to us',
+    icon: Users,
+    href: '/billing/upgrade',
+  },
+  {
+    key: 'lifetime',
+    name: 'Lifetime',
+    price: '$99',
+    priceUnit: '/seat · one-time',
+    desc: 'Pay once, own the platform forever. All future updates included.',
+    features: [
+      'Everything in Team',
+      'No recurring subscription',
+      'All future updates free',
+      'Lifetime support access',
+      'Early access to new modules',
+    ],
+    cta: 'Buy lifetime access',
+    icon: Infinity,
+    href: '/billing/upgrade',
+  },
+]
 
 const enterpriseBadges = [
   { label: 'Role-based access', icon: ShieldCheck },
@@ -321,6 +410,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
           <a href="#solutions">Solutions <ChevronDown size={12} aria-hidden="true" /></a>
           <a href="#ai-assistant">AI preview <ChevronDown size={12} aria-hidden="true" /></a>
           <a href="#cta">Get started</a>
+          <a href="#pricing">Pricing</a>
           <a href="#features">Enterprise</a>
         </nav>
 
@@ -588,6 +678,56 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
         </div>
       </section>
 
+      <section className={styles.pricingSection} id="pricing">
+        <div className={styles.pricingHeader}>
+          <div className={styles.sectionEyebrow}>Pricing</div>
+          <h2>Simple, <span>transparent</span> pricing</h2>
+          <p>Per-seat pricing that scales with your team. Start free, upgrade when ready.</p>
+        </div>
+
+        <div className={styles.pricingGrid}>
+          {pricingPlans.map((plan) => {
+            const Icon = plan.icon
+            return (
+              <div
+                key={plan.key}
+                className={cx(styles.planCard, plan.featured ? styles.planCardFeatured : undefined)}
+              >
+                {plan.badge && <span className={styles.planBadge}>{plan.badge}</span>}
+                <div className={styles.planName}>
+                  <Icon size={13} aria-hidden="true" style={{ display: 'inline', verticalAlign: 'middle', marginRight: 6 }} />
+                  {plan.name}
+                </div>
+                <div className={styles.planPrice}>
+                  <span className={styles.planPriceAmount}>{plan.price}</span>
+                  <span className={styles.planPriceUnit}>{plan.priceUnit}</span>
+                </div>
+                <p className={styles.planDesc}>{plan.desc}</p>
+                <ul className={styles.planFeatures}>
+                  {plan.features.map((f) => (
+                    <li key={f} className={styles.planFeatureItem}>
+                      <CheckCircle2 size={14} aria-hidden="true" />
+                      {f}
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href={plan.href}
+                  className={cx(styles.planCta, plan.featured ? styles.planCtaPrimary : undefined)}
+                >
+                  {plan.cta}
+                  <ArrowRight size={14} aria-hidden="true" />
+                </Link>
+              </div>
+            )
+          })}
+        </div>
+
+        <p className={styles.pricingNote}>
+          All plans include every module. No hidden fees. 30-day money-back guarantee on paid plans.
+        </p>
+      </section>
+
       <section className={styles.ctaBand} id="cta">
         <h2>
           Ready to run your agency
@@ -614,6 +754,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
         <div className={styles.footerLinks}>
           <a href="#solutions">Product</a>
           <a href="#features">Platform</a>
+          <a href="#pricing">Pricing</a>
           <Link href="/ai-transparency">AI transparency</Link>
           <Link href="/acceptable-use">Acceptable use</Link>
           <Link href="/privacy">Privacy</Link>

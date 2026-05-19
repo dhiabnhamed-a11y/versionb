@@ -1708,3 +1708,197 @@
   color: var(--landing-cyan);
   flex-shrink: 0;
 }
+
+/* ─── Pricing section ─────────────────────────────────── */
+.pricingSection {
+  padding: 120px 40px;
+  background: var(--landing-bg-2);
+  position: relative;
+  overflow: hidden;
+}
+
+.pricingSection::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 80% 50% at 50% 0%, rgba(74, 143, 255, 0.08), transparent 70%);
+  pointer-events: none;
+}
+
+.pricingHeader {
+  text-align: center;
+  max-width: 600px;
+  margin: 0 auto 72px;
+}
+
+.pricingHeader h2 {
+  font-family: var(--landing-display);
+  font-size: clamp(28px, 4vw, 42px);
+  font-weight: 800;
+  color: var(--landing-text);
+  line-height: 1.15;
+  margin: 0 0 16px;
+}
+
+.pricingHeader h2 span {
+  color: var(--landing-blue);
+}
+
+.pricingHeader p {
+  color: var(--landing-muted);
+  font-size: 17px;
+  margin: 0;
+}
+
+.pricingGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 20px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+
+.planCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--landing-border);
+  border-radius: 20px;
+  background: var(--landing-card);
+  padding: 28px 26px 26px;
+  transition: border-color 200ms ease, transform 200ms ease;
+}
+
+.planCard:hover {
+  border-color: var(--landing-border-2);
+  transform: translateY(-3px);
+}
+
+.planCardFeatured {
+  border-color: var(--landing-blue);
+  background: linear-gradient(160deg, #0f1d3a 0%, var(--landing-card) 60%);
+}
+
+.planCardFeatured:hover {
+  border-color: #6ba8ff;
+}
+
+.planBadge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--landing-blue);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  padding: 4px 14px;
+  border-radius: 100px;
+  white-space: nowrap;
+}
+
+.planName {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--landing-blue);
+  margin-bottom: 12px;
+}
+
+.planCardFeatured .planName {
+  color: var(--landing-cyan);
+}
+
+.planPrice {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 4px;
+}
+
+.planPriceAmount {
+  font-family: var(--landing-display);
+  font-size: 44px;
+  font-weight: 800;
+  color: var(--landing-text);
+  line-height: 1;
+}
+
+.planPriceUnit {
+  font-size: 13px;
+  color: var(--landing-muted);
+}
+
+.planDesc {
+  font-size: 13px;
+  color: var(--landing-muted);
+  margin-bottom: 24px;
+  min-height: 36px;
+}
+
+.planFeatures {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  flex: 1;
+}
+
+.planFeatureItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14px;
+  color: var(--landing-muted);
+}
+
+.planFeatureItem svg {
+  flex-shrink: 0;
+  margin-top: 2px;
+  color: var(--landing-green);
+}
+
+.planCta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  padding: 13px 20px;
+  border-radius: 12px;
+  border: 1px solid var(--landing-border-2);
+  background: transparent;
+  color: var(--landing-text);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+
+.planCta:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.planCtaPrimary {
+  background: var(--landing-blue);
+  border-color: var(--landing-blue);
+  color: #fff;
+}
+
+.planCtaPrimary:hover {
+  background: var(--landing-blue-2);
+  border-color: var(--landing-blue-2);
+}
+
+.pricingNote {
+  text-align: center;
+  margin-top: 40px;
+  font-size: 13px;
+  color: var(--landing-muted-2);
+}
