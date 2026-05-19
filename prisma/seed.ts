@@ -1,71 +1,4 @@
 import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
-
-async function main() {
-  const company = await prisma.company.findFirst()
-  if (!company) {
-    console.log('No company found to seed. Create a company first.')
-    return
-  }
-
-  const count = await prisma.enterpriseShift.count({ where: { companyId: company.id } })
-  if (count > 0) {
-    console.log('EnterpriseShift table already has data; skipping seed.')
-    return
-  }
-
-  const today = new Date()
-  const y = today.getUTCFullYear()
-  const m = (today.getUTCMonth())
-  const d = today.getUTCDate()
-
-  const shifts = [
-    {
-      companyId: company.id,
-      name: 'Morning Shift A',
-      department: 'Emergency',
-      startsAt: new Date(Date.UTC(y, m, d, 6, 0, 0)),
-      endsAt: new Date(Date.UTC(y, m, d, 14, 0, 0)),
-      type: 'day',
-      staffCount: 12,
-      coverage: 100,
-    },
-    {
-      companyId: company.id,
-      name: 'Afternoon Shift A',
-      department: 'Emergency',
-      startsAt: new Date(Date.UTC(y, m, d, 14, 0, 0)),
-      endsAt: new Date(Date.UTC(y, m, d, 22, 0, 0)),
-      type: 'day',
-      staffCount: 10,
-      coverage: 83,
-    },
-    {
-      companyId: company.id,
-      name: 'Night Shift B',
-      department: 'ICU',
-      startsAt: new Date(Date.UTC(y, m, d, 22, 0, 0)),
-      endsAt: new Date(Date.UTC(y + (today.getUTCHours() > 22 ? 1 : 0), m, d + 1, 6, 0, 0)),
-      type: 'night',
-      staffCount: 6,
-      coverage: 75,
-    },
-  ]
-
-  await prisma.enterpriseShift.createMany({ data: shifts })
-  console.log('Seeded EnterpriseShift rows for company', company.id)
-}
-
-main()
-  .catch((e) => {
-    console.error(e)
-    process.exit(1)
-  })
-  .finally(async () => {
-    await prisma.$disconnect()
-  })
-import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
@@ -345,6 +278,22 @@ async function main() {
         action: task.stage === 'DONE' ? 'Task completed' : 'Task created',
       },
     })
+  }
+
+  const shiftCount = await prisma.enterpriseShift.count({ where: { companyId: company.id } })
+  if (shiftCount === 0) {
+    const today = new Date()
+    const y = today.getUTCFullYear()
+    const mo = today.getUTCMonth()
+    const dy = today.getUTCDate()
+    await prisma.enterpriseShift.createMany({
+      data: [
+        { companyId: company.id, name: 'Morning Shift A', department: 'Emergency', startsAt: new Date(Date.UTC(y, mo, dy, 6, 0, 0)), endsAt: new Date(Date.UTC(y, mo, dy, 14, 0, 0)), type: 'day', staffCount: 12, coverage: 100 },
+        { companyId: company.id, name: 'Afternoon Shift A', department: 'Emergency', startsAt: new Date(Date.UTC(y, mo, dy, 14, 0, 0)), endsAt: new Date(Date.UTC(y, mo, dy, 22, 0, 0)), type: 'day', staffCount: 10, coverage: 83 },
+        { companyId: company.id, name: 'Night Shift B', department: 'ICU', startsAt: new Date(Date.UTC(y, mo, dy, 22, 0, 0)), endsAt: new Date(Date.UTC(y, mo, dy + 1, 6, 0, 0)), type: 'night', staffCount: 6, coverage: 75 },
+      ],
+    })
+    console.log('Seeded EnterpriseShift rows.')
   }
 
   console.log('Seed complete!\n')

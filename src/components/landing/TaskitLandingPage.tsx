@@ -44,6 +44,7 @@ import styles from './TaskitLandingPage.module.css'
 type TaskitLandingPageProps = {
   dashboardHref: string
   isSignedIn: boolean
+  liveStats?: LandingStat[]
 }
 
 type ChatMessage = {
@@ -61,6 +62,11 @@ type Feature = {
   tone?: 'blue' | 'cyan' | 'green'
 }
 
+type LandingStat = {
+  value: string
+  label: string
+}
+
 const sidebarItems = [
   { label: 'Command', icon: Grid3X3, active: true },
   { label: 'Clients', icon: UserRound },
@@ -75,23 +81,23 @@ const sidebarItems = [
 ]
 
 const metrics = [
-  { label: 'Total Revenue', value: '$148,240', delta: '+12.5%' },
-  { label: 'Active Campaigns', value: '24', delta: '+6.2%' },
-  { label: 'Tasks Completed', value: '92%', delta: '+14.3%' },
-  { label: 'Team Capacity', value: '78%', delta: '+6.1%', warm: true },
+  { label: 'Client CRM', value: 'Contacts', delta: 'Track' },
+  { label: 'Campaign OS', value: 'Briefs', delta: 'Plan' },
+  { label: 'Approvals', value: 'Reviews', delta: 'Control' },
+  { label: 'Capacity', value: 'Workload', delta: 'Balance', warm: true },
 ]
 
 const insights = [
-  { text: '3 campaigns at risk', link: 'View details', icon: AlertTriangle, tone: 'orange' },
-  { text: 'Team overload detected', link: 'Balance workload', icon: Zap, tone: 'blue' },
-  { text: 'Invoice overdue', link: 'Send reminder', icon: Bell, tone: 'red' },
-  { text: 'Client engagement down', link: 'See analysis', icon: TrendingUp, tone: 'green' },
+  { text: 'Flag delayed campaigns', link: 'Review timeline', icon: AlertTriangle, tone: 'orange' },
+  { text: 'Spot workload pressure', link: 'Balance team', icon: Zap, tone: 'blue' },
+  { text: 'Surface pending approvals', link: 'Open queue', icon: Bell, tone: 'red' },
+  { text: 'Summarize performance trends', link: 'View report', icon: TrendingUp, tone: 'green' },
 ]
 
 const activities = [
-  { text: "Campaign 'Brand Launch' approved", time: '2m ago', icon: Megaphone },
-  { text: 'New Invoice #INV-1240 paid', time: '10m ago', icon: FileText },
-  { text: 'Design assets uploaded', time: '32m ago', icon: Upload },
+  { text: 'Campaign approval updates', time: 'Live', icon: Megaphone },
+  { text: 'Invoice and contract activity', time: 'Synced', icon: FileText },
+  { text: 'Creative deliverable uploads', time: 'Tracked', icon: Upload },
 ]
 
 const tasks = [
@@ -100,14 +106,7 @@ const tasks = [
   { name: 'Client presentation', badge: 'Low', tone: 'low' },
 ]
 
-const logos = ['inspire', 'vertex', 'brightly', 'horizon', 'nova', 'stack', 'craftwork']
-
-const platformStats = [
-  { value: '1K+', label: 'Concurrent users' },
-  { value: '99.9%', label: 'Uptime SLA' },
-  { value: '<120ms', label: 'API p95' },
-  { value: 'SOC2', label: 'Security ready' },
-]
+const productModules = sidebarItems.map((item) => item.label)
 
 const enterpriseBadges = [
   { label: 'Role-based access', icon: ShieldCheck },
@@ -125,6 +124,13 @@ const features: Feature[] = [
   { title: 'Finance & Billing', description: 'Invoices, subscriptions, expenses and revenue in one place.', icon: CircleDollarSign },
   { title: 'Media & Files', description: 'Organize, preview, approve and manage every creative asset.', icon: FileText },
   { title: 'Analytics & Reports', description: 'Live dashboards and clean reports that drive better decisions.', icon: BarChart3, tone: 'green' },
+]
+
+const productStats = [
+  { value: String(COMPANY_TYPE_OPTIONS.length), label: 'Workspace types' },
+  { value: String(features.length), label: 'Core product areas' },
+  { value: String(productModules.length), label: 'Dashboard modules' },
+  { value: String(enterpriseBadges.length), label: 'Security & ops controls' },
 ]
 
 const workflowTypePresentation = {
@@ -223,18 +229,18 @@ const workflowTypePresentation = {
 >
 
 const initialChat: ChatMessage[] = [
-  { id: 'risk-question', role: 'user', content: 'Which campaigns are at risk?' },
+  { id: 'risk-question', role: 'user', content: 'Can TASKIT show work that needs attention?' },
   {
     id: 'risk-answer',
     role: 'ai',
-    content: 'I found 3 campaigns at risk due to delays and pending approvals.',
-    action: 'View at risk campaigns',
+    content: 'Yes. TASKIT can summarize delayed tasks, pending approvals, and workload signals from your workspace.',
+    action: 'Review workspace signals',
   },
-  { id: 'report-question', role: 'user', content: 'Generate weekly performance report' },
+  { id: 'report-question', role: 'user', content: 'Can it prepare a weekly report?' },
   {
     id: 'report-answer',
     role: 'ai',
-    content: 'Weekly performance report is ready.',
+    content: 'TASKIT can organize workspace activity into a clean report for your team.',
     report: true,
   },
 ]
@@ -262,7 +268,7 @@ function ArrowIcon() {
   return <ArrowRight size={16} aria-hidden="true" />
 }
 
-export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitLandingPageProps) {
+export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats = [] }: TaskitLandingPageProps) {
   const [scrolled, setScrolled] = useState(false)
   const [aiInput, setAiInput] = useState('')
   const [chat, setChat] = useState<ChatMessage[]>(initialChat)
@@ -270,7 +276,8 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
   const primaryHref = isSignedIn ? dashboardHref : '/signup'
   const loginHref = isSignedIn ? dashboardHref : '/login'
   const primaryLabel = isSignedIn ? 'Open workspace' : 'Get started'
-  const heroPrimaryLabel = isSignedIn ? 'Open workspace' : 'Start free trial'
+  const heroPrimaryLabel = isSignedIn ? 'Open workspace' : 'Create workspace'
+  const landingStats = [...liveStats, ...productStats].slice(0, 4)
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40)
@@ -293,8 +300,8 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
     const reply: ChatMessage = {
       id: `ai-${Date.now()}`,
       role: 'ai',
-      content: "Processing your request. I'll analyze the live workspace data and return the next best action.",
-      action: 'Run analysis',
+      content: "I'll use the workspace modules TASKIT provides to organize the request and identify the next action.",
+      action: 'Organize request',
     }
 
     setChat((current) => [...current, userMessage, reply])
@@ -312,8 +319,8 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
         <nav className={styles.navLinks} aria-label="Landing navigation">
           <a href="#product">Product <ChevronDown size={12} aria-hidden="true" /></a>
           <a href="#solutions">Solutions <ChevronDown size={12} aria-hidden="true" /></a>
-          <a href="#ai-assistant">Resources <ChevronDown size={12} aria-hidden="true" /></a>
-          <a href="#cta">Pricing</a>
+          <a href="#ai-assistant">AI preview <ChevronDown size={12} aria-hidden="true" /></a>
+          <a href="#cta">Get started</a>
           <a href="#features">Enterprise</a>
         </nav>
 
@@ -339,7 +346,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
             <span>modern agencies.</span>
           </h1>
           <p className={styles.heroSub}>
-            Manage clients, campaigns, teams, finances and operations in one intelligent platform. Built to scale your agency to the next level.
+            Manage clients, campaigns, teams, finances, deliverables, reports, and operations in one workspace built from TASKIT modules.
           </p>
           <div className={styles.heroCtas}>
             <Link href={primaryHref} className={cx(styles.btnHero, styles.btnHeroPrimary)}>
@@ -347,25 +354,25 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
               <ArrowIcon />
             </Link>
             <a href="#ai-assistant" className={cx(styles.btnHero, styles.btnHeroSecondary)}>
-              Book a demo
+              View AI preview
             </a>
           </div>
           <div className={styles.heroTrust}>
             <div className={styles.trustAvatars} aria-hidden="true">
-              <span>H</span>
+              <span>C</span>
               <span>A</span>
-              <span>M</span>
-              <span>S</span>
+              <span>T</span>
+              <span>R</span>
             </div>
-            <p>Trusted by <strong>2,500+ agencies</strong> worldwide</p>
+            <p>Built for <strong>clients, approvals, tasks, and reports</strong></p>
           </div>
         </div>
 
         <DashboardMockup />
       </section>
 
-      <section className={styles.statsBar} aria-label="Platform scale">
-        {platformStats.map((stat) => (
+      <section className={styles.statsBar} aria-label="TASKIT platform facts">
+        {landingStats.map((stat) => (
           <div key={stat.label} className={styles.statItem}>
             <strong>{stat.value}</strong>
             <span>{stat.label}</span>
@@ -373,13 +380,13 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
         ))}
       </section>
 
-      <section className={styles.logosStrip} aria-label="Trusted agencies">
-        <p>Trusted by leading agencies</p>
+      <section className={styles.logosStrip} aria-label="TASKIT product modules">
+        <p>Built around real TASKIT modules</p>
         <div className={styles.logosRow}>
-          {logos.map((logo, index) => (
-            <span key={logo} className={styles.logoBrand}>
+          {productModules.map((module, index) => (
+            <span key={module} className={styles.logoBrand}>
               {index % 3 === 0 ? <Sparkles size={18} aria-hidden="true" /> : null}
-              {logo}
+              {module}
             </span>
           ))}
         </div>
@@ -471,7 +478,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
             </h2>
           </div>
           <p>
-            TASKIT OS unifies your entire workflow with AI-powered automation, live analytics, and seamless collaboration. Built for speed, built for scale, built for agencies.
+            TASKIT OS unifies workflow setup, client work, deliverables, approvals, finance, reporting, and collaboration in one product experience.
           </p>
         </div>
         <div className={styles.featuresGrid}>
@@ -500,9 +507,9 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
             <h2 className={styles.aiTitle}>
               Your agency copilot,
               <br />
-              <span>available 24/7.</span>
+              <span>inside your workspace.</span>
             </h2>
-            <p>Ask anything. Get insights. Automate tasks. Make smarter decisions, faster.</p>
+            <p>Ask questions, summarize workspace activity, and turn operational context into next steps.</p>
             <Link href={primaryHref} className={cx(styles.btnHero, styles.btnHeroPrimary)}>
               Try AI Assistant
               <ArrowIcon />
@@ -514,7 +521,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
               <div className={styles.aiAvatar}><LogoMark compact /></div>
               <div>
                 <strong>TASKIT AI</strong>
-                <span>Online</span>
+                <span>Product preview</span>
               </div>
             </div>
             <div className={styles.aiMessages}>
@@ -564,7 +571,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
             <div className={styles.sectionEyebrow}>Enterprise grade</div>
             <h2 className={styles.enterpriseTitle}>Built for serious SaaS scale</h2>
             <p className={styles.enterpriseCopy}>
-              Distributed rate limits, Redis-backed realtime, job queues, health probes, and tenant isolation — ready for teams operating at volume.
+              Role-based access, audit trails, tenant-aware data, realtime modules, job queues, and health checks are implemented across the platform.
             </p>
           </div>
           <div className={styles.enterpriseBadges}>
@@ -587,14 +594,14 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
           <br />
           like an <span>operating system?</span>
         </h2>
-        <p>Join 2,500+ agencies already using TASKIT OS to scale smarter.</p>
+        <p>Create a real TASKIT workspace and use the modules already built into the platform.</p>
         <div className={styles.ctaBtns}>
           <Link href={primaryHref} className={cx(styles.btnHero, styles.btnHeroPrimary)}>
             {heroPrimaryLabel}
             <ArrowIcon />
           </Link>
           <a href="#ai-assistant" className={cx(styles.btnHero, styles.btnHeroSecondary)}>
-            Book a demo
+            View AI preview
           </a>
         </div>
       </section>
@@ -606,15 +613,14 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn }: TaskitL
         </Link>
         <div className={styles.footerLinks}>
           <a href="#solutions">Product</a>
-          <a href="#cta">Pricing</a>
-          <a href="#features">About</a>
-          <a href="#ai-assistant">Blog</a>
-          <a href="#cta">Careers</a>
+          <a href="#features">Platform</a>
+          <Link href="/ai-transparency">AI transparency</Link>
+          <Link href="/acceptable-use">Acceptable use</Link>
           <Link href="/privacy">Privacy</Link>
           <Link href="/terms">Terms</Link>
         </div>
         <div className={styles.footerMeta}>
-          <p>developped by Hamed Dhieb</p>
+          <p>Developed by Hamed Dhieb</p>
           <p>© 2026 TASKIT OS. All rights reserved.</p>
         </div>
       </footer>
@@ -657,7 +663,7 @@ function DashboardMockup() {
           </aside>
 
           <div className={styles.dashMain}>
-            <div className={styles.dashWelcome}>Welcome back, Hamed</div>
+            <div className={styles.dashWelcome}>TASKIT workspace preview</div>
             <div className={styles.dashMetrics}>
               {metrics.map((metric) => (
                 <div key={metric.label} className={styles.metricCard}>
@@ -673,9 +679,9 @@ function DashboardMockup() {
 
             <div className={styles.dashCharts}>
               <div className={styles.chartCard}>
-                <div className={styles.chartTitle}>Revenue overview <span>This month</span></div>
+                <div className={styles.chartTitle}>Workflow overview <span>Preview</span></div>
                 <div className={styles.chartArea}>
-                  <div className={styles.chartTooltip}>$148,240</div>
+                  <div className={styles.chartTooltip}>Activity trend</div>
                   <svg className={styles.chartSvg} viewBox="0 0 200 60" preserveAspectRatio="none" aria-hidden="true">
                     <defs>
                       <linearGradient id="taskitRevenueGradient" x1="0" y1="0" x2="0" y2="1">
