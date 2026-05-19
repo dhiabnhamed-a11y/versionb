@@ -65,8 +65,9 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 }
 
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
+  const raw = invoice as unknown as { subscription?: string | { id: string } | null }
   const subscriptionId =
-    typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id ?? null
+    typeof raw.subscription === 'string' ? raw.subscription : raw.subscription?.id ?? null
   if (!subscriptionId) return
 
   const stripe = getStripe()
@@ -94,8 +95,9 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 }
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
+  const raw = invoice as unknown as { subscription?: string | { id: string } | null }
   const subscriptionId =
-    typeof invoice.subscription === 'string' ? invoice.subscription : invoice.subscription?.id ?? null
+    typeof raw.subscription === 'string' ? raw.subscription : raw.subscription?.id ?? null
   if (!subscriptionId) return
 
   const stripe = getStripe()
