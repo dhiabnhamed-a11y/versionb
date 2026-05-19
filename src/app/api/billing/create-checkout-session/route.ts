@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSessionUser } from '@/modules/shared/session'
-import { prisma } from '@/lib/db'
 import { getStripe, getStripeCustomer } from '@/lib/stripe'
 import { PLANS } from '@/lib/plans'
 import type { PlanKey } from '@/lib/plans'

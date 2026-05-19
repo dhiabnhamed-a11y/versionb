@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CreditCard, Clock, CheckCircle2, AlertTriangle, XCircle, Users, TrendingUp, AlertCircle } from 'lucide-react'
+import { Clock, CheckCircle2, AlertTriangle, XCircle, Users, TrendingUp, AlertCircle } from 'lucide-react'
 
 type BillingStats = {
   total: number
