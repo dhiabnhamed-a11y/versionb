@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Check, Zap, Users, Crown, Infinity, ArrowRight, AlertCircle } from 'lucide-react'
 import type { PlanKey } from '@/lib/plans'
@@ -71,7 +71,7 @@ const FEATURE_COMPARISON = [
   { feature: 'All future updates', starter: false, team: false, lifetime: true },
 ]
 
-export default function UpgradePage() {
+function UpgradePageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const reason = searchParams.get('reason')
@@ -303,5 +303,13 @@ export default function UpgradePage() {
         </p>
       </div>
     </div>
+  )
+}
+
+export default function UpgradePage() {
+  return (
+    <Suspense>
+      <UpgradePageInner />
+    </Suspense>
   )
 }
