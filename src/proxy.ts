@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 import { isPublicApiPath } from '@/lib/security/config'
 
 function securityHeaders(req: NextRequest) {
@@ -65,7 +66,46 @@ function rejectUnauthorizedApi(req: NextRequest) {
   )
 }
 
-export function proxy(req: NextRequest) {
+const BILLING_EXEMPT_PREFIXES = [
+  '/billing',
+  '/auth',
+  '/login',
+  '/register',
+  '/invite',
+  '/api/webhooks',
+  '/api/auth',
+  '/api/billing/webhook',
+  '/_next',
+  '/favicon',
+  '/icons',
+  '/sounds',
+  '/manifest.json',
+  '/firebase-messaging-sw.js',
+]
+
+function isBillingExempt(pathname: string): boolean {
+  return BILLING_EXEMPT_PREFIXES.some((prefix) => pathname.startsWith(prefix))
+}
+
+function checkBillingAccess(
+  subscriptionStatus: unknown,
+  trialEndsAt: unknown,
+): 'allowed' | 'trial_expired' | 'payment_required' {
+  if (!subscriptionStatus) return 'allowed'
+  if (subscriptionStatus === 'ACTIVE') return 'allowed'
+  if (subscriptionStatus === 'PAUSED') return 'payment_required'
+  if (subscriptionStatus === 'CANCELED') return 'payment_required'
+  if (subscriptionStatus === 'PAST_DUE') return 'payment_required'
+  if (subscriptionStatus === 'TRIAL') {
+    if (!trialEndsAt) return 'allowed'
+    const trialEnd = new Date(trialEndsAt as string)
+    if (trialEnd > new Date()) return 'allowed'
+    return 'trial_expired'
+  }
+  return 'allowed'
+}
+
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
   const hasSessionCookie = hasAuthSessionCookie(req)
 
@@ -88,6 +128,18 @@ export function proxy(req: NextRequest) {
   if (pathname.startsWith('/dashboard')) {
     if (!hasSessionCookie) {
       return applySecurityHeaders(NextResponse.redirect(new URL('/login', req.url)), req)
+    }
+  }
+
+  if (!isBillingExempt(pathname) && hasSessionCookie) {
+    const token = await getToken({ req, secret: process.env.AUTH_SECRET })
+    if (token?.companyId) {
+      const access = checkBillingAccess(token.subscriptionStatus, token.trialEndsAt)
+      if (access === 'trial_expired' || access === 'payment_required') {
+        const upgradeUrl = new URL('/billing/upgrade', req.url)
+        upgradeUrl.searchParams.set('reason', access)
+        return applySecurityHeaders(NextResponse.redirect(upgradeUrl), req)
+      }
     }
   }
 
