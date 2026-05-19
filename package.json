@@ -25,6 +25,7 @@
     "verify:env": "tsx scripts/verify-vercel-env.ts",
     "diag:login": "tsx scripts/check-login-diagnostics.ts",
     "user:reset-password": "tsx scripts/reset-user-password.ts",
+    "diag:test-credentials": "tsx scripts/test-credentials.ts",
     "lint": "eslint",
     "db:migrate": "prisma migrate dev --name init",
     "db:generate": "prisma generate",
