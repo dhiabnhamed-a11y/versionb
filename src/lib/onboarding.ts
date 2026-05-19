@@ -256,13 +256,15 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
   try {
     const createdUser = await prisma.$transaction(
       async (tx) => {
+        const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+
         const user = await tx.user.create({
           data: {
             name,
             email,
             password: passwordHash,
             role: 'OWNER',
-            accountStatus: 'PENDING',
+            accountStatus: 'ACTIVE',
             authUserId,
           },
           select: {
@@ -278,11 +280,24 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
             industry,
             registrationNumber,
             companyType,
-            status: 'PENDING',
+            status: 'ACTIVE',
+            selfServeSignup: true,
+            subscriptionStatus: 'TRIAL',
+            trialEndsAt,
+            planType: 'FREE_TRIAL',
+            seatCount: 1,
             ownerId: user.id,
           },
           select: {
             id: true,
+          },
+        })
+
+        await tx.subscriptionEvent.create({
+          data: {
+            companyId: company.id,
+            event: 'trial_started',
+            payload: { trialEndsAt: trialEndsAt.toISOString() },
           },
         })
 

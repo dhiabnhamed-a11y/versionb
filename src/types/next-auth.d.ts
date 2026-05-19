@@ -12,6 +12,9 @@ declare module 'next-auth' {
       preferredLocale?: string | null
       companyType?: string | null
       companyStatus?: string | null
+      subscriptionStatus?: string | null
+      trialEndsAt?: string | null
+      planType?: string | null
     } & DefaultSession['user']
   }
 
@@ -23,6 +26,9 @@ declare module 'next-auth' {
     preferredLocale?: string | null
     companyType?: string | null
     companyStatus?: string | null
+    subscriptionStatus?: string | null
+    trialEndsAt?: string | null
+    planType?: string | null
   }
 }
 
@@ -35,5 +41,8 @@ declare module 'next-auth/jwt' {
     preferredLocale?: string | null
     companyType?: string | null
     companyStatus?: string | null
+    subscriptionStatus?: string | null
+    trialEndsAt?: string | null
+    planType?: string | null
   }
 }

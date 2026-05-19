@@ -1,9 +1,10 @@
 'use client'
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { Building2, CheckCircle2, Eye, Loader2, Search, ShieldCheck, XCircle } from 'lucide-react'
+import { Building2, CheckCircle2, Eye, Loader2, Search, ShieldCheck, XCircle, CreditCard } from 'lucide-react'
 
 import styles from './SuperAdminCompaniesClient.module.css'
+import SuperAdminBillingOverview from './SuperAdminBillingOverview'
 
 type CompanyStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'DISABLED'
 type StatusFilter = CompanyStatus | 'ALL'
@@ -42,11 +43,14 @@ type CompanyResponse = {
   companies: CompanyRecord[]
 }
 
-const statusTabs: { value: StatusFilter; label: string }[] = [
+type AdminView = StatusFilter | 'BILLING'
+
+const statusTabs: { value: AdminView; label: string }[] = [
   { value: 'PENDING', label: 'Pending' },
   { value: 'ACTIVE', label: 'Approved' },
   { value: 'REJECTED', label: 'Rejected' },
   { value: 'DISABLED', label: 'Disabled' },
+  { value: 'BILLING', label: 'Billing' },
 ]
 
 function formatDate(value: string | null) {
@@ -73,9 +77,9 @@ function getActionButtons(company: CompanyRecord) {
 }
 
 export default function SuperAdminCompaniesClient({ initialStatus }: { initialStatus: string }) {
-  const [status, setStatus] = useState<StatusFilter>(
-    initialStatus === 'ACTIVE' || initialStatus === 'REJECTED' || initialStatus === 'DISABLED' || initialStatus === 'ALL'
-      ? initialStatus
+  const [status, setStatus] = useState<AdminView>(
+    initialStatus === 'ACTIVE' || initialStatus === 'REJECTED' || initialStatus === 'DISABLED' || initialStatus === 'ALL' || initialStatus === 'BILLING'
+      ? (initialStatus as AdminView)
       : 'PENDING'
   )
   const [search, setSearch] = useState('')
@@ -177,8 +181,11 @@ export default function SuperAdminCompaniesClient({ initialStatus }: { initialSt
               onClick={() => setStatus(tab.value)}
               className={`${styles.tabButton} ${status === tab.value ? styles.tabButtonActive : ''}`}
             >
+              {tab.value === 'BILLING' ? <CreditCard size={14} /> : null}
               <span>{tab.label}</span>
-              <span className={styles.tabCount}>{data?.counts[tab.value as CompanyStatus] ?? 0}</span>
+              {tab.value !== 'BILLING' && (
+                <span className={styles.tabCount}>{data?.counts[tab.value as CompanyStatus] ?? 0}</span>
+              )}
             </button>
           ))}
         </div>
@@ -207,7 +214,11 @@ export default function SuperAdminCompaniesClient({ initialStatus }: { initialSt
         </div>
       )}
 
-      <div className={styles.contentGrid}>
+      {status === 'BILLING' ? (
+        <SuperAdminBillingOverview />
+      ) : null}
+
+      <div className={styles.contentGrid} style={{ display: status === 'BILLING' ? 'none' : undefined }}>
         <div className="card">
           <div className={styles.tableHeader}>
             <div>

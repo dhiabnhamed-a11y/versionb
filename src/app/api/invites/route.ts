@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { createCompanyInvite, getInviteTtlHours, InviteFlowError, listCompanyInvites } from '@/lib/invites'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
+import { prisma } from '@/lib/db'
 
 export async function GET() {
   const user = await requireSessionUser()
@@ -46,6 +47,39 @@ export async function POST(req: NextRequest) {
       email?: string
       role?: string
       ttlHours?: number
+    }
+
+    const TRIAL_SEAT_LIMIT = 5
+    const [companyBilling, activeUserCount] = await Promise.all([
+      prisma.company.findUnique({
+        where: { id: user.companyId },
+        select: { seatCount: true, subscriptionStatus: true },
+      }),
+      prisma.user.count({
+        where: { companyId: user.companyId, accountStatus: 'ACTIVE' },
+      }),
+    ])
+
+    if (companyBilling) {
+      const status = companyBilling.subscriptionStatus as string
+      if (status === 'ACTIVE' && activeUserCount >= companyBilling.seatCount) {
+        return NextResponse.json(
+          {
+            error: 'You have reached your seat limit. Please upgrade your plan to add more team members.',
+            upgradeUrl: '/billing/upgrade',
+          },
+          { status: 402 }
+        )
+      }
+      if (status === 'TRIAL' && activeUserCount >= TRIAL_SEAT_LIMIT) {
+        return NextResponse.json(
+          {
+            error: `Free trial is limited to ${TRIAL_SEAT_LIMIT} users. Upgrade to add more team members.`,
+            upgradeUrl: '/billing/upgrade',
+          },
+          { status: 402 }
+        )
+      }
     }
 
     const invite = await createCompanyInvite({

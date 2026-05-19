@@ -122,9 +122,19 @@ model Company {
   reviewNote         String?
   reviewedAt         DateTime?
   reviewedById       String?
-  ownerId            String    @unique
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
+  ownerId              String             @unique
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  subscriptionStatus   SubscriptionStatus @default(TRIAL)
+  trialEndsAt          DateTime?
+  stripeCustomerId     String?            @unique
+  stripeSubscriptionId String?            @unique
+  currentPeriodEnd     DateTime?
+  planType             PlanType           @default(FREE_TRIAL)
+  seatCount            Int                @default(1)
+  billingInterval      BillingInterval?
+  selfServeSignup      Boolean            @default(false)
 
   owner                        User                             @relation("CompanyOwner", fields: [ownerId], references: [id])
   reviewedBy                   User?                            @relation("CompanyReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
@@ -229,6 +239,7 @@ model Company {
   enterpriseRoleAssignments    EnterpriseRoleAssignment[]
   enterpriseAuditEvents        EnterpriseAuditEvent[]
   enterpriseShifts             EnterpriseShift[]
+  subscriptionEvents           SubscriptionEvent[]
 
   @@index([status, createdAt])
   @@index([name, registrationNumber, status])
@@ -3745,4 +3756,38 @@ model IntegrationActivityLog {
   @@index([actorId, createdAt])
   @@index([action, createdAt])
   @@map("integration_activity_logs")
+}
+
+model SubscriptionEvent {
+  id        String   @id @default(cuid())
+  companyId String
+  event     String
+  payload   Json?
+  createdAt DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, createdAt])
+  @@index([event, createdAt])
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  PAUSED
+}
+
+enum PlanType {
+  FREE_TRIAL
+  STARTER
+  TEAM
+  LIFETIME
+}
+
+enum BillingInterval {
+  MONTHLY
+  YEARLY
+  LIFETIME
 }

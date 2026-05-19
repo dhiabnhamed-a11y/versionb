@@ -30,6 +30,9 @@ type AuthUserRecord = {
   company: {
     companyType: string
     status: string
+    subscriptionStatus: string
+    trialEndsAt: Date | null
+    planType: string
   } | null
 }
 
@@ -43,6 +46,9 @@ type AuthSessionShape = {
   preferredLocale: string
   companyType: string | null
   companyStatus: string | null
+  subscriptionStatus: string | null
+  trialEndsAt: string | null
+  planType: string | null
 }
 
 type SupabasePasswordVerification =
@@ -63,6 +69,9 @@ async function loadAuthUserByEmail(email: string) {
         select: {
           companyType: true,
           status: true,
+          subscriptionStatus: true,
+          trialEndsAt: true,
+          planType: true,
         },
       },
     },
@@ -145,6 +154,9 @@ function buildAuthSessionUser(user: AuthUserRecord): AuthSessionShape {
     preferredLocale: user.preferredLocale,
     companyType: user.company?.companyType ?? null,
     companyStatus: user.company?.status ?? null,
+    subscriptionStatus: (user.company?.subscriptionStatus as string) ?? null,
+    trialEndsAt: user.company?.trialEndsAt?.toISOString() ?? null,
+    planType: (user.company?.planType as string) ?? null,
   }
 }
 
@@ -252,6 +264,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.preferredLocale = (user as AuthSessionShape).preferredLocale
         token.companyType = (user as AuthSessionShape).companyType
         token.companyStatus = (user as AuthSessionShape).companyStatus
+        token.subscriptionStatus = (user as AuthSessionShape).subscriptionStatus
+        token.trialEndsAt = (user as AuthSessionShape).trialEndsAt
+        token.planType = (user as AuthSessionShape).planType
         const expiresAt = new Date(Date.now() + 60 * 60 * 8 * 1000)
         await prisma.authSession.create({
           data: {
@@ -282,6 +297,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         ;(session.user as AuthSessionShape).preferredLocale = token.preferredLocale as string
         ;(session.user as AuthSessionShape).companyType = token.companyType as string | null
         ;(session.user as AuthSessionShape).companyStatus = token.companyStatus as string | null
+        ;(session.user as AuthSessionShape).subscriptionStatus = token.subscriptionStatus as string | null
+        ;(session.user as AuthSessionShape).trialEndsAt = token.trialEndsAt as string | null
+        ;(session.user as AuthSessionShape).planType = token.planType as string | null
       }
 
       return session
