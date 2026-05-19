@@ -140,7 +140,7 @@ const pricingPlans: PricingPlan[] = [
     ],
     cta: 'Start free trial',
     icon: Zap,
-    href: '/register',
+    href: '/signup',
   },
   {
     key: 'starter',

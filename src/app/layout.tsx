@@ -1,7 +1,23 @@
 import type { Metadata, Viewport } from 'next'
+import { Plus_Jakarta_Sans, Fraunces } from 'next/font/google'
 import PWARegistration from '@/components/pwa/PWARegistration'
 import ClientAnalyticsGuard from '@/components/analytics/ClientAnalyticsGuard.client'
 import './globals.css'
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700', '800'],
+  variable: '--font-jakarta',
+  display: 'swap',
+  preload: true,
+})
+
+const fraunces = Fraunces({
+  subsets: ['latin'],
+  variable: '--font-fraunces',
+  display: 'swap',
+  preload: false,
+})
 
 export const metadata: Metadata = {
   title: 'TASKIT OS | Enterprise Operations Platform',
@@ -39,6 +55,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
+      className={`${plusJakartaSans.variable} ${fraunces.variable}`}
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >

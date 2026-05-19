@@ -29,7 +29,6 @@ import {
   ListTodo,
   BarChart3,
   LogOut,
-  Radio,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,

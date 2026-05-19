@@ -21,10 +21,6 @@ import {
   Sparkles,
 } from 'lucide-react'
 
-async function readLoginCheckData(response: Response) {
-  return (await response.json().catch(() => ({}))) as { error?: string }
-}
-
 function getSignInErrorMessage(error?: string | null) {
   if (error === 'Configuration') {
     return 'Sign in is not configured correctly on the server. Check the production database and auth environment variables.'
@@ -58,24 +54,6 @@ function LoginContent() {
     setError('')
 
     const trimmedEmail = email.trim()
-    const loginCheck = await fetch('/api/auth/login-check', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: trimmedEmail, password }),
-    }).catch(() => null)
-
-    if (!loginCheck) {
-      setLoading(false)
-      setError('Unable to reach the sign-in service. Please try again.')
-      return
-    }
-
-    const loginCheckData = await readLoginCheckData(loginCheck)
-    if (!loginCheck.ok) {
-      setLoading(false)
-      setError(loginCheckData.error || getSignInErrorMessage(loginCheck.status >= 500 ? 'Configuration' : null))
-      return
-    }
 
     const res = await signIn('credentials', {
       email: trimmedEmail,
