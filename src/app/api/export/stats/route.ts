@@ -8,7 +8,6 @@ import {
   buildWorkspaceStatsExport,
   canManageSettings,
   logAdminAction,
-  type SettingsSessionUser,
 } from '@/lib/settings'
 import { prisma } from '@/lib/db'
 import { generateStatsPdf } from '@/lib/stats-pdf'
@@ -114,7 +113,6 @@ export async function GET(req: NextRequest) {
     const user = await requireSessionUser()
     if (!user) return jsonError('Unauthorized', 401, reqId)
 
-    const typedUser = user as SettingsSessionUser
     if (!user.id) return jsonError('Unauthorized', 401, reqId)
     if (!user.companyId) return jsonError('No company found for this account.', 400, reqId)
     if (!canManageSettings(user.role)) return jsonError('Forbidden', 403, reqId)

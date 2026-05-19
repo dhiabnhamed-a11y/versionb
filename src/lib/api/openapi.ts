@@ -351,9 +351,9 @@ export const apiRouteContracts = [
 ] satisfies RouteContract[]
 
 function schemaFromZod(schema: z.ZodType): JsonSchema {
-  const jsonSchema = z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }) as JsonSchema
-  const { $schema: _schema, ...rest } = jsonSchema
-  return rest
+  const jsonSchema = z.toJSONSchema(schema, { io: 'input', unrepresentable: 'any' }) as JsonSchema & { $schema?: string }
+  delete (jsonSchema as Record<string, unknown>).$schema
+  return jsonSchema
 }
 
 function canonicalResponse(schemaRef: string, description = 'Successful response') {

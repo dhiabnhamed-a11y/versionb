@@ -4,19 +4,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createCompanyInvite, getInviteTtlHours, InviteFlowError, listCompanyInvites } from '@/lib/invites'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
 
-type SessionUser = {
-  id: string
-  role?: string
-  companyId?: string | null
-}
-
 export async function GET() {
   const user = await requireSessionUser()
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const typedUser = user as SessionUser
   if (!user.companyId) {
     return NextResponse.json([])
   }
@@ -40,7 +33,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const typedUser = user as SessionUser
   if (!user.companyId) {
     return NextResponse.json({ error: 'No company found for this account.' }, { status: 400 })
   }

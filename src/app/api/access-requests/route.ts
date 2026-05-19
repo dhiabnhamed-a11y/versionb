@@ -4,19 +4,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { listCompanyAccessRequests, reviewCompanyAccessRequest, submitDomainAccessRequest } from '@/lib/onboarding'
 import { InviteFlowError } from '@/lib/invites'
 
-type SessionUser = {
-  id: string
-  role?: string
-  companyId?: string | null
-}
-
 export async function GET() {
   const user = await requireSessionUser()
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const typedUser = user as SessionUser
   if (!user.companyId) {
     return NextResponse.json([])
   }
@@ -65,7 +58,6 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const typedUser = user as SessionUser
   if (!user.companyId || !user.id || user.role === 'EMPLOYEE') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

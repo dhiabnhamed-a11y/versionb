@@ -893,7 +893,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
     return () => {
       cancelled = true
     }
-  }, [open])
+  }, [open, conversationId])
 
   useEffect(() => {
     if (!open || !workflowFocusKey) return

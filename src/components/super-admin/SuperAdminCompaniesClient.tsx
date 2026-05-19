@@ -110,12 +110,11 @@ export default function SuperAdminCompaniesClient({ initialStatus }: { initialSt
 
       setData(payload)
       setLoading(false)
-      if (!selectedCompanyId && payload.companies[0]) {
-        setSelectedCompanyId(payload.companies[0].id)
-      }
-      if (selectedCompanyId && !payload.companies.some((company) => company.id === selectedCompanyId)) {
-        setSelectedCompanyId(payload.companies[0]?.id ?? null)
-      }
+      setSelectedCompanyId((prev) => {
+        if (!prev && payload.companies[0]) return payload.companies[0].id
+        if (prev && !payload.companies.some((company) => company.id === prev)) return payload.companies[0]?.id ?? null
+        return prev
+      })
     }
 
     void loadCompanies()

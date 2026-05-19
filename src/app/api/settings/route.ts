@@ -15,7 +15,6 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const typedUser = user as SettingsSessionUser
   const appearance = await getWorkspaceThemeSettings(user.companyId)
 
   return NextResponse.json({ appearance }, { headers: NO_STORE_HEADERS })

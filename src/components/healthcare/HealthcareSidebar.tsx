@@ -19,7 +19,6 @@ import {
   Siren,
   BarChart3,
   Search,
-  Bell,
   LogOut,
   Menu,
   PanelLeftClose,
@@ -80,7 +79,7 @@ function buildNavSections(): NavSection[] {
   return sections
 }
 
-export default function HealthcareSidebar({ children, initialLocale }: HealthcareSidebarProps) {
+export default function HealthcareSidebar({ children }: HealthcareSidebarProps) {
   const { t, direction, locale } = useLocale()
   const { data: session } = useSession()
   const pathname = usePathname()

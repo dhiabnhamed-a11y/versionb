@@ -2,12 +2,6 @@ import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 
-type SessionUser = {
-  id: string
-  role: string
-  companyId?: string | null
-}
-
 type CreateCalendarEventBody = {
   title: string
   description?: string

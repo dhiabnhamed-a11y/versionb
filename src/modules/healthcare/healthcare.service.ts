@@ -14,7 +14,6 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from '@/lib/db'
-import type { SessionUser } from '@/modules/shared/session'
 
 export interface HealthcareDashboardMetrics {
   // Patient metrics
@@ -114,6 +113,7 @@ export class HealthcareService {
    * Get comprehensive healthcare dashboard metrics
    */
   static async getDashboardMetrics(companyId: string): Promise<HealthcareDashboardMetrics> {
+    void companyId
     // In production, these would be calculated from real data
     // For now, return mock data that demonstrates the healthcare platform capabilities
     
@@ -152,6 +152,7 @@ export class HealthcareService {
    * Get patient summaries for the dashboard
    */
   static async getPatientSummaries(companyId: string, limit: number = 10): Promise<PatientSummary[]> {
+    void companyId; void limit
     // In production, query actual patient data
     return []
   }
@@ -245,7 +246,7 @@ export class HealthcareService {
         shiftEnd: s.endsAt,
         status: (s.type === 'oncall' ? 'on-call' : 'on-duty') as any,
       }))
-    } catch (err) {
+    } catch {
       // If the EnterpriseShift model isn't present in the database yet, return an empty list.
       return []
     }
@@ -397,6 +398,7 @@ export class HealthcareService {
    * Get inventory alerts for critical supplies
    */
   static async getInventoryAlerts(companyId: string) {
+    void companyId
     // In production, query actual inventory data
     return {
       lowStockItems: 0,

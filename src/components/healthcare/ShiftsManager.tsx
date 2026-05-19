@@ -12,7 +12,7 @@ type Shift = {
   coverage?: number
 }
 
-export default function ShiftsManager({ initialShifts = [], initialOnCall = [] }: { initialShifts?: Shift[]; initialOnCall?: any[] }) {
+export default function ShiftsManager({ initialShifts = [] }: { initialShifts?: Shift[]; initialOnCall?: Record<string, unknown>[] }) {
   const [shifts, setShifts] = useState<Shift[]>(initialShifts)
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ name: '', department: '', startsAt: '', endsAt: '', type: 'day', staffCount: 1, coverage: 100 })
@@ -43,10 +43,10 @@ export default function ShiftsManager({ initialShifts = [], initialOnCall = [] }
       const payload = await res.json()
       if (!res.ok) throw new Error(payload?.error || 'Create failed')
       const created = payload?.data ?? payload
-      setShifts((s) => [created as any, ...s])
+      setShifts((s) => [created as Shift, ...s])
       setForm({ name: '', department: '', startsAt: '', endsAt: '', type: 'day', staffCount: 1, coverage: 100 })
-    } catch (err: any) {
-      setError(err.message || String(err))
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
     }
@@ -60,8 +60,8 @@ export default function ShiftsManager({ initialShifts = [], initialOnCall = [] }
       const payload = await res.json()
       if (!res.ok) throw new Error(payload?.error || 'Delete failed')
       setShifts((s) => s.filter((x) => x.id !== id))
-    } catch (err: any) {
-      setError(err.message || String(err))
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : String(err))
     } finally {
       setLoading(false)
     }

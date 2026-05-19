@@ -40,12 +40,6 @@ interface Task {
 const EMPLOYEE_FLOW = ['TODO', 'IN_PROGRESS', 'REVIEW']
 const TASK_REALTIME_EVENTS = ['task_created', 'task_updated', 'task_deleted', 'task_submission_created'] as const
 const STAGE_LABELS: Record<string, string> = { TODO: 'To Do', IN_PROGRESS: 'In Progress', REVIEW: 'Review', DONE: 'Done' }
-const STAGE_COLORS: Record<string, string> = {
-  TODO: '#64748b',
-  IN_PROGRESS: '#0f766e',
-  REVIEW: '#d97706',
-  DONE: '#059669',
-}
 const STAGE_BADGE_CLASSES: Record<string, string> = {
   TODO: 'stage-badge stage-todo',
   IN_PROGRESS: 'stage-badge stage-in-progress',

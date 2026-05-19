@@ -3,10 +3,8 @@ import { auth } from '@/lib/auth'
 import { isHealthcareCompanyType } from '@/lib/company-types'
 import type { SessionUser } from '@/modules/shared/session'
 import { healthcareService } from '@/modules/healthcare/healthcare.service'
-import { Clock, Sun, Moon, Phone, AlertCircle, Users } from 'lucide-react'
-import dynamic from 'next/dynamic'
-
-const ShiftsManager = dynamic(() => import('@/components/healthcare/ShiftsManager'), { ssr: false })
+import { Clock, Phone, AlertCircle, Users } from 'lucide-react'
+import ShiftsManager from '@/components/healthcare/ShiftsManager'
 
 export const dynamic = 'force-dynamic'
 
@@ -35,7 +33,7 @@ export default async function ShiftsPage() {
   if (!isHealthcareCompanyType(user.companyType)) redirect('/dashboard/admin')
 
   // attempt to load persisted shifts from DB; if none, use demo data so UI stays useful
-  const shiftsFromDb = await healthcareService.getStaffShiftSummaries(user.companyId)
+  const shiftsFromDb = await healthcareService.getStaffShiftSummaries(user.companyId || '')
 
   // Normalize to the frontend shape. The HealthcareService will return lightweight summaries
   const SHIFTS = (shiftsFromDb && shiftsFromDb.length > 0)

@@ -14,7 +14,6 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const typedUser = user as SettingsSessionUser
   const language = await getUserLanguageSettings(user.id)
   return NextResponse.json({ language }, { headers: NO_STORE_HEADERS })
 }

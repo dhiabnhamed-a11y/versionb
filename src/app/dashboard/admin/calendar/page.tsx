@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, FolderKanban, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
 
 type CalendarView = 'MONTH' | 'WEEK'
@@ -115,16 +115,18 @@ export default function AdminCalendarPage() {
   const [form, setForm] = useState(getInitialForm())
 
   const range = useMemo(() => getRange(cursor, view), [cursor, view])
+  const rangeFromIso = range.from.toISOString()
+  const rangeToIso = range.to.toISOString()
   const days = useMemo(() => {
     const count = view === 'WEEK' ? 7 : 42
     return Array.from({ length: count }, (_, index) => addDays(range.from, index))
   }, [range.from, view])
 
-  async function loadCalendarData() {
+  const loadCalendarData = useCallback(async () => {
     setLoading(true)
     const params = new URLSearchParams({
-      from: range.from.toISOString(),
-      to: range.to.toISOString(),
+      from: rangeFromIso,
+      to: rangeToIso,
     })
     const [eventsBody, projectsBody, tasksBody] = await Promise.all([
       fetch(`/api/calendar-events?${params.toString()}`).then((response) => response.json()),
@@ -136,7 +138,7 @@ export default function AdminCalendarPage() {
     setProjects(Array.isArray(projectsBody) ? projectsBody : [])
     setTasks(Array.isArray(tasksBody) ? tasksBody : [])
     setLoading(false)
-  }
+  }, [rangeFromIso, rangeToIso])
 
   useEffect(() => {
     let active = true
@@ -151,7 +153,7 @@ export default function AdminCalendarPage() {
     return () => {
       active = false
     }
-  }, [range.from.toISOString(), range.to.toISOString()])
+  }, [loadCalendarData])
 
   const eventsByDay = useMemo(() => {
     const map = new Map<string, CalendarEvent[]>()

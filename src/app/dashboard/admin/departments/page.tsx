@@ -1,11 +1,10 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
-import { isHealthcareCompanyType, normalizeCompanyType } from '@/lib/company-types'
+import { isHealthcareCompanyType } from '@/lib/company-types'
 import { HEALTHCARE_NAVIGATION } from '@/lib/healthcare-config'
 import type { SessionUser } from '@/modules/shared/session'
 import { prisma } from '@/lib/db'
-import { Building2, Users, AlertTriangle, HeartPulse, ArrowRight } from 'lucide-react'
-import Link from 'next/link'
+import { Building2 } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 

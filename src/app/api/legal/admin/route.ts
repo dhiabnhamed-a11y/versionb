@@ -24,7 +24,7 @@ function getSuperAdminUser(user: SessionUser & { id: string }) {
 
 export async function GET(req: NextRequest) {
   return withApiError(req, async () => {
-    const user = getSuperAdminUser(await requireSessionUser())
+    getSuperAdminUser(await requireSessionUser())
 
     return NextResponse.json(await listLegalAdminSnapshot())
   })

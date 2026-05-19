@@ -16,7 +16,7 @@ export type ApiErrorBody<TCode extends string = string> = {
   message: string
 }
 
-export type ApiResponse<TData = unknown, TCode extends string = string> = {
+export type ApiResponse<TData = unknown> = {
   success: true
   data: TData
   error: null

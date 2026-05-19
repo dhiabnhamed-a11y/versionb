@@ -10,10 +10,6 @@ import { enforceDistributedRateLimit } from '@/lib/rate-limit'
 import { normalizeError } from '@/modules/shared/errors'
 import { getRequestId } from '@/lib/api/request-id'
 
-type SessionUser = {
-  companyId?: string | null
-}
-
 function startOfDay(date: Date) {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }

@@ -13,14 +13,6 @@ import { NO_STORE_HEADERS } from '@/lib/http'
 import { enforceDistributedRateLimit } from '@/lib/rate-limit'
 import { normalizeAppLocale } from '@/lib/i18n'
 
-type SessionUser = {
-  id: string
-  name?: string | null
-  email?: string | null
-  role?: string | null
-  companyId?: string | null
-}
-
 type ChatBody = {
   message?: string
   messages?: AiMessageInput[]

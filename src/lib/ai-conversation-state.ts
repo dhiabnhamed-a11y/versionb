@@ -12,7 +12,6 @@ type EntityKind = 'invoice' | 'client' | 'campaign' | 'brief' | 'deliverable' | 
 type PendingActionRecord = Awaited<ReturnType<typeof findActivePendingAction>>
 type ActionExecutionResult = Awaited<ReturnType<typeof executeAiWorkspaceAction>>
 
-const ACTIVE_STATUSES: WorkflowStatus[] = ['awaiting_input', 'awaiting_confirmation', 'executing', 'failed']
 const RESUMABLE_STATUSES: WorkflowStatus[] = ['awaiting_input', 'awaiting_confirmation', 'failed']
 const DEFAULT_TTL_MINUTES = 60
 

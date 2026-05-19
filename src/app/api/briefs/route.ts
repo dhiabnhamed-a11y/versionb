@@ -4,12 +4,6 @@ import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { NO_STORE_HEADERS } from '@/lib/http'
 
-type SessionUser = {
-  id: string
-  role: string
-  companyId?: string | null
-}
-
 type CreateBriefBody = {
   campaignId: string
   clientId?: string | null

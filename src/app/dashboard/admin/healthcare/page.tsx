@@ -15,7 +15,6 @@ import {
   ShieldCheck,
   Clock,
   TrendingUp,
-  AlertCircle,
   Stethoscope,
   FileText,
   ArrowRight,

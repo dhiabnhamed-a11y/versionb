@@ -4,10 +4,6 @@ import { prisma } from '@/lib/db'
 import { getFirebaseProjectDiagnostics } from '@/lib/firebase-admin'
 import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'
 
-type SessionUser = {
-  id: string
-}
-
 type PushTokenBody = {
   token?: string
   previousToken?: string
@@ -58,7 +54,6 @@ function logProjectMismatches(client?: PushTokenBody['client']) {
 export async function POST(req: Request) {
   try {
     const user = await requireSessionUser()
-    const typedUser = user as SessionUser
     const { token, previousToken, client } = (await req.json()) as PushTokenBody
     const normalizedToken = normalizeToken(token)
     const normalizedPreviousToken = normalizeToken(previousToken)
@@ -109,7 +104,6 @@ export async function POST(req: Request) {
 export async function GET() {
   try {
     const user = await requireSessionUser()
-    const typedUser = user as SessionUser
     const tokenCount = await prisma.pushToken.count({
       where: { userId: user.id },
     })
@@ -132,7 +126,6 @@ export async function GET() {
 export async function DELETE(req: Request) {
   try {
     const user = await requireSessionUser()
-    const typedUser = user as SessionUser
     const { token } = (await req.json()) as PushTokenBody
     const normalizedToken = normalizeToken(token)
 

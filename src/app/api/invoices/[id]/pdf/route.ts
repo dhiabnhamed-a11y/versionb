@@ -178,7 +178,6 @@ export async function GET(req: NextRequest, context: RouteCtx) {
 
     phase = 'auth'
     const user = await requireSessionUser()
-    const typedUser = user as SessionUser
     if (!user.companyId) {
       return logAndReturnJsonError('No company found for this account.', 400, reqId, {
         phase,

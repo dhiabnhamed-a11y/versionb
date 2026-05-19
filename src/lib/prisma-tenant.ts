@@ -30,7 +30,7 @@ export function assertTenantResource<T extends { companyId?: string | null }>(
   return resource
 }
 
-export function tenantTransaction<T>(user: Pick<SessionUser, 'companyId' | 'role'>) {
+export function tenantTransaction(user: Pick<SessionUser, 'companyId' | 'role'>) {
   const scope = tenantWhere(user)
   return {
     scope,

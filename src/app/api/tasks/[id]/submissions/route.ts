@@ -53,7 +53,6 @@ export async function GET(_req: NextRequest, context: RouteContext<'/api/tasks/[
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const typedUser = user as SessionUser
   const { id } = await context.params
   const task = await getTaskForSubmission(id, user)
 
@@ -101,7 +100,6 @@ export async function POST(req: NextRequest, context: RouteContext<'/api/tasks/[
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const typedUser = user as SessionUser
   const { id } = await context.params
   const task = await getTaskForSubmission(id, user)
 

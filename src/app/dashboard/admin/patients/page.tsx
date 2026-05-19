@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { isHealthcareCompanyType } from '@/lib/company-types'
 import type { SessionUser } from '@/modules/shared/session'
-import { UserRound, BedDouble, Activity, TrendingUp } from 'lucide-react'
+import { UserRound } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
 

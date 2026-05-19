@@ -10,19 +10,12 @@ import {
   getProjectCategorySupport,
 } from '@/lib/project-category-support'
 
-type SessionUser = {
-  companyId?: string | null
-  role?: string
-  companyType?: string | null
-}
-
 export async function GET() {
   const user = await requireSessionUser()
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const typedUser = user as SessionUser
   if (!user.companyId) {
     return NextResponse.json([])
   }
@@ -45,7 +38,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const typedUser = user as SessionUser
   if (!user.companyId) {
     return NextResponse.json({ error: 'No company found for this account.' }, { status: 400 })
   }

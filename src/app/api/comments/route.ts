@@ -10,8 +10,6 @@ import {
   timestampFitsDuration,
 } from '@/lib/media-comments'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
-import type { SessionUser } from '@/lib/project-access'
-
 type CreateCommentBody = {
   fileId?: string
   content?: string

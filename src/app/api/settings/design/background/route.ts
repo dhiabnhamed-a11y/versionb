@@ -7,7 +7,7 @@ import {
   validateDashboardDesignImageFile,
 } from '@/lib/cloudinary'
 import { NO_STORE_HEADERS } from '@/lib/http'
-import { SettingsAccessError, type SettingsSessionUser } from '@/lib/settings'
+import { SettingsAccessError } from '@/lib/settings'
 
 export async function POST(req: NextRequest) {
   const user = await requireSessionUser()
@@ -16,7 +16,6 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const typedUser = user as SettingsSessionUser
     if (!user.id) throw new SettingsAccessError('Unauthorized', 401)
 
     const formData = await req.formData()

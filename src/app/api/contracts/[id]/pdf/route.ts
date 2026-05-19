@@ -2,8 +2,6 @@ import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 import { generateContractPdf } from '@/lib/contract-pdf'
 import { getContractVersionContent, recordContractDownload } from '@/modules/contracts/contract.service'
-import type { SessionUser } from '@/modules/shared/session'
-
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -118,7 +116,6 @@ export async function GET(req: NextRequest, context: RouteCtx) {
 
     phase = 'load-contract'
     const versionId = req.nextUrl.searchParams.get('versionId')
-    const typedUser = user as SessionUser
     const { contract, version, content } = await getContractVersionContent(user, contractId, versionId)
 
     phase = 'generate-pdf'

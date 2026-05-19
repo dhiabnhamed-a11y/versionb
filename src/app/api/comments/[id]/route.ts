@@ -4,8 +4,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { commentSelect, getAllowedCommentFile } from '@/lib/media-comments'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
-import type { SessionUser } from '@/lib/project-access'
-
 type UpdateCommentBody = {
   resolved?: boolean
 }
