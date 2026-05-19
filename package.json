@@ -23,6 +23,8 @@
     "typecheck": "tsc --noEmit",
     "prepush": "npm run lint && npm run typecheck && npm run test:unit && npm run build",
     "verify:env": "tsx scripts/verify-vercel-env.ts",
+    "diag:login": "tsx scripts/check-login-diagnostics.ts",
+    "user:reset-password": "tsx scripts/reset-user-password.ts",
     "lint": "eslint",
     "db:migrate": "prisma migrate dev --name init",
     "db:generate": "prisma generate",
