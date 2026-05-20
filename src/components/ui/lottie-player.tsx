@@ -17,14 +17,16 @@ export default function LottiePlayer({ src, width = 500, height = 400, speed = 0
   if (hasError) return null
 
   return (
-    <Player
-      autoplay
-      loop
-      src={src}
-      speed={speed}
-      style={{ width, height, maxWidth: '100%' }}
-      className={className}
-      onEvent={(e) => { if (e === 'error') setHasError(true) }}
-    />
+    <div style={{ width: '100%', maxWidth: width }}>
+      <Player
+        autoplay
+        loop
+        src={src}
+        speed={speed}
+        style={{ width: '100%', height: height }}
+        className={className}
+        onEvent={(e) => { if (e === 'error') setHasError(true) }}
+      />
+    </div>
   )
 }

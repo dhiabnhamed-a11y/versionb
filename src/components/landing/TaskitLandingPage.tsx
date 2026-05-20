@@ -562,7 +562,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
             viewport={{ once: true }}
           >
             <LottiePlayer
-              src="https://assets2.lottiefiles.com/packages/lf20_yr6zz3wv.json"
+              src="https://lottie.host/753efe02-9bf9-43f7-8560-8e2ad1978b6c/JOcswhdJsa.json"
               width={400}
               height={350}
               speed={0.8}
@@ -647,7 +647,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
             viewport={{ once: true }}
           >
             <LottiePlayer
-              src="https://lottie.host/753efe02-9bf9-43f7-8560-8e2ad1978b6c/JOcswhdJsa.json"
+              src="https://assets2.lottiefiles.com/packages/lf20_yr6zz3wv.json"
               width={400}
               height={350}
               speed={0.8}

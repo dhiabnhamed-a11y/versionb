@@ -1446,7 +1446,6 @@
 
   .heroVisual {
     max-width: 100%;
-    overflow: hidden;
   }
 
   .heroVisual > div {
@@ -1459,9 +1458,14 @@
 
   .featuresHeader,
   .productTypesHeader,
-  .aiInner {
+  .aiInner,
+  .featureShowcaseInner {
     grid-template-columns: 1fr;
     gap: 48px;
+  }
+
+  .featureShowcase {
+    padding: 80px 48px;
   }
 
   .productTypesGrid {
@@ -1499,6 +1503,7 @@
   .productTypes,
   .features,
   .aiSection,
+  .featureShowcase,
   .ctaBand {
     padding-right: 24px;
     padding-left: 24px;
@@ -1579,6 +1584,23 @@
 
   .aiInner {
     gap: 34px;
+  }
+
+  .featureShowcase {
+    padding: 72px 24px;
+  }
+
+  .featureShowcaseInner {
+    grid-template-columns: 1fr;
+    gap: 48px;
+  }
+
+  .featureShowcaseInner h2 {
+    font-size: 32px;
+  }
+
+  .featureShowcaseVisual {
+    order: 1;
   }
 
   .msg {
