@@ -1,6 +1,6 @@
 'use client'
 
-import { type CSSProperties, useEffect, useMemo, useState } from 'react'
+import { type CSSProperties, useEffect, useState } from 'react'
 import Link from 'next/link'
 import NextImage from 'next/image'
 import logo from '@/app/logo.png'
@@ -17,7 +17,6 @@ import {
   CheckCircle2,
   CircleDollarSign,
   Clock3,
-  Download,
   FileText,
   Grid3X3,
   Image as ImageIcon,
@@ -28,7 +27,6 @@ import {
   Music2,
   Plus,
   Search,
-  Send,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -47,14 +45,6 @@ type TaskitLandingPageProps = {
   dashboardHref: string
   isSignedIn: boolean
   liveStats?: LandingStat[]
-}
-
-type ChatMessage = {
-  id: string
-  role: 'user' | 'ai'
-  content: string
-  action?: string
-  report?: boolean
 }
 
 type Feature = {
@@ -317,23 +307,6 @@ const workflowTypePresentation = {
   }
 >
 
-const initialChat: ChatMessage[] = [
-  { id: 'risk-question', role: 'user', content: 'Can TASKIT show work that needs attention?' },
-  {
-    id: 'risk-answer',
-    role: 'ai',
-    content: 'Yes. TASKIT can summarize delayed tasks, pending approvals, and workload signals from your workspace.',
-    action: 'Review workspace signals',
-  },
-  { id: 'report-question', role: 'user', content: 'Can it prepare a weekly report?' },
-  {
-    id: 'report-answer',
-    role: 'ai',
-    content: 'TASKIT can organize workspace activity into a clean report for your team.',
-    report: true,
-  },
-]
-
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(' ')
 }
@@ -359,8 +332,6 @@ function ArrowIcon() {
 
 export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats = [] }: TaskitLandingPageProps) {
   const [scrolled, setScrolled] = useState(false)
-  const [aiInput, setAiInput] = useState('')
-  const [chat, setChat] = useState<ChatMessage[]>(initialChat)
 
   const primaryHref = isSignedIn ? dashboardHref : '/signup'
   const loginHref = isSignedIn ? dashboardHref : '/login'
@@ -374,28 +345,6 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
     window.addEventListener('scroll', onScroll, { passive: true })
     return () => window.removeEventListener('scroll', onScroll)
   }, [])
-
-  const chatMessages = useMemo(() => chat.slice(-6), [chat])
-
-  const sendAiMessage = () => {
-    const value = aiInput.trim()
-    if (!value) return
-
-    const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
-      role: 'user',
-      content: value,
-    }
-    const reply: ChatMessage = {
-      id: `ai-${Date.now()}`,
-      role: 'ai',
-      content: "I'll use the workspace modules TASKIT provides to organize the request and identify the next action.",
-      action: 'Organize request',
-    }
-
-    setChat((current) => [...current, userMessage, reply])
-    setAiInput('')
-  }
 
   return (
     <main id="main-content" className={styles.landing}>
@@ -606,52 +555,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
             </Link>
           </div>
 
-          <div className={styles.aiChatDemo}>
-            <div className={styles.aiChatHeader}>
-              <div className={styles.aiAvatar}><LogoMark compact /></div>
-              <div>
-                <strong>TASKIT AI</strong>
-                <span>Product preview</span>
-              </div>
-            </div>
-            <div className={styles.aiMessages}>
-              {chatMessages.map((message) => (
-                <div key={message.id} className={cx(styles.msg, message.role === 'user' ? styles.msgUser : styles.msgAi)}>
-                  {message.content}
-                  {message.action ? (
-                    <div className={styles.msgActionLink}>
-                      {message.action}
-                      <ArrowRight size={12} aria-hidden="true" />
-                    </div>
-                  ) : null}
-                  {message.report ? (
-                    <div className={styles.msgReportBadge}>
-                      <span>Report ready</span>
-                      <span>
-                        Download report
-                        <Download size={11} aria-hidden="true" />
-                      </span>
-                    </div>
-                  ) : null}
-                </div>
-              ))}
-            </div>
-            <div className={styles.aiInputRow}>
-              <input
-                className={styles.aiInput}
-                type="text"
-                value={aiInput}
-                placeholder="Ask anything..."
-                onChange={(event) => setAiInput(event.target.value)}
-                onKeyDown={(event) => {
-                  if (event.key === 'Enter') sendAiMessage()
-                }}
-              />
-              <button type="button" className={styles.aiSend} onClick={sendAiMessage} aria-label="Send AI demo message">
-                <Send size={16} aria-hidden="true" />
-              </button>
-            </div>
-          </div>
+
         </div>
       </section>
 
