@@ -1445,7 +1445,12 @@
   }
 
   .heroVisual {
-    display: none;
+    max-width: 100%;
+    overflow: hidden;
+  }
+
+  .heroVisual > div {
+    max-width: 100%;
   }
 
   .heroTitle {

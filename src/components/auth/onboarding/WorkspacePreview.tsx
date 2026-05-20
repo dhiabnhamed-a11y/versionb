@@ -15,7 +15,7 @@ import {
   Layers3,
   Scale,
   ServerCog,
-  Sparkles,
+  Zap,
 } from 'lucide-react'
 import {
   createWorkspaceModules,
@@ -35,13 +35,13 @@ const iconMap = {
   hardHat: HardHat,
   landmark: Landmark,
   graduationCap: GraduationCap,
-  sparkles: Sparkles,
+  sparkles: Zap,
 } as const
 
 export default function WorkspacePreview({ templateId, compact = false }: { templateId: OnboardingTemplateId; compact?: boolean }) {
   const template = getTemplate(templateId)
   const modules = createWorkspaceModules(template)
-  const Icon = iconMap[template.icon as keyof typeof iconMap] ?? Sparkles
+  const Icon = iconMap[template.icon as keyof typeof iconMap] ?? Zap
 
   return (
     <AnimatePresence mode="wait">
@@ -115,7 +115,7 @@ export default function WorkspacePreview({ templateId, compact = false }: { temp
           </div>
 
           <PreviewRail title="Workflows" items={template.workflows} template={template} />
-          <PreviewRail title="AI copilots" items={template.copilots} template={template} icon={<Sparkles size={13} />} />
+          <PreviewRail title="AI copilots" items={template.copilots} template={template} icon={<Zap size={13} />} />
         </div>
 
         <div className={styles.previewInsight}>

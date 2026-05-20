@@ -18,7 +18,7 @@ import {
   RotateCcw,
   Save,
   Search,
-  Sparkles,
+  Zap,
   Type,
   Undo2,
   UploadCloud,
@@ -2243,7 +2243,7 @@ export default function PremiumDashboardDesignStudio({ initialDesign, onSaved }:
           <div className="pdds-topbar">
             <div className="pdds-title">
               <div className="pdds-title-mark">
-                <Sparkles size={18} />
+                <Zap size={18} />
               </div>
               <div>
                 <div className="pdds-kicker">Premium dashboard</div>
@@ -2287,7 +2287,7 @@ export default function PremiumDashboardDesignStudio({ initialDesign, onSaved }:
                   </button>
                 ))}
                 <button className="pdds-preset" type="button" onClick={generatePalette}>
-                  <Sparkles size={14} />
+                  <Zap size={14} />
                   Generate Palette
                 </button>
               </div>

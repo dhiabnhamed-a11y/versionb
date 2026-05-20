@@ -31,7 +31,6 @@ import {
   Search,
   Settings,
   ShieldCheck,
-  Sparkles,
   TrendingUp,
   Upload,
   UserRound,
@@ -439,7 +438,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
         <div className={styles.logosRow}>
           {productModules.map((module, index) => (
             <span key={module} className={styles.logoBrand}>
-              {index % 3 === 0 ? <Sparkles size={18} aria-hidden="true" /> : null}
+              {index % 3 === 0 ? <Zap size={18} aria-hidden="true" /> : null}
               {module}
             </span>
           ))}
@@ -600,7 +599,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
             viewport={{ once: true }}
           >
             <LottiePlayer
-              src="https://lottie.host/finance-charts-animation.json"
+              src="https://assets3.lottiefiles.com/packages/lf20_x62chJ.json"
               width={400}
               height={350}
               speed={0.8}
@@ -619,7 +618,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
             viewport={{ once: true }}
           >
             <LottiePlayer
-              src="https://lottie.host/notifications-animation.json"
+              src="https://assets5.lottiefiles.com/packages/lf20_vmollwvl.json"
               width={400}
               height={350}
               speed={0.8}
@@ -648,7 +647,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
             viewport={{ once: true }}
           >
             <LottiePlayer
-              src="https://lottie.host/team-collaboration-animation.json"
+              src="https://lottie.host/753efe02-9bf9-43f7-8560-8e2ad1978b6c/JOcswhdJsa.json"
               width={400}
               height={350}
               speed={0.8}

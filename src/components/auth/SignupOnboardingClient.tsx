@@ -19,7 +19,7 @@ import {
   Mail,
   Plus,
   ShieldCheck,
-  Sparkles,
+  Zap,
   Trash2,
   User,
 } from 'lucide-react'
@@ -475,7 +475,7 @@ function WelcomeStep({ onStart }: { onStart: () => void }) {
           <Image src={logo} alt="TASKIT logo" width={82} height={82} priority />
         </div>
         <p className={styles.stepKicker}>
-          <Sparkles size={15} />
+          <Zap size={15} />
           AI-native onboarding
         </p>
         <h1 id="welcome-title">Build your company operating system in under 60 seconds.</h1>
@@ -538,7 +538,7 @@ function CompanyTypeStep({
                 onClick={() => onSelect(id)}
               >
                 <span className={styles.templateIcon}>
-                  <Sparkles size={16} aria-hidden="true" />
+                  <Zap size={16} aria-hidden="true" />
                 </span>
                 <strong>{option.title}</strong>
                 <span>{option.sentence}</span>
@@ -667,7 +667,7 @@ function SetupStep({
             )}
           </Field>
 
-          <Field label="Company name" icon={<Sparkles size={15} />} required>
+          <Field label="Company name" icon={<Zap size={15} />} required>
             <input
               className={styles.input}
               value={form.companyName}
@@ -907,7 +907,7 @@ function SuccessStep({
           <CheckCircle2 size={34} />
         </div>
         <p className={styles.stepKicker}>
-          <Sparkles size={14} />
+          <Zap size={14} />
           Workspace generated
         </p>
         <h1>{inviteMode ? 'Your account is ready.' : `${companyName || 'Your company'} OS is ready for approval.`}</h1>
@@ -985,7 +985,7 @@ function GenerationSkeleton({ label = 'Loading AI workspace engine' }: { label?:
       </div>
       <div className={styles.generationCopy}>
         <p className={styles.stepKicker}>
-          <Sparkles size={14} />
+          <Zap size={14} />
           {label}
         </p>
         <h1>Preparing TASKIT AI...</h1>

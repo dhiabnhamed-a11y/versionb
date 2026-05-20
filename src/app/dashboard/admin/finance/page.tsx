@@ -18,7 +18,7 @@ import {
   ReceiptText,
   RefreshCw,
   ShieldCheck,
-  Sparkles,
+  Zap,
   TrendingUp,
   Wand2,
   WalletCards,
@@ -428,7 +428,7 @@ function PremiumEmptyState({
   actionHref,
   busy = false,
 }: {
-  icon: typeof Sparkles
+  icon: typeof Zap
   title: string
   body: string
   bullets: string[]
@@ -609,7 +609,7 @@ export default function AdminFinancePage() {
               <span className="taskit-label">Financial setup assistant</span>
               <h2 className="taskit-heading">Welcome to TASKIT Financial Operations</h2>
             </div>
-            <Sparkles size={22} aria-hidden style={{ color: 'var(--accent)' }} />
+            <Zap size={22} aria-hidden style={{ color: 'var(--accent)' }} />
           </div>
           <PremiumEmptyState
             icon={Landmark}
@@ -640,7 +640,7 @@ export default function AdminFinancePage() {
           <span className="stat-card-label">Financial health</span>
           <strong className="stat-card-value">{financialHealthScore}%</strong>
           <span className="stat-card-delta">
-            <Sparkles size={14} /> {workspaceActivated ? 'Operating foundation active' : 'Foundation ready to initialize'}
+            <Zap size={14} /> {workspaceActivated ? 'Operating foundation active' : 'Foundation ready to initialize'}
           </span>
         </article>
         <article className="stat-card">
@@ -722,7 +722,7 @@ export default function AdminFinancePage() {
               <span className="taskit-label">Executive recommendations</span>
               <h2 className="taskit-heading">CFO action queue</h2>
             </div>
-            <Sparkles size={22} aria-hidden />
+            <Zap size={22} aria-hidden />
           </div>
           {!recommendations.length ? (
             <EmptyBlock title="No recommendations yet" body="TASKIT will surface collection, margin, payroll, budget, and runway actions as financial events accumulate." />

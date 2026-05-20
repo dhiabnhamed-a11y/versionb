@@ -22,7 +22,7 @@ import {
   Plus,
   ReceiptText,
   ShieldCheck,
-  Sparkles,
+  Zap,
   Upload,
   Wand2,
   X,
@@ -329,7 +329,7 @@ export default function ClientProfilePage() {
 
       {(contractMessage || contractError) && (
         <section className={`alert-banner ${contractError ? 'alert-danger' : 'alert-success'}`}>
-          {contractError ? <ShieldCheck size={18} /> : <Sparkles size={18} />}
+          {contractError ? <ShieldCheck size={18} /> : <Zap size={18} />}
           <div>
             <strong>{contractError ? 'Contract generation needs attention' : 'Contract intelligence completed'}</strong>
             <div>{contractError || contractMessage}</div>
@@ -581,7 +581,7 @@ export default function ClientProfilePage() {
             <div className="mb-5 flex items-start justify-between gap-3">
               <div>
                 <div className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] bg-[var(--accent-subtle)] px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-[var(--accent)]">
-                  <Sparkles size={13} />
+                  <Zap size={13} />
                   Contract Generation Wizard
                 </div>
                 <h2 className="font-display mt-3 text-xl font-semibold tracking-tight">Enterprise service agreement</h2>

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Bot, CheckCircle2, Layers3, RadioTower, Sparkles } from 'lucide-react'
+import { Bot, CheckCircle2, Layers3, RadioTower, Zap } from 'lucide-react'
 import { createGenerationPlan, getTemplate, type OnboardingTemplateId } from '@/lib/onboarding-engine'
 import styles from '../SignupOnboardingClient.module.css'
 
@@ -51,7 +51,7 @@ export default function GenerationExperience({
 
       <div className={styles.generationCopy}>
         <p className={styles.stepKicker}>
-          <Sparkles size={14} />
+          <Zap size={14} />
           AI workspace generation
         </p>
         <h1>TASKIT AI is preparing your {template.title.toLowerCase()} workspace...</h1>

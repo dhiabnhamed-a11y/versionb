@@ -42,7 +42,7 @@ import {
   RefreshCcw,
   Search,
   ShieldCheck,
-  Sparkles,
+
   TimerReset,
   UsersRound,
   WandSparkles,
@@ -746,7 +746,7 @@ function ExecutiveCommandCenter({
           <div className="bg-[#0d0d0d] p-4 sm:p-5">
             <div className="flex flex-wrap items-center gap-2">
               <span className="inline-flex items-center gap-2 rounded-md border border-red-300/20 bg-red-300/[0.08] px-2.5 py-1 text-xs font-black text-red-100">
-                <Sparkles size={14} />
+                <Zap size={14} />
                 TASKIT OS
               </span>
               <span className="rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-1 text-xs font-bold text-stone-400">
@@ -1175,7 +1175,7 @@ function AiOperationsLayer() {
                     <h3 className="text-base font-black">{signal.title}</h3>
                     <p className="mt-2 text-sm font-semibold leading-6 opacity-80">{signal.detail}</p>
                   </div>
-                  <Sparkles size={18} className="shrink-0" />
+                  <Zap size={18} className="shrink-0" />
                 </div>
                 <div className="mt-4 flex items-center justify-between gap-3">
                   <span className="text-xs font-black opacity-70">{signal.entity}</span>

@@ -16,7 +16,7 @@ import {
   ReceiptText,
   Search,
   Settings,
-  Sparkles,
+  Zap,
   UploadCloud,
   X,
   type LucideProps,
@@ -150,7 +150,7 @@ const baseCommands: Command[] = [
     href: '/dashboard/admin/tasks?stage=REVIEW',
     group: 'Operate',
     keywords: ['blocked', 'review', 'changes', 'approval'],
-    icon: Sparkles,
+    icon: Zap,
   },
   {
     id: 'ai-risks',
@@ -447,7 +447,7 @@ export default function CommandPalette({
         <div className="command-palette-list">
           {filteredCommands.length === 0 ? (
             <div className="command-empty">
-              <Sparkles size={18} />
+              <Zap size={18} />
               {t('command.noCommand')}
             </div>
           ) : (

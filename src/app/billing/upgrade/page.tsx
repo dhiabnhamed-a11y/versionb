@@ -13,7 +13,7 @@ import {
   Shield,
   RefreshCw,
   Lock,
-  Sparkles,
+
 } from 'lucide-react'
 import type { PlanKey } from '@/lib/plans'
 
@@ -151,7 +151,7 @@ function UpgradePageInner() {
         {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center gap-2 bg-blue-50 text-blue-700 border border-blue-100 rounded-full px-4 py-1.5 text-xs font-semibold tracking-wide mb-5">
-            <Sparkles className="w-3.5 h-3.5" />
+            <Zap className="w-3.5 h-3.5" />
             Transparent, seat-based pricing
           </div>
           <h1 className="text-5xl font-extrabold text-slate-900 tracking-tight mb-4">

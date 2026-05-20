@@ -18,7 +18,7 @@ import {
   Lock,
   Mail,
   ShieldCheck,
-  Sparkles,
+  Zap,
 } from 'lucide-react'
 
 function getSignInErrorMessage(error?: string | null) {
@@ -119,7 +119,7 @@ function LoginContent() {
               Secure approval flow
             </span>
             <span>
-              <Sparkles size={15} />
+              <Zap size={15} />
               AI-native operations
             </span>
           </div>

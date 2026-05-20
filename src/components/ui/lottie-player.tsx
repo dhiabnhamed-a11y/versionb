@@ -24,6 +24,7 @@ export default function LottiePlayer({ src, width = 500, height = 400, speed = 0
       speed={speed}
       style={{ width, height, maxWidth: '100%' }}
       className={className}
+      onEvent={(e) => { if (e === 'error') setHasError(true) }}
     />
   )
 }

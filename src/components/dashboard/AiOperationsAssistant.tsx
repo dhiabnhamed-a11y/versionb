@@ -11,7 +11,7 @@ import {
   Loader2,
   Send,
   ShieldCheck,
-  Sparkles,
+  Zap,
   X,
 } from 'lucide-react'
 import { AmbiguityPanel } from '@/components/dashboard/AmbiguityPanel'
@@ -1147,7 +1147,7 @@ export default function AiOperationsAssistant({ disabled = false }: { disabled?:
           <div className="ai-assistant-suggestions" aria-label={t('ai.suggestions')}>
             {latestQuickActions.slice(0, 5).map((prompt) => (
               <button key={prompt} type="button" onClick={() => submitPrompt(prompt)} disabled={loading || Boolean(activeWorkflow)}>
-                <Sparkles size={13} />
+                <Zap size={13} />
                 <span>{quickActionLabel(prompt, locale)}</span>
               </button>
             ))}

@@ -26,7 +26,7 @@ import {
   Play,
   Reply,
   Send,
-  Sparkles,
+  Zap,
   Video,
   Volume2,
   X,
@@ -493,7 +493,7 @@ function CommentsPanel({
           <h3 className="mt-1 text-[18px] font-semibold tracking-[-.01em] text-slate-950">{comments.length} comments</h3>
         </div>
         <span className="inline-flex h-8 shrink-0 items-center gap-2 rounded-full bg-slate-50 px-3 text-[13px] font-medium tabular-nums text-slate-500">
-          <Sparkles className="h-3.5 w-3.5 text-blue-600" />
+          <Zap className="h-3.5 w-3.5 text-blue-600" />
           {formatTime(currentTime)}
         </span>
       </div>

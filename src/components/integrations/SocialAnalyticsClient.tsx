@@ -19,7 +19,7 @@ import {
   Radio,
   RefreshCw,
   ShieldCheck,
-  Sparkles,
+
   TrendingUp,
   UserRound,
   Users,
@@ -298,7 +298,7 @@ export default function SocialAnalyticsClient() {
       <section className="dashboard-hero">
         <div className="min-w-0">
           <div className="dashboard-hero-kicker">
-            <Sparkles size={13} />
+            <Zap size={13} />
             Creator intelligence
           </div>
           <h1 className="page-heading mt-4">Social analytics command center</h1>
