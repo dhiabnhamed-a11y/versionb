@@ -3,8 +3,10 @@
 import { type CSSProperties, useEffect, useState } from 'react'
 import Link from 'next/link'
 import NextImage from 'next/image'
+import { motion } from 'framer-motion'
 import logo from '@/app/logo.png'
 import { COMPANY_TYPE_OPTIONS, type CompanyType } from '@/lib/company-types'
+import LottiePlayer from '@/components/ui/lottie-player'
 import {
   AlertTriangle,
   ArrowRight,
@@ -407,7 +409,20 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
           </div>
         </div>
 
-        <DashboardMockup />
+        <motion.div
+          initial={{ opacity: 0, x: 40 }}
+          whileInView={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.6, ease: 'easeOut' }}
+          viewport={{ once: true }}
+          className={styles.heroVisual}
+        >
+          <LottiePlayer
+            src="https://assets10.lottiefiles.com/packages/lf20_jcikwtux.json"
+            width={550}
+            height={420}
+            speed={0.8}
+          />
+        </motion.div>
       </section>
 
       <section className={styles.statsBar} aria-label="TASKIT platform facts">
@@ -541,6 +556,19 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
 
       <section className={styles.aiSection} id="ai-assistant">
         <div className={styles.aiInner}>
+          <motion.div
+            initial={{ opacity: 0, x: -40 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            viewport={{ once: true }}
+          >
+            <LottiePlayer
+              src="https://assets2.lottiefiles.com/packages/lf20_yr6zz3wv.json"
+              width={400}
+              height={350}
+              speed={0.8}
+            />
+          </motion.div>
           <div>
             <div className={styles.aiEyebrow}>AI Assistant</div>
             <h2 className={styles.aiTitle}>
@@ -554,8 +582,78 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
               <ArrowIcon />
             </Link>
           </div>
+        </div>
+      </section>
 
+      <section className={cx(styles.featureShowcase, styles.featureShowcaseAlt)} id="finance">
+        <div className={styles.featureShowcaseInner}>
+          <div>
+            <div className={styles.sectionEyebrow}>Finance & Billing</div>
+            <h2><span>Invoices, subscriptions,</span><br />expenses & revenue.</h2>
+            <p>Track every dollar in and out of your agency. Create invoices, manage subscriptions, log expenses, and monitor revenue — all inside TASKIT.</p>
+          </div>
+          <motion.div
+            className={styles.featureShowcaseVisual}
+            initial={{ opacity: 0, x: 40 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            viewport={{ once: true }}
+          >
+            <LottiePlayer
+              src="https://lottie.host/finance-charts-animation.json"
+              width={400}
+              height={350}
+              speed={0.8}
+            />
+          </motion.div>
+        </div>
+      </section>
 
+      <section className={styles.featureShowcase} id="realtime">
+        <div className={styles.featureShowcaseInner}>
+          <motion.div
+            className={styles.featureShowcaseVisual}
+            initial={{ opacity: 0, x: -40 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            viewport={{ once: true }}
+          >
+            <LottiePlayer
+              src="https://lottie.host/notifications-animation.json"
+              width={400}
+              height={350}
+              speed={0.8}
+            />
+          </motion.div>
+          <div>
+            <div className={styles.sectionEyebrow}>Realtime Operations</div>
+            <h2><span>Live updates,</span><br />automation & alerts.</h2>
+            <p>Automate workflows, approvals, reminders, and repetitive tasks. Get notified about overdue items, approvals, and important updates in real time.</p>
+          </div>
+        </div>
+      </section>
+
+      <section className={cx(styles.featureShowcase, styles.featureShowcaseAlt)} id="enterprise-features">
+        <div className={styles.featureShowcaseInner}>
+          <div>
+            <div className={styles.sectionEyebrow}>Enterprise & Team</div>
+            <h2><span>Role-based access,</span><br />audit trails & scale.</h2>
+            <p>Role-based access, audit trails, tenant-aware data, and health checks built in. Track team performance, capacity, and workload alignment.</p>
+          </div>
+          <motion.div
+            className={styles.featureShowcaseVisual}
+            initial={{ opacity: 0, x: 40 }}
+            whileInView={{ opacity: 1, x: 0 }}
+            transition={{ duration: 0.6, ease: 'easeOut' }}
+            viewport={{ once: true }}
+          >
+            <LottiePlayer
+              src="https://lottie.host/team-collaboration-animation.json"
+              width={400}
+              height={350}
+              speed={0.8}
+            />
+          </motion.div>
         </div>
       </section>
 

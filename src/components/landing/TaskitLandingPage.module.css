@@ -1902,3 +1902,55 @@
   font-size: 13px;
   color: var(--landing-muted-2);
 }
+
+.featureShowcase {
+  padding: 100px 80px;
+  background: var(--landing-bg);
+}
+
+.featureShowcaseAlt {
+  background: var(--landing-bg-2);
+}
+
+.featureShowcaseInner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 80px;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.featureShowcaseInner h2 {
+  color: #fff;
+  font-family: var(--landing-display);
+  font-size: 40px;
+  font-weight: 800;
+  line-height: 1.1;
+  margin: 12px 0 16px;
+}
+
+.featureShowcaseInner h2 span {
+  background: linear-gradient(90deg, var(--landing-blue), var(--landing-cyan));
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.featureShowcaseInner p {
+  max-width: 460px;
+  color: var(--landing-muted);
+  font-size: 16px;
+  line-height: 1.7;
+  margin-bottom: 24px;
+}
+
+.featureShowcaseVisual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.featureShowcaseVisual > * {
+  max-width: 100%;
+  height: auto;
+}
