@@ -9,6 +9,7 @@ import AlertReceiver from '@/components/alerts/AlertReceiver'
 import AiOperationsAssistant from '@/components/dashboard/AiOperationsAssistant'
 import CommandPalette from '@/components/dashboard/CommandPalette'
 import NotificationDropdown from '@/components/dashboard/NotificationDropdown'
+import WorkspaceTour from '@/components/dashboard/WorkspaceTour'
 import WorkspaceThemeProvider from '@/components/dashboard/WorkspaceThemeProvider'
 import LanguageSwitcher from '@/components/i18n/LanguageSwitcher'
 import { LocaleProvider, useLocale } from '@/components/i18n/LocaleProvider'
@@ -352,6 +353,7 @@ function DashboardLayoutChrome({
 
       {user?.id && realtimeEnabled && !isSuperAdmin && <AlertReceiver userId={user.id} />}
       <AiOperationsAssistant disabled={isSuperAdmin} />
+      <WorkspaceTour />
     </div>
   )
 }
