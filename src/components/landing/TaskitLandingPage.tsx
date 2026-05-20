@@ -350,9 +350,8 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
   return (
     <main id="main-content" className={styles.landing}>
       <header className={cx(styles.nav, scrolled && styles.navScrolled)}>
-        <Link href="/" className={styles.navLogo} aria-label="TASKIT OS home">
-          <LogoMark />
-          TASKIT OS
+        <Link href="/" className={styles.navLogo} aria-label="TASKIT home">
+          <NextImage src="/logo.png" alt="" width={110} height={28} style={{ objectFit: 'contain' }} priority />
         </Link>
 
         <nav className={styles.navLinks} aria-label="Landing navigation">
@@ -749,8 +748,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
 
       <footer className={styles.footer}>
         <Link href="/" className={styles.footerLogo}>
-          <LogoMark compact />
-          TASKIT OS
+          <NextImage src="/logo.png" alt="" width={90} height={22} style={{ objectFit: 'contain' }} />
         </Link>
         <div className={styles.footerLinks}>
           <a href="#solutions">Product</a>
