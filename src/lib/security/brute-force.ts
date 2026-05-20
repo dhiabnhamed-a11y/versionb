@@ -2,6 +2,7 @@ import { createHash } from 'crypto'
 import { prisma } from '@/lib/db'
 import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'
 import { enforceDistributedRateLimit } from '@/lib/rate-limit'
+import { logger } from '@/modules/shared/logger'
 import type { RateLimitResult } from '@/modules/shared/rate-limit'
 
 const LOCKOUT_WINDOW_MS = 15 * 60_000
@@ -43,6 +44,7 @@ export async function assertLoginNotLocked(email: string) {
     if (typeof error === 'object' && error && 'code' in error && (error as { code?: string }).code === 'AUTH_LOCKED') {
       throw error
     }
+    logger.error('auth.brute_force_check_failed', error, { emailHash })
   }
 }
 
