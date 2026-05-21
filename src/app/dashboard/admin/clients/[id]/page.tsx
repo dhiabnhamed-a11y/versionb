@@ -27,6 +27,7 @@ import {
   Wand2,
   X,
 } from 'lucide-react'
+import RichTextEditor from '@/components/ui/RichTextEditor'
 import { clientsApi, type ClientProfileResponse } from '@/lib/api-client/clients'
 import { contractsApi, type ClientContractsResponse, type ContractGenerationInput } from '@/lib/api-client/contracts'
 import { formatContractDate, getContractStatusLabel, type ContractLanguage } from '@/lib/contracts'
@@ -674,7 +675,7 @@ export default function ClientProfilePage() {
                   </label>
                   <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)] md:col-span-2">
                     Intellectual property ownership
-                    <textarea className="input" rows={2} value={contractForm.ipOwnership} onChange={(event) => setContractForm({ ...contractForm, ipOwnership: event.target.value })} />
+                    <RichTextEditor value={contractForm.ipOwnership} onChange={(html) => setContractForm({ ...contractForm, ipOwnership: html })} placeholder="IP ownership clause..." minHeight={60} maxHeight={200} />
                   </label>
                 </div>
               </section>
@@ -703,15 +704,15 @@ export default function ClientProfilePage() {
                   </label>
                   <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)] md:col-span-2">
                     Service scope
-                    <textarea className="input" rows={3} value={contractForm.serviceScope} onChange={(event) => setContractForm({ ...contractForm, serviceScope: event.target.value })} />
+                    <RichTextEditor value={contractForm.serviceScope} onChange={(html) => setContractForm({ ...contractForm, serviceScope: html })} placeholder="Scope of services..." minHeight={80} maxHeight={250} />
                   </label>
                   <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)] md:col-span-2">
                     Support terms
-                    <textarea className="input" rows={2} value={contractForm.supportTerms} onChange={(event) => setContractForm({ ...contractForm, supportTerms: event.target.value })} />
+                    <RichTextEditor value={contractForm.supportTerms} onChange={(html) => setContractForm({ ...contractForm, supportTerms: html })} placeholder="Support terms..." minHeight={60} maxHeight={200} />
                   </label>
                   <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)] md:col-span-2">
                     Pricing structure
-                    <textarea className="input" rows={2} value={contractForm.pricingStructure} onChange={(event) => setContractForm({ ...contractForm, pricingStructure: event.target.value })} />
+                    <RichTextEditor value={contractForm.pricingStructure} onChange={(html) => setContractForm({ ...contractForm, pricingStructure: html })} placeholder="Pricing details..." minHeight={60} maxHeight={200} />
                   </label>
                 </div>
               </section>

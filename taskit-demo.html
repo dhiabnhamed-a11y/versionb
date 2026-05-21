@@ -1,0 +1,996 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TASKIT — Sales Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Arabic:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #0A0E1A;
+  color: #fff;
+  overflow-x: hidden;
+}
+body[dir="rtl"] { font-family: 'Noto Sans Arabic', 'Inter', sans-serif; }
+.slide {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 60px 48px;
+  max-width: 1200px;
+  margin: 0 auto;
+  position: relative;
+}
+@media (max-width: 768px) {
+  .slide { padding: 40px 20px; }
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 16px;
+}
+body[dir="rtl"] .badge { letter-spacing: 0; }
+.badge-cyan { background: rgba(0, 212, 255, 0.1); color: #00D4FF; }
+.badge-purple { background: rgba(123, 111, 255, 0.12); color: #7B6FFF; }
+
+h1 {
+  font-size: clamp(2.4rem, 5vw, 3.8rem);
+  font-weight: 800;
+  line-height: 1.08;
+  letter-spacing: -0.03em;
+  margin-bottom: 16px;
+  max-width: 860px;
+}
+body[dir="rtl"] h1 { letter-spacing: 0; line-height: 1.3; }
+h1 em { color: #00D4FF; font-style: normal; }
+p {
+  font-size: clamp(1rem, 1.4vw, 1.15rem);
+  line-height: 1.7;
+  color: rgba(255,255,255,0.65);
+  max-width: 640px;
+}
+
+/* Language Selector */
+.lang-selector {
+  position: fixed;
+  top: 20px;
+  right: 24px;
+  z-index: 200;
+  display: flex;
+  gap: 4px;
+  background: rgba(10,14,26,0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 10px;
+  padding: 4px;
+}
+.lang-btn {
+  padding: 6px 12px;
+  border-radius: 7px;
+  border: 0;
+  background: transparent;
+  color: rgba(255,255,255,0.4);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-family: inherit;
+}
+.lang-btn:hover { color: rgba(255,255,255,0.7); }
+.lang-btn.active { background: rgba(0,212,255,0.12); color: #00D4FF; }
+
+/* Navigation */
+.nav {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 14px 20px;
+  background: rgba(10, 14, 26, 0.85);
+  backdrop-filter: blur(16px);
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.nav-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.nav-btn:hover { background: rgba(0,212,255,0.12); border-color: rgba(0,212,255,0.3); }
+body[dir="rtl"] .nav-btn:first-child { transform: rotate(180deg); }
+body[dir="rtl"] .nav-btn:last-child { transform: rotate(180deg); }
+.nav-dots { display: flex; gap: 5px; margin: 0 12px; }
+.nav-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(255,255,255,0.15); border: 0; cursor: pointer; transition: all 0.25s;
+}
+.nav-dot.active { background: #00D4FF; width: 24px; border-radius: 4px; }
+.nav-counter { font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.4); min-width: 40px; text-align: center; }
+
+/* Cover */
+.cover-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+@media (max-width: 768px) { .cover-grid { grid-template-columns: 1fr; gap: 32px; } }
+.hero-visual { position: relative; width: 100%; aspect-ratio: 1; max-width: 480px; margin: 0 auto; }
+.hero-ring {
+  position: absolute; inset: 0; border-radius: 50%;
+  border: 1px solid rgba(0,212,255,0.12);
+  animation: pulse-ring 4s ease-in-out infinite;
+}
+.hero-ring:nth-child(2) { inset: 15%; animation-delay: 1s; }
+.hero-ring:nth-child(3) { inset: 30%; animation-delay: 2s; }
+@keyframes pulse-ring {
+  0%, 100% { border-color: rgba(0,212,255,0.08); transform: scale(1); }
+  50% { border-color: rgba(0,212,255,0.25); transform: scale(1.04); }
+}
+.hero-center {
+  position: absolute; inset: 38%; border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #00D4FF, #7B6FFF);
+  box-shadow: 0 0 60px rgba(0,212,255,0.25), 0 0 120px rgba(123,111,255,0.15);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 13px; color: #0A0E1A;
+  letter-spacing: 0.12em; text-transform: uppercase; text-align: center; line-height: 1.3;
+}
+.hero-orbit {
+  position: absolute; width: 12px; height: 12px; border-radius: 50%;
+  background: #00D4FF; box-shadow: 0 0 20px rgba(0,212,255,0.5);
+  animation: orbit 8s linear infinite;
+}
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(180px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(180px) rotate(-360deg); }
+}
+@media (max-width: 768px) {
+  @keyframes orbit {
+    from { transform: rotate(0deg) translateX(120px) rotate(0deg); }
+    to { transform: rotate(360deg) translateX(120px) rotate(-360deg); }
+  }
+}
+.hero-orbit:nth-child(4) { animation-delay: -2s; background: #7B6FFF; }
+.hero-orbit:nth-child(5) { animation-delay: -4s; }
+.hero-orbit:nth-child(6) { animation-delay: -6s; background: #7B6FFF; }
+
+.problem-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 32px; max-width: 960px; }
+.problem-card {
+  display: flex; align-items: flex-start; gap: 14px; padding: 18px 20px;
+  border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06);
+}
+.problem-card .icon { font-size: 20px; flex-shrink: 0; margin-top: 1px; }
+.problem-card .text { font-size: 13px; font-weight: 600; line-height: 1.5; color: rgba(255,255,255,0.75); }
+
+.diagram-wrap { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 32px; align-items: center; }
+@media (max-width: 768px) { .diagram-wrap { grid-template-columns: 1fr; } }
+.tool-cloud { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; max-width: 400px; }
+.tool-chip {
+  padding: 10px 16px; border-radius: 10px;
+  background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+  font-size: 12px; font-weight: 600; color: rgba(255,255,255,0.6);
+}
+.tool-chip.disconnected { opacity: 0.35; border-color: rgba(255,255,255,0.04); }
+.stat-box {
+  padding: 24px; border-radius: 14px;
+  background: rgba(0,212,255,0.06); border: 1px solid rgba(0,212,255,0.15);
+}
+.stat-box .number { font-size: 2.4rem; font-weight: 800; color: #00D4FF; }
+.stat-box .label { font-size: 13px; color: rgba(255,255,255,0.5); margin-top: 4px; }
+
+.platform-layers { display: grid; gap: 8px; margin-top: 24px; max-width: 520px; }
+.layer {
+  display: flex; align-items: center; gap: 16px; padding: 14px 20px;
+  border-radius: 10px; border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(255,255,255,0.025); position: relative;
+}
+.layer::after {
+  content: ''; position: absolute; left: 22px; bottom: -8px;
+  width: 1px; height: 8px; background: rgba(0,212,255,0.2);
+}
+.layer:last-child::after { display: none; }
+.layer .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.layer .dot-cyan { background: #00D4FF; box-shadow: 0 0 12px rgba(0,212,255,0.3); }
+.layer .dot-purple { background: #7B6FFF; }
+.layer .label { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.8); }
+.layer .desc { font-size: 11px; color: rgba(255,255,255,0.4); margin-left: auto; }
+body[dir="rtl"] .layer .desc { margin-left: 0; margin-right: auto; }
+
+.vertical-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 28px; }
+.vertical-card { padding: 22px; border-radius: 12px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); }
+.vertical-card .emoji { font-size: 26px; margin-bottom: 10px; }
+.vertical-card h3 { font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+.vertical-card p { font-size: 12px; color: rgba(255,255,255,0.5); line-height: 1.5; max-width: 100%; }
+
+.feature-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 24px 48px; margin-top: 28px; max-width: 800px; }
+@media (max-width: 640px) { .feature-cols { grid-template-columns: 1fr; } }
+.feature-item { display: flex; align-items: flex-start; gap: 12px; }
+.feature-item .fi-icon { flex-shrink: 0; font-size: 16px; margin-top: 1px; }
+.feature-item .fi-text { font-size: 13px; font-weight: 600; line-height: 1.5; color: rgba(255,255,255,0.75); }
+
+.integration-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 24px; max-width: 640px; }
+.int-chip { padding: 8px 14px; border-radius: 8px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.07); font-size: 12px; font-weight: 500; color: rgba(255,255,255,0.6); }
+
+.compare-table { width: 100%; border-collapse: collapse; margin-top: 24px; font-size: 12px; max-width: 900px; }
+.compare-table th { padding: 10px 12px; text-align: left; font-weight: 700; color: rgba(255,255,255,0.5); text-transform: uppercase; font-size: 10px; letter-spacing: 0.08em; border-bottom: 1px solid rgba(255,255,255,0.06); }
+.compare-table td { padding: 10px 12px; border-bottom: 1px solid rgba(255,255,255,0.04); color: rgba(255,255,255,0.7); font-weight: 500; }
+.compare-table td:first-child { font-weight: 700; color: #fff; }
+.compare-table .check { color: #00D4FF; font-weight: 700; }
+.compare-table .partial { color: #7B6FFF; }
+.compare-table .cross { color: rgba(255,255,255,0.2); }
+.compare-table tr:last-child td { border-bottom: none; }
+
+.pricing-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 28px; max-width: 860px; }
+.pricing-card { padding: 24px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.03); position: relative; transition: all 0.3s; }
+.pricing-card:hover { border-color: rgba(0,212,255,0.2); transform: translateY(-2px); }
+.pricing-card.popular { border-color: #00D4FF; background: rgba(0,212,255,0.04); box-shadow: 0 0 0 1px rgba(0,212,255,0.2), 0 20px 60px rgba(0,212,255,0.08); }
+.popular-badge { position: absolute; top: -10px; left: 50%; transform: translateX(-50%); padding: 4px 14px; border-radius: 999px; background: #00D4FF; color: #0A0E1A; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+.pricing-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.pricing-card .price { font-size: 2rem; font-weight: 800; color: #fff; margin: 8px 0 4px; }
+.pricing-card .price span { font-size: 14px; font-weight: 500; color: rgba(255,255,255,0.4); }
+.pricing-card .desc { font-size: 12px; color: rgba(255,255,255,0.5); line-height: 1.5; }
+.pricing-card ul { list-style: none; margin-top: 14px; }
+.pricing-card li { font-size: 12px; color: rgba(255,255,255,0.6); padding: 4px 0; display: flex; align-items: center; gap: 6px; }
+.pricing-card li::before { content: '✓'; color: #00D4FF; font-weight: 700; }
+
+.cta-row { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; }
+.btn { display: inline-flex; align-items: center; gap: 8px; padding: 14px 28px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; text-decoration: none; transition: all 0.25s; border: 0; }
+.btn-primary { background: #00D4FF; color: #0A0E1A; }
+.btn-primary:hover { box-shadow: 0 8px 32px rgba(0,212,255,0.3); transform: translateY(-1px); }
+.btn-secondary { background: rgba(255,255,255,0.06); color: #fff; border: 1px solid rgba(255,255,255,0.1); }
+.btn-secondary:hover { background: rgba(255,255,255,0.1); transform: translateY(-1px); }
+.trust-row { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.06); }
+.trust-row span { font-size: 12px; color: rgba(255,255,255,0.35); display: flex; align-items: center; gap: 6px; }
+
+.callout { padding: 18px 22px; border-radius: 12px; background: rgba(0,212,255,0.04); border-left: 3px solid #00D4FF; margin-top: 20px; max-width: 640px; }
+body[dir="rtl"] .callout { border-left: 0; border-right: 3px solid #00D4FF; }
+.callout p { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.7); max-width: 100%; }
+
+.safety-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; margin-top: 24px; max-width: 800px; }
+.safety-item { padding: 16px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); font-size: 12px; font-weight: 600; line-height: 1.5; color: rgba(255,255,255,0.7); display: flex; align-items: center; gap: 10px; }
+.safety-item .si-icon { font-size: 16px; flex-shrink: 0; }
+
+.slide { opacity: 0; transform: translateY(20px); animation: fadeUp 0.6s ease forwards; }
+@keyframes fadeUp { to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+<div class="lang-selector">
+  <button class="lang-btn active" data-lang="en" onclick="setLang('en')">EN</button>
+  <button class="lang-btn" data-lang="fr" onclick="setLang('fr')">FR</button>
+  <button class="lang-btn" data-lang="ar" onclick="setLang('ar')">AR</button>
+</div>
+
+<!-- Slide 1 — Cover -->
+<section class="slide" id="s1">
+  <div class="cover-grid">
+    <div>
+      <div class="badge badge-cyan"><span data-i18n="s1.badge">AI-Native · Multi-Vertical</span></div>
+      <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:12px">
+        <img src="public/icons/taskit-192.png" alt="TASKIT" style="height:44px;width:auto">
+        <h1 data-i18n="s1.title" style="margin-bottom:0;flex:1">The Operating System for Modern Agencies</h1>
+      </div>
+      <p style="font-size:1.15rem;margin-bottom:8px;" data-i18n="s1.tagline">One platform. Every operation. Powered by AI.</p>
+      <p data-i18n="s1.sub">Replace 7+ scattered tools with a single intelligent platform that connects projects, clients, finances, team operations, and AI — all in one place.</p>
+    </div>
+    <div class="hero-visual">
+      <div class="hero-ring"></div>
+      <div class="hero-ring"></div>
+      <div class="hero-ring"></div>
+      <div class="hero-orbit"></div>
+      <div class="hero-orbit"></div>
+      <div class="hero-orbit"></div>
+      <div class="hero-center" style="background:none;box-shadow:none"><img src="public/icons/taskit-192.png" alt="TASKIT" style="width:90px;height:auto;display:block"></div>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 2 — Problem -->
+<section class="slide" id="s2">
+  <div class="badge badge-purple"><span data-i18n="s2.badge">The Problem</span></div>
+  <h1><span data-i18n="s2.title_pre">Running an agency today is </span><em><span data-i18n="s2.title_em">chaos</span></em><span data-i18n="s2.title_pst">.</span></h1>
+  <p data-i18n="s2.sub">Your team is spread across disconnected tools. Work falls through the cracks. Profitability is a guess.</p>
+  <div class="problem-grid">
+    <div class="problem-card"><span class="icon">📊</span><span class="text" data-i18n="s2.p1">Projects in spreadsheets, tasks lost in Slack</span></div>
+    <div class="problem-card"><span class="icon">📝</span><span class="text" data-i18n="s2.p2">Contracts, invoices, approvals — 3 different tools</span></div>
+    <div class="problem-card"><span class="icon">👁️</span><span class="text" data-i18n="s2.p3">No visibility into workload or profitability</span></div>
+    <div class="problem-card"><span class="icon">💰</span><span class="text" data-i18n="s2.p4">Finance in Excel, accounting outsourced</span></div>
+    <div class="problem-card"><span class="icon">⏳</span><span class="text" data-i18n="s2.p5">Onboarding new clients takes days of manual setup</span></div>
+  </div>
+</section>
+
+<!-- Slide 3 — Cost -->
+<section class="slide" id="s3">
+  <div class="badge badge-purple"><span data-i18n="s3.badge">The Cost</span></div>
+  <h1><span data-i18n="s3.title_pre">The average agency uses </span><em><span data-i18n="s3.title_em">7+ tools</span></em><span data-i18n="s3.title_mid">. None talk to each other.</span></h1>
+  <div class="diagram-wrap">
+    <div>
+      <div class="tool-cloud">
+        <div class="tool-chip disconnected">ClickUp</div>
+        <div class="tool-chip disconnected">HubSpot</div>
+        <div class="tool-chip disconnected">QuickBooks</div>
+        <div class="tool-chip disconnected">Slack</div>
+        <div class="tool-chip disconnected">Google Drive</div>
+        <div class="tool-chip disconnected">Notion</div>
+        <div class="tool-chip disconnected">Calendly</div>
+        <div class="tool-chip" style="border-color:rgba(0,212,255,0.3);background:rgba(0,212,255,0.06);color:#00D4FF;">TASKIT</div>
+      </div>
+      <p style="margin-top:16px;font-size:13px;text-align:center;max-width:100%;" data-i18n="s3.tooltip">Disconnected tools create busywork. One platform removes it.</p>
+    </div>
+    <div class="stat-box">
+      <div class="number">20%</div>
+      <div class="label" data-i18n="s3.stat_label">of the work week lost switching between tools</div>
+      <p style="font-size:11px;margin-top:12px;color:rgba(255,255,255,0.3);max-width:100%;" data-i18n="s3.source">Source: McKinsey Global Institute</p>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 4 — Introducing -->
+<section class="slide" id="s4">
+  <div class="badge badge-cyan"><span data-i18n="s4.badge">Introducing</span></div>
+  <h1><span data-i18n="s4.title_pre">One intelligent operating system for your </span><em><span data-i18n="s4.title_em">entire agency</span></em><span data-i18n="s4.title_pst">.</span></h1>
+  <p data-i18n="s4.sub">TASKIT replaces your scattered stack with a single platform that manages projects, clients, finances, team operations, and AI — all connected.</p>
+  <div class="platform-layers">
+    <div class="layer"><span class="dot dot-cyan"></span><span class="label" data-i18n="s4.l1">Projects & Tasks</span><span class="desc" data-i18n="s4.l1d">Stages · Dependencies · Calendar</span></div>
+    <div class="layer"><span class="dot dot-cyan"></span><span class="label" data-i18n="s4.l2">CRM & Client Portal</span><span class="desc" data-i18n="s4.l2d">Briefs · Contracts · Approvals</span></div>
+    <div class="layer"><span class="dot dot-purple"></span><span class="label" data-i18n="s4.l3">Financial OS</span><span class="desc" data-i18n="s4.l3d">Accounting · Payroll · Treasury</span></div>
+    <div class="layer"><span class="dot dot-cyan"></span><span class="label" data-i18n="s4.l4">Team Operations</span><span class="desc" data-i18n="s4.l4d">Departments · SLAs · Incidents</span></div>
+    <div class="layer"><span class="dot dot-purple"></span><span class="label" data-i18n="s4.l5">AI Copilot</span><span class="desc" data-i18n="s4.l5d">Workspace-aware · Multi-step · Multi-language</span></div>
+  </div>
+</section>
+
+<!-- Slide 5 — Verticals -->
+<section class="slide" id="s5">
+  <div class="badge badge-purple"><span data-i18n="s5.badge">Verticals</span></div>
+  <h1><span data-i18n="s5.title_pre">Built for agencies that operate at </span><em><span data-i18n="s5.title_em">scale</span></em><span data-i18n="s5.title_pst">.</span></h1>
+  <p data-i18n="s5.sub">Configured for your industry in minutes — not weeks.</p>
+  <div class="vertical-grid">
+    <div class="vertical-card"><div class="emoji">🎯</div><h3 data-i18n="s5.c1t">Digital & Creative Agencies</h3><p data-i18n="s5.c1d">Campaigns, briefs, deliverables, client portal, approvals</p></div>
+    <div class="vertical-card"><div class="emoji">📱</div><h3 data-i18n="s5.c2t">Content Creation Studios</h3><p data-i18n="s5.c2d">Social analytics, YouTube/TikTok/Instagram integrations</p></div>
+    <div class="vertical-card"><div class="emoji">🏥</div><h3 data-i18n="s5.c3t">Healthcare Operations</h3><p data-i18n="s5.c3d">Patient management, shifts, biomedical assets, compliance</p></div>
+    <div class="vertical-card"><div class="emoji">🏢</div><h3 data-i18n="s5.c4t">Enterprise & Corporate IT</h3><p data-i18n="s5.c4d">SLAs, incidents, asset lifecycle, service requests</p></div>
+  </div>
+  <p style="margin-top:20px;font-size:13px;text-align:center;max-width:100%;" data-i18n="s5.tagline">One platform. Configured for your industry in minutes.</p>
+</section>
+
+<!-- Slide 6 — Projects -->
+<section class="slide" id="s6">
+  <div class="badge badge-cyan"><span data-i18n="s6.badge">Core Module</span></div>
+  <h1><span data-i18n="s6.title_pre">Every project. Every task. </span><em><span data-i18n="s6.title_em">Total visibility</span></em><span data-i18n="s6.title_pst">.</span></h1>
+  <p data-i18n="s6.sub">From to-do to done — your entire workflow in one board.</p>
+  <div class="feature-cols">
+    <div class="feature-item"><span class="fi-icon">📋</span><span class="fi-text" data-i18n="s6.f1">Projects with stages: To Do → In Progress → Review → Done</span></div>
+    <div class="feature-item"><span class="fi-icon">🔗</span><span class="fi-text" data-i18n="s6.f2">Subtasks, dependencies, file attachments, time tracking</span></div>
+    <div class="feature-item"><span class="fi-icon">🏠</span><span class="fi-text" data-i18n="s6.f3">Rooms for grouping projects by client or department</span></div>
+    <div class="feature-item"><span class="fi-icon">📅</span><span class="fi-text" data-i18n="s6.f4">Calendar view, task comments with media, real-time updates</span></div>
+  </div>
+</section>
+
+<!-- Slide 7 — CRM -->
+<section class="slide" id="s7">
+  <div class="badge badge-cyan"><span data-i18n="s7.badge">Core Module</span></div>
+  <h1><span data-i18n="s7.title_pre">From first brief to signed contract — </span><em><span data-i18n="s7.title_em">in one place</span></em><span data-i18n="s7.title_pst">.</span></h1>
+  <p data-i18n="s7.sub">Everything you need to manage clients from lead to long-term partnership.</p>
+  <div class="feature-cols">
+    <div class="feature-item"><span class="fi-icon">👥</span><span class="fi-text" data-i18n="s7.f1">Full client management with activity history and notes</span></div>
+    <div class="feature-item"><span class="fi-icon">📝</span><span class="fi-text" data-i18n="s7.f2">Brief → Deliverable → Approval pipeline with version control</span></div>
+    <div class="feature-item"><span class="fi-icon">📄</span><span class="fi-text" data-i18n="s7.f3">Contract lifecycle with multi-language PDF generation</span></div>
+    <div class="feature-item"><span class="fi-icon">🚪</span><span class="fi-text" data-i18n="s7.f4">Client portal for external stakeholder access</span></div>
+    <div class="feature-item"><span class="fi-icon">🧾</span><span class="fi-text" data-i18n="s7.f5">Invoice creation with line items, taxes, multi-currency</span></div>
+  </div>
+</section>
+
+<!-- Slide 8 — Finance -->
+<section class="slide" id="s8">
+  <div class="badge badge-cyan"><span data-i18n="s8.badge">Core Module</span></div>
+  <h1><span data-i18n="s8.title_pre">Real accounting. Built into </span><em><span data-i18n="s8.title_em">your operations</span></em><span data-i18n="s8.title_pst">.</span></h1>
+  <p data-i18n="s8.sub">No more QuickBooks. No more spreadsheets. Finance lives where your work lives.</p>
+  <div class="feature-cols">
+    <div class="feature-item"><span class="fi-icon">📒</span><span class="fi-text" data-i18n="s8.f1">Double-entry bookkeeping — chart of accounts, journal entries, ledger</span></div>
+    <div class="feature-item"><span class="fi-icon">🏦</span><span class="fi-text" data-i18n="s8.f2">Bank reconciliation, payroll, expense approvals</span></div>
+    <div class="feature-item"><span class="fi-icon">💰</span><span class="fi-text" data-i18n="s8.f3">Treasury accounts — bank, cash, wallet, credit</span></div>
+    <div class="feature-item"><span class="fi-icon">📈</span><span class="fi-text" data-i18n="s8.f4">Budget planning, forecasting, profitability by client/project/employee</span></div>
+  </div>
+  <div class="callout"><p data-i18n="s8.callout">🔒 Tamper-proof audit log with SHA-256 hash chain — regulatory-grade financial records.</p></div>
+</section>
+
+<!-- Slide 9 — AI -->
+<section class="slide" id="s9">
+  <div class="badge badge-cyan"><span data-i18n="s9.badge">Core Module</span></div>
+  <h1><span data-i18n="s9.title_pre">Your agency copilot — </span><em><span data-i18n="s9.title_em">inside your workspace</span></em><span data-i18n="s9.title_pst">.</span></h1>
+  <p data-i18n="s9.sub">Not a generic chatbot. An AI that knows your business, your clients, and your context.</p>
+  <div class="feature-cols">
+    <div class="feature-item"><span class="fi-icon">🧠</span><span class="fi-text" data-i18n="s9.f1">Grounded in your real workspace data — not generic knowledge</span></div>
+    <div class="feature-item"><span class="fi-icon">💭</span><span class="fi-text" data-i18n="s9.f2">Remembers context: workspace memory + user memory</span></div>
+    <div class="feature-item"><span class="fi-icon">✅</span><span class="fi-text" data-i18n="s9.f3">Human-in-the-loop approval gates for every action</span></div>
+    <div class="feature-item"><span class="fi-icon">🌐</span><span class="fi-text" data-i18n="s9.f4">Speaks English, French, and Arabic with full RTL support</span></div>
+    <div class="feature-item"><span class="fi-icon">⚙️</span><span class="fi-text" data-i18n="s9.f5">Multi-step AI workflows with state machine governance</span></div>
+  </div>
+  <div class="callout"><p data-i18n="s9.callout">Ask it to create a project, draft a contract, or summarize a client's history — it knows your business.</p></div>
+</section>
+
+<!-- Slide 10 — Enterprise -->
+<section class="slide" id="s10">
+  <div class="badge badge-cyan"><span data-i18n="s10.badge">Core Module</span></div>
+  <h1><span data-i18n="s10.title_pre">Enterprise-grade ops. </span><em><span data-i18n="s10.title_em">Without</span></em><span data-i18n="s10.title_mid"> the enterprise price.</span></h1>
+  <p data-i18n="s10.sub">Everything you need to run a professional services organization.</p>
+  <div class="feature-cols">
+    <div class="feature-item"><span class="fi-icon">🏗️</span><span class="fi-text" data-i18n="s10.f1">Department hierarchy with P1–P4 SLA escalation chains</span></div>
+    <div class="feature-item"><span class="fi-icon">🚨</span><span class="fi-text" data-i18n="s10.f2">Incident management, asset lifecycle, maintenance work orders</span></div>
+    <div class="feature-item"><span class="fi-icon">🛡️</span><span class="fi-text" data-i18n="s10.f3">Compliance controls and audit event log</span></div>
+    <div class="feature-item"><span class="fi-icon">🔑</span><span class="fi-text" data-i18n="s10.f4">Role-based access: Super Admin / Owner / Manager / Employee</span></div>
+    <div class="feature-item"><span class="fi-icon">🔄</span><span class="fi-text" data-i18n="s10.f5">Shift management, queue strategies, 4-level approval workflows</span></div>
+  </div>
+</section>
+
+<!-- Slide 11 — Integrations -->
+<section class="slide" id="s11">
+  <div class="badge badge-purple"><span data-i18n="s11.badge">Integrations</span></div>
+  <h1><span data-i18n="s11.title_pre">Connects to the tools your </span><em><span data-i18n="s11.title_em">clients already use</span></em><span data-i18n="s11.title_pst">.</span></h1>
+  <p data-i18n="s11.sub">8 social platforms. Real-time sync. All in one dashboard.</p>
+  <div class="integration-grid">
+    <div class="int-chip">YouTube</div>
+    <div class="int-chip">TikTok</div>
+    <div class="int-chip">Instagram</div>
+    <div class="int-chip">Facebook</div>
+    <div class="int-chip">Twitter / X</div>
+    <div class="int-chip">LinkedIn</div>
+    <div class="int-chip">Spotify</div>
+    <div class="int-chip">Twitch</div>
+    <div class="int-chip">Cloudinary</div>
+    <div class="int-chip">Firebase Push</div>
+    <div class="int-chip">Socket.IO Realtime</div>
+    <div class="int-chip">PDF Generation</div>
+  </div>
+  <p style="margin-top:16px;font-size:13px;max-width:100%;" data-i18n="s11.sub2">Secure OAuth with AES-256 token encryption. Real-time collaboration via Socket.IO.</p>
+</section>
+
+<!-- Slide 12 — Security -->
+<section class="slide" id="s12">
+  <div class="badge badge-purple"><span data-i18n="s12.badge">Security</span></div>
+  <h1><span data-i18n="s12.title_pre">Enterprise security. </span><em><span data-i18n="s12.title_em">Built from day one</span></em><span data-i18n="s12.title_pst">.</span></h1>
+  <div class="safety-grid">
+    <div class="safety-item"><span class="si-icon">🔒</span><span data-i18n="s12.i1">Multi-tenant data isolation</span></div>
+    <div class="safety-item"><span class="si-icon">📜</span><span data-i18n="s12.i2">GDPR-ready legal consent tracking</span></div>
+    <div class="safety-item"><span class="si-icon">🛡️</span><span data-i18n="s12.i3">Brute-force protection + JWT revocation</span></div>
+    <div class="safety-item"><span class="si-icon">✍️</span><span data-i18n="s12.i4">HMAC webhook signing</span></div>
+    <div class="safety-item"><span class="si-icon">🔐</span><span data-i18n="s12.i5">Role-based access control on every action</span></div>
+    <div class="safety-item"><span class="si-icon">📊</span><span data-i18n="s12.i6">Tamper-proof financial audit trail</span></div>
+    <div class="safety-item"><span class="si-icon">📱</span><span data-i18n="s12.i7">Multi-Factor Authentication (MFA)</span></div>
+    <div class="safety-item"><span class="si-icon">🌍</span><span data-i18n="s12.i8">Arabic RTL + 3-language support</span></div>
+  </div>
+</section>
+
+<!-- Slide 13 — Comparison -->
+<section class="slide" id="s13">
+  <div class="badge badge-purple"><span data-i18n="s13.badge">Why TASKIT</span></div>
+  <h1><span data-i18n="s13.title_pre">Everything your stack does. </span><em><span data-i18n="s13.title_em">In one platform</span></em><span data-i18n="s13.title_pst">.</span></h1>
+  <p data-i18n="s13.sub">Stop paying for 7 tools. Start running everything from one.</p>
+  <table class="compare-table">
+    <thead><tr>
+      <th data-i18n="s13.h0">Feature</th><th>TASKIT</th><th>ClickUp</th><th>Monday</th><th>HubSpot</th><th>QuickBooks</th>
+    </tr></thead>
+    <tbody>
+      <tr><td data-i18n="s13.r1">Project Management</td><td class="check">✓</td><td class="check">✓</td><td class="check">✓</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+      <tr><td data-i18n="s13.r2">CRM & Client Portal</td><td class="check">✓</td><td class="cross">✗</td><td class="partial">◐</td><td class="check">✓</td><td class="cross">✗</td></tr>
+      <tr><td data-i18n="s13.r3">Double-Entry Accounting</td><td class="check">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td><td class="check">✓</td></tr>
+      <tr><td data-i18n="s13.r4">AI Copilot (Workspace-aware)</td><td class="check">✓</td><td class="partial">◐</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+      <tr><td data-i18n="s13.r5">Social Media Integrations</td><td class="check">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="partial">◐</td><td class="cross">✗</td></tr>
+      <tr><td data-i18n="s13.r6">Arabic / RTL Support</td><td class="check">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+      <tr><td data-i18n="s13.r7">Multi-Vertical Support</td><td class="check">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+      <tr><td data-i18n="s13.r8">All-in-One Price</td><td class="check">✓</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td><td class="cross">✗</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- Slide 14 — Pricing -->
+<section class="slide" id="s14">
+  <div class="badge badge-cyan"><span data-i18n="s14.badge">Pricing</span></div>
+  <h1><span data-i18n="s14.title_pre">Simple, </span><em><span data-i18n="s14.title_em">transparent</span></em><span data-i18n="s14.title_pst"> pricing.</span></h1>
+  <p data-i18n="s14.sub">14-day free trial. No credit card required. Cancel anytime.</p>
+  <div class="pricing-grid">
+    <div class="pricing-card">
+      <h3 data-i18n="s14.t1">Free</h3>
+      <div class="price">$0<span data-i18n="s14.per_month">/month</span></div>
+      <div class="desc" data-i18n="s14.d1">Up to 3 users. Core project management.</div>
+      <ul><li data-i18n="s14.l1a">Projects & tasks</li><li data-i18n="s14.l1b">Client management</li><li data-i18n="s14.l1c">Basic reporting</li></ul>
+    </div>
+    <div class="pricing-card">
+      <h3 data-i18n="s14.t2">Starter</h3>
+      <div class="price">$3<span data-i18n="s14.per_seat">/seat/month</span></div>
+      <div class="desc" data-i18n="s14.d2">Full platform. Unlimited projects.</div>
+      <ul><li data-i18n="s14.l2a">Everything in Free</li><li data-i18n="s14.l2b">CRM & contracts</li><li data-i18n="s14.l2c">Invoicing</li><li data-i18n="s14.l2d">AI copilot (limited)</li></ul>
+    </div>
+    <div class="pricing-card popular">
+      <div class="popular-badge" data-i18n="s14.popular">Most Popular</div>
+      <h3 data-i18n="s14.t3">Pro</h3>
+      <div class="price">$2.50<span data-i18n="s14.per_seat">/seat/month</span></div>
+      <div class="desc" data-i18n="s14.d3">Annual billing. Everything your agency needs.</div>
+      <ul><li data-i18n="s14.l3a">Everything in Starter</li><li data-i18n="s14.l3b">Full double-entry accounting</li><li data-i18n="s14.l3c">Social integrations</li><li data-i18n="s14.l3d">Unlimited AI</li><li data-i18n="s14.l3e">Client portal</li></ul>
+    </div>
+    <div class="pricing-card">
+      <h3 data-i18n="s14.t4">Enterprise</h3>
+      <div class="price">$99<span data-i18n="s14.per_month">/month</span></div>
+      <div class="desc" data-i18n="s14.d4">Custom seats. Dedicated support.</div>
+      <ul><li data-i18n="s14.l4a">Everything in Pro</li><li data-i18n="s14.l4b">Custom integrations</li><li data-i18n="s14.l4c">SSO / SAML</li><li data-i18n="s14.l4d">Dedicated success manager</li><li data-i18n="s14.l4e">SLA guarantees</li></ul>
+    </div>
+  </div>
+</section>
+
+<!-- Slide 15 — CTA -->
+<section class="slide" id="s15">
+  <div class="badge badge-cyan"><span data-i18n="s15.badge">Get Started</span></div>
+  <h1><span data-i18n="s15.title_pre">Ready to run your agency like an </span><em><span data-i18n="s15.title_em">operating system</span></em><span data-i18n="s15.title_pst">?</span></h1>
+  <p style="font-size:1.1rem;max-width:600px;" data-i18n="s15.sub">Join agencies that have replaced 7+ tools with one intelligent platform.</p>
+  <div class="cta-row">
+    <a href="https://taskitbeta-tan.vercel.app/signup" class="btn btn-primary" target="_blank"><span data-i18n="s15.cta_primary">Start Free Today</span> →</a>
+    <button class="btn btn-secondary"><span data-i18n="s15.cta_secondary">Book a Live Demo</span></button>
+  </div>
+  <div class="trust-row">
+    <span>✓ <span data-i18n="s15.tr1">Beta live</span></span>
+    <span>✓ <span data-i18n="s15.tr2">Multi-language (EN / FR / AR)</span></span>
+    <span>✓ <span data-i18n="s15.tr3">Built for MENA & Global teams</span></span>
+  </div>
+  <p style="margin-top:48px;font-size:12px;color:rgba(255,255,255,0.25);text-align:center;max-width:100%;" data-i18n="s15.footer">TASKIT — One platform. Every operation. Powered by AI.</p>
+</section>
+
+<!-- Navigation -->
+<div class="nav">
+  <button class="nav-btn" onclick="go(-1)">‹</button>
+  <span class="nav-counter" id="counter">01 / 15</span>
+  <div class="nav-dots" id="dots"></div>
+  <button class="nav-btn" onclick="go(1)">›</button>
+</div>
+
+<script>
+const TOTAL = 15;
+let current = 1;
+let currentLang = 'en';
+
+const i18n = {
+  en: {
+    's1.badge': 'AI-Native · Multi-Vertical',
+    's1.title': 'The Operating System for Modern Agencies',
+    's1.tagline': 'One platform. Every operation. Powered by AI.',
+    's1.sub': 'Replace 7+ scattered tools with a single intelligent platform that connects projects, clients, finances, team operations, and AI — all in one place.',
+    's2.badge': 'The Problem',
+    's2.title_pre': 'Running an agency today is ', 's2.title_em': 'chaos', 's2.title_pst': '.',
+    's2.sub': 'Your team is spread across disconnected tools. Work falls through the cracks. Profitability is a guess.',
+    's2.p1': 'Projects in spreadsheets, tasks lost in Slack',
+    's2.p2': 'Contracts, invoices, approvals — 3 different tools',
+    's2.p3': 'No visibility into workload or profitability',
+    's2.p4': 'Finance in Excel, accounting outsourced',
+    's2.p5': 'Onboarding new clients takes days of manual setup',
+    's3.badge': 'The Cost',
+    's3.title_pre': 'The average agency uses ', 's3.title_em': '7+ tools', 's3.title_mid': '. None talk to each other.',
+    's3.tooltip': 'Disconnected tools create busywork. One platform removes it.',
+    's3.stat_label': 'of the work week lost switching between tools',
+    's3.source': 'Source: McKinsey Global Institute',
+    's4.badge': 'Introducing',
+    's4.title_pre': 'One intelligent operating system for your ', 's4.title_em': 'entire agency', 's4.title_pst': '.',
+    's4.sub': 'TASKIT replaces your scattered stack with a single platform that manages projects, clients, finances, team operations, and AI — all connected.',
+    's4.l1': 'Projects & Tasks', 's4.l1d': 'Stages · Dependencies · Calendar',
+    's4.l2': 'CRM & Client Portal', 's4.l2d': 'Briefs · Contracts · Approvals',
+    's4.l3': 'Financial OS', 's4.l3d': 'Accounting · Payroll · Treasury',
+    's4.l4': 'Team Operations', 's4.l4d': 'Departments · SLAs · Incidents',
+    's4.l5': 'AI Copilot', 's4.l5d': 'Workspace-aware · Multi-step · Multi-language',
+    's5.badge': 'Verticals',
+    's5.title_pre': 'Built for agencies that operate at ', 's5.title_em': 'scale', 's5.title_pst': '.',
+    's5.sub': 'Configured for your industry in minutes — not weeks.',
+    's5.c1t': 'Digital & Creative Agencies', 's5.c1d': 'Campaigns, briefs, deliverables, client portal, approvals',
+    's5.c2t': 'Content Creation Studios', 's5.c2d': 'Social analytics, YouTube/TikTok/Instagram integrations',
+    's5.c3t': 'Healthcare Operations', 's5.c3d': 'Patient management, shifts, biomedical assets, compliance',
+    's5.c4t': 'Enterprise & Corporate IT', 's5.c4d': 'SLAs, incidents, asset lifecycle, service requests',
+    's5.tagline': 'One platform. Configured for your industry in minutes.',
+    's6.badge': 'Core Module',
+    's6.title_pre': 'Every project. Every task. ', 's6.title_em': 'Total visibility', 's6.title_pst': '.',
+    's6.sub': 'From to-do to done — your entire workflow in one board.',
+    's6.f1': 'Projects with stages: To Do → In Progress → Review → Done',
+    's6.f2': 'Subtasks, dependencies, file attachments, time tracking',
+    's6.f3': 'Rooms for grouping projects by client or department',
+    's6.f4': 'Calendar view, task comments with media, real-time updates',
+    's7.badge': 'Core Module',
+    's7.title_pre': 'From first brief to signed contract — ', 's7.title_em': 'in one place', 's7.title_pst': '.',
+    's7.sub': 'Everything you need to manage clients from lead to long-term partnership.',
+    's7.f1': 'Full client management with activity history and notes',
+    's7.f2': 'Brief → Deliverable → Approval pipeline with version control',
+    's7.f3': 'Contract lifecycle with multi-language PDF generation',
+    's7.f4': 'Client portal for external stakeholder access',
+    's7.f5': 'Invoice creation with line items, taxes, multi-currency',
+    's8.badge': 'Core Module',
+    's8.title_pre': 'Real accounting. Built into ', 's8.title_em': 'your operations', 's8.title_pst': '.',
+    's8.sub': 'No more QuickBooks. No more spreadsheets. Finance lives where your work lives.',
+    's8.f1': 'Double-entry bookkeeping — chart of accounts, journal entries, ledger',
+    's8.f2': 'Bank reconciliation, payroll, expense approvals',
+    's8.f3': 'Treasury accounts — bank, cash, wallet, credit',
+    's8.f4': 'Budget planning, forecasting, profitability by client/project/employee',
+    's8.callout': '🔒 Tamper-proof audit log with SHA-256 hash chain — regulatory-grade financial records.',
+    's9.badge': 'Core Module',
+    's9.title_pre': 'Your agency copilot — ', 's9.title_em': 'inside your workspace', 's9.title_pst': '.',
+    's9.sub': 'Not a generic chatbot. An AI that knows your business, your clients, and your context.',
+    's9.f1': 'Grounded in your real workspace data — not generic knowledge',
+    's9.f2': 'Remembers context: workspace memory + user memory',
+    's9.f3': 'Human-in-the-loop approval gates for every action',
+    's9.f4': 'Speaks English, French, and Arabic with full RTL support',
+    's9.f5': 'Multi-step AI workflows with state machine governance',
+    's9.callout': 'Ask it to create a project, draft a contract, or summarize a client\'s history — it knows your business.',
+    's10.badge': 'Core Module',
+    's10.title_pre': 'Enterprise-grade ops. ', 's10.title_em': 'Without', 's10.title_mid': ' the enterprise price.',
+    's10.sub': 'Everything you need to run a professional services organization.',
+    's10.f1': 'Department hierarchy with P1–P4 SLA escalation chains',
+    's10.f2': 'Incident management, asset lifecycle, maintenance work orders',
+    's10.f3': 'Compliance controls and audit event log',
+    's10.f4': 'Role-based access: Super Admin / Owner / Manager / Employee',
+    's10.f5': 'Shift management, queue strategies, 4-level approval workflows',
+    's11.badge': 'Integrations',
+    's11.title_pre': 'Connects to the tools your ', 's11.title_em': 'clients already use', 's11.title_pst': '.',
+    's11.sub': '8 social platforms. Real-time sync. All in one dashboard.',
+    's11.sub2': 'Secure OAuth with AES-256 token encryption. Real-time collaboration via Socket.IO.',
+    's12.badge': 'Security',
+    's12.title_pre': 'Enterprise security. ', 's12.title_em': 'Built from day one', 's12.title_pst': '.',
+    's12.i1': 'Multi-tenant data isolation',
+    's12.i2': 'GDPR-ready legal consent tracking',
+    's12.i3': 'Brute-force protection + JWT revocation',
+    's12.i4': 'HMAC webhook signing',
+    's12.i5': 'Role-based access control on every action',
+    's12.i6': 'Tamper-proof financial audit trail',
+    's12.i7': 'Multi-Factor Authentication (MFA)',
+    's12.i8': 'Arabic RTL + 3-language support',
+    's13.badge': 'Why TASKIT',
+    's13.title_pre': 'Everything your stack does. ', 's13.title_em': 'In one platform', 's13.title_pst': '.',
+    's13.sub': 'Stop paying for 7 tools. Start running everything from one.',
+    's13.h0': 'Feature',
+    's13.r1': 'Project Management',
+    's13.r2': 'CRM & Client Portal',
+    's13.r3': 'Double-Entry Accounting',
+    's13.r4': 'AI Copilot (Workspace-aware)',
+    's13.r5': 'Social Media Integrations',
+    's13.r6': 'Arabic / RTL Support',
+    's13.r7': 'Multi-Vertical Support',
+    's13.r8': 'All-in-One Price',
+    's14.badge': 'Pricing',
+    's14.title_pre': 'Simple, ', 's14.title_em': 'transparent', 's14.title_pst': ' pricing.',
+    's14.sub': '14-day free trial. No credit card required. Cancel anytime.',
+    's14.t1': 'Free', 's14.d1': 'Up to 3 users. Core project management.',
+    's14.l1a': 'Projects & tasks', 's14.l1b': 'Client management', 's14.l1c': 'Basic reporting',
+    's14.t2': 'Starter', 's14.d2': 'Full platform. Unlimited projects.',
+    's14.l2a': 'Everything in Free', 's14.l2b': 'CRM & contracts', 's14.l2c': 'Invoicing', 's14.l2d': 'AI copilot (limited)',
+    's14.t3': 'Pro', 's14.d3': 'Annual billing. Everything your agency needs.',
+    's14.l3a': 'Everything in Starter', 's14.l3b': 'Full double-entry accounting', 's14.l3c': 'Social integrations', 's14.l3d': 'Unlimited AI', 's14.l3e': 'Client portal',
+    's14.t4': 'Enterprise', 's14.d4': 'Custom seats. Dedicated support.',
+    's14.l4a': 'Everything in Pro', 's14.l4b': 'Custom integrations', 's14.l4c': 'SSO / SAML', 's14.l4d': 'Dedicated success manager', 's14.l4e': 'SLA guarantees',
+    's14.per_month': '/month', 's14.per_seat': '/seat/month',
+    's14.popular': 'Most Popular',
+    's15.badge': 'Get Started',
+    's15.title_pre': 'Ready to run your agency like an ', 's15.title_em': 'operating system', 's15.title_pst': '?',
+    's15.sub': 'Join agencies that have replaced 7+ tools with one intelligent platform.',
+    's15.cta_primary': 'Start Free Today',
+    's15.cta_secondary': 'Book a Live Demo',
+    's15.tr1': 'Beta live',
+    's15.tr2': 'Multi-language (EN / FR / AR)',
+    's15.tr3': 'Built for MENA & Global teams',
+    's15.footer': 'TASKIT — One platform. Every operation. Powered by AI.',
+  },
+  fr: {
+    's1.badge': 'IA-Native · Multi-Vertical',
+    's1.title': 'Le Système d\'Exploitation des Agences Modernes',
+    's1.tagline': 'Une plateforme. Toutes les opérations. Propulsé par l\'IA.',
+    's1.sub': 'Remplacez 7+ outils dispersés par une plateforme unique qui connecte projets, clients, finances, opérations et IA — tout en un seul endroit.',
+    's2.badge': 'Le Problème',
+    's2.title_pre': 'Gérer une agence aujourd\'hui est un ', 's2.title_em': 'chaos', 's2.title_pst': '.',
+    's2.sub': 'Votre équipe est dispersée entre des outils déconnectés. Le travail passe entre les mailles. La rentabilité est une supposition.',
+    's2.p1': 'Projets dans des tableurs, tâches perdues dans Slack',
+    's2.p2': 'Contrats, factures, approbations — 3 outils différents',
+    's2.p3': 'Aucune visibilité sur la charge de travail ou la rentabilité',
+    's2.p4': 'Finance dans Excel, comptabilité externalisée',
+    's2.p5': 'L\'intégration des nouveaux clients prend des jours',
+    's3.badge': 'Le Coût',
+    's3.title_pre': 'L\'agence moyenne utilise ', 's3.title_em': '7+ outils', 's3.title_mid': '. Aucun ne communique.',
+    's3.tooltip': 'Des outils déconnectés créent du travail inutile. Une plateforme les élimine.',
+    's3.stat_label': 'de la semaine perdue à basculer entre les outils',
+    's3.source': 'Source : McKinsey Global Institute',
+    's4.badge': 'Introduction',
+    's4.title_pre': 'Un système d\'exploitation intelligent pour votre ', 's4.title_em': 'agence entière', 's4.title_pst': '.',
+    's4.sub': 'TASKIT remplace votre pile dispersée par une plateforme unique qui gère projets, clients, finances, opérations et IA — tous connectés.',
+    's4.l1': 'Projets & Tâches', 's4.l1d': 'Étapes · Dépendances · Calendrier',
+    's4.l2': 'CRM & Portail Client', 's4.l2d': 'Briefs · Contrats · Approbations',
+    's4.l3': 'Système Financier', 's4.l3d': 'Comptabilité · Paie · Trésorerie',
+    's4.l4': 'Opérations Équipe', 's4.l4d': 'Départements · SLA · Incidents',
+    's4.l5': 'Copilote IA', 's4.l5d': 'Contextuel · Multi-étapes · Multilingue',
+    's5.badge': 'Secteurs',
+    's5.title_pre': 'Conçu pour les agences qui opèrent à ', 's5.title_em': 'grande échelle', 's5.title_pst': '.',
+    's5.sub': 'Configuré pour votre secteur en quelques minutes.',
+    's5.c1t': 'Agences Créatives & Digitales', 's5.c1d': 'Campagnes, briefs, livrables, portail client',
+    's5.c2t': 'Studios de Création de Contenu', 's5.c2d': 'Analytique sociale, intégrations YouTube/TikTok/Instagram',
+    's5.c3t': 'Opérations de Santé', 's5.c3d': 'Gestion des patients, quarts, actifs biomédicaux',
+    's5.c4t': 'Entreprise & IT', 's5.c4d': 'SLA, incidents, cycle de vie des actifs',
+    's5.tagline': 'Une plateforme. Configurée pour votre secteur en minutes.',
+    's6.badge': 'Module Principal',
+    's6.title_pre': 'Chaque projet. Chaque tâche. ', 's6.title_em': 'Visibilité totale', 's6.title_pst': '.',
+    's6.sub': 'Du todo à terminé — tout votre flux en un tableau.',
+    's6.f1': 'Projets avec étapes : À faire → En cours → Révision → Terminé',
+    's6.f2': 'Sous-tâches, dépendances, pièces jointes, suivi du temps',
+    's6.f3': 'Espaces pour grouper les projets par client ou département',
+    's6.f4': 'Vue calendrier, commentaires avec médias, mises à jour en temps réel',
+    's7.badge': 'Module Principal',
+    's7.title_pre': 'Du premier brief au contrat signé — ', 's7.title_em': 'au même endroit', 's7.title_pst': '.',
+    's7.sub': 'Tout ce dont vous avez besoin pour gérer vos clients, du prospect au partenariat.',
+    's7.f1': 'Gestion complète des clients avec historique et notes',
+    's7.f2': 'Pipeline Brief → Livrable → Approbation avec contrôle de version',
+    's7.f3': 'Cycle de vie des contrats avec génération PDF multilingue',
+    's7.f4': 'Portail client pour l\'accès des parties prenantes externes',
+    's7.f5': 'Création de factures avec lignes, taxes, multi-devises',
+    's8.badge': 'Module Principal',
+    's8.title_pre': 'Une vraie comptabilité. Intégrée à ', 's8.title_em': 'vos opérations', 's8.title_pst': '.',
+    's8.sub': 'Fini QuickBooks. Fini les tableurs. La finance vit où votre travail vit.',
+    's8.f1': 'Comptabilité en partie double — plan comptable, écritures, grand livre',
+    's8.f2': 'Rapprochement bancaire, paie, approbations de dépenses',
+    's8.f3': 'Comptes de trésorerie — banque, espèces, portefeuille, crédit',
+    's8.f4': 'Budgétisation, prévisions, rentabilité par client/projet/employé',
+    's8.callout': '🔒 Journal d\'audit inviolable avec chaîne de hachage SHA-256 — registres financiers de qualité réglementaire.',
+    's9.badge': 'Module Principal',
+    's9.title_pre': 'Votre copilote d\'agence — ', 's9.title_em': 'dans votre espace de travail', 's9.title_pst': '.',
+    's9.sub': 'Pas un chatbot générique. Une IA qui connaît votre entreprise, vos clients et votre contexte.',
+    's9.f1': 'Ancrée dans vos données réelles — pas de connaissances génériques',
+    's9.f2': 'Se souvient du contexte : mémoire de l\'espace + mémoire utilisateur',
+    's9.f3': 'Validation humaine pour chaque action',
+    's9.f4': 'Parle anglais, français et arabe avec support RTL complet',
+    's9.f5': 'Flux IA multi-étapes avec gouvernance par machine d\'état',
+    's9.callout': 'Demandez-lui de créer un projet, rédiger un contrat ou résumer l\'historique d\'un client — il connaît votre entreprise.',
+    's10.badge': 'Module Principal',
+    's10.title_pre': 'Des opérations professionnelles. ', 's10.title_em': 'Sans', 's10.title_mid': ' le prix entreprise.',
+    's10.sub': 'Tout ce dont vous avez besoin pour gérer une organisation de services.',
+    's10.f1': 'Hiérarchie des départements avec chaînes d\'escalade SLA P1–P4',
+    's10.f2': 'Gestion des incidents, cycle de vie des actifs, ordres de maintenance',
+    's10.f3': 'Contrôles de conformité et journal d\'audit',
+    's10.f4': 'Contrôle d\'accès basé sur les rôles : Super Admin / Propriétaire / Manager / Employé',
+    's10.f5': 'Gestion des quarts, stratégies de file d\'attente, flux d\'approbation à 4 niveaux',
+    's11.badge': 'Intégrations',
+    's11.title_pre': 'Se connecte aux outils que vos ', 's11.title_em': 'clients utilisent déjà', 's11.title_pst': '.',
+    's11.sub': '8 plateformes sociales. Synchronisation en temps réel. Tout dans un tableau de bord.',
+    's11.sub2': 'OAuth sécurisé avec chiffrement AES-256. Collaboration en temps réel via Socket.IO.',
+    's12.badge': 'Sécurité',
+    's12.title_pre': 'Sécurité entreprise. ', 's12.title_em': 'Conçue dès le premier jour', 's12.title_pst': '.',
+    's12.i1': 'Isolation des données multi-tenant',
+    's12.i2': 'Suivi du consentement légal conforme RGPD',
+    's12.i3': 'Protection anti-force brute + révocation JWT',
+    's12.i4': 'Signature de webhooks HMAC',
+    's12.i5': 'Contrôle d\'accès basé sur les rôles pour chaque action',
+    's12.i6': 'Piste d\'audit financier inviolable',
+    's12.i7': 'Authentification multi-facteurs (MFA)',
+    's12.i8': 'Support arabe RTL + 3 langues',
+    's13.badge': 'Pourquoi TASKIT',
+    's13.title_pre': 'Tout ce que votre stack fait. ', 's13.title_em': 'En une plateforme', 's13.title_pst': '.',
+    's13.sub': 'Arrêtez de payer pour 7 outils. Gérez tout depuis un seul.',
+    's13.h0': 'Fonctionnalité',
+    's13.r1': 'Gestion de Projet',
+    's13.r2': 'CRM & Portail Client',
+    's13.r3': 'Comptabilité en Partie Double',
+    's13.r4': 'Copilote IA (Contextuel)',
+    's13.r5': 'Intégrations Réseaux Sociaux',
+    's13.r6': 'Support Arabe / RTL',
+    's13.r7': 'Support Multi-Sectoriel',
+    's13.r8': 'Prix Tout-en-Un',
+    's14.badge': 'Tarifs',
+    's14.title_pre': 'Des prix ', 's14.title_em': 'simples et transparents', 's14.title_pst': '.',
+    's14.sub': 'Essai gratuit de 14 jours. Pas de carte bancaire requise. Annulez à tout moment.',
+    's14.t1': 'Gratuit', 's14.d1': 'Jusqu\'à 3 utilisateurs. Gestion de projet de base.',
+    's14.l1a': 'Projets & tâches', 's14.l1b': 'Gestion clients', 's14.l1c': 'Rapports de base',
+    's14.t2': 'Démarrage', 's14.d2': 'Plateforme complète. Projets illimités.',
+    's14.l2a': 'Tout de Gratuit', 's14.l2b': 'CRM & contrats', 's14.l2c': 'Facturation', 's14.l2d': 'Copilote IA (limité)',
+    's14.t3': 'Pro', 's14.d3': 'Facturation annuelle. Tout ce dont votre agence a besoin.',
+    's14.l3a': 'Tout de Démarrage', 's14.l3b': 'Comptabilité complète en partie double', 's14.l3c': 'Intégrations sociales', 's14.l3d': 'IA illimitée', 's14.l3e': 'Portail client',
+    's14.t4': 'Entreprise', 's14.d4': 'Sièges personnalisés. Support dédié.',
+    's14.l4a': 'Tout de Pro', 's14.l4b': 'Intégrations personnalisées', 's14.l4c': 'SSO / SAML', 's14.l4d': 'Gestionnaire de succès dédié', 's14.l4e': 'Garanties SLA',
+    's14.per_month': '/mois', 's14.per_seat': '/siège/mois',
+    's14.popular': 'Le Plus Populaire',
+    's15.badge': 'Commencer',
+    's15.title_pre': 'Prêt à gérer votre agence comme un ', 's15.title_em': 'système d\'exploitation', 's15.title_pst': ' ?',
+    's15.sub': 'Rejoignez les agences qui ont remplacé 7+ outils par une plateforme intelligente.',
+    's15.cta_primary': 'Commencez Gratuitement',
+    's15.cta_secondary': 'Réserver une Démo',
+    's15.tr1': 'Beta en ligne',
+    's15.tr2': 'Multilingue (EN / FR / AR)',
+    's15.tr3': 'Conçu pour les équipes MENA & Globales',
+    's15.footer': 'TASKIT — Une plateforme. Toutes les opérations. Propulsé par l\'IA.',
+  },
+  ar: {
+    's1.badge': 'ذكي · متعدد القطاعات',
+    's1.title': 'نظام تشغيل الوكالات العصرية',
+    's1.tagline': 'منصة واحدة. كل العمليات. مدعوم بالذكاء الاصطناعي.',
+    's1.sub': 'استبدل 7+ أدوات متفرقة بمنصة واحدة ذكية تربط المشاريع والعملاء والمالية وعمليات الفريق والذكاء الاصطناعي — كل شيء في مكان واحد.',
+    's2.badge': 'المشكلة',
+    's2.title_pre': 'إدارة وكالة اليوم هي ', 's2.title_em': 'فوضى', 's2.title_pst': '.',
+    's2.sub': 'فريقك موزع بين أدوات غير متصلة. العمل يضيع بين الثغرات. الربحية مجرد تخمين.',
+    's2.p1': 'مشاريع في جداول بيانات، مهام ضائعة في سلاك',
+    's2.p2': 'عقود، فواتير، موافقات — 3 أدوات مختلفة',
+    's2.p3': 'لا رؤية واضحة لعبء العمل أو الربحية',
+    's2.p4': 'المالية في إكسيل، المحاسبة مستعارة',
+    's2.p5': 'دمج عملاء جدد يستغرق أياماً من الإعداد اليدوي',
+    's3.badge': 'التكلفة',
+    's3.title_pre': 'الوكالة المتوسطة تستخدم ', 's3.title_em': '7+ أدوات', 's3.title_mid': '. لا شيء منها يتواصل مع الآخر.',
+    's3.tooltip': 'الأدوات غير المتصلة تخلق عملاً إضافياً. منصة واحدة تزيله.',
+    's3.stat_label': 'من أسبوع العمل يضيع في التبديل بين الأدوات',
+    's3.source': 'المصدر: معهد ماكينزي العالمي',
+    's4.badge': 'تقديم',
+    's4.title_pre': 'نظام تشغيل ذكي لـ ', 's4.title_em': 'وكالتك بالكامل', 's4.title_pst': '.',
+    's4.sub': 'تاسكيت يستبدل أدواتك المتفرقة بمنصة واحدة تدير المشاريع والعملاء والمالية وعمليات الفريق والذكاء الاصطناعي — كلها متصلة.',
+    's4.l1': 'المشاريع والمهام', 's4.l1d': 'مراحل · تبعيات · تقويم',
+    's4.l2': 'إدارة العملاء والبوابة', 's4.l2d': 'ملخصات · عقود · موافقات',
+    's4.l3': 'النظام المالي', 's4.l3d': 'محاسبة · رواتب · خزينة',
+    's4.l4': 'عمليات الفريق', 's4.l4d': 'أقسام · اتفاقيات · حوادث',
+    's4.l5': 'المساعد الذكي', 's4.l5d': 'وَعِيٌ بالسياق · متعدد الخطوات · متعدد اللغات',
+    's5.badge': 'القطاعات',
+    's5.title_pre': 'مبني للوكالات التي تعمل على ', 's5.title_em': 'نطاق واسع', 's5.title_pst': '.',
+    's5.sub': 'يتم تهيئته لقطاعك في دقائق — وليس أسابيع.',
+    's5.c1t': 'الوكالات الإبداعية والرقمية', 's5.c1d': 'حملات، ملخصات، تسليمات، بوابة عميل، موافقات',
+    's5.c2t': 'استوديوهات إنشاء المحتوى', 's5.c2d': 'تحليلات اجتماعية، تكامل يوتيوب/تيك توك/إنستغرام',
+    's5.c3t': 'عمليات الرعاية الصحية', 's5.c3d': 'إدارة المرضى، المناوبات، الأصول الطبية، الامتثال',
+    's5.c4t': 'المؤسسات وتقنية المعلومات', 's5.c4d': 'اتفاقيات الخدمة، الحوادث، دورة حياة الأصول',
+    's5.tagline': 'منصة واحدة. مهيأة لقطاعك في دقائق.',
+    's6.badge': 'الوحدة الأساسية',
+    's6.title_pre': 'كل مشروع. كل مهمة. ', 's6.title_em': 'رؤية كاملة', 's6.title_pst': '.',
+    's6.sub': 'من قائمة المهام إلى الإنجاز — سير عملك بالكامل في لوحة واحدة.',
+    's6.f1': 'مشاريع بمراحل: قيد الانتظار → قيد التنفيذ → مراجعة → منجز',
+    's6.f2': 'مهام فرعية، تبعيات، مرفقات، تتبع الوقت',
+    's6.f3': 'غرف لتجميع المشاريع حسب العميل أو القسم',
+    's6.f4': 'عرض تقويم، تعليقات مع وسائط، تحديثات فورية',
+    's7.badge': 'الوحدة الأساسية',
+    's7.title_pre': 'من أول ملخص إلى عقد موقع — ', 's7.title_em': 'في مكان واحد', 's7.title_pst': '.',
+    's7.sub': 'كل ما تحتاجه لإدارة العملاء من العميل المحتمل إلى الشراكة طويلة الأمد.',
+    's7.f1': 'إدارة كاملة للعملاء مع سجل النشاط والملاحظات',
+    's7.f2': 'مسار ملخص → تسليم → موافقة مع التحكم في الإصدارات',
+    's7.f3': 'دورة حياة العقود مع إنشاء PDF متعدد اللغات',
+    's7.f4': 'بوابة العميل للوصول الخارجي لأصحاب المصلحة',
+    's7.f5': 'إنشاء فواتير مع بنود وضرائب وعملات متعددة',
+    's8.badge': 'الوحدة الأساسية',
+    's8.title_pre': 'محاسبة حقيقية. مدمجة في ', 's8.title_em': 'عملياتك', 's8.title_pst': '.',
+    's8.sub': 'لا مزيد من كويك بوكس. لا مزيد من جداول البيانات. المالية تعيش حيث يعيش عملك.',
+    's8.f1': 'محاسبة القيد المزدوج — دليل حسابات، قيود يومية، دفتر أستاذ',
+    's8.f2': 'تسوية بنكية، رواتب، موافقات المصروفات',
+    's8.f3': 'حسابات خزينة — بنك، نقد، محفظة، ائتمان',
+    's8.f4': 'تخطيط الميزانية، التنبؤ، الربحية حسب العميل/المشروع/الموظف',
+    's8.callout': '🔒 سجل تدقيق غير قابل للاختراق مع سلسلة تجزئة SHA-256 — سجلات مالية بجودة تنظيمية.',
+    's9.badge': 'الوحدة الأساسية',
+    's9.title_pre': 'مساعد وكالتك — ', 's9.title_em': 'داخل مساحة عملك', 's9.title_pst': '.',
+    's9.sub': 'ليس دردشة عادية. ذكاء اصطناعي يعرف أعمالك وعملاءك وسياقك.',
+    's9.f1': 'مرتكز على بيانات مساحة عملك الحقيقية — وليس معرفة عامة',
+    's9.f2': 'يتذكر السياق: ذاكرة مساحة العمل + ذاكرة المستخدم',
+    's9.f3': 'بوابات موافقة بشرية لكل إجراء',
+    's9.f4': 'يتحدث الإنجليزية والفرنسية والعربية مع دعم كامل للكتابة من اليمين لليسار',
+    's9.f5': 'سير عمل ذكي متعدد الخطوات مع حوكمة آلية الحالة',
+    's9.callout': 'اطلب منه إنشاء مشروع أو صياغة عقد أو تلخيص تاريخ عميل — إنه يعرف أعمالك.',
+    's10.badge': 'الوحدة الأساسية',
+    's10.title_pre': 'عمليات بمستوى مؤسسات. ', 's10.title_em': 'دون', 's10.title_mid': ' سعر المؤسسات.',
+    's10.sub': 'كل ما تحتاجه لإدارة مؤسسة خدمات مهنية.',
+    's10.f1': 'تسلسل هرمي للإدارات مع سلاسل تصعيد SLA P1–P4',
+    's10.f2': 'إدارة الحوادث، دورة حياة الأصول، أوامر عمل الصيانة',
+    's10.f3': 'ضوابط الامتثال وسجل تدقيق الأحداث',
+    's10.f4': 'التحكم في الوصول基于 الأدوار: مشرف عام / مالك / مدير / موظف',
+    's10.f5': 'إدارة المناوبات، استراتيجيات قوائم الانتظار، موافقات من 4 مستويات',
+    's11.badge': 'التكاملات',
+    's11.title_pre': 'يتصل بالأدوات التي ', 's11.title_em': 'يستخدمها عملاؤك بالفعل', 's11.title_pst': '.',
+    's11.sub': '8 منصات اجتماعية. مزامنة فورية. كل شيء في لوحة تحكم واحدة.',
+    's11.sub2': 'OAuth آمن مع تشفير AES-256. تعاون فوري عبر Socket.IO.',
+    's12.badge': 'الأمان',
+    's12.title_pre': 'أمان بمستوى المؤسسات. ', 's12.title_em': 'مبني من اليوم الأول', 's12.title_pst': '.',
+    's12.i1': 'عزل بيانات متعدد المستأجرين',
+    's12.i2': 'تتبع الموافقة القانونية المتوافق مع GDPR',
+    's12.i3': 'حماية من القوة الغاشمة + إلغاء JWT',
+    's12.i4': 'توقيع webhooks بـ HMAC',
+    's12.i5': 'التحكم في الوصول基于 الدور لكل إجراء',
+    's12.i6': 'سجل تدقيق مالي غير قابل للعبث',
+    's12.i7': 'المصادقة متعددة العوامل (MFA)',
+    's12.i8': 'دعم العربية RTL + 3 لغات',
+    's13.badge': 'لماذا تاسكيت',
+    's13.title_pre': 'كل ما تفعله أدواتك. ', 's13.title_em': 'في منصة واحدة', 's13.title_pst': '.',
+    's13.sub': 'توقف عن الدفع مقابل 7 أدوات. ابدأ بإدارة كل شيء من منصة واحدة.',
+    's13.h0': 'الميزة',
+    's13.r1': 'إدارة المشاريع',
+    's13.r2': 'CRM وبوابة العميل',
+    's13.r3': 'محاسبة القيد المزدوج',
+    's13.r4': 'المساعد الذكي (وَعِيٌ بالسياق)',
+    's13.r5': 'تكاملات وسائل التواصل',
+    's13.r6': 'دعم العربية / RTL',
+    's13.r7': 'دعم متعدد القطاعات',
+    's13.r8': 'سعر شامل للكل',
+    's14.badge': 'الأسعار',
+    's14.title_pre': 'أسعار ', 's14.title_em': 'بسيطة وشفافة', 's14.title_pst': '.',
+    's14.sub': 'تجربة مجانية لمدة 14 يوماً. لا حاجة لبطاقة ائتمان. يمكن الإلغاء في أي وقت.',
+    's14.t1': 'مجاني', 's14.d1': 'حتى 3 مستخدمين. إدارة مشاريع أساسية.',
+    's14.l1a': 'مشاريع ومهام', 's14.l1b': 'إدارة العملاء', 's14.l1c': 'تقارير أساسية',
+    's14.t2': 'بداية', 's14.d2': 'منصة كاملة. مشاريع غير محدودة.',
+    's14.l2a': 'كل ما في المجاني', 's14.l2b': 'CRM وعقود', 's14.l2c': 'فواتير', 's14.l2d': 'مساعد ذكي (محدود)',
+    's14.t3': 'احترافي', 's14.d3': 'فوترة سنوية. كل ما تحتاجه وكالتك.',
+    's14.l3a': 'كل ما في البداية', 's14.l3b': 'محاسبة كاملة بالقيد المزدوج', 's14.l3c': 'تكاملات اجتماعية', 's14.l3d': 'ذكاء اصطناعي غير محدود', 's14.l3e': 'بوابة العميل',
+    's14.t4': 'مؤسسات', 's14.d4': 'مقاعد مخصصة. دعم مخصص.',
+    's14.l4a': 'كل ما في الاحترافي', 's14.l4b': 'تكاملات مخصصة', 's14.l4c': 'SSO / SAML', 's14.l4d': 'مدير نجاح مخصص', 's14.l4e': 'ضمانات SLA',
+    's14.per_month': '/شهر', 's14.per_seat': '/مقعد/شهر',
+    's14.popular': 'الأكثر طلباً',
+    's15.badge': 'ابدأ الآن',
+    's15.title_pre': 'مستعد لتشغيل وكالتك مثل ', 's15.title_em': 'نظام تشغيل', 's15.title_pst': '؟',
+    's15.sub': 'انضم إلى الوكالات التي استبدلت 7+ أدوات بمنصة ذكية واحدة.',
+    's15.cta_primary': 'ابدأ مجاناً اليوم',
+    's15.cta_secondary': 'احجز عرضاً توضيحياً',
+    's15.tr1': 'النسخة التجريبية متاحة',
+    's15.tr2': 'متعدد اللغات (EN / FR / AR)',
+    's15.tr3': 'مبني لفريق MENA والعالم',
+    's15.footer': 'تاسكيت — منصة واحدة. كل العمليات. مدعوم بالذكاء الاصطناعي.',
+  }
+};
+
+function setLang(lang) {
+  currentLang = lang;
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === lang));
+  document.documentElement.lang = lang === 'ar' ? 'ar' : lang;
+  document.body.dir = lang === 'ar' ? 'rtl' : 'ltr';
+  document.querySelectorAll('[data-i18n]').forEach(el => {
+    const key = el.dataset.i18n;
+    if (i18n[lang] && i18n[lang][key]) {
+      el.textContent = i18n[lang][key];
+    }
+  });
+}
+
+// Init
+function update() {
+  document.querySelectorAll('.nav-dot').forEach((d, i) => d.classList.toggle('active', i + 1 === current));
+  document.getElementById('counter').textContent = String(current).padStart(2,'0') + ' / ' + String(TOTAL).padStart(2,'0');
+  document.getElementById('s' + current)?.scrollIntoView({ behavior: 'smooth' });
+}
+
+function go(dir) {
+  const next = Math.max(1, Math.min(TOTAL, current + dir));
+  if (next === current) return;
+  current = next;
+  update();
+}
+
+const dotsEl = document.getElementById('dots');
+for (let i = 1; i <= TOTAL; i++) {
+  const dot = document.createElement('button');
+  dot.className = 'nav-dot' + (i === 1 ? ' active' : '');
+  dot.onclick = () => { current = i; update(); };
+  dotsEl.appendChild(dot);
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') { e.preventDefault(); go(1); }
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') { e.preventDefault(); go(-1); }
+});
+
+const observer = new IntersectionObserver((entries) => {
+  entries.forEach((entry) => {
+    if (entry.isIntersecting) {
+      const id = parseInt(entry.target.id.slice(1));
+      if (id !== current) { current = id; update(); }
+    }
+  });
+}, { threshold: 0.35 });
+
+document.querySelectorAll('.slide').forEach((s) => observer.observe(s));
+setLang('en');
+</script>
+</body>
+</html>

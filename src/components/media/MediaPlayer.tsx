@@ -11,6 +11,8 @@ import {
   useRef,
   useState,
 } from 'react'
+import RichTextEditor from '@/components/ui/RichTextEditor'
+import RichTextContent from '@/components/ui/RichTextContent'
 import {
   CheckCircle2,
   Circle,
@@ -438,7 +440,7 @@ function CommentMarkers({
               comment.resolved ? 'bg-emerald-500' : 'bg-blue-600'
             }`}
             style={{ left: `${left}%` }}
-            title={`${formatTime(comment.timestamp)} - ${comment.content}`}
+            title={`${formatTime(comment.timestamp)} - ${comment.content.replace(/<[^>]*>/g, '')}`}
             aria-label={`Seek to comment at ${formatTime(comment.timestamp)}`}
             onClick={() => onSeek(comment.timestamp)}
           />
@@ -503,17 +505,11 @@ function CommentsPanel({
       </div>
 
       <div className="mt-5 rounded-[18px] bg-slate-50 p-2 ring-1 ring-slate-200/70">
-        <textarea
-          className="min-h-24 w-full max-w-full resize-y rounded-2xl border-0 bg-white px-4 py-3 text-[15px] font-medium leading-6 text-slate-900 shadow-sm outline-none ring-1 ring-slate-200/80 transition placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500"
-          value={draft}
-          onChange={(event) => onDraftChange(event.target.value)}
-          placeholder={`Comment at ${formatTime(currentTime)}`}
-          maxLength={2000}
-        />
+        <RichTextEditor value={draft} onChange={onDraftChange} placeholder={`Comment at ${formatTime(currentTime)}`} minHeight={80} maxHeight={250} />
         <button
           type="button"
           className="mt-2 inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-2 text-center text-[15px] font-semibold leading-5 text-white shadow-[0_16px_34px_rgba(37,99,235,.24)] transition duration-200 ease-out hover:-translate-y-0.5 hover:bg-blue-500 active:scale-[.98] disabled:cursor-not-allowed disabled:opacity-50"
-          disabled={posting || !draft.trim()}
+          disabled={posting || !draft.replace(/<[^>]*>/g, '').trim()}
           onClick={() => onCreateComment(draft)}
         >
           <Send className="h-4 w-4 shrink-0" />
@@ -630,7 +626,7 @@ function CommentItem({
               {comment.resolved ? <CheckCircle2 className="h-4 w-4" /> : <Circle className="h-4 w-4" />}
             </button>
           </div>
-          <p className="mt-3 break-words whitespace-pre-wrap text-[15px] font-medium leading-6 text-slate-700">{comment.content}</p>
+          <RichTextContent html={comment.content} className="mt-3 break-words text-[15px] font-medium leading-6 text-slate-700" />
 
           <div className="mt-3 flex items-center gap-3">
             <button type="button" className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-blue-600 transition hover:text-blue-500" onClick={onReply}>
@@ -648,7 +644,7 @@ function CommentItem({
                     <CornerDownRight className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                     <span className="min-w-0 truncate">{reply.user.name}</span>
                   </div>
-                  <p className="mt-1 break-words whitespace-pre-wrap text-[13px] leading-5 text-slate-600">{reply.content}</p>
+                  <RichTextContent html={reply.content} className="mt-1 break-words text-[13px] leading-5 text-slate-600" />
                 </div>
               ))}
             </div>
@@ -656,18 +652,12 @@ function CommentItem({
 
           {replying && (
             <div className="mt-4 grid gap-2 rounded-2xl bg-slate-50 p-2 ring-1 ring-slate-200/70">
-              <textarea
-                className="min-h-20 resize-y rounded-xl border-0 bg-white px-3 py-2 text-[13px] font-medium text-slate-900 outline-none ring-1 ring-slate-200/80 transition placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500"
-                value={replyDraft}
-                onChange={(event) => onReplyDraftChange(event.target.value)}
-                placeholder="Reply with context"
-                maxLength={2000}
-              />
+              <RichTextEditor value={replyDraft} onChange={onReplyDraftChange} placeholder="Reply with context" minHeight={60} maxHeight={200} />
               <div className="flex flex-wrap gap-2">
                 <button
                   type="button"
                   className="inline-flex min-h-9 shrink-0 items-center justify-center whitespace-nowrap rounded-xl bg-slate-950 px-4 py-2 text-[13px] font-semibold text-white transition hover:bg-slate-800 disabled:opacity-50"
-                  disabled={posting || !replyDraft.trim()}
+                  disabled={posting || !replyDraft.replace(/<[^>]*>/g, '').trim()}
                   onClick={onSubmitReply}
                 >
                   Reply

@@ -9,6 +9,7 @@ import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 
 import { getCompanyTypeCopy, isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { readJsonResponse } from '@/lib/read-json'
+import RichTextEditor from '@/components/ui/RichTextEditor'
 
 interface Project {
   id: string
@@ -802,13 +803,7 @@ export default function ProjectsPage() {
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
                   Description
                 </label>
-                <textarea
-                  className="input"
-                  placeholder={isAgency ? 'Client scope, creative direction, and delivery notes' : 'What is this about?'}
-                  value={form.description}
-                  onChange={(event) => setForm({ ...form, description: event.target.value })}
-                  rows={3}
-                />
+                <RichTextEditor value={form.description} onChange={(html) => setForm({ ...form, description: html })} placeholder={isAgency ? 'Client scope, creative direction, and delivery notes' : 'What is this about?'} minHeight={80} maxHeight={250} />
               </div>
 
               <div>
@@ -914,13 +909,7 @@ export default function ProjectsPage() {
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
                   Description
                 </label>
-                <textarea
-                  className="input"
-                  placeholder="Which clients or services belong here?"
-                  value={categoryForm.description}
-                  onChange={(event) => setCategoryForm({ ...categoryForm, description: event.target.value })}
-                  rows={3}
-                />
+                <RichTextEditor value={categoryForm.description} onChange={(html) => setCategoryForm({ ...categoryForm, description: html })} placeholder="Which clients or services belong here?" minHeight={80} maxHeight={250} />
               </div>
 
               <div className="modal-actions">
@@ -973,13 +962,7 @@ export default function ProjectsPage() {
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
                   Description
                 </label>
-                <textarea
-                  className="input"
-                  placeholder="What kind of work lives in this room?"
-                  value={roomForm.description}
-                  onChange={(event) => setRoomForm({ ...roomForm, description: event.target.value })}
-                  rows={3}
-                />
+                <RichTextEditor value={roomForm.description} onChange={(html) => setRoomForm({ ...roomForm, description: html })} placeholder="What kind of work lives in this room?" minHeight={80} maxHeight={250} />
               </div>
 
               <div className="modal-actions">

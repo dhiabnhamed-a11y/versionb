@@ -17,6 +17,7 @@ import {
   UsersRound,
   X,
 } from 'lucide-react'
+import RichTextEditor from '@/components/ui/RichTextEditor'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { clientsApi, type Client, type ClientsResponse, type ClientStatus } from '@/lib/api-client/clients'
 import { formatInvoiceMoney } from '@/lib/invoices'
@@ -404,7 +405,7 @@ export default function ClientsPage() {
                 </label>
                 <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)] md:col-span-2">
                   Notes
-                  <textarea className="input" rows={4} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
+                  <RichTextEditor value={form.notes} onChange={(html) => setForm({ ...form, notes: html })} placeholder="Client notes..." minHeight={100} maxHeight={300} />
                 </label>
               </div>
 

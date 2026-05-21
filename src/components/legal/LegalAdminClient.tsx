@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Download, FileCheck2, Loader2, ShieldCheck } from 'lucide-react'
+import RichTextEditor from '@/components/ui/RichTextEditor'
 
 import styles from './LegalAdminClient.module.css'
 
@@ -228,13 +229,7 @@ export default function LegalAdminClient() {
             </label>
             <label>
               <span className={styles.muted}>Change summary</span>
-              <textarea
-                className="input"
-                value={form.summary}
-                onChange={(event) => setForm((current) => ({ ...current, summary: event.target.value }))}
-                rows={3}
-                placeholder="Summarize material policy changes for the audit trail."
-              />
+              <RichTextEditor value={form.summary} onChange={(html) => setForm((current) => ({ ...current, summary: html }))} placeholder="Summarize material policy changes for the audit trail." minHeight={80} maxHeight={250} />
             </label>
             <label className={styles.checkbox}>
               <input

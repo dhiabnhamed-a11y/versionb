@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Send,
 } from 'lucide-react'
+import RichTextEditor from '@/components/ui/RichTextEditor'
 
 type PortalResponse = {
   client: {
@@ -347,7 +348,7 @@ export default function ClientPortalPage() {
 
               <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">
                 Comment *
-                <textarea className="input" rows={5} value={form.content} onChange={(event) => setForm({ ...form, content: event.target.value })} required />
+                <RichTextEditor value={form.content} onChange={(html) => setForm({ ...form, content: html })} placeholder="Your feedback..." minHeight={100} maxHeight={300} />
               </label>
 
               {submitError && <div className="rounded-[var(--radius-sm)] border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700">{submitError}</div>}

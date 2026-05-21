@@ -7,6 +7,8 @@ import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { getCompanyTypeCopy, getDeliverableTypeLabel, isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { ListTodo, Clock, FolderKanban, AlertTriangle, ArrowRight, CheckCircle2, Loader2, Link2, Upload } from 'lucide-react'
 import { MediaPlayer } from '@/components/media/MediaPlayer'
+import RichTextEditor from '@/components/ui/RichTextEditor'
+import RichTextContent from '@/components/ui/RichTextContent'
 
 interface TaskSubmission {
   id: string
@@ -317,9 +319,7 @@ export default function EmployeeDashboard() {
                               Uploaded {formatTimeAgo(submission.createdAt)}
                             </div>
                             {submission.note && (
-                              <div style={{ overflowWrap: 'anywhere', fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                                {submission.note}
-                              </div>
+                              <RichTextContent html={submission.note} style={{ overflowWrap: 'anywhere', fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }} />
                             )}
                           </div>
                           <a
@@ -385,13 +385,7 @@ export default function EmployeeDashboard() {
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
                   Note
                 </label>
-                <textarea
-                  className="input"
-                  placeholder="What should your manager know about this upload?"
-                  value={uploadNote}
-                  onChange={(event) => setUploadNote(event.target.value)}
-                  rows={3}
-                />
+                <RichTextEditor value={uploadNote} onChange={setUploadNote} placeholder="What should your manager know about this upload?" minHeight={80} maxHeight={250} />
               </div>
 
               {uploadError && (

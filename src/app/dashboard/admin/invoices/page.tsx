@@ -15,6 +15,7 @@ import {
   Languages,
   X,
 } from 'lucide-react'
+import RichTextEditor from '@/components/ui/RichTextEditor'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { downloadPdfFromApi } from '@/lib/download-response'
 import { formatInvoiceMoney, getInvoiceStatusLabel, INVOICE_STATUSES, type InvoiceStatus } from '@/lib/invoices'
@@ -639,7 +640,7 @@ function InvoicesPageContent() {
               <div className="grid gap-4 md:grid-cols-[1fr_320px] md:items-start">
                 <label className="grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">
                   {t.notes}
-                  <textarea className="input" rows={4} value={form.notes} onChange={(event) => setForm({ ...form, notes: event.target.value })} />
+                  <RichTextEditor value={form.notes} onChange={(html) => setForm({ ...form, notes: html })} placeholder="Invoice notes..." minHeight={100} maxHeight={300} />
                 </label>
                 <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)] p-4">
                   <label className="mb-3 grid gap-1.5 text-xs font-bold text-[var(--text-secondary)]">

@@ -14,6 +14,8 @@ import {
   normalizeCompanyType,
 } from '@/lib/company-types'
 import { Plus, CheckSquare, Trash2, Clock, FolderKanban, User, Loader2, ListTodo, Link2, Pencil, CheckCircle2, RotateCcw } from 'lucide-react'
+import RichTextEditor from '@/components/ui/RichTextEditor'
+import RichTextContent from '@/components/ui/RichTextContent'
 import { MediaPlayer } from '@/components/media/MediaPlayer'
 import { readJsonResponse } from '@/lib/read-json'
 
@@ -297,12 +299,16 @@ export default function AdminTasksPage() {
     setReviewError('')
   }
 
+  function stripHtml(html: string) {
+    return html.replace(/<[^>]*>/g, '').trim()
+  }
+
   async function handleRejectReview(e: React.FormEvent) {
     e.preventDefault()
     if (!rejectingTask) return
 
     const comment = reviewComment.trim()
-    if (!comment) {
+    if (!stripHtml(comment)) {
       setReviewError('Add a comment so the employee knows what to repeat.')
       return
     }
@@ -410,7 +416,7 @@ export default function AdminTasksPage() {
                     )}
                     <h3 style={{ minWidth: 0, overflowWrap: 'anywhere', fontSize: '14px', fontWeight: '600' }}>{task.title}</h3>
                   </div>
-                  {task.description && <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', lineHeight: '1.5' }}>{task.description}</p>}
+                  {task.description && <RichTextContent html={task.description} className="" style={{ fontSize: '12px', color: 'var(--text-muted)', marginBottom: '8px', lineHeight: '1.5' }} />}
                   <div style={{ display: 'flex', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
                     <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                       <FolderKanban size={12} /> {task.project.title}
@@ -648,7 +654,7 @@ export default function AdminTasksPage() {
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
                   Description
                 </label>
-                <textarea className="input" placeholder={isAgency ? 'Brief details, references, and expected output' : 'Details...'} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} rows={3} />
+                <RichTextEditor value={form.description} onChange={(html) => setForm({ ...form, description: html })} placeholder={isAgency ? 'Brief details, references, and expected output' : 'Details...'} minHeight={80} maxHeight={300} />
               </div>
 
               {isAgency && (
@@ -797,14 +803,7 @@ export default function AdminTasksPage() {
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
                   Comment *
                 </label>
-                <textarea
-                  className="input"
-                  placeholder="Explain what needs to be fixed or repeated..."
-                  value={reviewComment}
-                  onChange={(event) => setReviewComment(event.target.value)}
-                  rows={4}
-                  required
-                />
+                <RichTextEditor value={reviewComment} onChange={setReviewComment} placeholder="Explain what needs to be fixed or repeated..." minHeight={80} maxHeight={250} />
               </div>
 
               {reviewError && (

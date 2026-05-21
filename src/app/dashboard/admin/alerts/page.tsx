@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Bell, Radio, Phone, Clock, Send, Loader2, CheckCircle2 } from 'lucide-react'
+import RichTextEditor from '@/components/ui/RichTextEditor'
 import { alertsApi, getApiErrorMessage } from '@/lib/api-client'
 import { playTaskitNotificationSound, registerTaskitNotificationSoundUnlock } from '@/lib/notification-sound'
 
@@ -107,7 +108,7 @@ export default function SendAlertPage() {
 
         <div>
           <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', color: 'var(--text-secondary)', marginBottom: '6px' }}>Message</label>
-          <textarea className="input" placeholder="Alert details..." value={form.message} onChange={e => setForm({ ...form, message: e.target.value })} required rows={3} />
+          <RichTextEditor value={form.message} onChange={(html) => setForm({ ...form, message: html })} placeholder="Alert details..." minHeight={80} maxHeight={250} />
         </div>
 
         {error && <div className="alert-banner alert-danger"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>{error}</div>}

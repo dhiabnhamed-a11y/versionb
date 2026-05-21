@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { CalendarDays, ChevronLeft, ChevronRight, Clock, FolderKanban, Loader2, Pencil, Plus, Trash2 } from 'lucide-react'
+import RichTextEditor from '@/components/ui/RichTextEditor'
 
 type CalendarView = 'MONTH' | 'WEEK'
 
@@ -463,7 +464,7 @@ export default function AdminCalendarPage() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-semibold text-[var(--text-secondary)]">Description</label>
-                <textarea className="input" rows={3} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
+                <RichTextEditor value={form.description} onChange={(html) => setForm({ ...form, description: html })} placeholder="Event details..." minHeight={80} maxHeight={250} />
               </div>
               <div className="form-split">
                 <div>

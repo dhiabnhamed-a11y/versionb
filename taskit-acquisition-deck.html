@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TASKIT — Acquisition Pitch Deck</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#0A0E1A;--cyan:#00D4FF;--purple:#7B6FFF;--white:#FFFFFF;--gray:#8892B0;--dark-card:rgba(255,255,255,0.04);--border:rgba(255,255,255,0.08);--card-hover:rgba(255,255,255,0.07);--cyan-glow:0 0 30px rgba(0,212,255,0.15);--purple-glow:0 0 30px rgba(123,111,255,0.12)}
+html{scroll-behavior:smooth}
+body{font-family:'Inter',-apple-system,sans-serif;background:var(--bg);color:var(--white);overflow:hidden;height:100vh;width:100vw;position:fixed}
+.slides{display:flex;height:100vh;transition:transform 0.6s cubic-bezier(0.65,0,0.35,1);will-change:transform}
+.slide{min-width:100vw;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:60px 80px;position:relative;overflow-y:auto}
+.slide::-webkit-scrollbar{width:4px}
+.slide::-webkit-scrollbar-track{background:transparent}
+.slide::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.slide-inner{max-width:1100px;width:100%;margin:0 auto}
+h1{font-size:clamp(2rem,4vw,3.2rem);font-weight:800;letter-spacing:-0.03em;line-height:1.1;margin-bottom:16px}
+h2{font-size:clamp(1.4rem,2.5vw,2rem);font-weight:700;letter-spacing:-0.02em;line-height:1.2;margin-bottom:12px}
+h3{font-size:clamp(1.1rem,1.8vw,1.4rem);font-weight:600;line-height:1.3}
+p{font-size:clamp(0.95rem,1.3vw,1.1rem);line-height:1.6;color:var(--gray)}
+.cyan{color:var(--cyan)}
+.purple{color:var(--purple)}
+.gray{color:var(--gray)}
+.bold{font-weight:700}
+.slide-label{position:absolute;top:24px;right:40px;font-size:0.75rem;font-weight:500;color:var(--gray);letter-spacing:0.08em;text-transform:uppercase;opacity:0.5}
+.badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:0.8rem;font-weight:600;letter-spacing:0.02em}
+.badge-cyan{background:rgba(0,212,255,0.1);color:var(--cyan)}
+.badge-purple{background:rgba(123,111,255,0.1);color:var(--purple)}
+.badge-white{background:rgba(255,255,255,0.08);color:var(--white)}
+.callout{padding:20px 24px;border-radius:12px;font-size:0.95rem;line-height:1.5;margin-top:16px}
+.callout-cyan{background:rgba(0,212,255,0.06);border-left:3px solid var(--cyan);color:var(--cyan)}
+.callout-purple{background:rgba(123,111,255,0.06);border-left:3px solid var(--purple);color:var(--purple)}
+.callout-white{background:rgba(255,255,255,0.04);border-left:3px solid rgba(255,255,255,0.2);color:var(--gray)}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px}
+.card{background:var(--dark-card);border:1px solid var(--border);border-radius:14px;padding:24px;transition:all 0.2s}
+.card:hover{background:var(--card-hover);border-color:rgba(255,255,255,0.15)}
+.card-highlight{background:rgba(0,212,255,0.06);border:1px solid rgba(0,212,255,0.2);border-radius:14px;padding:24px}
+.card-value{font-size:clamp(1.6rem,3vw,2.4rem);font-weight:800;color:var(--cyan);line-height:1;margin-bottom:4px}
+.card-label{font-size:0.8rem;font-weight:500;color:var(--gray);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:8px}
+.table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);margin-top:16px}
+table{width:100%;border-collapse:collapse;font-size:0.85rem}
+th{background:rgba(255,255,255,0.04);padding:12px 16px;text-align:left;font-weight:600;color:var(--gray);font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;border-bottom:1px solid var(--border)}
+td{padding:12px 16px;border-bottom:1px solid var(--border);color:var(--white)}
+tr:last-child td{border-bottom:none}
+tr:last-child th{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,0.02)}
+.tag{display:inline-block;padding:2px 8px;border-radius:6px;font-size:0.7rem;font-weight:600}
+.tag-green{background:rgba(0,200,150,0.15);color:#00C896}
+.tag-yellow{background:rgba(255,200,0,0.15);color:#FFC800}
+.tag-red{background:rgba(255,80,80,0.15);color:#FF5050}
+.tag-gray{background:rgba(255,255,255,0.08);color:var(--gray)}
+.list-item{display:flex;align-items:flex-start;gap:10px;padding:8px 0;font-size:0.95rem;line-height:1.5}
+.list-item .icon{flex-shrink:0;width:20px;text-align:center}
+.stats-row{display:flex;gap:24px;flex-wrap:wrap;margin:16px 0}
+.stat-item{flex:1;min-width:140px}
+.stat-value{font-size:clamp(1.8rem,3.5vw,3rem);font-weight:800;line-height:1;letter-spacing:-0.03em}
+.stat-label{font-size:0.8rem;color:var(--gray);margin-top:4px}
+.checklist{display:grid;grid-template-columns:1fr 1fr;gap:6px 24px}
+.checklist-item{display:flex;align-items:center;gap:10px;padding:6px 0;font-size:0.9rem}
+.check{color:var(--cyan);font-weight:700}
+.cross{color:#FF5050;font-weight:700}
+.divider{height:1px;background:var(--border);margin:20px 0}
+.price-badge{display:inline-flex;align-items:center;gap:8px;padding:10px 24px;border-radius:30px;background:rgba(0,212,255,0.1);border:1px solid rgba(0,212,255,0.25);font-size:1rem;font-weight:700;color:var(--cyan);margin:12px 0}
+.nav-dots{position:fixed;right:24px;top:50%;transform:translateY(-50%);display:flex;flex-direction:column;gap:8px;z-index:100}
+.nav-dot{width:8px;height:8px;border-radius:50%;border:1.5px solid rgba(255,255,255,0.25);background:transparent;cursor:pointer;transition:all 0.3s;padding:0}
+.nav-dot.active{background:var(--cyan);border-color:var(--cyan);box-shadow:0 0 8px rgba(0,212,255,0.4)}
+.nav-dot:hover{border-color:rgba(255,255,255,0.5)}
+.nav-arrows{position:fixed;bottom:32px;left:50%;transform:translateX(-50%);display:flex;gap:16px;z-index:100}
+.nav-arrow{width:44px;height:44px;border-radius:50%;background:var(--dark-card);border:1px solid var(--border);color:var(--white);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.2rem;transition:all 0.2s;backdrop-filter:blur(10px)}
+.nav-arrow:hover{background:rgba(0,212,255,0.1);border-color:var(--cyan);color:var(--cyan)}
+.nav-arrow:disabled{opacity:0.2;cursor:default}
+.slide-counter{position:fixed;bottom:36px;left:50%;transform:translateX(-50%);font-size:0.75rem;color:var(--gray);letter-spacing:0.08em;z-index:99;font-weight:500;pointer-events:none}
+.slide-counter span{color:var(--cyan)}
+.module-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.module-card{background:var(--dark-card);border:1px solid var(--border);border-radius:10px;padding:16px;transition:all 0.2s}
+.module-card:hover{border-color:rgba(0,212,255,0.2)}
+.module-card h4{font-size:0.85rem;font-weight:600;margin-bottom:4px}
+.module-card p{font-size:0.78rem;color:var(--gray);line-height:1.4}
+.int-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:16px}
+.int-item{display:flex;align-items:center;gap:8px;padding:10px 14px;background:var(--dark-card);border:1px solid var(--border);border-radius:8px;font-size:0.82rem;font-weight:500}
+.int-item .check{font-size:0.8rem}
+.score-group{display:flex;gap:20px;flex-wrap:wrap;margin:16px 0}
+.score-card{flex:1;min-width:140px;text-align:center;padding:20px;background:var(--dark-card);border:1px solid var(--border);border-radius:12px}
+.score-value{font-size:clamp(1.6rem,2.5vw,2.2rem);font-weight:800;line-height:1}
+.score-label{font-size:0.72rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.06em;margin-top:6px}
+.action-box{padding:20px;background:var(--dark-card);border:1px solid var(--border);border-radius:12px;text-align:center}
+.action-box h4{font-size:0.9rem;font-weight:600;margin-bottom:4px}
+.action-box p{font-size:0.82rem;color:var(--gray)}
+.gap-box{display:flex;align-items:flex-start;gap:12px;padding:12px 16px;background:var(--dark-card);border:1px solid var(--border);border-radius:10px;margin-bottom:8px}
+.gap-box .gap-name{font-weight:600;font-size:0.85rem;white-space:nowrap;color:var(--white);min-width:170px}
+.gap-box .gap-desc{font-size:0.82rem;color:var(--gray);line-height:1.4}
+.gap-box .gap-fix{font-size:0.78rem;color:var(--cyan);font-weight:500;white-space:nowrap}
+.terms-box{padding:20px 24px;background:rgba(255,255,255,0.04);border:1px solid var(--border);border-radius:12px;text-align:center;font-size:0.85rem;color:var(--gray);line-height:1.5}
+@media(max-width:900px){.slide{padding:40px 28px}.grid-3{grid-template-columns:1fr}.grid-2{grid-template-columns:1fr}.checklist{grid-template-columns:1fr}.int-grid{grid-template-columns:1fr 1fr}.module-grid{grid-template-columns:1fr}.gap-box{flex-direction:column;gap:4px}.gap-box .gap-name{min-width:auto}}
+@media(max-width:600px){.slide{padding:28px 18px}.int-grid{grid-template-columns:1fr}.nav-dots{right:10px;gap:6px}.nav-dot{width:6px;height:6px}}
+</style>
+</head>
+<body>
+
+<div class="slides" id="slides">
+  <!-- SLIDE 1 — Cover -->
+  <div class="slide" data-index="0">
+    <div class="slide-inner" style="text-align:center">
+      <div class="slide-label">Slide 1 / 18</div>
+      <div style="margin-bottom:12px;display:flex;justify-content:center;gap:12px;flex-wrap:wrap">
+        <span class="badge badge-cyan">Acquisition Opportunity</span>
+      </div>
+      <div style="margin-bottom:16px"><img src="public/icons/taskit-192.png" alt="TASKIT" style="height:70px;width:auto"></div>
+      <h1 style="font-size:clamp(2.4rem,5vw,4rem);margin-bottom:12px"><span style="color:var(--cyan)">Acquisition Opportunity</span></h1>
+      <p style="font-size:clamp(0.95rem,1.4vw,1.15rem);max-width:750px;margin:0 auto 16px;color:var(--gray)">A production-grade multi-vertical Agency &amp; Enterprise Operations SaaS. 18–24 months of engineering. Available now.</p>
+      <div class="price-badge">$25,000 – $50,000 &middot; Quick Sale</div>
+      <div style="margin-top:24px;padding:14px 24px;background:var(--dark-card);border:1px solid var(--border);border-radius:10px;display:inline-flex;gap:16px;flex-wrap:wrap;justify-content:center;font-size:0.8rem;color:var(--gray)">
+        <span>Next.js 16</span><span style="color:var(--border)">&middot;</span><span>PostgreSQL</span><span style="color:var(--border)">&middot;</span><span>Redis</span><span style="color:var(--border)">&middot;</span><span>Socket.IO</span><span style="color:var(--border)">&middot;</span><span>OpenAI</span><span style="color:var(--border)">&middot;</span><span>TypeScript</span>
+      </div>
+      <div style="margin-top:48px;display:flex;justify-content:center;gap:24px;flex-wrap:wrap">
+        <div style="text-align:center">
+          <div style="font-size:2rem;font-weight:800;color:var(--cyan)">60K+</div>
+          <div style="font-size:0.75rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.05em">Lines of Code</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:2rem;font-weight:800;color:var(--cyan)">55+</div>
+          <div style="font-size:0.75rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.05em">Database Models</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:2rem;font-weight:800;color:var(--cyan)">8</div>
+          <div style="font-size:0.75rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.05em">Verticals</div>
+        </div>
+        <div style="text-align:center">
+          <div style="font-size:2rem;font-weight:800;color:var(--cyan)">3</div>
+          <div style="font-size:0.75rem;color:var(--gray);text-transform:uppercase;letter-spacing:0.05em">Languages</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 2 — The One-Line Summary -->
+  <div class="slide" data-index="1">
+    <div class="slide-inner">
+      <div class="slide-label">Slide 2 / 18</div>
+      <h2>What you're buying.</h2>
+      <div class="divider"></div>
+      <p style="font-size:clamp(1.05rem,1.6vw,1.3rem);font-weight:500;line-height:1.6;color:var(--white);max-width:1000px;margin-bottom:24px">
+        TASKIT is a fully functional, multi-tenant B2B SaaS platform with a complete financial OS, enterprise ITSM layer, AI copilot, CRM, project management, and 8 social OAuth integrations — built in 5 weeks, representing <span style="color:var(--cyan);font-weight:700">$250,000+</span> in equivalent engineering cost, available for a fraction of rebuild price.
+      </p>
+      <div class="stats-row">
+        <div class="stat-item card" style="padding:20px">
+          <div class="stat-value" style="color:var(--cyan)">60,000+</div>
+          <div class="stat-label">Lines of production TypeScript</div>
+        </div>
+        <div class="stat-item card" style="padding:20px">
+          <div class="stat-value" style="color:var(--cyan)">55+</div>
+          <div class="stat-label">Database models &middot; 34 migrations</div>
+        </div>
+        <div class="stat-item card" style="padding:20px">
+          <div class="stat-value" style="color:var(--cyan)">3</div>
+          <div class="stat-label">Languages &middot; Arabic RTL &middot; MENA-ready</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 3 — The Market Opportunity -->
+  <div class="slide" data-index="2">
+    <div class="slide-inner">
+      <div class="slide-label">Slide 3 / 18</div>
+      <h2>You're entering a <span style="color:var(--cyan)">$26B+</span> market.</h2>
+      <div class="divider"></div>
+      <div class="grid-3">
+        <div class="card">
+          <div class="card-value" style="font-size:clamp(1.4rem,2.5vw,2rem)">$3B</div>
+          <div class="card-label">Agency Project Management</div>
+          <p style="font-size:0.82rem">Growing <span style="color:var(--cyan);font-weight:700">12%</span> YoY</p>
+        </div>
+        <div class="card">
+          <div class="card-value" style="font-size:clamp(1.4rem,2.5vw,2rem)">$8B</div>
+          <div class="card-label">Enterprise ITSM Software</div>
+          <p style="font-size:0.82rem">Growing <span style="color:var(--cyan);font-weight:700">9%</span> YoY</p>
+        </div>
+        <div class="card">
+          <div class="card-value" style="font-size:clamp(1.4rem,2.5vw,2rem)">$15B</div>
+          <div class="card-label">Healthcare Operations</div>
+          <p style="font-size:0.82rem">Growing <span style="color:var(--cyan);font-weight:700">14%</span> YoY</p>
+        </div>
+      </div>
+      <div class="callout callout-cyan" style="margin-top:20px;font-weight:500">
+        TASKIT has working modules in all three. No competitor spans all three verticals in one platform.
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 4 — The Problem TASKIT Solves -->
+  <div class="slide" data-index="3">
+    <div class="slide-inner">
+      <div class="slide-label">Slide 4 / 18</div>
+      <h2>Agencies are drowning in <span style="color:var(--cyan)">fragmentation</span>.</h2>
+      <div class="divider"></div>
+      <div class="grid-2">
+        <div>
+          <div class="list-item"><span class="icon" style="color:#FF5050">✕</span><span>The average agency uses <strong>7+ disconnected tools</strong> — ClickUp, HubSpot, QuickBooks, Slack, Google Drive, Calendly, Notion</span></div>
+          <div class="list-item"><span class="icon" style="color:#FF5050">✕</span><span>Each tool costs <strong>$10–$100/seat/month</strong> — <strong>$300–$600/seat/year</strong></span></div>
+          <div class="list-item"><span class="icon" style="color:#FF5050">✕</span><span>None share data natively — finance doesn't know project profitability, CRM doesn't know invoicing, AI has no context</span></div>
+          <div class="list-item"><span class="icon" style="color:#FF5050">✕</span><span>MENA-region businesses have <strong>zero Arabic-native</strong> operations platforms</span></div>
+        </div>
+        <div class="card" style="display:flex;flex-direction:column;justify-content:center">
+          <div style="font-size:0.9rem;font-weight:600;color:var(--white);margin-bottom:8px">The cost of fragmentation:</div>
+          <div style="display:flex;gap:16px;flex-wrap:wrap">
+            <div><span style="font-size:1.6rem;font-weight:800;color:var(--cyan)">7+</span><br><span style="font-size:0.75rem;color:var(--gray)">tools per agency</span></div>
+            <div><span style="font-size:1.6rem;font-weight:800;color:var(--cyan)">$600</span><br><span style="font-size:0.75rem;color:var(--gray)">/seat/year wasted</span></div>
+            <div><span style="font-size:1.6rem;font-weight:800;color:var(--cyan)">0</span><br><span style="font-size:0.75rem;color:var(--gray)">Arabic-native platforms</span></div>
+          </div>
+        </div>
+      </div>
+      <div class="callout callout-cyan" style="font-weight:500">
+        TASKIT is the only platform that collapses all of this into one — with real double-entry accounting included.
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 5 — Product Overview -->
+  <div class="slide" data-index="4">
+    <div class="slide-inner">
+      <div class="slide-label">Slide 5 / 18</div>
+      <h2>One platform. <span style="color:var(--cyan)">Eight verticals.</span> Fully configurable.</h2>
+      <div class="divider"></div>
+      <div class="module-grid">
+        <div class="module-card"><h4 style="color:var(--cyan)">Digital Agency</h4><p>Campaigns, Briefs, Deliverables, Client Portal</p></div>
+        <div class="module-card"><h4 style="color:var(--cyan)">Content Creation</h4><p>Social Analytics, Channel Tracking, Creative Workflow</p></div>
+        <div class="module-card"><h4 style="color:var(--cyan)">Healthcare</h4><p>Patients, Departments, Biomedical Assets, Shifts</p></div>
+        <div class="module-card"><h4 style="color:var(--cyan)">Enterprise Ops</h4><p>ITSM Queues, SLAs, Escalations</p></div>
+        <div class="module-card"><h4 style="color:var(--purple)">Clinic / Hospital</h4><p>Admissions, ER, ICU, Labs</p></div>
+        <div class="module-card"><h4 style="color:var(--purple)">Corporate IT</h4><p>Endpoint Management, IT Service Desk</p></div>
+        <div class="module-card"><h4 style="color:var(--purple)">Industry / General</h4><p>Rooms, Projects, Tasks</p></div>
+        <div class="module-card"><h4 style="color:var(--purple)">Other</h4><p>Standard Project Management</p></div>
+      </div>
+      <div class="callout callout-cyan" style="font-weight:500;text-align:center">
+        A buyer can launch into any vertical on day one.
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 6 — The Financial OS -->
+  <div class="slide" data-index="5">
+    <div class="slide-inner">
+      <div class="slide-label">Slide 6 / 18</div>
+      <h2>The feature that makes TASKIT <span style="color:var(--cyan)">irreplaceable</span>.</h2>
+      <div class="divider"></div>
+      <p style="margin-bottom:12px;color:var(--gray)">Full double-entry accounting system — <strong style="color:var(--white)">extremely rare</strong> in this category:</p>
+      <div class="grid-2" style="margin-bottom:12px">
+        <div>
+          <div class="list-item"><span class="icon check">✓</span>Chart of accounts (hierarchical, typed, normal balance)</div>
+          <div class="list-item"><span class="icon check">✓</span>Journal entries with debit/credit, reversal, POSTED/VOID states</div>
+          <div class="list-item"><span class="icon check">✓</span>Per-line ledger with balance impact tracking</div>
+          <div class="list-item"><span class="icon check">✓</span>Bank reconciliation (Draft → In Progress → Reconciled)</div>
+          <div class="list-item"><span class="icon check">✓</span>Financial period locking and closing</div>
+          <div class="list-item"><span class="icon check">✓</span>Payroll with approval workflow</div>
+        </div>
+        <div>
+          <div class="list-item"><span class="icon check">✓</span>Multi-level expense approvals</div>
+          <div class="list-item"><span class="icon check">✓</span>Treasury accounts (Bank, Cash, Wallet, Credit, Processor)</div>
+          <div class="list-item"><span class="icon check">✓</span>Budget planning + forecast models</div>
+          <div class="list-item"><span class="icon check">✓</span>Profitability snapshots by company, client, project, employee</div>
+          <div class="list-item"><span class="icon check">✓</span>Tamper-proof audit log with <strong style="color:var(--cyan)">SHA-256 hash chain</strong> on every entry</div>
+        </div>
+      </div>
+      <div class="callout callout-purple" style="font-weight:600;font-size:1rem">
+        Rebuilding this financial OS alone would cost $50,000–$80,000 in senior engineering time. It's included.
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 7 — AI Copilot -->
+  <div class="slide" data-index="6">
+    <div class="slide-inner">
+      <div class="slide-label">Slide 7 / 18</div>
+      <h2>Not a chatbot. A <span style="color:var(--cyan)">workspace-aware</span> AI operator.</h2>
+      <div class="divider"></div>
+      <div class="grid-2">
+        <div>
+          <div class="list-item"><span class="icon" style="color:var(--cyan)">◆</span><span><strong>Grounded</strong> in real company data — not generic LLM responses</span></div>
+          <div class="list-item"><span class="icon" style="color:var(--cyan)">◆</span><span><strong>Persistent memory</strong>: workspace-level + user-level with confidence scores</span></div>
+          <div class="list-item"><span class="icon" style="color:var(--cyan)">◆</span><span><strong>Human-in-the-loop</strong>: Preview → Confirm → Execute governance pipeline</span></div>
+          <div class="list-item"><span class="icon" style="color:var(--cyan)">◆</span><span>Multi-step AI workflows with <strong>state machine</strong></span></div>
+          <div class="list-item"><span class="icon" style="color:var(--cyan)">◆</span><span>Multi-language intent resolution (English, French, Arabic)</span></div>
+          <div class="list-item"><span class="icon" style="color:var(--cyan)">◆</span><span>Built on <strong>OpenAI API</strong> with deterministic fallback engine</span></div>
+        </div>
+        <div class="card" style="display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:32px">
+          <div style="font-size:2.4rem;font-weight:800;color:var(--cyan);margin-bottom:8px">AI Copilot</div>
+          <div style="font-size:0.82rem;color:var(--gray);max-width:260px;line-height:1.5">Every AI action requires human approval — <strong style="color:var(--white)">enterprise-safe by design</strong>.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 8 — Security Architecture -->
+  <div class="slide" data-index="7">
+    <div class="slide-inner">
+      <div class="slide-label">Slide 8 / 18</div>
+      <h2>Enterprise security. <span style="color:var(--cyan)">Built from week one.</span></h2>
+      <div class="divider"></div>
+      <div class="grid-2">
+        <div>
+          <div class="list-item"><span class="icon check">✓</span>Multi-tenant isolation — <strong>companyId</strong> enforced on every model</div>
+          <div class="list-item"><span class="icon check">✓</span>Brute-force lockout: 8 attempts / 15-min window, <strong>Redis-distributed</strong></div>
+          <div class="list-item"><span class="icon check">✓</span>JWT session revocation with JTI table</div>
+          <div class="list-item"><span class="icon check">✓</span>bcrypt password hashing (rounds=12)</div>
+          <div class="list-item"><span class="icon check">✓</span>HMAC webhook signing (<code style="color:var(--cyan);font-size:0.75rem">X-Taskit-Signature</code>)</div>
+        </div>
+        <div>
+          <div class="list-item"><span class="icon check">✓</span>Durable idempotency keys with lease locks</div>
+          <div class="list-item"><span class="icon check">✓</span>AES-256 OAuth token encryption with key rotation</div>
+          <div class="list-item"><span class="icon check">✓</span>GDPR-ready legal consent tracking with hash signatures</div>
+          <div class="list-item"><span class="icon check">✓</span>SHA-256 tamper-proof financial audit chain</div>
+          <div class="list-item"><span class="icon check">✓</span>Rate limiting: Redis distributed + in-memory fallback</div>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:center;margin-top:16px">
+        <div class="badge badge-cyan" style="padding:10px 24px;font-size:0.9rem;gap:8px">
+          <span style="opacity:0.6">Security Audit Score:</span> <strong>7.0/10</strong> <span style="opacity:0.6">— strong for a 5-week build</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 9 — Technical Stack -->
+  <div class="slide" data-index="8">
+    <div class="slide-inner">
+      <div class="slide-label">Slide 9 / 18</div>
+      <h2>Modern. Scalable. <span style="color:var(--cyan)">Immediately deployable.</span></h2>
+      <div class="divider"></div>
+      <div class="grid-2" style="margin-bottom:16px">
+        <div class="card">
+          <h3 style="font-size:0.9rem;color:var(--cyan);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.06em">Frontend</h3>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:0.85rem">
+            <span>Next.js 16.2.3 + React 19</span>
+            <span>TypeScript <span style="color:var(--gray)">(zero ESLint errors)</span></span>
+            <span>TailwindCSS 4 + Framer Motion</span>
+            <span>Zustand 5 state management</span>
+            <span>Recharts data visualization</span>
+            <span>Arabic RTL + i18n <span style="color:var(--gray)">(EN/FR/AR)</span></span>
+          </div>
+        </div>
+        <div class="card">
+          <h3 style="font-size:0.9rem;color:var(--cyan);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.06em">Backend &amp; Infrastructure</h3>
+          <div style="display:flex;flex-direction:column;gap:6px;font-size:0.85rem">
+            <span>Prisma 5 + PostgreSQL <span style="color:var(--gray)">(Supabase)</span></span>
+            <span>Redis <span style="color:var(--gray)">(caching, queuing, realtime)</span></span>
+            <span>BullMQ 5 <span style="color:var(--gray)">(AI, media, notification workers)</span></span>
+            <span>Socket.IO 4 <span style="color:var(--gray)">(realtime collaboration)</span></span>
+            <span>Cloudinary + Firebase Admin</span>
+            <span>NextAuth v5 + Supabase Auth</span>
+            <span>Cloudflare + Vercel deployment ready</span>
+          </div>
+        </div>
+      </div>
+      <div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center">
+        <span class="badge badge-white"><strong>500</strong> source files</span>
+        <span class="badge badge-white"><strong>~60,000</strong> LOC</span>
+        <span class="badge badge-white"><strong>55+</strong> Prisma models</span>
+        <span class="badge badge-white"><strong>34</strong> migrations</span>
+        <span class="badge badge-white"><strong>3,749</strong>-line schema</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 10 — Integrations -->
+  <div class="slide" data-index="9">
+    <div class="slide-inner">
+      <div class="slide-label">Slide 10 / 18</div>
+      <h2>8 social platforms. <span style="color:var(--cyan)">Real-time sync.</span></h2>
+      <div class="divider"></div>
+      <div class="int-grid">
+        <div class="int-item"><span class="check">✅</span> YouTube OAuth</div>
+        <div class="int-item"><span class="check">✅</span> TikTok OAuth</div>
+        <div class="int-item"><span class="check">✅</span> Instagram / Facebook</div>
+        <div class="int-item"><span class="check">✅</span> Twitter / X</div>
+        <div class="int-item"><span class="check">✅</span> LinkedIn</div>
+        <div class="int-item"><span class="check">✅</span> Spotify</div>
+        <div class="int-item"><span class="check">✅</span> Twitch</div>
+        <div class="int-item"><span class="check">✅</span> Cloudinary (media CDN)</div>
+        <div class="int-item"><span class="check">✅</span> Firebase (push)</div>
+        <div class="int-item"><span class="check">✅</span> Socket.IO realtime</div>
+        <div class="int-item"><span class="check">✅</span> BullMQ workers</div>
+        <div class="int-item"><span class="check">✅</span> PDF generation</div>
+        <div class="int-item"><span class="check">✅</span> REST API v1 (6 groups)</div>
+        <div class="int-item"><span class="check">✅</span> Webhook HMAC signing</div>
+        <div class="int-item"><span class="check">✅</span> @react-pdf rendering</div>
+      </div>
+      <div class="callout callout-cyan" style="margin-top:12px;font-size:0.85rem">
+        AES-256 token encryption with key rotation on all OAuth providers.
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 11 — Traction -->
+  <div class="slide" data-index="10">
+    <div class="slide-inner">
+      <div class="slide-label">Slide 11 / 18</div>
+      <h2>Live in beta. <span style="color:var(--cyan)">Real users.</span> Real signups.</h2>
+      <div class="divider"></div>
+      <div class="grid-2">
+        <div>
+          <div class="list-item"><span class="icon check">✓</span> Platform live at <strong>taskitbeta.tan.vercel.app</strong></div>
+          <div class="list-item"><span class="icon check">✓</span> Beta users and signups confirmed</div>
+          <div class="list-item"><span class="icon check">✓</span> Multi-step onboarding live (10 workspace template types)</div>
+          <div class="list-item"><span class="icon check">✓</span> 8 vertical configurations accessible</div>
+          <div class="list-item"><span class="icon check">✓</span> Real-time collaboration functional</div>
+          <div class="list-item"><span class="icon check">✓</span> AI copilot active</div>
+        </div>
+        <div class="callout callout-white" style="display:flex;flex-direction:column;justify-content:center;margin-top:0;border-left-color:var(--cyan)">
+          <div style="font-size:0.82rem;font-weight:600;color:var(--gray);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">The Honest Truth</div>
+          <p style="font-size:0.85rem;color:var(--white)"><strong>MRR: $0</strong> — no payment processor integrated yet. This is the single highest-leverage improvement a buyer can make. Integrating Stripe billing with one pricing tier transforms this from a code asset to a revenue-generating product within <strong>2–3 weeks</strong>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 12 — Rebuild Cost Analysis -->
+  <div class="slide" data-index="11">
+    <div class="slide-inner">
+      <div class="slide-label">Slide 12 / 18</div>
+      <h2>What would it cost to <span style="color:var(--cyan)">build from scratch?</span></h2>
+      <div class="divider"></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Module</th><th>Est. Hours</th><th>At $80/hr</th></tr></thead>
+          <tbody>
+            <tr><td>Auth + RBAC + Multi-tenant</td><td>200 hrs</td><td>$16,000</td></tr>
+            <tr><td>Financial OS (accounting, payroll, treasury)</td><td>600 hrs</td><td>$48,000</td></tr>
+            <tr><td>Enterprise ITSM (SLAs, incidents, assets)</td><td>500 hrs</td><td>$40,000</td></tr>
+            <tr><td>Agency / Creative Workflow</td><td>300 hrs</td><td>$24,000</td></tr>
+            <tr><td>8 Social OAuth Integrations</td><td>400 hrs</td><td>$32,000</td></tr>
+            <tr><td>AI Copilot + Governance</td><td>400 hrs</td><td>$32,000</td></tr>
+            <tr><td>Realtime Layer (Socket.IO + BullMQ)</td><td>300 hrs</td><td>$24,000</td></tr>
+            <tr><td>UI/UX Implementation</td><td>400 hrs</td><td>$32,000</td></tr>
+            <tr><td>Security Foundations</td><td>150 hrs</td><td>$12,000</td></tr>
+            <tr><td>Healthcare + Contracts + PDF</td><td>350 hrs</td><td>$28,000</td></tr>
+            <tr style="background:rgba(0,212,255,0.06)"><td><strong style="color:var(--cyan)">Total</strong></td><td><strong style="color:var(--cyan)">3,600 hrs</strong></td><td><strong style="color:var(--cyan)">$288,000</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout callout-cyan" style="font-weight:700;font-size:clamp(0.95rem,1.2vw,1.1rem);text-align:center">
+        You are acquiring $288,000 worth of engineering for $25,000–$50,000. That is an 83–91% discount on rebuild cost.
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 13 — Competitive Positioning -->
+  <div class="slide" data-index="12">
+    <div class="slide-inner">
+      <div class="slide-label">Slide 13 / 18</div>
+      <h2>No competitor does all of this. <span style="color:var(--cyan)">In one platform.</span></h2>
+      <div class="divider"></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>Capability</th><th style="color:var(--cyan)">TASKIT</th><th>ClickUp</th><th>Monday</th><th>HubSpot</th><th>QuickBooks</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Project Management</td><td style="color:var(--cyan)">✅</td><td>✅</td><td>✅</td><td>❌</td><td>❌</td></tr>
+            <tr><td>CRM + Client Portal</td><td style="color:var(--cyan)">✅</td><td>❌</td><td>Partial</td><td>✅</td><td>❌</td></tr>
+            <tr><td>Double-Entry Accounting</td><td style="color:var(--cyan)">✅</td><td>❌</td><td>❌</td><td>❌</td><td>✅</td></tr>
+            <tr><td>Enterprise ITSM</td><td style="color:var(--cyan)">✅</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
+            <tr><td>AI Copilot (workspace-aware)</td><td style="color:var(--cyan)">✅</td><td>Partial</td><td>❌</td><td>❌</td><td>❌</td></tr>
+            <tr><td>8 Social OAuth Integrations</td><td style="color:var(--cyan)">✅</td><td>❌</td><td>❌</td><td>Partial</td><td>❌</td></tr>
+            <tr><td>Healthcare Operations</td><td style="color:var(--cyan)">✅</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
+            <tr><td>Arabic RTL + MENA Support</td><td style="color:var(--cyan)">✅</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
+            <tr><td>All-in-One Pricing</td><td style="color:var(--cyan)">✅</td><td>❌</td><td>❌</td><td>❌</td><td>❌</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="callout callout-purple" style="font-weight:500;text-align:center">
+        A strategic acquirer in the agency, ITSM, or MENA SaaS space gets a <strong>12–18 month head start</strong>.
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 14 — Valuation Scenarios -->
+  <div class="slide" data-index="13">
+    <div class="slide-inner">
+      <div class="slide-label">Slide 14 / 18</div>
+      <h2>Three ways to think about <span style="color:var(--cyan)">this price</span>.</h2>
+      <div class="divider"></div>
+      <div class="grid-3">
+        <div class="card" style="padding:24px;display:flex;flex-direction:column">
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gray);margin-bottom:4px">Code Asset Buyer</div>
+          <h3 style="font-size:1.2rem;color:var(--cyan);margin-bottom:8px">$25,000 – $40,000</h3>
+          <p style="font-size:0.82rem;color:var(--gray);flex:1">Individual founder / Flippa-style. Buys a production codebase, adds Stripe billing, launches within 60 days. Break-even at 8–12 paying customers.</p>
+        </div>
+        <div class="card" style="padding:24px;display:flex;flex-direction:column;border-color:rgba(0,212,255,0.25)">
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gray);margin-bottom:4px">Strategic Acquirer</div>
+          <h3 style="font-size:1.2rem;color:var(--cyan);margin-bottom:8px">$75,000 – $150,000</h3>
+          <p style="font-size:0.82rem;color:var(--gray);flex:1">SaaS company / MENA startup. Acquires technical IP in their space, saves 18 months of engineering, launches a new vertical or product line.</p>
+        </div>
+        <div class="card" style="padding:24px;display:flex;flex-direction:column">
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--gray);margin-bottom:4px">VC-Backed Build</div>
+          <h3 style="font-size:1.2rem;color:var(--cyan);margin-bottom:8px">$300,000 – $500,000</h3>
+          <p style="font-size:0.82rem;color:var(--gray);flex:1">Funded team. Raises pre-seed on the codebase, hires a team, launches into MENA agency market with an 18-month product advantage.</p>
+        </div>
+      </div>
+      <div class="callout callout-cyan" style="font-weight:700;text-align:center;font-size:clamp(0.9rem,1.1vw,1rem)">
+        We are offering at the conservative floor — $25K–$50K — for speed of transaction. The strategic value is 6–10x higher.
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 15 — What's Included -->
+  <div class="slide" data-index="14">
+    <div class="slide-inner">
+      <div class="slide-label">Slide 15 / 18</div>
+      <h2>Everything transfers <span style="color:var(--cyan)">on day one</span>.</h2>
+      <div class="divider"></div>
+      <div class="grid-2">
+        <div>
+          <div class="checklist-item"><span class="check">✅</span> Full source code (500 files, 60,000+ LOC, TypeScript)</div>
+          <div class="checklist-item"><span class="check">✅</span> Complete database schema (55+ models, 34 migrations)</div>
+          <div class="checklist-item"><span class="check">✅</span> All environment config (.env.example, 135 lines)</div>
+          <div class="checklist-item"><span class="check">✅</span> Cloudflare + Vercel deployment configuration</div>
+          <div class="checklist-item"><span class="check">✅</span> GitHub repository with full commit history</div>
+          <div class="checklist-item"><span class="check">✅</span> All 8 OAuth integration configurations</div>
+        </div>
+        <div>
+          <div class="checklist-item"><span class="check">✅</span> Firebase, Cloudinary, Supabase project setup guidance</div>
+          <div class="checklist-item"><span class="check">✅</span> Architecture documentation</div>
+          <div class="checklist-item"><span class="check">✅</span> 2-hour handover call with the builder</div>
+          <div class="checklist-item"><span class="check">✅</span> 30-day post-sale support for setup questions</div>
+          <div class="checklist-item" style="opacity:0.5"><span class="cross">❌</span> Active paying customers <span style="color:var(--gray)">(pre-revenue)</span></div>
+          <div class="checklist-item" style="opacity:0.5"><span class="cross">❌</span> Stripe billing <span style="color:var(--gray)">(highest-value improvement opportunity)</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 16 — Top 3 Value-Unlock Actions -->
+  <div class="slide" data-index="15">
+    <div class="slide-inner">
+      <div class="slide-label">Slide 16 / 18</div>
+      <h2>How a buyer adds <span style="color:var(--cyan)">$50K–$100K</span> in 30 days.</h2>
+      <div class="divider"></div>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:16px">
+        <div class="action-box" style="text-align:left;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+            <h4 style="font-size:0.95rem">Action 1 &middot; Integrate Stripe Billing</h4>
+            <span class="badge badge-cyan" style="font-size:0.7rem">2–3 weeks</span>
+          </div>
+          <p style="font-size:0.85rem">Add one pricing tier with Stripe Checkout. Transforms a code asset into a revenue-generating product. <strong style="color:var(--white)">Estimated value add: $50,000–$100,000</strong> to resale or ARR potential.</p>
+        </div>
+        <div class="action-box" style="text-align:left;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+            <h4 style="font-size:0.95rem">Action 2 &middot; Fix OpenAI Model ID</h4>
+            <span class="badge badge-cyan" style="font-size:0.7rem">2 hours</span>
+          </div>
+          <p style="font-size:0.85rem">Update <code style="color:var(--cyan);font-size:0.75rem">gpt-5.5</code> reference to <code style="color:var(--cyan);font-size:0.75rem">gpt-4o</code>. Unlocks the full AI copilot for demos and customers. <strong style="color:var(--white)">Cost: nearly zero.</strong></p>
+        </div>
+        <div class="action-box" style="text-align:left;display:flex;flex-direction:column">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+            <h4 style="font-size:0.95rem">Action 3 &middot; Write a Real README + Deploy a Demo</h4>
+            <span class="badge badge-cyan" style="font-size:0.7rem">2 days</span>
+          </div>
+          <p style="font-size:0.85rem">A live demo link and clear setup documentation increases buyer confidence and reduces sales cycle. <strong style="color:var(--white)">Cost: 2 days of writing.</strong></p>
+        </div>
+      </div>
+      <div class="callout callout-cyan" style="font-weight:600;text-align:center">
+        The three highest-ROI improvements cost less than $5,000 in time and unlock $50,000–$150,000 in added value.
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 17 — Risk & Honest Assessment -->
+  <div class="slide" data-index="16">
+    <div class="slide-inner">
+      <div class="slide-label">Slide 17 / 18</div>
+      <h2>What a smart buyer <span style="color:var(--cyan)">should know</span>.</h2>
+      <div class="divider"></div>
+      <p style="font-size:0.85rem;color:var(--gray);margin-bottom:12px">Known gaps — all surface-level, all fixable:</p>
+      <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">
+        <div class="gap-box"><span class="gap-name">No payment processor</span><span class="gap-desc">Fixable in 2–3 weeks with Stripe</span><span class="gap-fix">→ Quick fix</span></div>
+        <div class="gap-box"><span class="gap-name">Cloudflare + Socket.IO conflict</span><span class="gap-desc">Pick one deployment path</span><span class="gap-fix">→ 1 week</span></div>
+        <div class="gap-box"><span class="gap-name">MFA UI incomplete</span><span class="gap-desc">Routes exist, frontend completion needed</span><span class="gap-fix">→ 3–5 days</span></div>
+        <div class="gap-box"><span class="gap-name">globals.css is 143KB</span><span class="gap-desc">Refactor to CSS Modules</span><span class="gap-fix">→ 1 week</span></div>
+        <div class="gap-box"><span class="gap-name">Test coverage is thin</span><span class="gap-desc">Add Playwright E2E</span><span class="gap-fix">→ 1 week</span></div>
+        <div class="gap-box"><span class="gap-name">README is default template</span><span class="gap-desc">Rewrite needed</span><span class="gap-fix">→ 2 days</span></div>
+        <div class="gap-box"><span class="gap-name">gpt-5.5 model ID invalid</span><span class="gap-desc">Update to gpt-4o</span><span class="gap-fix">→ 2 hours</span></div>
+      </div>
+      <div class="score-group" style="margin-top:0">
+        <div class="score-card"><div class="score-value" style="color:var(--cyan)">6.02<span style="font-size:0.9rem;opacity:0.5">/10</span></div><div class="score-label">Overall Audit</div></div>
+        <div class="score-card"><div class="score-value" style="color:var(--cyan)">7.0<span style="font-size:0.9rem;opacity:0.5">/10</span></div><div class="score-label">Security Score</div></div>
+        <div class="score-card"><div class="score-value" style="color:var(--cyan)">7.0<span style="font-size:0.9rem;opacity:0.5">/10</span></div><div class="score-label">Feature Completeness</div></div>
+        <div class="score-card"><div class="score-value" style="color:var(--purple)">3.0<span style="font-size:0.9rem;opacity:0.5">/10</span></div><div class="score-label">Business Model Readiness <span style="color:var(--gray)">(opportunity)</span></div></div>
+      </div>
+      <div class="callout callout-purple" style="font-weight:500;text-align:center">
+        Every gap listed above is documented, understood, and fixable. None are architectural — all are surface-level improvements.
+      </div>
+    </div>
+  </div>
+
+  <!-- SLIDE 18 — Call to Action -->
+  <div class="slide" data-index="17">
+    <div class="slide-inner" style="text-align:center">
+      <div class="slide-label">Slide 18 / 18</div>
+      <h1 style="font-size:clamp(2rem,4vw,3.2rem);margin-bottom:8px">Move fast. This won't be <span style="color:var(--cyan)">available long</span>.</h1>
+      <p style="max-width:700px;margin:0 auto 24px;font-size:1rem;color:var(--gray)">At $25,000–$50,000, this is priced for a fast transaction — not for maximum return. <strong style="color:var(--white)">The first serious buyer wins.</strong></p>
+      <div class="grid-3" style="margin-bottom:24px">
+        <div class="action-box"><div style="font-size:1.4rem;margin-bottom:4px">📩</div><h4>Contact</h4><p style="font-size:0.82rem">Reach out to discuss terms and schedule a code walkthrough</p></div>
+        <div class="action-box"><div style="font-size:1.4rem;margin-bottom:4px">🌐</div><h4>Live Beta</h4><p style="font-size:0.82rem;word-break:break-all">taskitbeta.tan.vercel.app</p></div>
+        <div class="action-box"><div style="font-size:1.4rem;margin-bottom:4px">📁</div><h4>Code Escrow</h4><p style="font-size:0.82rem">Available on request via Acquire.com or direct</p></div>
+      </div>
+      <div class="terms-box" style="margin-bottom:20px">
+        <strong>Price:</strong> $25,000–$50,000 negotiable &middot; <strong>Full source code transfer</strong> &middot; 2-hour handover call &middot; 30-day support included &middot; Code escrow available
+      </div>
+      <p style="font-size:0.95rem;font-weight:600;max-width:800px;margin:0 auto;color:var(--white);line-height:1.5">
+        TASKIT represents <span style="color:var(--cyan)">3,600 hours</span> of engineering, <span style="color:var(--cyan)">$288,000</span> in rebuild cost, and <span style="color:var(--cyan)">18+ months</span> of a head start — available today for the price of a used car.
+      </p>
+    </div>
+  </div>
+</div>
+
+<!-- Navigation -->
+<div class="nav-dots" id="navDots"></div>
+<div class="nav-arrows">
+  <button class="nav-arrow" id="prevArrow" onclick="navigate(-1)" disabled>←</button>
+  <div class="slide-counter"><span id="currentSlide">01</span> / 18</div>
+  <button class="nav-arrow" id="nextArrow" onclick="navigate(1)">→</button>
+</div>
+
+<script>
+let current = 0;
+const total = 18;
+const slides = document.getElementById('slides');
+const prevBtn = document.getElementById('prevArrow');
+const nextBtn = document.getElementById('nextArrow');
+const counter = document.getElementById('currentSlide');
+const dotsContainer = document.getElementById('navDots');
+
+for(let i=0;i<total;i++){const dot=document.createElement('button');dot.className='nav-dot';dot.onclick=()=>goTo(i);dotsContainer.appendChild(dot)}
+
+function goTo(i){if(i<0||i>=total)return;current=i;slides.style.transform='translateX(-'+(current*100)+'vw)';updateUI()}
+
+function navigate(dir){goTo(current+dir)}
+
+function updateUI(){prevBtn.disabled=current===0;nextBtn.disabled=current===total-1;counter.textContent=String(current+1).padStart(2,'0');document.querySelectorAll('.nav-dot').forEach((d,i)=>d.classList.toggle('active',i===current))}
+
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key==='ArrowDown'){e.preventDefault();navigate(1)}if(e.key==='ArrowLeft'||e.key==='ArrowUp'){e.preventDefault();navigate(-1)}})
+
+let touchStartX=0;let touchEndX=0;
+document.addEventListener('touchstart',e=>{touchStartX=e.changedTouches[0].screenX},{passive:true})
+document.addEventListener('touchend',e=>{touchEndX=e.changedTouches[0].screenX;const diff=touchStartX-touchEndX;if(Math.abs(diff)>50){if(diff>0)navigate(1);else navigate(-1)}},{passive:true})
+
+updateUI();
+</script>
+</body>
+</html>
