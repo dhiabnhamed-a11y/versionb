@@ -115,6 +115,9 @@ export default function AdminTasksPage() {
     enterpriseAssignedTeamId: '',
   })
   const [saving, setSaving] = useState(false)
+  const [pendingFiles, setPendingFiles] = useState<File[]>([])
+  const [uploadingAttachments, setUploadingAttachments] = useState(false)
+  const [uploadingTaskId, setUploadingTaskId] = useState<string | null>(null)
 
   const fetchTasksPageData = useCallback(async () => {
     const [tasksResponse, projectsResponse, employeesResponse, teamsResponse] = await Promise.all([
@@ -200,6 +203,7 @@ export default function AdminTasksPage() {
       enterpriseAssignedTeamId: '',
     })
     setAssignTarget('INDIVIDUAL')
+    setPendingFiles([])
   }
 
   function openCreateTaskModal() {
@@ -225,6 +229,23 @@ export default function AdminTasksPage() {
     setShowModal(true)
   }
 
+  async function uploadPendingFiles(taskId: string) {
+    if (pendingFiles.length === 0) return
+    setUploadingAttachments(true)
+    const formData = new FormData()
+    for (const file of pendingFiles) {
+      formData.append('file', file)
+      try {
+        await fetch(`/api/tasks/${taskId}/attachments`, { method: 'POST', body: formData })
+      } catch (err) {
+        console.error('Failed to upload attachment:', err)
+      }
+      formData.delete('file')
+    }
+    setPendingFiles([])
+    setUploadingAttachments(false)
+  }
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault()
     if (!form.projectId) return
@@ -236,11 +257,18 @@ export default function AdminTasksPage() {
         : { ...form, enterpriseAssignedTeamId: null }
       : { ...form, enterpriseAssignedTeamId: undefined }
 
-    await fetch(editingTask ? `/api/tasks/${editingTask.id}` : '/api/tasks', {
+    const response = await fetch(editingTask ? `/api/tasks/${editingTask.id}` : '/api/tasks', {
       method: editingTask ? 'PATCH' : 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
+
+    if (response.ok) {
+      const taskId = editingTask?.id ?? ((await response.json().catch(() => ({}))) as { id?: string }).id
+      if (taskId && pendingFiles.length > 0) {
+        await uploadPendingFiles(taskId)
+      }
+    }
 
     setSaving(false)
     setShowModal(false)
@@ -539,8 +567,48 @@ export default function AdminTasksPage() {
                               duration: submission.duration,
                             }}
                           />
-                        </div>
-                      )}
+                </div>
+              )}
+
+              <div style={{ marginTop: '8px' }}>
+                <input
+                  id={`attach-${task.id}`}
+                  type="file"
+                  multiple
+                  style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const files = Array.from(e.target.files || [])
+                    if (files.length === 0) return
+                    setUploadingTaskId(task.id)
+                    for (const file of files) {
+                      const fd = new FormData()
+                      fd.append('file', file)
+                      try {
+                        await fetch(`/api/tasks/${task.id}/attachments`, { method: 'POST', body: fd })
+                      } catch (err) {
+                        console.error('Upload failed:', err)
+                      }
+                    }
+                    setUploadingTaskId(null)
+                    e.target.value = ''
+                    await reloadTasksPageData()
+                  }}
+                />
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  style={{ fontSize: '11px', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
+                  disabled={uploadingTaskId === task.id}
+                  onClick={() => document.getElementById(`attach-${task.id}`)?.click()}
+                >
+                  {uploadingTaskId === task.id ? (
+                    <Loader2 size={13} style={{ animation: 'spin 0.7s linear infinite' }} />
+                  ) : (
+                    <Link2 size={13} />
+                  )}
+                  {uploadingTaskId === task.id ? 'Uploading...' : 'Attach file'}
+                </button>
+              </div>
                       <div
                         style={{
                           display: 'flex',
@@ -655,6 +723,98 @@ export default function AdminTasksPage() {
                   Description
                 </label>
                 <RichTextEditor value={form.description} onChange={(html) => setForm({ ...form, description: html })} placeholder={isAgency ? 'Brief details, references, and expected output' : 'Details...'} minHeight={80} maxHeight={300} />
+              </div>
+
+              <div>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
+                  Attachments
+                </label>
+                <div
+                  style={{
+                    border: '2px dashed var(--border)',
+                    borderRadius: '8px',
+                    padding: '16px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    transition: 'border-color 0.15s',
+                    background: 'var(--bg-elevated)',
+                  }}
+                  onDragOver={(e) => { e.preventDefault(); e.currentTarget.style.borderColor = 'var(--accent)' }}
+                  onDragLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)' }}
+                  onDrop={(e) => {
+                    e.preventDefault()
+                    e.currentTarget.style.borderColor = 'var(--border)'
+                    const files = Array.from(e.dataTransfer.files)
+                    setPendingFiles((prev) => [...prev, ...files])
+                  }}
+                  onClick={() => document.getElementById('file-input')?.click()}
+                >
+                  <input
+                    id="file-input"
+                    type="file"
+                    multiple
+                    style={{ display: 'none' }}
+                    onChange={(e) => {
+                      const files = Array.from(e.target.files || [])
+                      setPendingFiles((prev) => [...prev, ...files])
+                      e.target.value = ''
+                    }}
+                  />
+                  <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '4px' }}>
+                    Drop files here or click to browse
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--text-muted)', opacity: 0.6 }}>
+                    Images, PDFs, documents, spreadsheets — up to 50MB each
+                  </div>
+                </div>
+                {pendingFiles.length > 0 && (
+                  <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {pendingFiles.map((file, i) => (
+                      <div
+                        key={`${file.name}-${i}`}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          gap: '8px',
+                          padding: '6px 10px',
+                          background: 'var(--bg-elevated)',
+                          borderRadius: '6px',
+                          fontSize: '12px',
+                        }}
+                      >
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
+                          {file.name}
+                        </span>
+                        <span style={{ color: 'var(--text-muted)', flexShrink: 0 }}>
+                          {(file.size / 1024).toFixed(0)} KB
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setPendingFiles((prev) => prev.filter((_, idx) => idx !== i))}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            color: '#ef4444',
+                            cursor: 'pointer',
+                            padding: '2px',
+                            fontSize: '14px',
+                            lineHeight: 1,
+                            flexShrink: 0,
+                          }}
+                          title="Remove"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    {uploadingAttachments && (
+                      <div style={{ fontSize: '11px', color: 'var(--text-muted)', padding: '4px 0' }}>
+                        Uploading attachments...
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {isAgency && (
