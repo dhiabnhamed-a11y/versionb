@@ -7,7 +7,7 @@ import Underline from '@tiptap/extension-underline'
 import { TextStyle } from '@tiptap/extension-text-style'
 import Color from '@tiptap/extension-color'
 import Placeholder from '@tiptap/extension-placeholder'
-import { Bold, Italic, Underline as UnderlineIcon, Palette } from 'lucide-react'
+import { Bold, Italic, Underline as UnderlineIcon, Palette, List, ListOrdered } from 'lucide-react'
 
 const COLORS = [
   { label: 'Default', value: '#1e293b' },
@@ -120,6 +120,23 @@ export default function RichTextEditor({
 
         <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />
 
+        <ToolbarButton
+          active={editor.isActive('bulletList')}
+          onClick={() => editor.chain().focus().toggleBulletList().run()}
+          title="Bullet list"
+        >
+          <List size={15} />
+        </ToolbarButton>
+        <ToolbarButton
+          active={editor.isActive('orderedList')}
+          onClick={() => editor.chain().focus().toggleOrderedList().run()}
+          title="Ordered list"
+        >
+          <ListOrdered size={15} />
+        </ToolbarButton>
+
+        <div style={{ width: '1px', height: '20px', background: 'var(--border)', margin: '0 4px' }} />
+
         <div className="color-picker-wrapper" style={{ position: 'relative' }}>
           <ToolbarButton
             active={editor.isActive('textStyle')}
@@ -212,6 +229,17 @@ export default function RichTextEditor({
           outline: none;
         }
         .rich-text-editor :global(.ProseMirror p) {
+          margin: 0;
+        }
+        .rich-text-editor :global(.ProseMirror ul),
+        .rich-text-editor :global(.ProseMirror ol) {
+          padding-left: 1.5em;
+          margin: 4px 0;
+        }
+        .rich-text-editor :global(.ProseMirror li) {
+          margin: 2px 0;
+        }
+        .rich-text-editor :global(.ProseMirror li p) {
           margin: 0;
         }
         .rich-text-editor :global(.ProseMirror p.is-editor-empty:first-child::before) {
