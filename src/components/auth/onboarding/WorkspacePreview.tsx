@@ -60,7 +60,7 @@ export default function WorkspacePreview({ templateId, compact = false }: { temp
             <Icon size={22} aria-hidden="true" />
           </div>
           <div>
-            <p className={styles.previewKicker}>Live AI workspace preview</p>
+            <p className={styles.previewKicker}><span className={styles.previewPulseDot} />Live AI workspace preview</p>
             <h2>{template.title} operating system</h2>
           </div>
         </div>
@@ -122,6 +122,7 @@ export default function WorkspacePreview({ templateId, compact = false }: { temp
           <Layers3 size={16} aria-hidden="true" />
           <span>{template.whyItMatters}</span>
         </div>
+        <p className={styles.previewTagline}>Your workspace is being prepared based on your answers.</p>
       </motion.aside>
     </AnimatePresence>
   )

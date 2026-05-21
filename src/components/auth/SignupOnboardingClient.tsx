@@ -42,7 +42,6 @@ import { isBlockedOwnerEmailDomain } from '@/lib/signup-hints'
 import {
   evaluatePasswordPolicy,
   PASSWORD_MIN_LENGTH,
-  PASSWORD_REQUIREMENT_HINTS,
 } from '@/modules/security/password-policy'
 
 const WorkspacePreview = dynamic(() => import('./onboarding/WorkspacePreview'), {
@@ -623,6 +622,8 @@ function SetupStep({
         </p>
 
         <div className={styles.formGrid}>
+          <p className={styles.requiredNote}>All fields required unless marked optional</p>
+          <p className={styles.sectionLabel}>Account info</p>
           <Field label="Your name" icon={<User size={15} />} required>
             <input className={styles.input} value={form.name} onChange={(event) => onChange('name', event.target.value)} autoComplete="name" />
           </Field>
@@ -657,15 +658,16 @@ function SetupStep({
               autoComplete="new-password"
               placeholder={`At least ${PASSWORD_MIN_LENGTH} characters`}
             />
-            <ul className={styles.passwordHints}>
-              {PASSWORD_REQUIREMENT_HINTS.map((hint) => (
-                <li key={hint}>{hint}</li>
-              ))}
-            </ul>
+            {form.password.length > 0 && (
+              <PasswordStrengthBar password={form.password} />
+            )}
             {form.password.length > 0 && passwordErrors.length > 0 && (
               <p className={styles.fieldError}>{passwordErrors.join(' ')}</p>
             )}
           </Field>
+
+          <div className={styles.sectionDivider} />
+          <p className={styles.sectionLabel}>Your company</p>
 
           <Field label="Company name" icon={<Zap size={15} />} required>
             <input
@@ -673,7 +675,7 @@ function SetupStep({
               value={form.companyName}
               onChange={(event) => onChange('companyName', event.target.value)}
               autoComplete="organization"
-              placeholder={template.title === 'Agency' ? 'Studio Nova' : 'Acme Operations'}
+              placeholder="Acme Agency"
               disabled={inviteMode}
             />
           </Field>
@@ -936,13 +938,12 @@ function SuccessStep({
   )
 }
 
-function Field({ label, icon, required, children }: { label: string; icon: ReactNode; required?: boolean; children: ReactNode }) {
+function Field({ label, icon, children }: { label: string; icon: ReactNode; required?: boolean; children: ReactNode }) {
   return (
     <label className={styles.field}>
       <span>
         {icon}
         {label}
-        {required && <em>Required</em>}
       </span>
       {children}
     </label>
@@ -963,6 +964,27 @@ function SegmentedControl({ value, options, onChange }: { value: string; options
           {option}
         </button>
       ))}
+    </div>
+  )
+}
+
+function PasswordStrengthBar({ password }: { password: string }) {
+  let met = 0
+  if (password.length >= PASSWORD_MIN_LENGTH) met++
+  if (/[a-z]/.test(password)) met++
+  if (/[A-Z]/.test(password)) met++
+  if (/[0-9]/.test(password)) met++
+  if (/[^a-zA-Z0-9]/.test(password)) met++
+  const pct = (met / 5) * 100
+  const label = met <= 1 ? 'Weak' : met === 2 ? 'Fair' : met === 3 ? 'Strong' : 'Very Strong'
+  const color = met <= 1 ? '#ef4444' : met === 2 ? '#f59e0b' : met === 3 ? '#22c55e' : '#00D4FF'
+
+  return (
+    <div className={styles.strengthBar}>
+      <div className={styles.strengthBarTrack}>
+        <div className={styles.strengthBarFill} style={{ width: `${pct}%`, background: color }} />
+      </div>
+      <span className={styles.strengthLabel} style={{ color }}>{label}</span>
     </div>
   )
 }
