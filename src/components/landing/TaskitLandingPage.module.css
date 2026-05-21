@@ -1,27 +1,28 @@
 .landing {
-  --landing-bg: #060810;
-  --landing-bg-2: #090d17;
-  --landing-bg-3: #0c1120;
-  --landing-card: #0e1425;
-  --landing-card-2: #111829;
-  --landing-border: #1a2540;
-  --landing-border-2: #1e2d4a;
-  --landing-blue: #4a8fff;
-  --landing-blue-2: #2d6cf5;
-  --landing-cyan: #22d3ee;
+  --landing-bg: #0A0E1A;
+  --landing-bg-2: #0D1225;
+  --landing-bg-3: #111830;
+  --landing-card: #0F1528;
+  --landing-card-2: #131B32;
+  --landing-border: #1E2747;
+  --landing-border-2: #253153;
+  --landing-blue: #00D4FF;
+  --landing-blue-2: #00B8E6;
+  --landing-purple: #7B6FFF;
+  --landing-cyan: #00D4FF;
   --landing-green: #34d399;
   --landing-orange: #fb923c;
   --landing-red: #f87171;
   --landing-text: #f1f5ff;
-  --landing-muted: #7a90b8;
-  --landing-muted-2: #4a5f82;
+  --landing-muted: rgba(241, 245, 255, 0.6);
+  --landing-muted-2: rgba(241, 245, 255, 0.35);
   --landing-display: var(--taskit-landing-display, var(--font-display));
   --landing-body: var(--taskit-landing-body, var(--font-sans));
   min-height: 100vh;
   overflow-x: hidden;
   background:
-    linear-gradient(115deg, rgba(45, 108, 245, 0.16), transparent 48%),
-    linear-gradient(180deg, #060810 0%, #090d17 44%, #060810 100%);
+    linear-gradient(115deg, rgba(0, 212, 255, 0.08), transparent 48%),
+    linear-gradient(180deg, #0A0E1A 0%, #0D1225 44%, #0A0E1A 100%);
   color: var(--landing-text);
   font-family: var(--landing-body);
   font-size: 16px;
@@ -219,6 +220,14 @@
   animation: pulseDot 2s ease-in-out infinite;
 }
 
+.heroBadge,
+.sectionEyebrow,
+.aiEyebrow {
+  border-color: rgba(0, 212, 255, 0.25);
+  background: rgba(0, 212, 255, 0.08);
+  color: var(--landing-blue);
+}
+
 .heroTitle,
 .featuresTitle,
 .aiTitle,
@@ -232,7 +241,7 @@
 
 .heroTitle {
   margin-bottom: 20px;
-  font-size: 68px;
+  font-size: 56px;
 }
 
 .heroTitle span,
@@ -245,10 +254,11 @@
 }
 
 .heroSub {
-  max-width: 460px;
+  max-width: 480px;
   margin-bottom: 36px;
-  color: var(--landing-muted);
-  font-size: 17px;
+  color: rgba(241, 245, 255, 0.6);
+  font-size: 18px;
+  font-weight: 500;
   line-height: 1.65;
 }
 
@@ -260,30 +270,67 @@
 }
 
 .heroCtas {
+  margin-bottom: 32px;
+}
+
+.heroClients {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
   margin-bottom: 44px;
 }
 
+.heroClients span {
+  color: var(--landing-muted-2);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.clientLogos {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  flex-wrap: wrap;
+}
+
+.clientLogo {
+  color: var(--landing-muted-2);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  opacity: 0.6;
+}
+
 .btnHero {
-  min-height: 48px;
-  border-radius: 10px;
-  padding: 13px 26px;
+  min-height: 52px;
+  border-radius: 40px;
+  padding: 14px 32px;
   font-size: 15px;
+  font-weight: 700;
 }
 
 .btnHeroPrimary {
   border: 0;
-  background: linear-gradient(135deg, var(--landing-blue-2), var(--landing-blue));
-  color: #fff;
+  background: var(--landing-blue);
+  color: #0A0E1A;
 }
 
 .btnHeroPrimary:hover {
-  box-shadow: 0 8px 30px rgba(74, 143, 255, 0.35);
+  box-shadow: 0 8px 30px rgba(0, 212, 255, 0.35);
 }
 
 .btnHeroSecondary {
   border: 1px solid var(--landing-border-2);
   background: transparent;
   color: var(--landing-text);
+}
+
+.btnHeroSecondary:hover {
+  border-color: var(--landing-blue);
+  color: var(--landing-blue);
 }
 
 .btnHeroSecondary:hover {
@@ -808,6 +855,8 @@
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 16px;
+  margin: 0 auto;
+  max-width: 1200px;
 }
 
 .productTypeCard {
@@ -995,7 +1044,7 @@
 .features,
 .aiSection,
 .ctaBand {
-  padding: 100px 80px;
+  padding: 120px 80px;
 }
 
 .features {
@@ -1024,52 +1073,74 @@
   line-height: 1.7;
 }
 
+.ctaTrust {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+
+.ctaTrust span {
+  color: var(--landing-muted-2);
+  font-size: 13px;
+  font-weight: 600;
+  position: relative;
+}
+
+.ctaTrust span + span::before {
+  content: '·';
+  margin-right: 20px;
+  color: var(--landing-muted-2);
+}
+
 .featuresHeader > p {
   align-self: center;
 }
 
 .featuresGrid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
 }
 
 .featureCard {
   position: relative;
   overflow: hidden;
-  min-height: 210px;
+  min-height: 180px;
   border: 1px solid var(--landing-border);
   border-radius: 14px;
   background:
-    linear-gradient(145deg, rgba(74, 143, 255, 0.06), transparent 42%),
+    linear-gradient(145deg, rgba(0, 212, 255, 0.06), transparent 42%),
     var(--landing-card);
-  padding: 24px 24px 56px;
+  padding: 28px 28px 40px;
   animation: cardIn 560ms ease both;
   transition: border-color 220ms ease, transform 220ms ease, box-shadow 220ms ease;
 }
 
 .featureCard:hover {
-  border-color: rgba(74, 143, 255, 0.35);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(74, 143, 255, 0.1);
+  border-color: rgba(0, 212, 255, 0.35);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 20px rgba(0, 212, 255, 0.1);
   transform: translateY(-3px);
 }
 
 .featureIconWrap {
   display: grid;
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   place-items: center;
   margin-bottom: 16px;
-  border: 1px solid rgba(74, 143, 255, 0.2);
-  border-radius: 11px;
-  background: rgba(74, 143, 255, 0.1);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 10px;
+  background: rgba(0, 212, 255, 0.1);
   color: var(--landing-blue);
 }
 
 .featureIconCyan {
-  border-color: rgba(34, 211, 238, 0.2);
-  background: rgba(34, 211, 238, 0.1);
-  color: var(--landing-cyan);
+  border-color: rgba(123, 111, 255, 0.2);
+  background: rgba(123, 111, 255, 0.1);
+  color: var(--landing-purple);
 }
 
 .featureIconGreen {
@@ -1082,15 +1153,15 @@
   margin-bottom: 8px;
   color: #fff;
   font-family: var(--landing-display);
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 800;
 }
 
 .featureCard p {
   color: var(--landing-muted);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.55;
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.6;
 }
 
 .featureArrow {
@@ -1310,12 +1381,24 @@
 }
 
 .ctaBand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  text-align: center;
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.12), rgba(123, 111, 255, 0.12)), var(--landing-bg-2);
+  padding: 120px 80px;
   position: relative;
   overflow: hidden;
-  background:
-    linear-gradient(120deg, transparent, rgba(45, 108, 245, 0.14), transparent),
-    var(--landing-bg);
-  text-align: center;
+}
+
+.ctaBand::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse 60% 40% at 50% 50%, rgba(0, 212, 255, 0.08), transparent 70%);
+  pointer-events: none;
 }
 
 .ctaBand h2 {
@@ -1453,7 +1536,7 @@
   }
 
   .heroTitle {
-    font-size: 56px;
+    font-size: 48px;
   }
 
   .featuresHeader,
@@ -1473,6 +1556,10 @@
   }
 
   .featuresGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .pricingGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1582,6 +1669,10 @@
     grid-template-columns: 1fr;
   }
 
+  .pricingGrid {
+    grid-template-columns: 1fr;
+  }
+
   .aiInner {
     gap: 34px;
   }
@@ -1607,9 +1698,10 @@
     max-width: 94%;
   }
 
-  .ctaBand h2 {
-    font-size: 38px;
-  }
+.ctaBand h2 {
+  font-size: 40px;
+  max-width: 600px;
+}
 
   .footer {
     flex-direction: column;
@@ -1646,7 +1738,6 @@
 .statsBar {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 1px;
   margin: 0 auto;
   max-width: 1100px;
   padding: 0 40px 48px;
@@ -1657,21 +1748,32 @@
 }
 
 .statItem {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
-  padding: 28px 16px;
+  gap: 4px;
+  padding: 32px 16px;
   text-align: center;
   background: var(--landing-bg-2);
 }
 
+.statItem + .statItem {
+  border-left: 1px solid var(--landing-border);
+}
+
 .statItem strong {
   font-family: var(--landing-display);
-  font-size: 28px;
+  font-size: 36px;
   font-weight: 800;
-  color: var(--landing-cyan);
+  color: var(--landing-blue);
+}
+
+.statItem span {
+  color: var(--landing-muted);
+  font-size: 14px;
+  font-weight: 500;
 }
 
 .statItem span {
@@ -1738,7 +1840,7 @@
 
 /* ─── Pricing section ─────────────────────────────────── */
 .pricingSection {
-  padding: 120px 40px;
+  padding: 120px 80px;
   background: var(--landing-bg-2);
   position: relative;
   overflow: hidden;
@@ -1779,7 +1881,7 @@
 
 .pricingGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 20px;
   max-width: 1100px;
   margin: 0 auto;
@@ -1804,10 +1906,11 @@
 .planCardFeatured {
   border-color: var(--landing-blue);
   background: linear-gradient(160deg, #0f1d3a 0%, var(--landing-card) 60%);
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.1);
 }
 
 .planCardFeatured:hover {
-  border-color: #6ba8ff;
+  border-color: var(--landing-blue);
 }
 
 .planBadge {
@@ -1816,9 +1919,9 @@
   left: 50%;
   transform: translateX(-50%);
   background: var(--landing-blue);
-  color: #fff;
+  color: #0A0E1A;
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   padding: 4px 14px;
@@ -1836,7 +1939,7 @@
 }
 
 .planCardFeatured .planName {
-  color: var(--landing-cyan);
+  color: var(--landing-blue);
 }
 
 .planPrice {
@@ -1848,7 +1951,7 @@
 
 .planPriceAmount {
   font-family: var(--landing-display);
-  font-size: 44px;
+  font-size: 36px;
   font-weight: 800;
   color: var(--landing-text);
   line-height: 1;
@@ -1888,6 +1991,53 @@
   flex-shrink: 0;
   margin-top: 2px;
   color: var(--landing-green);
+}
+
+.pricingToggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 48px;
+}
+
+.pricingToggle span {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--landing-muted);
+}
+
+.pricingToggle span.active {
+  color: var(--landing-text);
+}
+
+.toggleTrack {
+  position: relative;
+  width: 48px;
+  height: 26px;
+  border-radius: 13px;
+  background: var(--landing-border);
+  cursor: pointer;
+  transition: background 200ms ease;
+}
+
+.toggleTrack.active {
+  background: var(--landing-blue);
+}
+
+.toggleThumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 200ms ease;
+}
+
+.toggleTrack.active .toggleThumb {
+  transform: translateX(22px);
 }
 
 .planCta {
@@ -1931,7 +2081,7 @@
 }
 
 .featureShowcase {
-  padding: 100px 80px;
+  padding: 120px 80px;
   background: var(--landing-bg);
 }
 

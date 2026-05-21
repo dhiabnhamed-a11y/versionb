@@ -333,6 +333,7 @@ function ArrowIcon() {
 
 export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats = [] }: TaskitLandingPageProps) {
   const [scrolled, setScrolled] = useState(false)
+  const [annual, setAnnual] = useState(false)
 
   const primaryHref = isSignedIn ? dashboardHref : '/signup'
   const loginHref = isSignedIn ? dashboardHref : '/login'
@@ -355,12 +356,9 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
         </Link>
 
         <nav className={styles.navLinks} aria-label="Landing navigation">
-          <a href="#product">Product <ChevronDown size={12} aria-hidden="true" /></a>
-          <a href="#solutions">Solutions <ChevronDown size={12} aria-hidden="true" /></a>
-          <a href="#ai-assistant">AI preview <ChevronDown size={12} aria-hidden="true" /></a>
-          <a href="#cta">Get started</a>
+          <a href="#product">Product</a>
+          <a href="#solutions">Solutions</a>
           <a href="#pricing">Pricing</a>
-          <a href="#features">Enterprise</a>
         </nav>
 
         <div className={styles.navRight}>
@@ -392,9 +390,19 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
               {heroPrimaryLabel}
               <ArrowIcon />
             </Link>
-            <a href="#ai-assistant" className={cx(styles.btnHero, styles.btnHeroSecondary)}>
-              View AI preview
+            <a href="#features" className={cx(styles.btnHero, styles.btnHeroSecondary)}>
+              View directories
             </a>
+          </div>
+          <div className={styles.heroClients}>
+            <span>Trusted by</span>
+            <div className={styles.clientLogos}>
+              <span className={styles.clientLogo}>STUDIO NEO</span>
+              <span className={styles.clientLogo}>CREATIVE LAB</span>
+              <span className={styles.clientLogo}>AGENCY X</span>
+              <span className={styles.clientLogo}>BRAND CO.</span>
+              <span className={styles.clientLogo}>PIXELWORKS</span>
+            </div>
           </div>
           <div className={styles.heroTrust}>
             <div className={styles.trustAvatars} aria-hidden="true">
@@ -685,6 +693,14 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
           <p>Per-seat pricing that scales with your team. Start free, upgrade when ready.</p>
         </div>
 
+        <div className={styles.pricingToggle}>
+          <span className={!annual ? styles.active : ''}>Monthly</span>
+          <div className={cx(styles.toggleTrack, annual && styles.active)} onClick={() => setAnnual(!annual)} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') setAnnual(!annual) }}>
+            <div className={styles.toggleThumb} />
+          </div>
+          <span className={annual ? styles.active : ''}>Annual <span style={{ color: 'var(--landing-blue)', fontSize: 12, fontWeight: 700 }}>Save 20%</span></span>
+        </div>
+
         <div className={styles.pricingGrid}>
           {pricingPlans.map((plan) => {
             const Icon = plan.icon
@@ -735,14 +751,14 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
           like an <span>operating system?</span>
         </h2>
         <p>Create a real TASKIT workspace and use the modules already built into the platform.</p>
-        <div className={styles.ctaBtns}>
-          <Link href={primaryHref} className={cx(styles.btnHero, styles.btnHeroPrimary)}>
-            {heroPrimaryLabel}
-            <ArrowIcon />
-          </Link>
-          <a href="#ai-assistant" className={cx(styles.btnHero, styles.btnHeroSecondary)}>
-            View AI preview
-          </a>
+        <Link href={primaryHref} className={cx(styles.btnHero, styles.btnHeroPrimary)}>
+          {heroPrimaryLabel}
+          <ArrowIcon />
+        </Link>
+        <div className={styles.ctaTrust}>
+          <span>No credit card required</span>
+          <span>14-day free trial</span>
+          <span>Cancel anytime</span>
         </div>
       </section>
 
