@@ -55,7 +55,7 @@ export default async function BillingPage() {
         seatCount: company.seatCount,
         billingInterval: (company.billingInterval ?? null) as string | null,
         currentPeriodEnd: company.currentPeriodEnd?.toISOString() ?? null,
-        hasStripeCustomer: Boolean(company.stripeCustomerId),
+        hasBillingAccount: Boolean(company.stripeCustomerId),
       }}
       events={recentEvents.map((e: { id: string; event: string; payload: unknown; createdAt: Date }) => ({
         id: e.id,

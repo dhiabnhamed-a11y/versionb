@@ -25,7 +25,7 @@ type BillingInfo = {
   seatCount: number
   billingInterval: string | null
   currentPeriodEnd: string | null
-  hasStripeCustomer: boolean
+  hasBillingAccount: boolean
 }
 
 type SubscriptionEvent = {
@@ -187,7 +187,7 @@ export default function BillingDashboardClient({
                 Upgrade Plan
               </Link>
 
-              {billing.hasStripeCustomer && (
+              {billing.hasBillingAccount && (
                 <button
                   onClick={openPortal}
                   disabled={portalLoading}

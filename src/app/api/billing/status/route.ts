@@ -47,6 +47,6 @@ export async function GET() {
     seatCount: company.seatCount,
     billingInterval: company.billingInterval,
     currentPeriodEnd: company.currentPeriodEnd?.toISOString() ?? null,
-    hasStripeCustomer: Boolean(company.stripeCustomerId),
+    hasBillingAccount: Boolean(company.stripeCustomerId),
   })
 }

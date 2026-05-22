@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { requireSessionUser } from '@/modules/shared/session'
-import { getStripe, getStripeCustomer } from '@/lib/stripe'
 import { PLANS } from '@/lib/plans'
 import type { PlanKey } from '@/lib/plans'
+import { getPaymentAdapter } from '@/lib/payments/provider'
+import type { PaymentProviderName } from '@/lib/payments/types'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -18,14 +19,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'No company associated with your account.' }, { status: 400 })
   }
 
-  let body: { planKey?: string; seats?: number }
+  let body: { planKey?: string; seats?: number; provider?: PaymentProviderName }
   try {
     body = await req.json()
   } catch {
     return NextResponse.json({ error: 'Invalid request body.' }, { status: 400 })
   }
 
-  const { planKey, seats } = body
+  const { planKey, seats, provider } = body
 
   if (!planKey || !(planKey in PLANS)) {
     return NextResponse.json({ error: 'Invalid plan.' }, { status: 400 })
@@ -42,46 +43,23 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Maximum ${plan.maxSeats} seat(s) allowed for this plan.` }, { status: 400 })
   }
 
-  const stripePriceId = plan.stripePriceId
-  if (!stripePriceId) {
-    return NextResponse.json({ error: 'This plan is not yet configured. Contact support.' }, { status: 503 })
-  }
-
   try {
-    const stripe = getStripe()
-    const customerId = await getStripeCustomer(companyId)
-
+    const adapter = getPaymentAdapter(provider)
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
-    const isOneTime = 'oneTime' in plan && plan.oneTime === true
 
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      mode: isOneTime ? 'payment' : 'subscription',
-      line_items: [
-        {
-          price: stripePriceId,
-          quantity: seatCount,
-        },
-      ],
-      success_url: `${appUrl}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/billing/upgrade`,
-      metadata: {
-        companyId,
-        planKey,
-        seats: String(seatCount),
-      },
-      ...(isOneTime
-        ? {}
-        : {
-            subscription_data: {
-              metadata: { companyId, planKey, seats: String(seatCount) },
-            },
-          }),
+    const result = await adapter.createCheckoutSession({
+      planKey,
+      seats: seatCount,
+      companyId,
+      companyName: '',
+      customerEmail: user.email || '',
+      customerName: user.name || '',
+      returnUrl: appUrl,
     })
 
-    return NextResponse.json({ url: session.url })
+    return NextResponse.json({ url: result.url })
   } catch (error) {
     console.error('[billing/create-checkout-session]', error)
-    return NextResponse.json({ error: 'Failed to create checkout session.' }, { status: 500 })
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Failed to create checkout session.' }, { status: 500 })
   }
 }

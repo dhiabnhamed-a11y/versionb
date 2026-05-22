@@ -469,7 +469,7 @@ function UpgradePageInner() {
             <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
               <Shield className="w-4 h-4 text-slate-500" />
             </div>
-            Secure checkout via Stripe
+            Secure checkout
           </div>
           <div className="flex items-center gap-2.5 text-slate-500 text-sm">
             <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">

@@ -230,17 +230,17 @@ export default function AdminTasksPage() {
   }
 
   async function uploadPendingFiles(taskId: string) {
-    if (pendingFiles.length === 0) return
+    const files = pendingFiles
+    if (files.length === 0) return
     setUploadingAttachments(true)
-    const formData = new FormData()
-    for (const file of pendingFiles) {
-      formData.append('file', file)
+    for (const file of files) {
+      const fd = new FormData()
+      fd.append('file', file)
       try {
-        await fetch(`/api/tasks/${taskId}/attachments`, { method: 'POST', body: formData })
+        await fetch(`/api/tasks/${taskId}/attachments`, { method: 'POST', body: fd })
       } catch (err) {
         console.error('Failed to upload attachment:', err)
       }
-      formData.delete('file')
     }
     setPendingFiles([])
     setUploadingAttachments(false)
@@ -251,23 +251,27 @@ export default function AdminTasksPage() {
     if (!form.projectId) return
     setSaving(true)
 
-    const payload = supportsTeamAssignment
-      ? assignTarget === 'TEAM'
-        ? { ...form, assigneeId: null, enterpriseAssignedTeamId: form.enterpriseAssignedTeamId || null }
-        : { ...form, enterpriseAssignedTeamId: null }
-      : { ...form, enterpriseAssignedTeamId: undefined }
+    try {
+      const payload = supportsTeamAssignment
+        ? assignTarget === 'TEAM'
+          ? { ...form, assigneeId: null, enterpriseAssignedTeamId: form.enterpriseAssignedTeamId || null }
+          : { ...form, enterpriseAssignedTeamId: null }
+        : { ...form, enterpriseAssignedTeamId: undefined }
 
-    const response = await fetch(editingTask ? `/api/tasks/${editingTask.id}` : '/api/tasks', {
-      method: editingTask ? 'PATCH' : 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
+      const response = await fetch(editingTask ? `/api/tasks/${editingTask.id}` : '/api/tasks', {
+        method: editingTask ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
 
-    if (response.ok) {
-      const taskId = editingTask?.id ?? ((await response.json().catch(() => ({}))) as { id?: string }).id
-      if (taskId && pendingFiles.length > 0) {
-        await uploadPendingFiles(taskId)
+      if (response.ok) {
+        const taskId = editingTask?.id ?? ((await response.json().catch(() => ({}))) as { id?: string }).id
+        if (taskId && pendingFiles.length > 0) {
+          await uploadPendingFiles(taskId)
+        }
       }
+    } catch (err) {
+      console.error('Task save failed:', err)
     }
 
     setSaving(false)
