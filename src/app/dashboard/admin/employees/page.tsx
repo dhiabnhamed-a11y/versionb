@@ -68,6 +68,13 @@ export default function EmployeesPage() {
 
   const canInviteAdmins = (session?.user as { role?: string } | undefined)?.role !== 'EMPLOYEE'
 
+  const [billingInfo, setBillingInfo] = useState<{
+    subscriptionStatus: string
+    seatCount: number
+    planType: string
+    trialDaysRemaining: number | null
+  } | null>(null)
+
   async function fetchEmployees() {
     const response = await fetch('/api/employees', { cache: 'no-store' })
     const data = await readJsonResponse<Employee[] | { error?: string }>(response, [])
@@ -80,15 +87,24 @@ export default function EmployeesPage() {
     return Array.isArray(data) ? data : []
   }
 
+  async function fetchBilling() {
+    const response = await fetch('/api/billing/status', { cache: 'no-store' })
+    if (!response.ok) return null
+    const data = await readJsonResponse<Record<string, unknown>>(response, {})
+    if (!data || typeof data !== 'object') return null
+    return data as { subscriptionStatus: string; seatCount: number; planType: string; trialDaysRemaining: number | null }
+  }
+
   useEffect(() => {
     let active = true
 
     const loadData = async () => {
       try {
-        const [nextEmployees, nextInvites] = await Promise.all([fetchEmployees(), fetchInvites()])
+        const [nextEmployees, nextInvites, nextBilling] = await Promise.all([fetchEmployees(), fetchInvites(), fetchBilling()])
         if (!active) return
         setEmployees(nextEmployees)
         setInvites(nextInvites)
+        if (nextBilling) setBillingInfo(nextBilling)
       } finally {
         if (active) setLoading(false)
       }
@@ -100,6 +116,14 @@ export default function EmployeesPage() {
       active = false
     }
   }, [])
+
+  const pendingInvites = invites.filter((invite) => !invite.usedAt && new Date(invite.expiresAt) > new Date())
+  const seatLimit =
+    billingInfo?.subscriptionStatus === 'TRIAL' ? 5
+    : billingInfo?.subscriptionStatus === 'ACTIVE' ? billingInfo.seatCount
+    : null
+  const seatsUsed = employees.length
+  const seatsRemaining = seatLimit !== null ? seatLimit - seatsUsed - pendingInvites.length : null
 
   useRealtimeSubscription(
     TEAM_REALTIME_EVENTS,
@@ -170,7 +194,6 @@ export default function EmployeesPage() {
     }
   }
 
-  const pendingInvites = invites.filter((invite) => !invite.usedAt && new Date(invite.expiresAt) > new Date())
   const filteredEmployees = employees.filter((employee) => {
     const normalizedSearch = search.trim().toLowerCase()
     const matchesSearch =
@@ -226,7 +249,16 @@ export default function EmployeesPage() {
             setCopyFeedback('')
           }}
           className="btn-primary"
-          style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px' }}
+          disabled={seatsRemaining !== null && seatsRemaining <= 0}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            fontSize: '12px',
+            opacity: seatsRemaining !== null && seatsRemaining <= 0 ? 0.5 : undefined,
+            cursor: seatsRemaining !== null && seatsRemaining <= 0 ? 'not-allowed' : undefined,
+          }}
+          title={seatsRemaining !== null && seatsRemaining <= 0 ? 'Seat limit reached. Upgrade your plan to invite more.' : undefined}
         >
           <Plus size={15} /> Invite Member
         </button>
@@ -238,11 +270,41 @@ export default function EmployeesPage() {
       >
         <div>
           <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '6px' }}>
-            Invite-only onboarding
+            Team seats
           </div>
           <div style={{ fontSize: '14px', lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-            New users can only join with a valid code. TASKIT assigns the company and role automatically on signup.
+            {seatLimit !== null
+              ? `${seatsUsed} used · ${seatsRemaining} remaining`
+              : `${seatsUsed} members`}
+            {billingInfo?.planType === 'LIFETIME' && ` (lifetime)`}
           </div>
+          {seatLimit !== null && (
+            <div style={{ marginTop: '8px' }}>
+              <div
+                style={{
+                  height: '6px',
+                  borderRadius: '3px',
+                  background: 'var(--border)',
+                  overflow: 'hidden',
+                  maxWidth: '200px',
+                }}
+              >
+                <div
+                  style={{
+                    height: '100%',
+                    width: `${Math.min(100, (seatsUsed / seatLimit) * 100)}%`,
+                    borderRadius: '3px',
+                    background: seatsRemaining !== null && seatsRemaining <= 0
+                      ? '#ef4444'
+                      : seatsRemaining !== null && seatsRemaining <= 2
+                      ? '#f59e0b'
+                      : '#10b981',
+                    transition: 'width 0.3s ease',
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </div>
         <div>
           <div style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)', marginBottom: '6px' }}>
@@ -259,6 +321,48 @@ export default function EmployeesPage() {
           </div>
         </div>
       </div>
+
+      {billingInfo && seatsRemaining !== null && seatsRemaining <= 0 && (
+        <div
+          className="card"
+          style={{
+            marginBottom: '16px',
+            background: 'rgba(239,68,68,0.04)',
+            border: '1px solid rgba(239,68,68,0.12)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: '13px',
+            color: '#f87171',
+          }}
+        >
+          <AlertTriangle size={16} />
+          <span>
+            Seat limit reached. <a href="/billing/upgrade" style={{ textDecoration: 'underline', fontWeight: 600, color: '#f87171' }}>Upgrade your plan</a> to add more team members.
+          </span>
+        </div>
+      )}
+
+      {billingInfo?.subscriptionStatus === 'PAST_DUE' && (
+        <div
+          className="card"
+          style={{
+            marginBottom: '16px',
+            background: 'rgba(251,191,36,0.06)',
+            border: '1px solid rgba(251,191,36,0.15)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            fontSize: '13px',
+            color: '#fbbf24',
+          }}
+        >
+          <AlertTriangle size={16} />
+          <span>
+            Your subscription is past due. <a href="/billing/upgrade" style={{ textDecoration: 'underline', fontWeight: 600, color: '#fbbf24' }}>Update billing</a> to continue inviting team members.
+          </span>
+        </div>
+      )}
 
       <div className="card" style={{ marginBottom: '16px' }}>
         <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_180px_180px]">

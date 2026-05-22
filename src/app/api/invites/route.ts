@@ -53,33 +53,68 @@ export async function POST(req: NextRequest) {
     const [companyBilling, activeUserCount] = await Promise.all([
       prisma.company.findUnique({
         where: { id: user.companyId },
-        select: { seatCount: true, subscriptionStatus: true },
+        select: { seatCount: true, subscriptionStatus: true, planType: true },
       }),
       prisma.user.count({
         where: { companyId: user.companyId, accountStatus: 'ACTIVE' },
       }),
     ])
 
-    if (companyBilling) {
-      const status = companyBilling.subscriptionStatus as string
-      if (status === 'ACTIVE' && activeUserCount >= companyBilling.seatCount) {
-        return NextResponse.json(
-          {
-            error: 'You have reached your seat limit. Please upgrade your plan to add more team members.',
-            upgradeUrl: '/billing/upgrade',
-          },
-          { status: 402 }
-        )
-      }
-      if (status === 'TRIAL' && activeUserCount >= TRIAL_SEAT_LIMIT) {
-        return NextResponse.json(
-          {
-            error: `Free trial is limited to ${TRIAL_SEAT_LIMIT} users. Upgrade to add more team members.`,
-            upgradeUrl: '/billing/upgrade',
-          },
-          { status: 402 }
-        )
-      }
+    if (!companyBilling) {
+      return NextResponse.json(
+        {
+          error: 'No billing account found. Please subscribe to add team members.',
+          upgradeUrl: '/billing/upgrade',
+        },
+        { status: 402 }
+      )
+    }
+
+    const status = companyBilling.subscriptionStatus as string
+    if (status === 'ACTIVE' && activeUserCount >= companyBilling.seatCount) {
+      return NextResponse.json(
+        {
+          error: 'You have reached your seat limit. Please upgrade your plan to add more team members.',
+          upgradeUrl: '/billing/upgrade',
+        },
+        { status: 402 }
+      )
+    }
+    if (status === 'TRIAL' && activeUserCount >= TRIAL_SEAT_LIMIT) {
+      return NextResponse.json(
+        {
+          error: `Free trial is limited to ${TRIAL_SEAT_LIMIT} users. Upgrade to add more team members.`,
+          upgradeUrl: '/billing/upgrade',
+        },
+        { status: 402 }
+      )
+    }
+    if (status === 'PAST_DUE') {
+      return NextResponse.json(
+        {
+          error: 'Your subscription is past due. Please update your billing to add team members.',
+          upgradeUrl: '/billing/upgrade',
+        },
+        { status: 402 }
+      )
+    }
+    if (status === 'CANCELED') {
+      return NextResponse.json(
+        {
+          error: 'Your subscription has been canceled. Please subscribe to add team members.',
+          upgradeUrl: '/billing/upgrade',
+        },
+        { status: 402 }
+      )
+    }
+    if (status === 'PAUSED') {
+      return NextResponse.json(
+        {
+          error: 'Your subscription is paused. Please resume your subscription to add team members.',
+          upgradeUrl: '/billing/upgrade',
+        },
+        { status: 402 }
+      )
     }
 
     const invite = await createCompanyInvite({
