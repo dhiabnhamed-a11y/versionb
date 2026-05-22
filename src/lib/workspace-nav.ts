@@ -6,6 +6,7 @@ import {
   CalendarDays,
   CheckSquare,
   ClipboardCheck,
+  CreditCard,
   FolderKanban,
   HeartPulse,
   Landmark,
@@ -55,6 +56,7 @@ export function getWorkspaceNav(ctx: WorkspaceNavContext): WorkspaceNavItem[] {
   const calendar: WorkspaceNavItem = { href: '/dashboard/admin/calendar', labelKey: 'nav.calendar', icon: CalendarDays }
   const team: WorkspaceNavItem = { href: '/dashboard/admin/employees', labelKey: 'nav.team', icon: Users }
   const alerts: WorkspaceNavItem = { href: '/dashboard/admin/alerts', labelKey: 'nav.sendAlert', icon: Bell }
+  const billing: WorkspaceNavItem = { href: '/billing', label: 'Subscription', icon: CreditCard }
   const projects: WorkspaceNavItem = { href: '/dashboard/admin/projects', labelKey: 'nav.projects', icon: FolderKanban }
   const tasks: WorkspaceNavItem = { href: '/dashboard/admin/tasks', labelKey: 'nav.tasks', icon: CheckSquare }
   const campaigns: WorkspaceNavItem = { href: '/dashboard/admin/projects', labelKey: 'nav.campaigns', icon: FolderKanban }
@@ -93,6 +95,7 @@ export function getWorkspaceNav(ctx: WorkspaceNavContext): WorkspaceNavItem[] {
         team,
         calendar,
         alerts,
+        billing,
       ]
 
     case 'CORPORATE_IT_OPERATIONS':
@@ -108,6 +111,7 @@ export function getWorkspaceNav(ctx: WorkspaceNavContext): WorkspaceNavItem[] {
         team,
         calendar,
         alerts,
+        billing,
       ]
 
     case 'ENTERPRISE_OPERATIONS':
@@ -126,6 +130,7 @@ export function getWorkspaceNav(ctx: WorkspaceNavContext): WorkspaceNavItem[] {
         team,
         calendar,
         alerts,
+        billing,
       ]
 
     case 'INDUSTRY':
@@ -141,16 +146,17 @@ export function getWorkspaceNav(ctx: WorkspaceNavContext): WorkspaceNavItem[] {
         team,
         calendar,
         alerts,
+        billing,
       ]
 
     case 'DIGITAL_AGENCY':
-      return [overview, clients, campaigns, briefs, invoices, finance, team, calendar, alerts]
+      return [overview, clients, campaigns, briefs, invoices, finance, team, calendar, alerts, billing]
 
     case 'CONTENT_CREATION_AGENCY':
-      return [overview, socialAnalytics, clients, campaigns, briefs, invoices, team, calendar, alerts]
+      return [overview, socialAnalytics, clients, campaigns, briefs, invoices, team, calendar, alerts, billing]
 
     case 'OTHER':
     default:
-      return [overview, clients, projects, tasks, invoices, finance, team, calendar, alerts]
+      return [overview, clients, projects, tasks, invoices, finance, team, calendar, alerts, billing]
   }
 }

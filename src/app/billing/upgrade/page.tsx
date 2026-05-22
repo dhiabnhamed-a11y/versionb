@@ -2,6 +2,7 @@
 
 import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useSession, signIn } from 'next-auth/react'
 import {
   Check,
   X,
@@ -96,14 +97,20 @@ function SeatSelector({
 function UpgradePageInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { status } = useSession()
   const reason = searchParams.get('reason')
-
   const [interval, setBillingInterval] = useState<BillingInterval>('monthly')
   const [starterSeats, setStarterSeats] = useState(5)
   const [teamSeats, setTeamSeats] = useState(50)
   const [lifetimeSeats, setLifetimeSeats] = useState(5)
   const [loading, setLoading] = useState<PlanKey | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  if (status === 'loading') return null
+  if (status === 'unauthenticated') {
+    signIn(undefined, { callbackUrl: '/billing/upgrade' })
+    return null
+  }
 
   const starterKey: PlanKey = interval === 'yearly' ? 'STARTER_YEARLY' : 'STARTER_MONTHLY'
 

@@ -13,12 +13,15 @@ import {
   Check,
   CheckCircle2,
   ChevronRight,
+  CreditCard,
   Globe2,
+  Infinity,
   Loader2,
   Lock,
   Mail,
   Plus,
   ShieldCheck,
+  Users,
   Zap,
   Trash2,
   User,
@@ -136,6 +139,7 @@ export default function SignupOnboardingClient({
 
   const inviteCode = initialInviteCode.trim()
   const inviteMode = Boolean(inviteCode)
+  const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
   const template = getTemplate(templateId)
   const hasRequiredLegalConsent = legalConsent.termsAccepted && legalConsent.privacyAccepted
   const passwordPolicy = evaluatePasswordPolicy(form.password, {
@@ -387,8 +391,17 @@ export default function SignupOnboardingClient({
             onAddInvite={addInvite}
             onRemoveInvite={(id) => setInvites((current) => current.filter((invite) => invite.id !== id))}
             onBack={() => goTo('setup')}
-            onSkip={() => submitRegistration('success')}
-            onFinish={() => submitRegistration('success')}
+            onSkip={() => submitRegistration('plan')}
+            onFinish={() => submitRegistration('plan')}
+          />
+        )
+        break
+      case 'plan':
+        content = (
+          <PlanStep
+            selectedPlan={selectedPlan}
+            onSelect={setSelectedPlan}
+            onNext={() => goTo('success')}
           />
         )
         break
@@ -399,7 +412,8 @@ export default function SignupOnboardingClient({
             invites={invites}
             templateId={templateId}
             inviteMode={inviteMode}
-            onEnter={() => router.push(`/login?registered=${inviteMode ? '1' : 'pending'}`)}
+            selectedPlan={selectedPlan}
+            onEnter={() => router.push(`/login?registered=${inviteMode ? '1' : 'pending'}${selectedPlan ? `&plan=${selectedPlan}` : ''}`)}
           />
         )
         break
@@ -877,20 +891,153 @@ function TeamStep({
   )
 }
 
+function PlanStep({
+  selectedPlan,
+  onSelect,
+  onNext,
+}: {
+  selectedPlan: string | null
+  onSelect: (plan: string | null) => void
+  onNext: () => void
+}) {
+  const PLAN_DETAILS: Record<string, { name: string; price: string; period: string; icon: React.ReactNode; accent: string; features: string[] }> = {
+    STARTER_MONTHLY: {
+      name: 'Starter',
+      price: '$3',
+      period: '/seat/mo',
+      icon: <Zap size={22} />,
+      accent: '#3b82f6',
+      features: ['All core modules', 'Up to 49 seats', 'AI assistant', 'Client portal'],
+    },
+    TEAM_MONTHLY: {
+      name: 'Team',
+      price: '$2.50',
+      period: '/seat/mo',
+      icon: <Users size={22} />,
+      accent: '#7c3aed',
+      features: ['Everything in Starter', '50+ seats', 'Volume discount', 'SLA support'],
+    },
+    LIFETIME: {
+      name: 'Lifetime',
+      price: '$99',
+      period: '/seat',
+      icon: <Infinity size={22} />,
+      accent: '#f59e0b',
+      features: ['Pay once, use forever', 'All future updates', 'Lifetime support', 'No recurring fees'],
+    },
+  }
+
+  return (
+    <main className={styles.setupStage} id="main-content">
+      <section className={styles.setupPanel} style={{ maxWidth: '680px' }}>
+        <p className={styles.stepKicker}>
+          <CreditCard size={14} />
+          Choose your plan
+        </p>
+        <h1>Pick the right plan for your team.</h1>
+        <p className={styles.setupLead}>
+          Start with a free trial — no credit card required. Or pick a plan now to skip the trial.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+          {Object.entries(PLAN_DETAILS).map(([key, plan]) => {
+            const isSelected = selectedPlan === key
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onSelect(isSelected ? null : key)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px',
+                  padding: '14px 18px',
+                  borderRadius: '12px',
+                  border: isSelected ? `2px solid ${plan.accent}` : '2px solid var(--border, #e2e8f0)',
+                  background: isSelected ? `${plan.accent}08` : 'var(--card-bg, #fff)',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'all 0.15s',
+                }}
+              >
+                <div style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '12px',
+                  background: `${plan.accent}14`,
+                  color: plan.accent,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}>
+                  {plan.icon}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <strong style={{ fontSize: '15px', color: '#0f172a' }}>{plan.name}</strong>
+                  <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>
+                    {plan.price}{plan.period}
+                  </div>
+                </div>
+                <div style={{ fontSize: '12px', color: '#64748b', textAlign: 'right', maxWidth: '180px' }}>
+                  {plan.features.slice(0, 2).join(' · ')}
+                </div>
+                <div style={{
+                  width: '22px',
+                  height: '22px',
+                  borderRadius: '50%',
+                  border: isSelected ? `6px solid ${plan.accent}` : '2px solid #cbd5e1',
+                  transition: 'all 0.15s',
+                  flexShrink: 0,
+                }} />
+              </button>
+            )
+          })}
+        </div>
+
+        <p style={{ fontSize: '12px', color: '#64748b', marginTop: '12px', textAlign: 'center' }}>
+          Free trial: 7 days, up to 5 team members, no payment needed.
+        </p>
+
+        <div className={styles.splitActions} style={{ marginTop: '4px' }}>
+          <button type="button" className={styles.secondaryCta} onClick={onNext}>
+            Start free trial instead
+          </button>
+          <button
+            type="button"
+            className={styles.primaryCta}
+            onClick={onNext}
+            disabled={!selectedPlan}
+            style={{ opacity: selectedPlan ? 1 : 0.5 }}
+          >
+            {selectedPlan ? `Continue with ${PLAN_DETAILS[selectedPlan].name}` : 'Select a plan'}
+            <ChevronRight size={18} />
+          </button>
+        </div>
+      </section>
+    </main>
+  )
+}
+
 function SuccessStep({
   companyName,
   templateId,
   invites,
   inviteMode,
+  selectedPlan,
   onEnter,
 }: {
   companyName: string
   templateId: OnboardingTemplateId
   invites: InviteRow[]
   inviteMode: boolean
+  selectedPlan: string | null
   onEnter: () => void
 }) {
   const template = getTemplate(templateId)
+  const planLabel = selectedPlan
+    ? ({ STARTER_MONTHLY: 'Starter plan', TEAM_MONTHLY: 'Team plan', LIFETIME: 'Lifetime plan' } as Record<string, string>)[selectedPlan] ?? ''
+    : 'Free trial'
   const generated = [
     `${template.departments.length} departments`,
     `${template.workflows.length} workflows`,
@@ -900,6 +1047,7 @@ function SuccessStep({
     `${template.finance.length} finance modules`,
     'Realtime collaboration',
     invites.length ? `${invites.length} queued invites` : 'Team invites ready later',
+    planLabel,
   ]
 
   return (
@@ -914,8 +1062,10 @@ function SuccessStep({
         </p>
         <h1>{inviteMode ? 'Your account is ready.' : `${companyName || 'Your company'} OS is ready for approval.`}</h1>
         <p>
-          TASKIT generated the structure, defaults, copilots, dashboards, workflows, assets, finance layer, and realtime
-          collaboration system for a {template.title.toLowerCase()} team.
+          {selectedPlan
+            ? `You selected the ${planLabel}. After signing in, head to Billing in the sidebar to complete payment and activate your subscription.`
+            : `TASKIT generated the structure, defaults, copilots, dashboards, workflows, assets, finance layer, and realtime
+          collaboration system for a ${template.title.toLowerCase()} team. Your 7-day free trial has started.`}
         </p>
 
         <div className={styles.generatedGrid}>

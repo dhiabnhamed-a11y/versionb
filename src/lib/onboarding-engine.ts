@@ -12,7 +12,7 @@ export type OnboardingTemplateId =
   | 'EDUCATION'
   | 'OTHER'
 
-export type OnboardingStepId = 'welcome' | 'company-type' | 'generating' | 'setup' | 'team' | 'success'
+export type OnboardingStepId = 'welcome' | 'company-type' | 'generating' | 'setup' | 'plan' | 'team' | 'success'
 
 export type WorkspacePreviewModule = {
   label: string
@@ -52,6 +52,7 @@ export const ONBOARDING_STEPS: { id: OnboardingStepId; label: string }[] = [
   { id: 'generating', label: 'Generate' },
   { id: 'setup', label: 'Setup' },
   { id: 'team', label: 'Team' },
+  { id: 'plan', label: 'Plan' },
   { id: 'success', label: 'Ready' },
 ]
 

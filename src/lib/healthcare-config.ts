@@ -121,6 +121,14 @@ export const HEALTHCARE_NAVIGATION = {
       section: 'governance',
       description: 'Critical alerts and emergency operations',
     },
+    {
+      id: 'billing',
+      label: 'Subscription',
+      href: '/billing',
+      icon: 'CreditCard',
+      section: 'governance',
+      description: 'Manage your plan and billing',
+    },
   ],
 
   // Section labels for sidebar grouping

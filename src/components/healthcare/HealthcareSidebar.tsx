@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Siren,
   BarChart3,
+  CreditCard,
   Search,
   LogOut,
   Menu,
@@ -56,6 +57,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   ShieldCheck,
   Siren,
   BarChart3,
+  CreditCard,
 }
 
 type NavSection = {

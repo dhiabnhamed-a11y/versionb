@@ -27,6 +27,7 @@ import type { UserDashboardDesignSettings, WorkspaceThemeSettings } from '@/lib/
 import logo from '@/app/logo.png'
 import {
   Bell,
+  CreditCard,
   ListTodo,
   Radio,
   BarChart3,
@@ -112,6 +113,7 @@ function DashboardLayoutChrome({
         },
         { href: '/dashboard/employee/alerts', label: t('nav.alerts'), icon: Bell },
         { href: '/dashboard/employee/progress', label: t('nav.progress'), icon: BarChart3 },
+        { href: '/billing', label: 'Subscription', icon: CreditCard },
       ]
     : getWorkspaceNav({ companyType, industryProjectsLabel }).map((item) => ({
         href: item.href,
