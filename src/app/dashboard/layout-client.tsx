@@ -272,7 +272,7 @@ function DashboardLayoutChrome({
 
       <div className="main-content flex min-h-screen min-h-dvh flex-1 flex-col">
         <header className="dashboard-shell-header dash-header sticky top-0 z-30 flex items-center justify-between px-5 md:px-8">
-          <div className="flex min-w-0 items-center gap-3">
+          <div className="dashboard-shell-title flex min-w-0 items-center gap-3">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
@@ -303,7 +303,7 @@ function DashboardLayoutChrome({
             <kbd className="command-kbd">Cmd K</kbd>
           </button>
 
-          <div className="flex items-center gap-2.5 sm:gap-3">
+          <div className="dashboard-shell-actions flex items-center gap-2.5 sm:gap-3">
             {!isSuperAdmin && !isEmployee && (
               <Link href="/dashboard/admin/tasks" className="hidden h-10 items-center gap-2 rounded-2xl bg-[var(--accent)] px-4 text-[13px] font-semibold text-white shadow-sm transition hover:bg-[var(--accent-hover)] active:scale-[.98] sm:inline-flex">
                 <Plus size={15} />
@@ -340,7 +340,7 @@ function DashboardLayoutChrome({
             </div>
             <div
               suppressHydrationWarning
-              className="rounded-full border px-2.5 py-1 text-[11px] font-medium tabular-nums"
+              className="dashboard-shell-date rounded-full border px-2.5 py-1 text-[11px] font-medium tabular-nums"
               style={{ borderColor: 'var(--border)', background: 'var(--bg-card)', color: 'var(--text-muted)' }}
             >
               {new Date().toLocaleDateString(locale === 'fr' ? 'fr-FR' : locale === 'ar' ? 'ar' : 'en-US', { weekday: 'short', month: 'short', day: 'numeric' })}

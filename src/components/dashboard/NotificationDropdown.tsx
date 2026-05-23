@@ -134,7 +134,7 @@ export default function NotificationDropdown({ alertsHref = '/dashboard/employee
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 z-50 w-[min(92vw,380px)] overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-white shadow-[var(--shadow-float)]">
+        <div className="notification-panel absolute right-0 top-11 z-50 w-[min(92vw,380px)] overflow-hidden rounded-[var(--radius-md)] border border-[var(--border)] bg-white shadow-[var(--shadow-float)]">
           <div className="flex items-center justify-between gap-3 border-b border-[var(--border)] bg-[var(--bg-elevated)] px-4 py-3">
             <div>
               <div className="text-sm font-black text-[var(--text-primary)]">Notifications</div>

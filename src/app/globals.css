@@ -3682,6 +3682,329 @@ html[dir="rtl"] .taskit-agent-drawer {
   .modal-actions { flex-direction: column-reverse; }
   .modal-actions > * { width: 100%; }
 }
+
+@media (max-width: 640px) {
+  :root {
+    --space-card: clamp(0.875rem, 4vw, 1rem);
+    --space-section: clamp(1rem, 4.5vw, 1.25rem);
+    --dashboard-content-gutter: clamp(0.75rem, 4vw, 1rem);
+  }
+
+  html {
+    scroll-padding-top: 72px;
+  }
+
+  .dashboard-app-shell {
+    background:
+      radial-gradient(circle at 10% -8%, rgba(141, 215, 255, 0.12), transparent 18rem),
+      var(--bg-primary);
+  }
+
+  .dash-header {
+    min-height: auto;
+    padding-block: 0.55rem;
+    padding-inline: max(0.75rem, env(safe-area-inset-left)) max(0.75rem, env(safe-area-inset-right)) !important;
+  }
+
+  .dashboard-shell-header {
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .dashboard-shell-title {
+    min-width: 0;
+    gap: 0.6rem !important;
+  }
+
+  .dashboard-shell-title > div:last-child {
+    min-width: 0;
+  }
+
+  .dashboard-shell-title .mobile-menu-btn {
+    min-width: 42px;
+    min-height: 42px;
+    border-radius: 12px !important;
+  }
+
+  .dashboard-shell-title .text-\[10px\] {
+    max-width: 48vw;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .dashboard-shell-title .text-sm {
+    max-width: 52vw;
+  }
+
+  .dashboard-shell-actions {
+    min-width: 0;
+    justify-content: flex-end;
+    gap: 0.4rem !important;
+  }
+
+  .dashboard-shell-actions > a,
+  .dashboard-shell-actions > button,
+  .dashboard-shell-actions > div {
+    flex: 0 0 auto;
+  }
+
+  .dashboard-shell-actions a[aria-label],
+  .dashboard-shell-actions button[aria-label] {
+    min-width: 40px;
+  }
+
+  .dashboard-shell-date {
+    display: none;
+  }
+
+  .dash-header .language-switcher[data-compact="true"] {
+    position: relative;
+    width: 42px;
+    height: 40px;
+    min-height: 40px;
+    overflow: hidden;
+    border-radius: 14px;
+    padding: 0;
+  }
+
+  .dash-header .language-switcher[data-compact="true"] .language-switcher-label {
+    position: absolute;
+    inset: 0;
+    justify-content: center;
+    pointer-events: none;
+  }
+
+  .dash-header .language-switcher[data-compact="true"] select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+  }
+
+  .dashboard-shell-body {
+    width: 100%;
+    max-width: none;
+    padding: clamp(0.875rem, 4vw, 1.1rem) clamp(0.75rem, 4vw, 1rem) calc(5.5rem + env(safe-area-inset-bottom)) !important;
+  }
+
+  .dashboard-page-enter {
+    max-width: 100%;
+  }
+
+  .page-heading,
+  .taskit-display {
+    font-size: clamp(1.35rem, 8vw, 1.75rem);
+    line-height: 1.15;
+  }
+
+  .page-sub,
+  .taskit-body,
+  .page-header-desc {
+    font-size: 0.88rem;
+    line-height: 1.55;
+  }
+
+  .dashboard-header-row,
+  .dashboard-hero,
+  .taskit-overview-header,
+  .taskit-card,
+  .card {
+    border-radius: var(--radius-md);
+  }
+
+  .dashboard-header-row {
+    gap: 0.85rem;
+    margin-bottom: 1rem;
+  }
+
+  .dashboard-hero,
+  .taskit-overview-header,
+  .taskit-card {
+    gap: 1rem;
+    padding: var(--space-card);
+  }
+
+  .dashboard-hero-kicker,
+  .taskit-label,
+  .page-header-eyebrow {
+    max-width: 100%;
+    letter-spacing: 0.06em;
+    white-space: normal;
+  }
+
+  .dashboard-stat-grid,
+  .dashboard-two-col,
+  .dashboard-section-grid,
+  .dashboard-card-stack,
+  .taskit-tier-one-grid,
+  .taskit-detail-grid,
+  .taskit-insight-grid,
+  .taskit-pipeline-grid {
+    gap: 0.85rem;
+  }
+
+  .stat-card {
+    min-height: auto;
+    padding: 1rem;
+  }
+
+  .compact-stat-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .compact-stat {
+    padding: 0.85rem;
+  }
+
+  .compact-stat-value,
+  .taskit-cluster-total,
+  .taskit-health-number {
+    font-size: clamp(1.25rem, 8vw, 1.75rem);
+  }
+
+  .panel-header,
+  .taskit-card-header,
+  .taskit-row-between,
+  .metric-row-header,
+  .activity-row,
+  .team-row-header,
+  .taskit-alert-row,
+  .taskit-action-row,
+  .taskit-metric-row,
+  .taskit-activity-row,
+  .taskit-stage-row,
+  .taskit-agent-row,
+  .taskit-health-row,
+  .taskit-graph-row {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.75rem;
+  }
+
+  .metric-value,
+  .taskit-tone-badge,
+  .stage-badge,
+  .badge {
+    align-self: flex-start;
+    white-space: normal;
+  }
+
+  .taskit-alert-row,
+  .taskit-action-row,
+  .taskit-metric-row,
+  .taskit-activity-row,
+  .taskit-stage-row,
+  .taskit-agent-row,
+  .taskit-health-row,
+  .taskit-graph-row {
+    padding: 0.85rem;
+  }
+
+  .taskit-health-score {
+    min-height: auto;
+    padding: 1rem;
+  }
+
+  .taskit-tooltip {
+    left: 0;
+    right: auto;
+    width: min(100%, calc(100vw - 2rem));
+  }
+
+  .taskit-agent-drawer {
+    inset: auto 0 0 0;
+    width: 100%;
+    height: auto;
+    max-height: min(86dvh, 720px);
+    overflow: hidden;
+    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+    border-left: 0;
+    border-right: 0;
+  }
+
+  html[dir="rtl"] .taskit-agent-drawer {
+    inset: auto 0 0 0;
+    border-left: 0;
+    border-right: 0;
+  }
+
+  .taskit-drawer-header,
+  .taskit-drawer-body {
+    padding: 1rem;
+  }
+
+  .command-palette-backdrop {
+    align-items: flex-start;
+    padding: calc(0.75rem + env(safe-area-inset-top)) 0.75rem 0.75rem;
+  }
+
+  .command-palette {
+    max-height: calc(100dvh - 1.5rem - env(safe-area-inset-top));
+    border-radius: var(--radius-md);
+  }
+
+  .notification-panel {
+    position: fixed !important;
+    top: calc(58px + env(safe-area-inset-top)) !important;
+    right: max(0.75rem, env(safe-area-inset-right)) !important;
+    left: max(0.75rem, env(safe-area-inset-left)) !important;
+    width: auto !important;
+    max-height: calc(100dvh - 74px - env(safe-area-inset-top));
+  }
+
+  .notification-panel > div:nth-child(2) {
+    max-height: min(56dvh, 420px);
+  }
+
+  .ai-assistant-launcher {
+    right: max(0.75rem, env(safe-area-inset-right));
+    bottom: calc(0.75rem + env(safe-area-inset-bottom));
+    min-height: 46px;
+    border-radius: 999px;
+    padding: 0.7rem 0.85rem;
+  }
+
+  .ai-assistant-panel {
+    inset: calc(0.75rem + env(safe-area-inset-top)) max(0.75rem, env(safe-area-inset-right)) calc(0.75rem + env(safe-area-inset-bottom)) max(0.75rem, env(safe-area-inset-left));
+    width: auto;
+    height: auto;
+    border-radius: var(--radius-lg);
+  }
+
+  .ai-assistant-suggestions,
+  .ai-assistant-workflow-actions,
+  .ai-assistant-state-actions,
+  .ai-assistant-action-preview-actions {
+    gap: 0.5rem;
+  }
+}
+
+@media (max-width: 380px) {
+  .dashboard-shell-title .text-\[10px\],
+  .dashboard-shell-title .text-sm {
+    max-width: 42vw;
+  }
+
+  .dashboard-shell-actions {
+    gap: 0.3rem !important;
+  }
+
+  .compact-stat-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-shell-actions a[aria-label],
+  .dashboard-shell-actions button[aria-label],
+  .dash-header .language-switcher[data-compact="true"] {
+    width: 38px;
+    min-width: 38px;
+  }
+}
  
 /* ============================================================
    SEMANTIC ALERT BANNERS
