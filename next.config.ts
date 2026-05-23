@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
+  output: 'standalone',
   poweredByHeader: false,
   compress: true,
   serverExternalPackages: ['@react-pdf/renderer', 'bufferutil', 'utf-8-validate'],
@@ -26,10 +27,6 @@ const nextConfig: NextConfig = {
       {
         source: '/api/health',
         headers: [{ key: 'Cache-Control', value: 'no-store' }],
-      },
-      {
-        source: '/_next/static/(.*)',
-        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
       },
     ]
   },

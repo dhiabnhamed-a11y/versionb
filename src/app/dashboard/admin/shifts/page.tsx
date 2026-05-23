@@ -8,41 +8,35 @@ import ShiftsManager from '@/components/healthcare/ShiftsManager'
 
 export const dynamic = 'force-dynamic'
 
-// Shift management — read from DB via healthcareService; fall back to demo if empty
-const DEMO_SHIFTS = [
-  { id: '1', name: 'Morning Shift A', department: 'Emergency', time: '06:00 – 14:00', type: 'day', staffCount: 12, coverage: 100 },
-  { id: '2', name: 'Morning Shift B', department: 'ICU', time: '06:00 – 14:00', type: 'day', staffCount: 8, coverage: 100 },
-  { id: '3', name: 'Afternoon Shift A', department: 'Emergency', time: '14:00 – 22:00', type: 'day', staffCount: 10, coverage: 83 },
-  { id: '4', name: 'Afternoon Shift B', department: 'Radiology', time: '14:00 – 22:00', type: 'day', staffCount: 4, coverage: 100 },
-  { id: '5', name: 'Night Shift A', department: 'Emergency', time: '22:00 – 06:00', type: 'night', staffCount: 8, coverage: 100 },
-  { id: '6', name: 'Night Shift B', department: 'ICU', time: '22:00 – 06:00', type: 'night', staffCount: 6, coverage: 75 },
-  { id: '7', name: 'On-Call Surgery', department: 'Surgery', time: '22:00 – 06:00', type: 'oncall', staffCount: 3, coverage: 100 },
-  { id: '8', name: 'On-Call Cardiology', department: 'Cardiology', time: '22:00 – 06:00', type: 'oncall', staffCount: 2, coverage: 100 },
-]
-
-const DEMO_ON_CALL = [
-  { name: 'Dr. Ahmed Hassan', role: 'Surgeon', dept: 'Surgery', phone: '+974 5xxx xxxx', since: '22:00' },
-  { name: 'Dr. Fatima Al-Thani', role: 'Cardiologist', dept: 'Cardiology', phone: '+974 5xxx xxxx', since: '22:00' },
-  { name: 'Dr. Omar Nasser', role: 'Anesthesiologist', dept: 'Surgery', phone: '+974 5xxx xxxx', since: '22:00' },
-]
-
 export default async function ShiftsPage() {
   const session = await auth()
   if (!session?.user) redirect('/login')
   const user = session.user as SessionUser
   if (!isHealthcareCompanyType(user.companyType)) redirect('/dashboard/admin')
 
-  // attempt to load persisted shifts from DB; if none, use demo data so UI stays useful
   const shiftsFromDb = await healthcareService.getStaffShiftSummaries(user.companyId || '')
 
-  // Normalize to the frontend shape. The HealthcareService will return lightweight summaries
-  const SHIFTS = (shiftsFromDb && shiftsFromDb.length > 0)
-    ? shiftsFromDb.map((s) => ({ id: s.id, name: s.staffName || s.id, department: s.department || s.role || 'General', time: `${new Date(s.shiftStart).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})} – ${new Date(s.shiftEnd).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'})}`, type: s.status === 'on-call' ? 'oncall' : (new Date(s.shiftStart).getHours() >= 18 ? 'night' : 'day'), staffCount: 1, coverage: 100 }))
-    : DEMO_SHIFTS
+  const SHIFTS = shiftsFromDb.map((s) => ({
+    id: s.id,
+    name: s.staffName || s.id,
+    department: s.department || s.role || 'General',
+    time: `${new Date(s.shiftStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${new Date(s.shiftEnd).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`,
+    startsAt: s.shiftStart.toISOString(),
+    endsAt: s.shiftEnd.toISOString(),
+    type: s.status === 'on-call' ? 'oncall' : new Date(s.shiftStart).getHours() >= 18 ? 'night' : 'day',
+    staffCount: 1,
+    coverage: 100,
+  }))
 
-  const ON_CALL_STAFF = (shiftsFromDb && shiftsFromDb.length > 0)
-    ? shiftsFromDb.filter((s) => s.status === 'on-call').map((s) => ({ name: s.staffName || s.id, role: s.role || s.department || 'On-Call', dept: s.department || '', phone: '', since: new Date(s.shiftStart).toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'}) }))
-    : DEMO_ON_CALL
+  const ON_CALL_STAFF = shiftsFromDb
+    .filter((s) => s.status === 'on-call')
+    .map((s) => ({
+      name: s.staffName || s.id,
+      role: s.role || s.department || 'On-Call',
+      dept: s.department || '',
+      phone: '',
+      since: new Date(s.shiftStart).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    }))
 
   const totalStaff = SHIFTS.reduce((s, sh) => s + (sh.staffCount || 0), 0)
   const gaps = SHIFTS.filter((s) => (s.coverage ?? 100) < 100)
@@ -68,7 +62,6 @@ export default async function ShiftsPage() {
       </div>
 
       <div style={{ display: 'grid', gap: 20, gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))' }}>
-        {/* Shift Schedule */}
         <div className="hc-card">
           <div className="hc-card-header">
             <div><div className="hc-card-title">Current Shifts</div><div className="hc-card-sub">Today&apos;s shift schedule</div></div>
@@ -79,26 +72,29 @@ export default async function ShiftsPage() {
           </div>
         </div>
 
-        {/* On-Call Staff */}
         <div className="hc-card">
           <div className="hc-card-header">
             <div><div className="hc-card-title">On-Call Staff</div><div className="hc-card-sub">Available for emergency response</div></div>
             <Phone size={20} style={{ color: 'var(--text-muted)' }} />
           </div>
           <div className="hc-list">
+            {ON_CALL_STAFF.length === 0 && (
+              <div className="hc-card-body" style={{ padding: '18px 0', color: 'var(--text-muted)', fontSize: 13 }}>
+                No on-call staff scheduled.
+              </div>
+            )}
             {ON_CALL_STAFF.map((staff, idx) => (
               <div key={idx} className="hc-list-item">
                 <div className="hc-list-icon hc-list-icon-amber"><Users size={16} /></div>
                 <div className="hc-list-content">
                   <div className="hc-list-title">{staff.name}</div>
-                  <div className="hc-list-sub">{staff.role} · {staff.dept} · Since {staff.since}</div>
+                  <div className="hc-list-sub">{staff.role} - {staff.dept} - Since {staff.since}</div>
                 </div>
                 <span className="hc-badge hc-badge-operational">On Call</span>
               </div>
             ))}
           </div>
 
-          {/* Coverage gaps alert */}
           {gaps.length > 0 && (
             <div className="hc-card-body" style={{ borderTop: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '8px 0' }}>

@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { decryptCameraSecret } from '@/lib/camera-crypto'
 import { getCameraForUser } from '@/lib/camera-access'
-import { buildRtspUrl, captureCameraSnapshot } from '@/lib/camera-stream-manager'
+import { buildRtspUrl } from '@/lib/camera-rtsp-url'
+import { captureCameraSnapshot } from '@/lib/camera-stream-manager'
 import { prisma } from '@/lib/db'
 
 export const runtime = 'nodejs'

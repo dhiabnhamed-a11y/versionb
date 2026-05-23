@@ -612,8 +612,6 @@ function SetupStep({
   onBack: () => void
   onContinue: () => void
 }) {
-  const template = getTemplate(templateId)
-
   return (
     <main className={styles.setupStage} id="main-content">
       <section className={styles.setupPanel}>

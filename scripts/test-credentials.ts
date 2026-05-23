@@ -6,6 +6,13 @@ import { createClient } from '@supabase/supabase-js'
 import { prisma } from '../src/lib/db'
 import { createHash } from 'crypto'
 
+type LoginAttemptDiagnosticRow = {
+  id: string
+  success: boolean
+  reason: string | null
+  createdAt: Date
+}
+
 function usage() {
   console.log('Usage: tsx scripts/test-credentials.ts --email user@example.com --password "secret"')
 }
@@ -59,10 +66,13 @@ async function main() {
   // check recent failed attempts
   const emailHash = createHash('sha256').update(email).digest('hex')
   try {
-    const attempts = await prisma.$queryRawUnsafe(`SELECT "id","success","reason","createdAt" FROM "auth_login_attempts" WHERE "emailHash" = $1 ORDER BY "createdAt" DESC LIMIT 20`, emailHash)
+    const attempts = await prisma.$queryRawUnsafe<LoginAttemptDiagnosticRow[]>(
+      `SELECT "id","success","reason","createdAt" FROM "auth_login_attempts" WHERE "emailHash" = $1 ORDER BY "createdAt" DESC LIMIT 20`,
+      emailHash
+    )
     console.log('Recent login attempts:')
-    console.table(attempts as any)
-  } catch (err) {
+    console.table(attempts)
+  } catch {
     console.log('Could not read auth_login_attempts table (may not exist).')
   }
 

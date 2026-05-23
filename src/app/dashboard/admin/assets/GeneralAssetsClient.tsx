@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   ClipboardCheck,
   HardHat,
-  Loader2,
   Search,
   ShieldCheck,
   Truck,
@@ -42,7 +41,6 @@ type AssetRecord = {
 export default function GeneralAssetsClient({
   initialAssets,
   categories,
-  departments,
 }: {
   initialAssets: AssetRecord[]
   categories: AssetCategory[]

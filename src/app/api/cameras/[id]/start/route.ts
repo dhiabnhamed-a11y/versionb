@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { decryptCameraSecret } from '@/lib/camera-crypto'
 import { canManageProjectCamera, getCameraForUser, toCameraDto } from '@/lib/camera-access'
-import { buildRtspUrl, startCameraStream } from '@/lib/camera-stream-manager'
+import { buildRtspUrl } from '@/lib/camera-rtsp-url'
+import { startCameraStream } from '@/lib/camera-stream-manager'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

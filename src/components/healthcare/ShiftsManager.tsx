@@ -7,13 +7,33 @@ type Shift = {
   name: string
   department?: string
   time?: string
+  startsAt?: string | Date
+  endsAt?: string | Date
   type?: string
   staffCount?: number
   coverage?: number
 }
 
+function formatTimeRange(start?: string | Date, end?: string | Date) {
+  if (!start || !end) return ''
+  const startsAt = new Date(start)
+  const endsAt = new Date(end)
+  if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) return ''
+  return `${startsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${endsAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+}
+
+function normalizeShift(shift: Shift): Shift {
+  return {
+    ...shift,
+    department: shift.department || 'General',
+    time: shift.time || formatTimeRange(shift.startsAt, shift.endsAt),
+    staffCount: Number(shift.staffCount ?? 0),
+    coverage: Number(shift.coverage ?? 100),
+  }
+}
+
 export default function ShiftsManager({ initialShifts = [] }: { initialShifts?: Shift[]; initialOnCall?: Record<string, unknown>[] }) {
-  const [shifts, setShifts] = useState<Shift[]>(initialShifts)
+  const [shifts, setShifts] = useState<Shift[]>(() => initialShifts.map(normalizeShift))
   const [loading, setLoading] = useState(false)
   const [form, setForm] = useState({ name: '', department: '', startsAt: '', endsAt: '', type: 'day', staffCount: 1, coverage: 100 })
   const [error, setError] = useState<string | null>(null)
@@ -23,8 +43,8 @@ export default function ShiftsManager({ initialShifts = [] }: { initialShifts?: 
     fetch('/api/admin/shifts', { credentials: 'same-origin' })
       .then((r) => r.json())
       .then((data) => {
-        if (Array.isArray(data)) setShifts(data)
-        else if (data?.data) setShifts(data.data)
+        if (Array.isArray(data)) setShifts(data.map(normalizeShift))
+        else if (data?.data) setShifts(data.data.map(normalizeShift))
       })
       .catch(() => {})
   }, [])
@@ -34,6 +54,12 @@ export default function ShiftsManager({ initialShifts = [] }: { initialShifts?: 
     setLoading(true)
     setError(null)
     try {
+      if (!form.name.trim()) throw new Error('Shift name is required')
+      if (!form.startsAt || !form.endsAt) throw new Error('Start and end times are required')
+      if (new Date(form.endsAt).getTime() <= new Date(form.startsAt).getTime()) {
+        throw new Error('End time must be after the start time')
+      }
+
       const res = await fetch('/api/admin/shifts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -43,7 +69,7 @@ export default function ShiftsManager({ initialShifts = [] }: { initialShifts?: 
       const payload = await res.json()
       if (!res.ok) throw new Error(payload?.error || 'Create failed')
       const created = payload?.data ?? payload
-      setShifts((s) => [created as Shift, ...s])
+      setShifts((s) => [normalizeShift(created as Shift), ...s])
       setForm({ name: '', department: '', startsAt: '', endsAt: '', type: 'day', staffCount: 1, coverage: 100 })
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : String(err))
@@ -88,6 +114,11 @@ export default function ShiftsManager({ initialShifts = [] }: { initialShifts?: 
       </div>
 
       <div>
+        {shifts.length === 0 && (
+          <div className="hc-card-body" style={{ padding: '18px 0', color: 'var(--text-muted)', fontSize: 13 }}>
+            No shifts scheduled yet. Create the first shift above.
+          </div>
+        )}
         {shifts.map((s) => (
           <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '8px 0', borderBottom: '1px solid #eee' }}>
             <div style={{ flex: 1 }}>

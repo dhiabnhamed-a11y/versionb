@@ -2,6 +2,8 @@ import { spawn, type ChildProcess } from 'child_process'
 import { existsSync, mkdirSync, rmSync } from 'fs'
 import path from 'path'
 
+import { getFfmpegPath } from '@/lib/camera-ffmpeg'
+import { getCameraStreamPaths } from '@/lib/camera-stream-paths'
 import { prisma } from '@/lib/db'
 
 type ManagedStream = {
@@ -22,27 +24,6 @@ const globalForCameraStreams = globalThis as typeof globalThis & {
 
 const streams = globalForCameraStreams.cameraStreams ?? new Map<string, ManagedStream>()
 globalForCameraStreams.cameraStreams = streams
-
-function getFfmpegPath() {
-  return process.env.FFMPEG_PATH || 'ffmpeg'
-}
-
-function getStreamsRoot() {
-  return path.join(/*turbopackIgnore: true*/ process.cwd(), '.camera-streams')
-}
-
-export function getCameraStreamPaths(cameraId: string) {
-  const outputDir = path.join(getStreamsRoot(), cameraId)
-  const playlistPath = path.join(outputDir, 'stream.m3u8')
-  const segmentPattern = path.join(outputDir, 'segment-%05d.ts')
-
-  return {
-    outputDir,
-    playlistPath,
-    segmentPattern,
-    streamUrl: `/streams/${cameraId}/stream.m3u8`,
-  }
-}
 
 function clearStreamTimers(stream: ManagedStream) {
   if (stream.restartTimer) clearTimeout(stream.restartTimer)
@@ -251,20 +232,6 @@ export function getRuntimeStreamStatus(cameraId: string) {
   }
 }
 
-export function buildRtspUrl(input: {
-  ipAddress: string
-  port: number
-  username: string
-  password: string
-  rtspPath?: string | null
-}) {
-  const normalizedPath = input.rtspPath?.startsWith('/') ? input.rtspPath : `/${input.rtspPath || 'stream'}`
-  const user = encodeURIComponent(input.username)
-  const password = encodeURIComponent(input.password)
-
-  return `rtsp://${user}:${password}@${input.ipAddress}:${input.port}${normalizedPath}`
-}
-
 export async function captureCameraSnapshot(cameraId: string, rtspUrl: string) {
   const paths = getCameraStreamPaths(cameraId)
   mkdirSync(paths.outputDir, { recursive: true })
@@ -323,55 +290,4 @@ export async function captureCameraSnapshot(cameraId: string, rtspUrl: string) {
   })
 
   return `/streams/${cameraId}/${fileName}`
-}
-
-export async function testRtspConnection(rtspUrl: string) {
-  await new Promise<void>((resolve, reject) => {
-    const child = spawn(
-      getFfmpegPath(),
-      [
-        '-hide_banner',
-        '-nostdin',
-        '-rtsp_transport',
-        'tcp',
-        '-i',
-        rtspUrl,
-        '-frames:v',
-        '1',
-        '-f',
-        'null',
-        '-',
-      ],
-      {
-        windowsHide: true,
-        stdio: ['ignore', 'pipe', 'pipe'],
-      }
-    )
-
-    const stderr: string[] = []
-    const timeout = setTimeout(() => {
-      child.kill('SIGKILL')
-      reject(new Error('Camera test timed out. Confirm the IP, port, credentials, and network access.'))
-    }, 20_000)
-
-    child.stderr.on('data', (chunk: Buffer) => {
-      const text = chunk.toString('utf8').trim()
-      if (text) stderr.push(text)
-    })
-
-    child.on('error', (error) => {
-      clearTimeout(timeout)
-      reject(error)
-    })
-
-    child.on('exit', (code) => {
-      clearTimeout(timeout)
-      if (code === 0) {
-        resolve()
-        return
-      }
-
-      reject(new Error(stderr.at(-1) || 'Unable to connect to the camera stream.'))
-    })
-  })
 }

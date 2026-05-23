@@ -2,7 +2,8 @@ import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 
 import { canManageProjectCamera } from '@/lib/camera-access'
-import { buildRtspUrl, testRtspConnection } from '@/lib/camera-stream-manager'
+import { testRtspConnection } from '@/lib/camera-rtsp'
+import { buildRtspUrl } from '@/lib/camera-rtsp-url'
 import { normalizeCameraInput } from '@/lib/camera-validation'
 import { getProjectIfAllowed } from '@/lib/project-access'
 

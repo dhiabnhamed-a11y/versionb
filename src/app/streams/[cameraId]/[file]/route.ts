@@ -4,7 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 
 import { auth } from '@/lib/auth'
 import { getCameraForUser } from '@/lib/camera-access'
-import { getCameraStreamPaths } from '@/lib/camera-stream-manager'
+import { getCameraStreamPaths } from '@/lib/camera-stream-paths'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'

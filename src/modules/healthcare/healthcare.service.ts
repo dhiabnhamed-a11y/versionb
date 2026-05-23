@@ -113,38 +113,55 @@ export class HealthcareService {
    * Get comprehensive healthcare dashboard metrics
    */
   static async getDashboardMetrics(companyId: string): Promise<HealthcareDashboardMetrics> {
-    void companyId
-    // In production, these would be calculated from real data
-    // For now, return mock data that demonstrates the healthcare platform capabilities
-    
+    const now = new Date()
+    const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+    const dueSoon = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
+
+    const [assets, incidents, controls, shifts] = await Promise.all([
+      prisma.enterpriseAsset.findMany({
+        where: { companyId, deletedAt: null },
+        select: { operationalStatus: true, riskScore: true },
+      }),
+      prisma.enterpriseIncident.findMany({
+        where: { companyId },
+        select: { status: true, priority: true, createdAt: true, firstRespondedAt: true },
+      }),
+      prisma.enterpriseComplianceControl.findMany({
+        where: { companyId },
+        select: { status: true, nextReviewAt: true },
+      }),
+      prisma.enterpriseShift.findMany({
+        where: { companyId, startsAt: { lte: now }, endsAt: { gte: now } },
+        select: { staffCount: true, type: true },
+      }),
+    ])
+
+    const openIncidents = incidents.filter((incident) => !['RESOLVED', 'CLOSED', 'CANCELLED'].includes(incident.status))
+    const respondedIncidents = incidents.filter((incident) => incident.firstRespondedAt)
+    const avgResponseTime = respondedIncidents.length
+      ? Math.round(respondedIncidents.reduce((sum, incident) => sum + ((incident.firstRespondedAt?.getTime() ?? incident.createdAt.getTime()) - incident.createdAt.getTime()), 0) / respondedIncidents.length / 60000)
+      : 0
+    const compliantControls = controls.filter((control) => control.status === 'COMPLIANT').length
+
     return {
-      // Patient metrics
-      totalPatients: 1247,
-      admittedPatients: 186,
-      edVisits: 42,
-      bedOccupancy: 78,
-      avgLengthOfStay: 4.2,
-      
-      // Staff metrics
-      onDutyStaff: 145,
-      onCallStaff: 28,
-      staffPatientRatio: 0.32,
-      
-      // Asset metrics
-      activeAssets: 892,
-      assetsInMaintenance: 12,
-      criticalAssetsDown: 1,
-      assetUptime: 96.8,
-      
-      // Incident metrics
-      openIncidents: 8,
-      criticalIncidents: 1,
-      avgResponseTime: 12,
-      
-      // Compliance metrics
-      complianceScore: 97,
-      upcomingAudits: 3,
-      trainingCompliance: 94,
+      totalPatients: 0,
+      admittedPatients: 0,
+      edVisits: incidents.filter((incident) => incident.createdAt >= dayAgo && ['P1', 'P2', 'CRITICAL', 'HIGH'].includes(incident.priority)).length,
+      bedOccupancy: 0,
+      avgLengthOfStay: 0,
+      onDutyStaff: shifts.reduce((sum, shift) => sum + shift.staffCount, 0),
+      onCallStaff: shifts.filter((shift) => shift.type === 'oncall').reduce((sum, shift) => sum + shift.staffCount, 0),
+      staffPatientRatio: 0,
+      activeAssets: assets.filter((asset) => asset.operationalStatus === 'OPERATIONAL').length,
+      assetsInMaintenance: assets.filter((asset) => asset.operationalStatus === 'MAINTENANCE').length,
+      criticalAssetsDown: assets.filter((asset) => asset.operationalStatus === 'OUT_OF_SERVICE' || asset.riskScore > 70).length,
+      assetUptime: assets.length ? Math.round((assets.filter((asset) => asset.operationalStatus === 'OPERATIONAL').length / assets.length) * 100) : 100,
+      openIncidents: openIncidents.length,
+      criticalIncidents: openIncidents.filter((incident) => ['P1', 'CRITICAL'].includes(incident.priority)).length,
+      avgResponseTime,
+      complianceScore: controls.length ? Math.round((compliantControls / controls.length) * 100) : 100,
+      upcomingAudits: controls.filter((control) => control.nextReviewAt && control.nextReviewAt <= dueSoon).length,
+      trainingCompliance: controls.length ? Math.round((compliantControls / controls.length) * 100) : 100,
     }
   }
 
@@ -153,7 +170,7 @@ export class HealthcareService {
    */
   static async getPatientSummaries(companyId: string, limit: number = 10): Promise<PatientSummary[]> {
     void companyId; void limit
-    // In production, query actual patient data
+    // Patient storage is intentionally external until a clinical data connector is configured.
     return []
   }
 
@@ -272,12 +289,19 @@ export class HealthcareService {
   }
 
   static async createShift(companyId: string, input: any) {
+    const startsAt = new Date(input.startsAt)
+    const endsAt = new Date(input.endsAt)
+    if (!companyId) throw new Error('Company is required')
+    if (!String(input.name || '').trim()) throw new Error('Shift name is required')
+    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) throw new Error('Valid shift start and end times are required')
+    if (endsAt.getTime() <= startsAt.getTime()) throw new Error('Shift end time must be after the start time')
+
     const payload = {
       companyId,
-      name: String(input.name || 'Unnamed Shift'),
+      name: String(input.name).trim(),
       department: input.department || null,
-      startsAt: new Date(input.startsAt),
-      endsAt: new Date(input.endsAt),
+      startsAt,
+      endsAt,
       type: input.type || 'day',
       staffCount: Number(input.staffCount || 0),
       coverage: Number(input.coverage ?? 100),

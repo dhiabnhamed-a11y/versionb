@@ -180,7 +180,7 @@ function LoginContent() {
                             const data = await resp.json()
                             setEmailExists(Boolean(data.exists))
                           }
-                        } catch (err) {
+                        } catch {
                           emailCheckErrorRef.current = 'Email check failed'
                           setEmailExists(null)
                         } finally {

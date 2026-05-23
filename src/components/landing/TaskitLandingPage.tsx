@@ -15,7 +15,6 @@ import {
   Bot,
   BriefcaseBusiness,
   Building2,
-  ChevronDown,
   CheckCircle2,
   CircleDollarSign,
   Clock3,
@@ -784,7 +783,7 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
   )
 }
 
-function DashboardMockup() {
+export function DashboardMockup() {
   return (
     <div className={styles.heroVisual} aria-label="TASKIT OS dashboard preview">
       <div className={styles.dashboardFrame}>

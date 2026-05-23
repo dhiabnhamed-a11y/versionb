@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import { normalizeCompanyType } from '@/lib/company-types'
+import { prisma } from '@/lib/db'
 import { getEnterpriseOperationsDashboard } from '@/modules/enterprise/enterprise.service'
 import type { SessionUser } from '@/modules/shared/session'
 import {
@@ -30,6 +31,17 @@ function pct(value: number) {
 function formatDate(value?: Date | string | null) {
   if (!value) return 'Not scheduled'
   return new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+}
+
+function formatTimeAgo(value?: Date | string | null) {
+  if (!value) return ''
+  const diff = Date.now() - new Date(value).getTime()
+  const minutes = Math.max(0, Math.floor(diff / 60000))
+  if (minutes < 1) return 'Just now'
+  if (minutes < 60) return `${minutes} min ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours} hr ago`
+  return `${Math.floor(hours / 24)} days ago`
 }
 
 function HealthcareStatCard({
@@ -108,33 +120,69 @@ export default async function HealthcareDashboardPage() {
   }
 
   const data = await getEnterpriseOperationsDashboard(user)
+  const companyId = user.companyId!
+  const now = new Date()
+  const dayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  const dueSoon = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000)
 
-  // Healthcare-specific metrics (mock data for demo)
+  const [assetsForMetrics, incidentsForMetrics, controlsForMetrics, activeShifts] = await Promise.all([
+    prisma.enterpriseAsset.findMany({
+      where: { companyId, deletedAt: null },
+      select: { operationalStatus: true, healthScore: true, riskScore: true },
+    }),
+    prisma.enterpriseIncident.findMany({
+      where: { companyId },
+      select: { status: true, priority: true, createdAt: true, firstRespondedAt: true },
+    }),
+    prisma.enterpriseComplianceControl.findMany({
+      where: { companyId },
+      select: { status: true, nextReviewAt: true },
+    }),
+    prisma.enterpriseShift.findMany({
+      where: { companyId, startsAt: { lte: now }, endsAt: { gte: now } },
+      select: { staffCount: true, type: true },
+    }),
+  ])
+
+  const totalAssets = assetsForMetrics.length
+  const operationalAssets = assetsForMetrics.filter((asset) => asset.operationalStatus === 'OPERATIONAL').length
+  const assetsInMaintenance = assetsForMetrics.filter((asset) => asset.operationalStatus === 'MAINTENANCE').length
+  const criticalAssetsDown = assetsForMetrics.filter((asset) => asset.operationalStatus === 'OUT_OF_SERVICE' || asset.riskScore > 70).length
+  const openIncidentRows = incidentsForMetrics.filter((incident) => !['RESOLVED', 'CLOSED', 'CANCELLED'].includes(incident.status))
+  const criticalIncidentRows = openIncidentRows.filter((incident) => ['P1', 'CRITICAL'].includes(incident.priority))
+  const recentEmergencyRows = incidentsForMetrics.filter((incident) => incident.createdAt >= dayAgo && ['P1', 'P2', 'CRITICAL', 'HIGH'].includes(incident.priority))
+  const respondedIncidentRows = incidentsForMetrics.filter((incident) => incident.firstRespondedAt)
+  const avgResponseTime = respondedIncidentRows.length
+    ? Math.round(respondedIncidentRows.reduce((sum, incident) => sum + ((incident.firstRespondedAt?.getTime() ?? incident.createdAt.getTime()) - incident.createdAt.getTime()), 0) / respondedIncidentRows.length / 60000)
+    : 0
+  const compliantControls = controlsForMetrics.filter((control) => control.status === 'COMPLIANT').length
+  const complianceScore = controlsForMetrics.length ? Math.round((compliantControls / controlsForMetrics.length) * 100) : 100
+  const controlsDueSoon = controlsForMetrics.filter((control) => control.nextReviewAt && control.nextReviewAt <= dueSoon).length
+
   const healthcareMetrics = {
-    totalPatients: 1247,
-    admittedPatients: 186,
-    edVisits: 42,
-    bedOccupancy: 78,
-    onDutyStaff: 145,
-    staffPatientRatio: 0.32,
-    activeAssets: 892,
-    assetsInMaintenance: 12,
-    criticalAssetsDown: 1,
-    assetUptime: 96.8,
-    openIncidents: 8,
-    criticalIncidents: 1,
-    avgResponseTime: 12,
-    complianceScore: 97,
-    trainingCompliance: 94,
+    clinicalDepartments: data.departments.length,
+    activeCareRequests: openIncidentRows.length,
+    emergencyEvents24h: recentEmergencyRows.length,
+    responseCoverage: incidentsForMetrics.length ? Math.round((respondedIncidentRows.length / incidentsForMetrics.length) * 100) : 100,
+    onDutyStaff: activeShifts.reduce((sum, shift) => sum + shift.staffCount, 0),
+    onCallStaff: activeShifts.filter((shift) => shift.type === 'oncall').reduce((sum, shift) => sum + shift.staffCount, 0),
+    assetUptime: totalAssets ? Math.round((operationalAssets / totalAssets) * 100) : 100,
+    assetsInMaintenance,
+    criticalAssetsDown,
+    openIncidents: openIncidentRows.length,
+    criticalIncidents: criticalIncidentRows.length,
+    avgResponseTime,
+    complianceScore,
+    controlsDueSoon,
   }
 
-  const recentActivities = [
-    { type: 'admission', title: 'Ahmed Al-Mansoori', detail: 'Emergency Department', time: '5 min ago', status: 'critical' },
-    { type: 'asset', title: 'MRI Scanner #2', detail: 'Maintenance completed', time: '12 min ago', status: 'good' },
-    { type: 'incident', title: 'Equipment malfunction', detail: 'Radiology Department', time: '18 min ago', status: 'warning' },
-    { type: 'staff', title: 'Dr. Fatima Hassan', detail: 'Shift started - ICU', time: '25 min ago', status: 'neutral' },
-    { type: 'compliance', title: 'JCI Documentation Review', detail: 'Due: Tomorrow', time: '30 min ago', status: 'warning' },
-  ]
+  const recentActivities = data.auditEvents.slice(0, 5).map((event) => ({
+    type: event.entityType?.includes('asset') ? 'asset' : event.entityType?.includes('incident') ? 'incident' : event.entityType?.includes('compliance') ? 'compliance' : 'activity',
+    title: event.action.replace(/^enterprise\./, '').replace(/\./g, ' '),
+    detail: event.actor?.name ? `By ${event.actor.name}` : 'System event',
+    time: formatTimeAgo(event.createdAt),
+    status: event.action.includes('created') ? 'good' : event.action.includes('updated') ? 'neutral' : 'warning',
+  }))
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -190,33 +238,32 @@ export default async function HealthcareDashboardPage() {
         <h2 className="mb-4 text-lg font-semibold text-gray-900">Clinical Operations</h2>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <HealthcareStatCard
-            label="Total Patients"
-            value={healthcareMetrics.totalPatients.toLocaleString()}
-            detail="Active patient records"
+            label="Clinical Departments"
+            value={healthcareMetrics.clinicalDepartments}
+            detail="Configured care units"
             icon={Users}
             tone="neutral"
-            trend={{ value: 5.2, direction: 'up' }}
           />
           <HealthcareStatCard
-            label="Admitted Patients"
-            value={healthcareMetrics.admittedPatients}
-            detail="Currently admitted"
+            label="Active Care Requests"
+            value={healthcareMetrics.activeCareRequests}
+            detail="Open incidents and requests"
             icon={BedDouble}
-            tone="warning"
+            tone={healthcareMetrics.activeCareRequests > 0 ? 'warning' : 'good'}
           />
           <HealthcareStatCard
-            label="ED Visits (24h)"
-            value={healthcareMetrics.edVisits}
-            detail="Emergency department"
+            label="Emergency Events (24h)"
+            value={healthcareMetrics.emergencyEvents24h}
+            detail="High-priority events"
             icon={Activity}
-            tone="neutral"
+            tone={healthcareMetrics.emergencyEvents24h > 0 ? 'critical' : 'good'}
           />
           <HealthcareStatCard
-            label="Bed Occupancy"
-            value={pct(healthcareMetrics.bedOccupancy)}
-            detail="Current occupancy rate"
+            label="Response Coverage"
+            value={pct(healthcareMetrics.responseCoverage)}
+            detail="Incidents with first response"
             icon={Hospital}
-            tone={healthcareMetrics.bedOccupancy > 90 ? 'critical' : 'good'}
+            tone={healthcareMetrics.responseCoverage < 80 ? 'warning' : 'good'}
           />
         </div>
       </section>
@@ -233,11 +280,11 @@ export default async function HealthcareDashboardPage() {
             tone="good"
           />
           <HealthcareStatCard
-            label="Staff-Patient Ratio"
-            value={healthcareMetrics.staffPatientRatio.toFixed(2)}
-            detail="Active ratio"
+            label="On-Call Staff"
+            value={healthcareMetrics.onCallStaff}
+            detail="Currently scheduled"
             icon={Users}
-            tone={healthcareMetrics.staffPatientRatio < 0.25 ? 'warning' : 'good'}
+            tone={healthcareMetrics.onCallStaff > 0 ? 'good' : 'warning'}
           />
           <HealthcareStatCard
             label="Asset Uptime"
@@ -282,11 +329,11 @@ export default async function HealthcareDashboardPage() {
             tone={healthcareMetrics.complianceScore < 95 ? 'warning' : 'good'}
           />
           <HealthcareStatCard
-            label="Training Compliance"
-            value={pct(healthcareMetrics.trainingCompliance)}
-            detail="Staff training completion"
+            label="Reviews Due Soon"
+            value={healthcareMetrics.controlsDueSoon}
+            detail="Compliance controls in 30 days"
             icon={FileText}
-            tone={healthcareMetrics.trainingCompliance < 95 ? 'warning' : 'good'}
+            tone={healthcareMetrics.controlsDueSoon > 0 ? 'warning' : 'good'}
           />
         </div>
       </section>
@@ -303,6 +350,11 @@ export default async function HealthcareDashboardPage() {
               </Link>
             </div>
             <div className="space-y-3">
+              {recentActivities.length === 0 && (
+                <div className="rounded-lg border p-4 text-sm font-medium text-gray-500">
+                  No recent operational activity yet.
+                </div>
+              )}
               {recentActivities.map((activity, idx) => {
                 const Icon = getIcon(activity.type)
                 return (
@@ -362,7 +414,7 @@ export default async function HealthcareDashboardPage() {
             <h3 className="font-semibold text-gray-900">Critical Medical Assets</h3>
             <p className="text-sm text-gray-600">Asset health and maintenance status</p>
           </div>
-          <Link href="/dashboard/admin/medical-assets" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+          <Link href="/dashboard/admin/assets" className="text-sm font-medium text-blue-600 hover:text-blue-700">
             Manage Assets →
           </Link>
         </div>

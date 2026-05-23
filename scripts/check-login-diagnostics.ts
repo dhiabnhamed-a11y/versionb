@@ -4,6 +4,19 @@ dotenv.config()
 import { prisma } from '../src/lib/db'
 import { createHash } from 'crypto'
 
+type CompanyDiagnosticRow = {
+  id: string
+  name: string
+  status: string
+}
+
+type LoginAttemptDiagnosticRow = {
+  id: string
+  success: boolean
+  reason: string | null
+  createdAt: Date
+}
+
 function usage() {
   console.log('Usage: tsx scripts/check-login-diagnostics.ts --email user@example.com')
 }
@@ -30,13 +43,13 @@ async function main() {
 
   if (user.companyId) {
     try {
-      const company = (await prisma.$queryRawUnsafe(
+      const company = await prisma.$queryRawUnsafe<CompanyDiagnosticRow[]>(
         `SELECT "id", "name", "status" FROM "Company" WHERE "id" = $1 LIMIT 1`,
         user.companyId
-      )) as any
+      )
       console.log('Company:')
       console.log(company?.[0] ?? company)
-    } catch (err) {
+    } catch {
       console.log('Could not read company record using raw query.')
     }
   }
@@ -44,13 +57,13 @@ async function main() {
   // Query recent login attempts
   const emailHash = createHash('sha256').update(email).digest('hex')
   try {
-    const attempts = await prisma.$queryRawUnsafe(
+    const attempts = await prisma.$queryRawUnsafe<LoginAttemptDiagnosticRow[]>(
       `SELECT "id", "success", "reason", "createdAt" FROM "auth_login_attempts" WHERE "emailHash" = $1 ORDER BY "createdAt" DESC LIMIT 10`,
       emailHash
     )
     console.log('Recent login attempts (most recent first):')
-    console.table(attempts as any)
-  } catch (err) {
+    console.table(attempts)
+  } catch {
     console.log('Could not query auth_login_attempts table (it may not exist).')
   }
 
