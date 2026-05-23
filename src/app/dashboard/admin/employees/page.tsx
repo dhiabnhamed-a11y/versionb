@@ -6,11 +6,13 @@ import { AlertTriangle, Copy, Filter, KeyRound, Link2, MailPlus, Plus, Search, S
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import type { RealtimeEventName } from '@/lib/realtime-events'
 import { readJsonResponse } from '@/lib/read-json'
+import UserAvatar from '@/components/user/UserAvatar'
 
 interface Employee {
   id: string
   name: string
   email: string
+  avatar: string | null
   role: string
   assignedTasks: { id: string; stage: string; deadline?: string }[]
   activities?: { id: string; action: string; createdAt: string }[]
@@ -545,23 +547,7 @@ export default function EmployeesPage() {
                         <tr key={emp.id} className="animate-fade-in" style={{ animationDelay: `${i * 30}ms` }}>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <div
-                                style={{
-                                  width: '32px',
-                                  height: '32px',
-                                  borderRadius: '8px',
-                                  background: 'var(--accent-gradient)',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'center',
-                                  fontSize: '12px',
-                                  fontWeight: '700',
-                                  color: 'white',
-                                  flexShrink: 0,
-                                }}
-                              >
-                                {emp.name.charAt(0)}
-                              </div>
+                              <UserAvatar name={emp.name} avatar={emp.avatar} size={32} radius={8} />
                               <div>
                                 <div style={{ fontWeight: '600', fontSize: '13px' }}>{emp.name}</div>
                                 <div style={{ fontSize: '11px', color: 'var(--text-muted)' }}>{emp.email}</div>
@@ -650,23 +636,7 @@ export default function EmployeesPage() {
                 return (
                   <article key={emp.id} className="mobile-table-card animate-fade-in" style={{ animationDelay: `${i * 30}ms` }}>
                     <div className="flex items-start gap-3">
-                      <div
-                        style={{
-                          width: '36px',
-                          height: '36px',
-                          borderRadius: '10px',
-                          background: 'var(--accent-gradient)',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontSize: '13px',
-                          fontWeight: '700',
-                          color: 'white',
-                          flexShrink: 0,
-                        }}
-                      >
-                        {emp.name.charAt(0)}
-                      </div>
+                      <UserAvatar name={emp.name} avatar={emp.avatar} size={36} radius={10} />
                       <div className="min-w-0 flex-1">
                         <div className="text-sm font-semibold text-[var(--text-primary)]">{emp.name}</div>
                         <div className="truncate text-xs text-[var(--text-muted)]">{emp.email}</div>

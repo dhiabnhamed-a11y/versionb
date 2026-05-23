@@ -12,6 +12,7 @@ export type SessionUser = {
   name?: string | null
   email?: string | null
   role?: string | null
+  avatar?: string | null
   companyId?: string | null
   companyType?: string | null
   companyStatus?: string | null
@@ -43,6 +44,7 @@ export async function requireSessionUser(req?: Request) {
       name: true,
       email: true,
       role: true,
+      avatar: true,
       accountStatus: true,
       companyId: true,
       company: {
@@ -61,6 +63,7 @@ export async function requireSessionUser(req?: Request) {
     name: liveUser.name,
     email: liveUser.email,
     role: liveUser.role,
+    avatar: liveUser.avatar,
     accountStatus: liveUser.accountStatus,
     companyId: liveUser.companyId,
     companyType: liveUser.company?.companyType ?? null,

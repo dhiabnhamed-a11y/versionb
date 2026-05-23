@@ -4,6 +4,7 @@ import { v2 as cloudinary, type UploadApiOptions, type UploadApiResponse } from 
 export type AgencyMediaType = 'image' | 'video' | 'audio'
 
 const IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/avif'])
+const PROFILE_AVATAR_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp'])
 const VIDEO_TYPES = new Set(['video/mp4', 'video/webm', 'video/quicktime', 'video/x-matroska'])
 const AUDIO_TYPES = new Set(['audio/mpeg', 'audio/mp3', 'audio/wav', 'audio/x-wav', 'audio/ogg', 'audio/aac', 'audio/mp4', 'audio/webm'])
 
@@ -16,6 +17,7 @@ export const AGENCY_MEDIA_LIMITS = {
 } as const
 
 export const DASHBOARD_DESIGN_IMAGE_LIMIT = 10 * 1024 * 1024
+export const PROFILE_AVATAR_IMAGE_LIMIT = 5 * 1024 * 1024
 
 let configured = false
 
@@ -82,6 +84,10 @@ function safeFolderSegment(value: string) {
 
 function dashboardDesignFolder(companyId: string | null | undefined, userId: string) {
   return `tasked/dashboard-design/${safeFolderSegment(companyId ?? 'personal')}/users/${safeFolderSegment(userId)}`
+}
+
+function profileAvatarFolder(companyId: string | null | undefined, userId: string) {
+  return `tasked/profile-avatars/${safeFolderSegment(companyId ?? 'platform')}/users/${safeFolderSegment(userId)}`
 }
 
 function uploadOptions(input: {
@@ -174,6 +180,67 @@ export function validateDashboardDesignImageFile(input: { mimeType: string; size
   }
 
   return { ok: true as const }
+}
+
+export function validateProfileAvatarFile(input: { mimeType: string; size: number }) {
+  const normalized = input.mimeType.toLowerCase()
+  if (!PROFILE_AVATAR_TYPES.has(normalized)) {
+    return { ok: false as const, error: 'Upload a PNG, JPG, or WebP profile image.' }
+  }
+
+  if (input.size <= 0) {
+    return { ok: false as const, error: 'Profile image cannot be empty.' }
+  }
+
+  if (input.size > PROFILE_AVATAR_IMAGE_LIMIT) {
+    return {
+      ok: false as const,
+      error: `Profile image must be ${formatBytes(PROFILE_AVATAR_IMAGE_LIMIT)} or smaller.`,
+    }
+  }
+
+  return { ok: true as const }
+}
+
+export async function uploadProfileAvatarBuffer(input: {
+  buffer: Buffer
+  companyId?: string | null
+  userId: string
+  fileName: string
+}) {
+  configureCloudinary()
+
+  return new Promise<UploadApiResponse>((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        folder: profileAvatarFolder(input.companyId, input.userId),
+        resource_type: 'image',
+        use_filename: true,
+        unique_filename: true,
+        overwrite: false,
+        quality_analysis: true,
+        context: {
+          app: 'tasked',
+          asset_kind: 'profile_avatar',
+          user_id: input.userId,
+          company_id: input.companyId ?? '',
+          original_filename: input.fileName,
+        },
+        eager: [{ width: 512, height: 512, crop: 'fill', gravity: 'face:auto', quality: 'auto', fetch_format: 'auto' }],
+      },
+      (error, result) => (error || !result ? reject(uploadError(error, 'Cloudinary profile upload failed.')) : resolve(result))
+    )
+    stream.on('error', (error) => reject(uploadError(error, 'Cloudinary profile upload stream failed.')))
+    stream.end(input.buffer)
+  })
+}
+
+export function getProfileAvatarUrl(result: UploadApiResponse) {
+  return cloudinary.url(result.public_id, {
+    secure: true,
+    resource_type: 'image',
+    transformation: [{ width: 256, height: 256, crop: 'fill', gravity: 'face:auto', quality: 'auto', fetch_format: 'auto' }],
+  })
 }
 
 export async function uploadDashboardDesignImageBuffer(input: {

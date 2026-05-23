@@ -26,6 +26,7 @@ type AuthUserRecord = {
   accountStatus: string
   companyId: string | null
   authUserId: string | null
+  avatar: string | null
   preferredLocale: string
   company: {
     companyType: string
@@ -43,6 +44,7 @@ type AuthSessionShape = {
   role: string
   accountStatus: string
   companyId: string | null
+  avatar: string | null
   preferredLocale: string
   companyType: string | null
   companyStatus: string | null
@@ -151,6 +153,7 @@ function buildAuthSessionUser(user: AuthUserRecord): AuthSessionShape {
     role: user.role,
     accountStatus: user.accountStatus,
     companyId: user.companyId,
+    avatar: user.avatar,
     preferredLocale: user.preferredLocale,
     companyType: user.company?.companyType ?? null,
     companyStatus: user.company?.status ?? null,
@@ -252,12 +255,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
+      if (trigger === 'update' && session) {
+        const nextSession = session as Partial<AuthSessionShape>
+        if (typeof nextSession.name === 'string') token.name = nextSession.name
+        if (typeof nextSession.avatar === 'string' || nextSession.avatar === null) token.avatar = nextSession.avatar
+      }
+
       if (user) {
         const jti = randomUUID()
         token.jti = jti
         token.id = user.id
         token.email = user.email
+        token.avatar = (user as AuthSessionShape).avatar
         token.role = (user as AuthSessionShape).role
         token.accountStatus = (user as AuthSessionShape).accountStatus
         token.companyId = (user as AuthSessionShape).companyId
@@ -291,6 +301,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (token?.id && session.user) {
         session.user.id = token.id as string
         session.user.email = token.email as string
+        session.user.name = token.name as string
+        ;(session.user as AuthSessionShape).avatar = token.avatar as string | null
         ;(session.user as AuthSessionShape).role = token.role as string
         ;(session.user as AuthSessionShape).accountStatus = token.accountStatus as string
         ;(session.user as AuthSessionShape).companyId = token.companyId as string | null

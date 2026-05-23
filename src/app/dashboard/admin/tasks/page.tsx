@@ -18,6 +18,7 @@ import RichTextEditor from '@/components/ui/RichTextEditor'
 import RichTextContent from '@/components/ui/RichTextContent'
 import { MediaPlayer } from '@/components/media/MediaPlayer'
 import { readJsonResponse } from '@/lib/read-json'
+import UserAvatar from '@/components/user/UserAvatar'
 
 interface TaskSubmission {
   id: string
@@ -43,7 +44,7 @@ interface Task {
   deadline?: string
   stage: string
   progress: number
-  assignee?: { id: string; name: string; email: string }
+  assignee?: { id: string; name: string; email: string; avatar?: string | null }
   enterpriseAssignedTeam?: { id: string; name: string; code: string } | null
   enterpriseDepartment?: { id: string; name: string; code: string } | null
   project: { id: string; title: string; room?: { id: string; name: string } | null }
@@ -460,7 +461,7 @@ export default function AdminTasksPage() {
                     )}
                     {task.assignee && (
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <User size={12} /> {task.assignee.name}
+                        <UserAvatar name={task.assignee.name} avatar={task.assignee.avatar} size={18} radius={5} /> {task.assignee.name}
                       </span>
                     )}
                     {task.enterpriseAssignedTeam && (

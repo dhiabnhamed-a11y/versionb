@@ -16,6 +16,7 @@ import {
 import LanguageSwitcher from '@/components/i18n/LanguageSwitcher'
 import { useLocale } from '@/components/i18n/LocaleProvider'
 import PremiumDashboardDesignStudio from '@/components/dashboard/PremiumDashboardDesignStudio'
+import UserAvatar from '@/components/user/UserAvatar'
 import { downloadBlobResponse, getResponseErrorMessage } from '@/lib/download-response'
 import type { PublicWorkspaceRole, UserDashboardDesignSettings, WorkspaceThemeSettings } from '@/lib/settings'
 import { applyWorkspaceTheme } from '@/lib/theme-client'
@@ -24,6 +25,7 @@ type TeamUser = {
   id: string
   name: string
   email: string
+  avatar: string | null
   role: PublicWorkspaceRole
   storedRole: string
   roleLabel: string
@@ -468,8 +470,13 @@ export default function SettingsClient({
                     {users.map((user) => (
                       <tr key={user.id}>
                         <td>
-                          <div className="font-semibold text-[var(--text-primary)]">{user.name}</div>
-                          <div className="text-xs text-[var(--text-muted)]">{user.email}</div>
+                          <div className="flex items-center gap-3">
+                            <UserAvatar name={user.name} avatar={user.avatar} size={34} radius={9} />
+                            <div className="min-w-0">
+                              <div className="font-semibold text-[var(--text-primary)]">{user.name}</div>
+                              <div className="text-xs text-[var(--text-muted)]">{user.email}</div>
+                            </div>
+                          </div>
                         </td>
                         <td>
                           <span className={`badge ${getRoleBadgeClass(user.role)}`}>
@@ -502,9 +509,12 @@ export default function SettingsClient({
               {users.map((user) => (
                 <article key={user.id} className="mobile-table-card">
                   <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="text-sm font-semibold text-[var(--text-primary)]">{user.name}</div>
-                      <div className="truncate text-xs text-[var(--text-muted)]">{user.email}</div>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <UserAvatar name={user.name} avatar={user.avatar} size={36} radius={10} />
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold text-[var(--text-primary)]">{user.name}</div>
+                        <div className="truncate text-xs text-[var(--text-muted)]">{user.email}</div>
+                      </div>
                     </div>
                     <span className={`badge ${getRoleBadgeClass(user.role)}`}>
                       {user.roleLabel}

@@ -14,6 +14,7 @@ import WorkspaceThemeProvider from '@/components/dashboard/WorkspaceThemeProvide
 import LanguageSwitcher from '@/components/i18n/LanguageSwitcher'
 import { LocaleProvider, useLocale } from '@/components/i18n/LocaleProvider'
 import PushNotificationBootstrap from '@/components/pwa/PushNotificationBootstrap'
+import UserAvatar from '@/components/user/UserAvatar'
 import { getLocalizedCompanyCopy } from '@/lib/company-copy-i18n'
 import {
   isAgencyCompanyType,
@@ -40,6 +41,7 @@ import {
   Plus,
   Settings,
   FileCheck2,
+  UserCircle,
 } from 'lucide-react'
 
 type DashboardLayoutClientProps = {
@@ -75,7 +77,7 @@ function DashboardLayoutChrome({
     () => false
   )
 
-  const user = session?.user as { id?: string; name?: string; role?: string; companyType?: string | null }
+  const user = session?.user as { id?: string; name?: string; role?: string; avatar?: string | null; companyType?: string | null }
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
   const isEmployee = user?.role === 'EMPLOYEE'
   const canManageWorkspace = user?.role === 'OWNER' || user?.role === 'MANAGER'
@@ -241,22 +243,15 @@ function DashboardLayoutChrome({
         </nav>
 
         <div className="sidebar-footer px-3 py-4">
-          <div className="sidebar-user-card mb-3 flex items-center gap-3 rounded-xl px-2 py-2.5">
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] text-xs font-bold text-white"
-              style={{ 
-                background: 'var(--accent)',
-              }}
-            >
-              {user?.name?.charAt(0)?.toUpperCase() || '?'}
-            </div>
+          <Link href="/dashboard/profile" className="sidebar-user-card mb-3 flex items-center gap-3 rounded-xl px-2 py-2.5 transition hover:bg-[var(--bg-elevated)]">
+            <UserAvatar name={user?.name} avatar={user?.avatar} size={36} radius={10} />
             <div className="sidebar-user-copy min-w-0 flex-1">
               <div className="truncate text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                 {user?.name || '...'}
               </div>
               <span className={`badge ${badgeClass} mt-1 !px-2 !py-0 !text-[9px]`}>{roleLabel}</span>
             </div>
-          </div>
+          </Link>
           <button
             type="button"
             onClick={() => signOut({ callbackUrl: '/login' })}
@@ -311,6 +306,16 @@ function DashboardLayoutChrome({
               </Link>
             )}
             {!isSuperAdmin && <LanguageSwitcher compact />}
+            {canOpenSettings && (
+              <Link
+                href="/dashboard/profile"
+                className="inline-flex h-10 items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-3 text-[13px] font-semibold text-[var(--text-primary)] shadow-sm transition hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-[.98] md:px-3.5"
+                aria-label="Profile"
+              >
+                <UserCircle size={15} />
+                <span className="hidden md:inline">Profile</span>
+              </Link>
+            )}
             {canOpenSettings && (
               <Link
                 href="/dashboard/settings"
