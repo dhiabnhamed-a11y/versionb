@@ -6,33 +6,18 @@ import { toJsonValue } from '@/modules/shared/json'
 import type { SessionUser } from '@/modules/shared/session'
 import { assertFinanceManage, requireFinanceCompany } from '@/modules/finance/policy'
 import { writeFinancialAuditLog } from '@/modules/finance/audit.repository'
+import { STANDARD_AGENCY_ACCOUNTS } from '@/services/erp/standard-agency-coa'
 
 type TransactionClient = Prisma.TransactionClient
 
-const RECOMMENDED_ACCOUNTS = [
-  { code: '1000', name: 'Operating Cash', type: 'ASSET', normalBalance: 'DEBIT' },
-  { code: '1100', name: 'Accounts Receivable', type: 'ASSET', normalBalance: 'DEBIT' },
-  { code: '1200', name: 'Tax Receivable', type: 'ASSET', normalBalance: 'DEBIT' },
-  { code: '2000', name: 'Accounts Payable', type: 'LIABILITY', normalBalance: 'CREDIT' },
-  { code: '2100', name: 'Payroll Liabilities', type: 'LIABILITY', normalBalance: 'CREDIT' },
-  { code: '2200', name: 'Tax Liabilities', type: 'LIABILITY', normalBalance: 'CREDIT' },
-  { code: '3000', name: 'Owner Equity', type: 'EQUITY', normalBalance: 'CREDIT' },
-  { code: '4000', name: 'Service Revenue', type: 'REVENUE', normalBalance: 'CREDIT' },
-  { code: '4100', name: 'Retainer Revenue', type: 'REVENUE', normalBalance: 'CREDIT' },
-  { code: '5000', name: 'Payroll Expense', type: 'EXPENSE', normalBalance: 'DEBIT' },
-  { code: '5100', name: 'Contractor Expense', type: 'EXPENSE', normalBalance: 'DEBIT' },
-  { code: '5200', name: 'Software and Tools', type: 'EXPENSE', normalBalance: 'DEBIT' },
-  { code: '5300', name: 'Production Expense', type: 'EXPENSE', normalBalance: 'DEBIT' },
-  { code: '5400', name: 'Marketing Expense', type: 'EXPENSE', normalBalance: 'DEBIT' },
-  { code: '5500', name: 'Travel and Meals', type: 'EXPENSE', normalBalance: 'DEBIT' },
-] as const
+const RECOMMENDED_ACCOUNTS = STANDARD_AGENCY_ACCOUNTS
 
 const EXPENSE_CATEGORIES = [
   { name: 'Software and subscriptions', accountCode: '5200' },
   { name: 'Production costs', accountCode: '5300' },
   { name: 'Contractors', accountCode: '5100' },
-  { name: 'Marketing', accountCode: '5400' },
-  { name: 'Travel and meals', accountCode: '5500' },
+  { name: 'Marketing', accountCode: '6100' },
+  { name: 'Travel and meals', accountCode: '6200' },
 ] as const
 
 async function findOrCreateChart(tx: TransactionClient, companyId: string) {

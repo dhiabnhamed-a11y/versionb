@@ -122,9 +122,9 @@ model Company {
   reviewNote         String?
   reviewedAt         DateTime?
   reviewedById       String?
-  ownerId              String             @unique
-  createdAt            DateTime           @default(now())
-  updatedAt            DateTime           @updatedAt
+  ownerId            String    @unique
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 
   subscriptionStatus   SubscriptionStatus @default(TRIAL)
   trialEndsAt          DateTime?
@@ -166,6 +166,10 @@ model Company {
   ledgers                      Ledger[]
   reconciliations              Reconciliation[]
   transactionReferences        TransactionReference[]
+  erpSettings                  ErpWorkspaceSettings?
+  accountCategories            AccountCategory[]
+  costCenters                  CostCenter[]
+  exchangeRates                ExchangeRate[]
   financialAuditLogs           FinancialAuditLog[]
   vendors                      Vendor[]
   expenseCategories            ExpenseCategory[]
@@ -638,6 +642,27 @@ model CompanySettings {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 }
 
+model ErpWorkspaceSettings {
+  id                         String   @id @default(cuid())
+  companyId                  String   @unique
+  baseCurrency               String   @default("USD")
+  accountingBasis            String   @default("ACCRUAL") // ACCRUAL, CASH, BOTH
+  fiscalYearStartMonth       Int      @default(1)
+  defaultChartId             String?
+  defaultCashAccountId       String?
+  defaultReceivableAccountId String?
+  defaultPayableAccountId    String?
+  retainedEarningsAccountId  String?
+  exchangeRateProvider       String   @default("OPEN_EXCHANGE_RATES")
+  metadata                   Json?
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, baseCurrency])
+}
+
 model UserDashboardDesign {
   id          String   @id @default(cuid())
   userId      String   @unique
@@ -962,10 +987,55 @@ model ChartOfAccount {
   @@index([companyId, status, createdAt])
 }
 
+model AccountCategory {
+  id               String               @id @default(cuid())
+  companyId        String
+  parentCategoryId String?
+  code             String
+  name             String
+  rootType         FinancialAccountType
+  sortOrder        Int                  @default(0)
+  metadata         Json?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  company  Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parent   AccountCategory?  @relation("AccountCategoryTree", fields: [parentCategoryId], references: [id], onDelete: SetNull)
+  children AccountCategory[] @relation("AccountCategoryTree")
+  accounts Account[]
+
+  @@unique([companyId, code])
+  @@index([companyId, rootType, sortOrder])
+  @@index([companyId, parentCategoryId])
+}
+
+model CostCenter {
+  id                 String                @id @default(cuid())
+  companyId          String
+  parentCostCenterId String?
+  code               String
+  name               String
+  status             FinancialRecordStatus @default(ACTIVE)
+  metadata           Json?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  parent       CostCenter?   @relation("CostCenterTree", fields: [parentCostCenterId], references: [id], onDelete: SetNull)
+  children     CostCenter[]  @relation("CostCenterTree")
+  journalLines JournalLine[]
+  ledgers      Ledger[]
+
+  @@unique([companyId, code])
+  @@index([companyId, status, code])
+  @@index([companyId, parentCostCenterId])
+}
+
 model Account {
   id              String                 @id @default(cuid())
   companyId       String
   chartId         String?
+  categoryId      String?
   parentAccountId String?
   code            String
   name            String
@@ -982,6 +1052,7 @@ model Account {
 
   company          Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   chart            ChartOfAccount?   @relation(fields: [chartId], references: [id], onDelete: SetNull)
+  category         AccountCategory?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   parent           Account?          @relation("AccountHierarchy", fields: [parentAccountId], references: [id], onDelete: SetNull)
   children         Account[]         @relation("AccountHierarchy")
   journalLines     JournalLine[]
@@ -993,6 +1064,7 @@ model Account {
 
   @@unique([companyId, code])
   @@index([companyId, type, status])
+  @@index([companyId, categoryId])
   @@index([companyId, parentAccountId])
   @@index([chartId])
 }
@@ -1004,6 +1076,9 @@ model FinancialPeriod {
   startsAt   DateTime
   endsAt     DateTime
   status     FinancialPeriodStatus @default(OPEN)
+  lockedAt   DateTime?
+  lockedById String?
+  lockReason String?
   closedAt   DateTime?
   closedById String?
   metadata   Json?
@@ -1037,9 +1112,13 @@ model JournalEntry {
   sourceId          String?
   memo              String?
   currency          String                 @default("USD")
+  accountingBasis   String                 @default("ACCRUAL")
+  baseCurrency      String                 @default("USD")
   transactionDate   DateTime
   totalDebit        Decimal                @default(0) @db.Decimal(18, 6)
   totalCredit       Decimal                @default(0) @db.Decimal(18, 6)
+  totalDebitMinor   BigInt                 @default(0)
+  totalCreditMinor  BigInt                 @default(0)
   idempotencyKey    String?
   postedAt          DateTime?
   approvedAt        DateTime?
@@ -1074,67 +1153,91 @@ model JournalEntry {
 }
 
 model JournalLine {
-  id             String   @id @default(cuid())
-  companyId      String
-  journalEntryId String
-  accountId      String
-  lineNumber     Int
-  description    String?
-  debit          Decimal  @default(0) @db.Decimal(18, 6)
-  credit         Decimal  @default(0) @db.Decimal(18, 6)
-  currency       String   @default("USD")
-  exchangeRate   Decimal  @default(1) @db.Decimal(18, 8)
-  projectId      String?
-  clientId       String?
-  invoiceId      String?
-  taskId         String?
-  targetType     String?
-  targetId       String?
-  metadata       Json?
-  createdAt      DateTime @default(now())
+  id               String    @id @default(cuid())
+  companyId        String
+  journalEntryId   String
+  accountId        String
+  lineNumber       Int
+  description      String?
+  debit            Decimal   @default(0) @db.Decimal(18, 6)
+  credit           Decimal   @default(0) @db.Decimal(18, 6)
+  debitMinor       BigInt    @default(0)
+  creditMinor      BigInt    @default(0)
+  baseDebitMinor   BigInt    @default(0)
+  baseCreditMinor  BigInt    @default(0)
+  currency         String    @default("USD")
+  exchangeRate     Decimal   @default(1) @db.Decimal(18, 8)
+  departmentId     String?
+  costCenterId     String?
+  projectId        String?
+  clientId         String?
+  invoiceId        String?
+  taskId           String?
+  reconciliationId String?
+  reconciledAt     DateTime?
+  reconciledById   String?
+  targetType       String?
+  targetId         String?
+  metadata         Json?
+  createdAt        DateTime  @default(now())
 
-  company      Company      @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  journalEntry JournalEntry @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
-  account      Account      @relation(fields: [accountId], references: [id], onDelete: Restrict)
-  project      Project?     @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  client       Client?      @relation(fields: [clientId], references: [id], onDelete: SetNull)
-  invoice      Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
-  task         Task?        @relation(fields: [taskId], references: [id], onDelete: SetNull)
-  ledger       Ledger?
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  journalEntry   JournalEntry    @relation(fields: [journalEntryId], references: [id], onDelete: Cascade)
+  account        Account         @relation(fields: [accountId], references: [id], onDelete: Restrict)
+  costCenter     CostCenter?     @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
+  project        Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  client         Client?         @relation(fields: [clientId], references: [id], onDelete: SetNull)
+  invoice        Invoice?        @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  task           Task?           @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  reconciliation Reconciliation? @relation(fields: [reconciliationId], references: [id], onDelete: SetNull)
+  ledger         Ledger?
 
   @@unique([journalEntryId, lineNumber])
   @@index([companyId, accountId, createdAt])
+  @@index([companyId, departmentId, createdAt])
+  @@index([companyId, costCenterId, createdAt])
   @@index([companyId, projectId, createdAt])
   @@index([companyId, clientId, createdAt])
   @@index([companyId, invoiceId, createdAt])
   @@index([companyId, taskId, createdAt])
+  @@index([companyId, reconciliationId])
 }
 
 model Ledger {
-  id             String   @id @default(cuid())
-  companyId      String
-  periodId       String?
-  accountId      String
-  journalEntryId String
-  journalLineId  String   @unique
-  postingDate    DateTime
-  debit          Decimal  @default(0) @db.Decimal(18, 6)
-  credit         Decimal  @default(0) @db.Decimal(18, 6)
-  balanceImpact  Decimal  @default(0) @db.Decimal(18, 6)
-  currency       String   @default("USD")
-  sourceType     String
-  sourceId       String?
-  metadata       Json?
-  createdAt      DateTime @default(now())
+  id                 String   @id @default(cuid())
+  companyId          String
+  periodId           String?
+  accountId          String
+  journalEntryId     String
+  journalLineId      String   @unique
+  postingDate        DateTime
+  debit              Decimal  @default(0) @db.Decimal(18, 6)
+  credit             Decimal  @default(0) @db.Decimal(18, 6)
+  balanceImpact      Decimal  @default(0) @db.Decimal(18, 6)
+  debitMinor         BigInt   @default(0)
+  creditMinor        BigInt   @default(0)
+  balanceImpactMinor BigInt   @default(0)
+  baseDebitMinor     BigInt   @default(0)
+  baseCreditMinor    BigInt   @default(0)
+  currency           String   @default("USD")
+  departmentId       String?
+  costCenterId       String?
+  sourceType         String
+  sourceId           String?
+  metadata           Json?
+  createdAt          DateTime @default(now())
 
   company               Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
   period                FinancialPeriod?       @relation(fields: [periodId], references: [id], onDelete: Restrict)
   account               Account                @relation(fields: [accountId], references: [id], onDelete: Restrict)
   journalEntry          JournalEntry           @relation(fields: [journalEntryId], references: [id], onDelete: Restrict)
   journalLine           JournalLine            @relation(fields: [journalLineId], references: [id], onDelete: Restrict)
+  costCenter            CostCenter?            @relation(fields: [costCenterId], references: [id], onDelete: SetNull)
   transactionReferences TransactionReference[]
 
   @@index([companyId, accountId, postingDate])
+  @@index([companyId, departmentId, postingDate])
+  @@index([companyId, costCenterId, postingDate])
   @@index([companyId, sourceType, sourceId])
   @@index([periodId, accountId])
 }
@@ -1160,10 +1263,28 @@ model Reconciliation {
   account         Account          @relation(fields: [accountId], references: [id], onDelete: Restrict)
   treasuryAccount TreasuryAccount? @relation(fields: [treasuryAccountId], references: [id], onDelete: SetNull)
   period          FinancialPeriod? @relation(fields: [periodId], references: [id], onDelete: Restrict)
+  journalLines    JournalLine[]
 
   @@index([companyId, status, statementDate])
   @@index([companyId, accountId, statementDate])
   @@index([treasuryAccountId, statementDate])
+}
+
+model ExchangeRate {
+  id            String   @id @default(cuid())
+  companyId     String
+  provider      String   @default("OPEN_EXCHANGE_RATES")
+  baseCurrency  String
+  quoteCurrency String
+  rateDate      DateTime
+  rateMicros    BigInt
+  sourcePayload Json?
+  createdAt     DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, provider, baseCurrency, quoteCurrency, rateDate])
+  @@index([companyId, baseCurrency, quoteCurrency, rateDate])
 }
 
 model TransactionReference {

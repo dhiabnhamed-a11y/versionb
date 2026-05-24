@@ -23,6 +23,8 @@ export type JournalLineCommand = {
   description?: string | null
   debit?: Prisma.Decimal | string | number | null
   credit?: Prisma.Decimal | string | number | null
+  departmentId?: string | null
+  costCenterId?: string | null
   projectId?: string | null
   clientId?: string | null
   invoiceId?: string | null
@@ -42,6 +44,8 @@ export type JournalEntryCommand = {
   sourceId?: string | null
   memo?: string | null
   currency?: string | null
+  accountingBasis?: 'ACCRUAL' | 'CASH'
+  baseCurrency?: string | null
   transactionDate?: Date | string | null
   idempotencyKey?: string | null
   requiresApproval?: boolean

@@ -9,7 +9,7 @@ import { publishDomainEvent } from '@/modules/events/event-bus'
 import { registerEnterpriseEventListeners } from '@/modules/events/listeners'
 import { assertFinanceApproval, assertFinanceManage, assertFinanceRead, requireFinanceCompany } from '@/modules/finance/policy'
 import { writeFinancialAuditLog } from '@/modules/finance/audit.repository'
-import { normalizeCurrency, sumDecimals, toDecimal, zeroDecimal } from '@/modules/accounting/money'
+import { decimalToMinorUnits, normalizeCurrency, sumDecimals, toDecimal, zeroDecimal } from '@/modules/accounting/money'
 import type { FinancialAccountTypeValue, JournalEntryCommand, JournalLineCommand, NormalBalanceValue } from '@/modules/accounting/types'
 import {
   createAccountSchema,
@@ -58,7 +58,7 @@ function serializeDecimalRecord<T extends Record<string, unknown>>(row: T): T {
   ) as T
 }
 
-function normalizeLine(line: JournalLineCommand, index: number) {
+function normalizeLine(line: JournalLineCommand, index: number, currency: string, baseCurrency: string) {
   const debit = toDecimal(line.debit, `lines.${index}.debit`)
   const credit = toDecimal(line.credit, `lines.${index}.credit`)
   if (debit.isNegative() || credit.isNegative()) throw badRequest('Journal line amounts cannot be negative.')
@@ -69,12 +69,21 @@ function normalizeLine(line: JournalLineCommand, index: number) {
     throw badRequest('Each journal line must contain either a debit or a credit amount, not both.')
   }
 
+  const debitMinor = decimalToMinorUnits(debit, currency, `lines.${index}.debit`)
+  const creditMinor = decimalToMinorUnits(credit, currency, `lines.${index}.credit`)
+
   return {
     ...line,
     debit,
     credit,
+    debitMinor,
+    creditMinor,
+    baseDebitMinor: currency === baseCurrency ? debitMinor : debitMinor,
+    baseCreditMinor: currency === baseCurrency ? creditMinor : creditMinor,
     lineNumber: index + 1,
     description: trimOrNull(line.description),
+    departmentId: trimOrNull(line.departmentId),
+    costCenterId: trimOrNull(line.costCenterId),
     projectId: trimOrNull(line.projectId),
     clientId: trimOrNull(line.clientId),
     invoiceId: trimOrNull(line.invoiceId),
@@ -87,9 +96,13 @@ function normalizeLine(line: JournalLineCommand, index: number) {
 function normalizeJournalCommand(input: JournalEntryCommand) {
   if (input.lines.length < 2) throw badRequest('A journal entry must contain at least two lines.')
 
-  const lines = input.lines.map(normalizeLine)
+  const currency = normalizeCurrency(input.currency)
+  const baseCurrency = normalizeCurrency(input.baseCurrency ?? currency)
+  const lines = input.lines.map((line, index) => normalizeLine(line, index, currency, baseCurrency))
   const totalDebit = sumDecimals(lines.map((line) => line.debit))
   const totalCredit = sumDecimals(lines.map((line) => line.credit))
+  const totalDebitMinor = lines.reduce((total, line) => total + line.debitMinor, BigInt(0))
+  const totalCreditMinor = lines.reduce((total, line) => total + line.creditMinor, BigInt(0))
   if (!totalDebit.equals(totalCredit)) {
     throw badRequest('Journal entry is out of balance.', {
       totalDebit: totalDebit.toString(),
@@ -97,6 +110,12 @@ function normalizeJournalCommand(input: JournalEntryCommand) {
     })
   }
   if (!totalDebit.gt(0)) throw badRequest('Journal entry total must be greater than zero.')
+  if (totalDebitMinor !== totalCreditMinor) {
+    throw badRequest('Journal entry minor-unit totals are out of balance.', {
+      totalDebitMinor: totalDebitMinor.toString(),
+      totalCreditMinor: totalCreditMinor.toString(),
+    })
+  }
 
   return {
     ...input,
@@ -106,7 +125,9 @@ function normalizeJournalCommand(input: JournalEntryCommand) {
     sourceType: input.sourceType ?? 'MANUAL',
     sourceId: trimOrNull(input.sourceId),
     memo: trimOrNull(input.memo),
-    currency: normalizeCurrency(input.currency),
+    currency,
+    accountingBasis: input.accountingBasis ?? 'ACCRUAL',
+    baseCurrency,
     transactionDate: parseDate(input.transactionDate, 'transactionDate'),
     idempotencyKey: trimOrNull(input.idempotencyKey),
     requiresApproval: input.requiresApproval ?? true,
@@ -115,6 +136,8 @@ function normalizeJournalCommand(input: JournalEntryCommand) {
     lines,
     totalDebit,
     totalCredit,
+    totalDebitMinor,
+    totalCreditMinor,
   }
 }
 
@@ -160,18 +183,24 @@ async function assertOperationalLinks(
   const clientIds = [...new Set(lines.map((line) => line.clientId).filter(Boolean) as string[])]
   const invoiceIds = [...new Set([...lines.map((line) => line.invoiceId).filter(Boolean), invoiceId].filter(Boolean) as string[])]
   const taskIds = [...new Set(lines.map((line) => line.taskId).filter(Boolean) as string[])]
+  const departmentIds = [...new Set(lines.map((line) => line.departmentId).filter(Boolean) as string[])]
+  const costCenterIds = [...new Set(lines.map((line) => line.costCenterId).filter(Boolean) as string[])]
 
-  const [projects, clients, invoices, tasks] = await Promise.all([
+  const [projects, clients, invoices, tasks, departments, costCenters] = await Promise.all([
     projectIds.length ? tx.project.count({ where: { companyId, id: { in: projectIds } } }) : Promise.resolve(0),
     clientIds.length ? tx.client.count({ where: { companyId, id: { in: clientIds } } }) : Promise.resolve(0),
     invoiceIds.length ? tx.invoice.count({ where: { companyId, id: { in: invoiceIds } } }) : Promise.resolve(0),
     taskIds.length ? tx.task.count({ where: { id: { in: taskIds }, project: { companyId } } }) : Promise.resolve(0),
+    departmentIds.length ? tx.enterpriseDepartment.count({ where: { companyId, id: { in: departmentIds }, deletedAt: null } }) : Promise.resolve(0),
+    costCenterIds.length ? tx.costCenter.count({ where: { companyId, id: { in: costCenterIds }, status: 'ACTIVE' } }) : Promise.resolve(0),
   ])
 
   if (projects !== projectIds.length) throw badRequest('One or more journal project links are outside this workspace.')
   if (clients !== clientIds.length) throw badRequest('One or more journal client links are outside this workspace.')
   if (invoices !== invoiceIds.length) throw badRequest('One or more journal invoice links are outside this workspace.')
   if (tasks !== taskIds.length) throw badRequest('One or more journal task links are outside this workspace.')
+  if (departments !== departmentIds.length) throw badRequest('One or more journal department links are outside this workspace.')
+  if (costCenters !== costCenterIds.length) throw badRequest('One or more journal cost center links are outside this workspace.')
 }
 
 async function loadActiveAccounts(tx: TransactionClient, companyId: string, lines: ReturnType<typeof normalizeLine>[]) {
@@ -392,9 +421,13 @@ export async function createJournalEntryInTransaction(tx: TransactionClient, com
       sourceId: normalized.sourceId,
       memo: normalized.memo,
       currency: normalized.currency,
+      accountingBasis: normalized.accountingBasis,
+      baseCurrency: normalized.baseCurrency,
       transactionDate: normalized.transactionDate,
       totalDebit: normalized.totalDebit,
       totalCredit: normalized.totalCredit,
+      totalDebitMinor: normalized.totalDebitMinor,
+      totalCreditMinor: normalized.totalCreditMinor,
       idempotencyKey: normalized.idempotencyKey,
       reversalOfEntryId: normalized.reversalOfEntryId,
       metadata: toJsonValue(normalized.metadata),
@@ -406,7 +439,13 @@ export async function createJournalEntryInTransaction(tx: TransactionClient, com
           description: line.description,
           debit: line.debit,
           credit: line.credit,
+          debitMinor: line.debitMinor,
+          creditMinor: line.creditMinor,
+          baseDebitMinor: line.baseDebitMinor,
+          baseCreditMinor: line.baseCreditMinor,
           currency: normalized.currency,
+          departmentId: line.departmentId,
+          costCenterId: line.costCenterId,
           projectId: line.projectId,
           clientId: line.clientId,
           invoiceId: line.invoiceId ?? normalized.invoiceId,
@@ -529,13 +568,19 @@ export async function postJournalEntryInTransaction(tx: TransactionClient, input
 
   const debit = sumDecimals(entry.lines.map((line) => line.debit))
   const credit = sumDecimals(entry.lines.map((line) => line.credit))
+  const debitMinor = entry.lines.reduce((total, line) => total + line.debitMinor, BigInt(0))
+  const creditMinor = entry.lines.reduce((total, line) => total + line.creditMinor, BigInt(0))
   if (!debit.equals(credit) || !debit.equals(entry.totalDebit) || !credit.equals(entry.totalCredit)) {
     throw conflict('Journal entry lines no longer match the balanced totals.')
+  }
+  if (debitMinor !== creditMinor || debitMinor !== entry.totalDebitMinor || creditMinor !== entry.totalCreditMinor) {
+    throw conflict('Journal entry minor-unit totals no longer match the balanced totals.')
   }
 
   await tx.ledger.createMany({
     data: entry.lines.map((line) => {
       const balanceImpact = line.account.normalBalance === 'DEBIT' ? line.debit.minus(line.credit) : line.credit.minus(line.debit)
+      const balanceImpactMinor = line.account.normalBalance === 'DEBIT' ? line.debitMinor - line.creditMinor : line.creditMinor - line.debitMinor
       return {
         companyId: input.companyId,
         periodId: entry.periodId,
@@ -546,7 +591,14 @@ export async function postJournalEntryInTransaction(tx: TransactionClient, input
         debit: line.debit,
         credit: line.credit,
         balanceImpact,
+        debitMinor: line.debitMinor,
+        creditMinor: line.creditMinor,
+        balanceImpactMinor,
+        baseDebitMinor: line.baseDebitMinor,
+        baseCreditMinor: line.baseCreditMinor,
         currency: line.currency,
+        departmentId: line.departmentId,
+        costCenterId: line.costCenterId,
         sourceType: entry.sourceType,
         sourceId: entry.sourceId,
         metadata: toJsonValue({ entryNumber: entry.entryNumber, lineNumber: line.lineNumber }),
@@ -634,6 +686,8 @@ export async function reverseJournalEntry(user: SessionUser, id: string, rawInpu
         description: `Reverse line ${line.lineNumber}: ${line.description ?? original.entryNumber}`,
         debit: line.credit.gt(0) ? line.credit : zeroDecimal(),
         credit: line.debit.gt(0) ? line.debit : zeroDecimal(),
+        departmentId: line.departmentId,
+        costCenterId: line.costCenterId,
         projectId: line.projectId,
         clientId: line.clientId,
         invoiceId: line.invoiceId,
