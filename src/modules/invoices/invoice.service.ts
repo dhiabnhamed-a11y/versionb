@@ -530,7 +530,11 @@ export async function updateInvoice(user: SessionUser, id: string, rawInput: unk
       },
       select: invoiceReadSelect,
     })
-    await createInvoiceAccountingEntries(tx, updated, existing.status, user.id)
+    try {
+      await createInvoiceAccountingEntries(tx, updated, existing.status, user.id)
+    } catch (err) {
+      console.warn('[invoice] Failed to create accounting entries (ERP may not be set up):', err)
+    }
     return updated
   })
 
