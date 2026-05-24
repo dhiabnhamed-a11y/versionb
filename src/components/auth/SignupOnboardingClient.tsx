@@ -910,7 +910,7 @@ function PlanStep({
   onSelect: (plan: string | null) => void
   onNext: () => void
 }) {
-  const PLAN_DETAILS: Record<string, { name: string; price: string; period: string; icon: React.ReactNode; accent: string; features: string[] }> = {
+  const PLAN_DETAILS: Record<string, { name: string; price: string; period: string; icon: ReactNode; accent: string; features: string[]; note: string }> = {
     STARTER_MONTHLY: {
       name: 'Starter',
       price: '$3',
@@ -918,6 +918,7 @@ function PlanStep({
       icon: <Zap size={22} />,
       accent: '#3b82f6',
       features: ['All core modules', 'Up to 49 seats', 'AI assistant', 'Client portal'],
+      note: 'Best for focused teams',
     },
     TEAM_MONTHLY: {
       name: 'Team',
@@ -926,6 +927,7 @@ function PlanStep({
       icon: <Users size={22} />,
       accent: '#7c3aed',
       features: ['Everything in Starter', '50+ seats', 'Volume discount', 'SLA support'],
+      note: 'Best for growing teams',
     },
     LIFETIME: {
       name: 'Lifetime',
@@ -934,22 +936,23 @@ function PlanStep({
       icon: <Infinity size={22} />,
       accent: '#f59e0b',
       features: ['Pay once, use forever', 'All future updates', 'Lifetime support', 'No recurring fees'],
+      note: 'One-time access',
     },
   }
 
   return (
-    <main className={styles.setupStage} id="main-content">
-      <section className={styles.setupPanel} style={{ maxWidth: '680px' }}>
+    <main className={`${styles.setupStage} ${styles.planStage}`} id="main-content">
+      <section className={`${styles.setupPanel} ${styles.planPanel}`}>
         <p className={styles.stepKicker}>
           <CreditCard size={14} />
           Choose your plan
         </p>
         <h1>Pick the right plan for your team.</h1>
         <p className={styles.setupLead}>
-          Start with a free trial — no credit card required. Or pick a plan now to skip the trial.
+          Start with a free trial - no credit card required. Or pick a plan now to skip the trial.
         </p>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+        <div className={styles.planList}>
           {Object.entries(PLAN_DETAILS).map(([key, plan]) => {
             const isSelected = selectedPlan === key
             return (
@@ -957,59 +960,35 @@ function PlanStep({
                 key={key}
                 type="button"
                 onClick={() => onSelect(isSelected ? null : key)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '14px',
-                  padding: '14px 18px',
-                  borderRadius: '12px',
-                  border: isSelected ? `2px solid ${plan.accent}` : '2px solid var(--border, #e2e8f0)',
-                  background: isSelected ? `${plan.accent}08` : 'var(--card-bg, #fff)',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                  transition: 'all 0.15s',
-                }}
+                aria-pressed={isSelected}
+                className={`${styles.planOption} ${isSelected ? styles.planOptionSelected : ''}`}
+                style={{ '--plan-accent': plan.accent } as CSSProperties}
               >
-                <div style={{
-                  width: '44px',
-                  height: '44px',
-                  borderRadius: '12px',
-                  background: `${plan.accent}14`,
-                  color: plan.accent,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
-                }}>
+                <span className={styles.planIcon}>
                   {plan.icon}
+                </span>
+                <div className={styles.planMeta}>
+                  <strong>{plan.name}</strong>
+                  <span>
+                    {plan.price}
+                    {plan.period}
+                  </span>
                 </div>
-                <div style={{ flex: 1 }}>
-                  <strong style={{ fontSize: '15px', color: '#0f172a' }}>{plan.name}</strong>
-                  <div style={{ fontSize: '13px', color: '#64748b', marginTop: '2px' }}>
-                    {plan.price}{plan.period}
-                  </div>
+                <div className={styles.planSummary}>
+                  <strong>{plan.note}</strong>
+                  <span>{plan.features.slice(0, 2).join(' / ')}</span>
                 </div>
-                <div style={{ fontSize: '12px', color: '#64748b', textAlign: 'right', maxWidth: '180px' }}>
-                  {plan.features.slice(0, 2).join(' · ')}
-                </div>
-                <div style={{
-                  width: '22px',
-                  height: '22px',
-                  borderRadius: '50%',
-                  border: isSelected ? `6px solid ${plan.accent}` : '2px solid #cbd5e1',
-                  transition: 'all 0.15s',
-                  flexShrink: 0,
-                }} />
+                <span className={styles.planRadio} aria-hidden="true" />
               </button>
             )
           })}
         </div>
 
-        <p style={{ fontSize: '12px', color: '#64748b', marginTop: '12px', textAlign: 'center' }}>
+        <p className={styles.planFootnote}>
           Free trial: 7 days, up to 5 team members, no payment needed.
         </p>
 
-        <div className={styles.splitActions} style={{ marginTop: '4px' }}>
+        <div className={styles.splitActions}>
           <button type="button" className={styles.secondaryCta} onClick={onNext}>
             Start free trial instead
           </button>
@@ -1018,7 +997,6 @@ function PlanStep({
             className={styles.primaryCta}
             onClick={onNext}
             disabled={!selectedPlan}
-            style={{ opacity: selectedPlan ? 1 : 0.5 }}
           >
             {selectedPlan ? `Continue with ${PLAN_DETAILS[selectedPlan].name}` : 'Select a plan'}
             <ChevronRight size={18} />

@@ -332,7 +332,7 @@
 
 .templateGrid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13.5rem), 1fr));
   gap: 0.65rem;
   margin-top: 1.25rem;
 }
@@ -340,9 +340,10 @@
 .templateTile {
   --template-accent: #22d3ee;
   --template-soft: rgba(34, 211, 238, 0.13);
-  min-height: 8.4rem;
+  min-width: 0;
+  min-height: 9.2rem;
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto 1fr;
   gap: 0.42rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
@@ -385,16 +386,21 @@
 }
 
 .templateTile strong {
+  min-width: 0;
   color: #ffffff;
   font-size: 0.95rem;
   font-weight: 950;
+  line-height: 1.2;
+  overflow-wrap: break-word;
 }
 
 .templateTile span:last-child {
+  min-width: 0;
   color: #9fb0c4;
   font-size: 0.78rem;
   font-weight: 650;
-  line-height: 1.45;
+  line-height: 1.5;
+  overflow-wrap: break-word;
 }
 
 .selectionActionBar {
@@ -1006,6 +1012,122 @@
   margin-top: 1rem;
 }
 
+.planStage {
+  justify-items: center;
+}
+
+.planPanel {
+  width: min(100%, 46rem);
+}
+
+.planList {
+  display: grid;
+  gap: 0.72rem;
+  margin-top: 1.1rem;
+}
+
+.planOption {
+  --plan-accent: #22d3ee;
+  display: grid;
+  grid-template-columns: auto minmax(7rem, 1fr) minmax(9rem, 0.9fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+  min-width: 0;
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.075);
+  color: #ffffff;
+  padding: 0.85rem 1rem;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    border-color 170ms ease,
+    background 170ms ease,
+    box-shadow 170ms ease;
+}
+
+.planOption:hover,
+.planOptionSelected {
+  border-color: color-mix(in srgb, var(--plan-accent) 58%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--plan-accent) 10%, transparent), rgba(255, 255, 255, 0.055)),
+    rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.planOptionSelected {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--plan-accent) 50%, transparent);
+}
+
+.planIcon {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--plan-accent) 36%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--plan-accent) 14%, transparent);
+  color: var(--plan-accent);
+}
+
+.planMeta,
+.planSummary {
+  min-width: 0;
+}
+
+.planMeta strong,
+.planSummary strong {
+  display: block;
+  color: #ffffff;
+  font-size: 0.92rem;
+  font-weight: 950;
+  line-height: 1.25;
+  overflow-wrap: break-word;
+}
+
+.planMeta span,
+.planSummary span {
+  display: block;
+  margin-top: 0.18rem;
+  color: #9fb0c4;
+  font-size: 0.78rem;
+  font-weight: 700;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+}
+
+.planSummary {
+  text-align: right;
+}
+
+.planRadio {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 2px solid rgba(203, 213, 225, 0.7);
+  border-radius: 999px;
+  transition:
+    border-color 170ms ease,
+    box-shadow 170ms ease,
+    background 170ms ease;
+}
+
+.planOptionSelected .planRadio {
+  border-color: var(--plan-accent);
+  background: var(--plan-accent);
+  box-shadow: inset 0 0 0 4px #0A0E1A;
+}
+
+.planFootnote {
+  margin-top: 0.9rem;
+  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 650;
+  line-height: 1.45;
+  text-align: center;
+}
+
 .inviteComposer {
   display: grid;
   grid-template-columns: 1fr;
@@ -1212,10 +1334,6 @@
     display: inline;
   }
 
-  .templateGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-
   .selectionActionBar {
     flex-direction: row;
     align-items: center;
@@ -1247,14 +1365,13 @@
     grid-template-columns: minmax(0, 1fr) minmax(24rem, 0.82fr);
   }
 
+  .planStage {
+    grid-template-columns: minmax(0, 46rem);
+    justify-content: center;
+  }
+
   .successStage {
     justify-items: stretch;
-  }
-}
-
-@media (min-width: 1180px) {
-  .templateGrid {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 }
 
@@ -1282,16 +1399,21 @@
     grid-template-columns: 1fr;
   }
 
-  .templateGrid {
-    grid-template-columns: 1fr;
-  }
-
   .templateTile {
     min-height: 6.8rem;
   }
 
   .segmentedControl {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .planOption {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .planSummary {
+    grid-column: 2 / -1;
+    text-align: left;
   }
 
   .formGrid {
@@ -1351,6 +1473,7 @@
   .loginLink,
   .secondaryCta,
   .templateTile,
+  .planOption,
   .setupPanel,
   .successPanel,
   .previewShell {
@@ -1373,6 +1496,8 @@
   }
 
   .templateTile strong,
+  .planMeta strong,
+  .planSummary strong,
   .previewHeader h2,
   .generationLog strong,
   .inviteRow strong {
@@ -1386,7 +1511,25 @@
     color: #0b1628;
   }
 
+  .planOption:hover,
+  .planOptionSelected {
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--plan-accent) 9%, white), rgba(255, 255, 255, 0.94)),
+      #ffffff;
+  }
+
+  .planMeta span,
+  .planSummary span,
+  .planFootnote {
+    color: #64748b;
+  }
+
+  .planOptionSelected .planRadio {
+    box-shadow: inset 0 0 0 4px #ffffff;
+  }
+
   .legalBox,
+  .planIcon,
   .previewPrimaryPanel,
   .previewSidePanel,
   .previewMetric,
