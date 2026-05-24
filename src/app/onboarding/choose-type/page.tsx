@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { TEMPLATE_ORDER, ONBOARDING_TEMPLATES, trackOnboardingEvent } from '@/lib/onboarding-engine'
 import type { OnboardingTemplateId } from '@/lib/onboarding-engine'
@@ -90,7 +90,7 @@ const styles: Record<string, CSSProperties> = {
   },
 }
 
-export default function ChooseTypePage() {
+function ChooseTypeInner() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const recommended = searchParams.get('recommended') as OnboardingTemplateId | null
@@ -167,5 +167,13 @@ export default function ChooseTypePage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function ChooseTypePage() {
+  return (
+    <Suspense fallback={null}>
+      <ChooseTypeInner />
+    </Suspense>
   )
 }

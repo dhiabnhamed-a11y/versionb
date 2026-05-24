@@ -129,6 +129,14 @@ export const HEALTHCARE_NAVIGATION = {
       section: 'governance',
       description: 'Manage your plan and billing',
     },
+    {
+      id: 'erp',
+      label: 'ERP',
+      href: '/dashboard/admin/erp',
+      icon: 'Database',
+      section: 'governance',
+      description: 'Financial management and accounting',
+    },
   ],
 
   // Section labels for sidebar grouping

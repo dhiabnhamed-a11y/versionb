@@ -19,6 +19,7 @@ import {
   Siren,
   BarChart3,
   CreditCard,
+  Database,
   Search,
   LogOut,
   Menu,
@@ -58,6 +59,7 @@ const ICON_MAP: Record<string, React.ElementType> = {
   Siren,
   BarChart3,
   CreditCard,
+  Database,
 }
 
 type NavSection = {

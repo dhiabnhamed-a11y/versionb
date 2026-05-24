@@ -18,6 +18,7 @@ import {
   Users,
   Wrench,
   type LucideIcon,
+  Database,
 } from 'lucide-react'
 
 import type { CompanyType } from '@/lib/company-types'
@@ -57,6 +58,7 @@ export function getWorkspaceNav(ctx: WorkspaceNavContext): WorkspaceNavItem[] {
   const team: WorkspaceNavItem = { href: '/dashboard/admin/employees', labelKey: 'nav.team', icon: Users }
   const alerts: WorkspaceNavItem = { href: '/dashboard/admin/alerts', labelKey: 'nav.sendAlert', icon: Bell }
   const billing: WorkspaceNavItem = { href: '/billing', label: 'Subscription', icon: CreditCard }
+  const erp: WorkspaceNavItem = { href: '/dashboard/admin/erp', label: 'ERP', icon: Database }
   const projects: WorkspaceNavItem = { href: '/dashboard/admin/projects', labelKey: 'nav.projects', icon: FolderKanban }
   const tasks: WorkspaceNavItem = { href: '/dashboard/admin/tasks', labelKey: 'nav.tasks', icon: CheckSquare }
   const campaigns: WorkspaceNavItem = { href: '/dashboard/admin/projects', labelKey: 'nav.campaigns', icon: FolderKanban }
@@ -101,6 +103,7 @@ export function getWorkspaceNav(ctx: WorkspaceNavContext): WorkspaceNavItem[] {
     case 'CORPORATE_IT_OPERATIONS':
       return [
         overview,
+        erp,
         operations,
         requests,
         assets,
@@ -117,6 +120,7 @@ export function getWorkspaceNav(ctx: WorkspaceNavContext): WorkspaceNavItem[] {
     case 'ENTERPRISE_OPERATIONS':
       return [
         overview,
+        erp,
         operations,
         departments,
         requests,
@@ -136,6 +140,7 @@ export function getWorkspaceNav(ctx: WorkspaceNavContext): WorkspaceNavItem[] {
     case 'INDUSTRY':
       return [
         overview,
+        erp,
         clients,
         { href: '/dashboard/admin/projects', label: industryProjectsLabel, icon: FolderKanban },
         tasks,
@@ -150,13 +155,13 @@ export function getWorkspaceNav(ctx: WorkspaceNavContext): WorkspaceNavItem[] {
       ]
 
     case 'DIGITAL_AGENCY':
-      return [overview, clients, campaigns, briefs, invoices, finance, team, calendar, alerts, billing]
+      return [overview, erp, clients, campaigns, briefs, invoices, finance, team, calendar, alerts, billing]
 
     case 'CONTENT_CREATION_AGENCY':
-      return [overview, socialAnalytics, clients, campaigns, briefs, invoices, team, calendar, alerts, billing]
+      return [overview, erp, socialAnalytics, clients, campaigns, briefs, invoices, team, calendar, alerts, billing]
 
     case 'OTHER':
     default:
-      return [overview, clients, projects, tasks, invoices, finance, team, calendar, alerts, billing]
+      return [overview, erp, clients, projects, tasks, invoices, finance, team, calendar, alerts, billing]
   }
 }
