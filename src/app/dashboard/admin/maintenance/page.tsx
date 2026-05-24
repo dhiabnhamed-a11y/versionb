@@ -1,6 +1,5 @@
 import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
-import { isHealthcareCompanyType } from '@/lib/company-types'
 import type { SessionUser } from '@/modules/shared/session'
 import { prisma } from '@/lib/db'
 import { Wrench } from 'lucide-react'
@@ -27,7 +26,6 @@ export default async function MaintenancePage() {
   if (!session?.user) redirect('/login')
 
   const user = session.user as SessionUser
-  if (!isHealthcareCompanyType(user.companyType)) redirect('/dashboard/admin')
 
   const workOrders = await prisma.enterpriseMaintenanceWorkOrder.findMany({
     where: { companyId: user.companyId! },

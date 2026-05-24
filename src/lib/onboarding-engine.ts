@@ -6,6 +6,7 @@ export type OnboardingTemplateId =
   | 'CLINIC_HOSPITAL'
   | 'ENTERPRISE'
   | 'IT_OPERATIONS'
+  | 'ERP'
   | 'LEGAL'
   | 'CONSTRUCTION'
   | 'FINANCE'
@@ -228,6 +229,25 @@ export const ONBOARDING_TEMPLATES: Record<OnboardingTemplateId, OnboardingTempla
     suggestions: ['Create campus departments', 'Invite operations lead', 'Add facilities queue'],
     whyItMatters: 'Education teams need operational calm across departments, facilities, programs, and approvals.',
   },
+  ERP: {
+    id: 'ERP',
+    title: 'ERP',
+    sentence: 'Full financial management, procurement, inventory, HR, and payroll with dedicated accounting modules.',
+    icon: 'database',
+    companyType: 'ERP_WORKSPACE',
+    accent: '#f59e0b',
+    softAccent: 'rgba(245, 158, 11, 0.14)',
+    industryDefault: 'ERP operations',
+    departments: ['Accounting', 'Procurement', 'HR', 'Inventory'],
+    workflows: ['Journal entry', 'Purchase order', 'Payroll run', 'Period close'],
+    assets: ['Chart of accounts', 'Vendor files', 'Tax rates', 'Compliance docs'],
+    dashboards: ['Command center', 'Cash flow', 'Budget variance'],
+    copilots: ['Accounting copilot', 'Procurement analyst', 'HR assistant'],
+    automations: ['Anomaly scan', 'Budget alerts', 'Payroll reminders'],
+    finance: ['General ledger', 'AR/AP', 'Treasury', 'Payroll'],
+    suggestions: ['Start with chart of accounts', 'Connect vendors', 'Invite finance lead'],
+    whyItMatters: 'ERP Workspace gives you full control over financials, procurement, inventory, and people — all in one platform.',
+  },
   OTHER: {
     id: 'OTHER',
     title: 'Other',
@@ -255,6 +275,7 @@ export const TEMPLATE_ORDER: OnboardingTemplateId[] = [
   'CLINIC_HOSPITAL',
   'ENTERPRISE',
   'IT_OPERATIONS',
+  'ERP',
   'LEGAL',
   'CONSTRUCTION',
   'FINANCE',
@@ -273,6 +294,8 @@ export function getTemplateForCompanyType(companyType: CompanyType): OnboardingT
       return 'CLINIC_HOSPITAL'
     case 'ENTERPRISE_OPERATIONS':
       return 'ENTERPRISE'
+    case 'ERP_WORKSPACE':
+      return 'ERP'
     case 'CORPORATE_IT_OPERATIONS':
       return 'IT_OPERATIONS'
     case 'INDUSTRY':
