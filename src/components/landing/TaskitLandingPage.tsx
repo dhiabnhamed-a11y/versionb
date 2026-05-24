@@ -283,6 +283,16 @@ const workflowTypePresentation = {
     focus: 'Tickets, assets, outages, escalations, and SLA health',
     flow: ['Service desk', 'Assets', 'Uptime'],
   },
+  ERP_WORKSPACE: {
+    icon: Building2,
+    eyebrow: 'ERP & accounting',
+    accent: '#f59e0b',
+    surface: 'rgba(245, 158, 11, 0.1)',
+    outline: 'rgba(245, 158, 11, 0.22)',
+    audience: 'Finance, operations, HR, and inventory teams',
+    focus: 'Full ERP suite: GL, AR/AP, budgets, procurement, inventory, HR, and compliance',
+    flow: ['Command Center', 'Finance', 'Operations'],
+  },
   OTHER: {
     icon: Layers3,
     eyebrow: 'Flexible teams',

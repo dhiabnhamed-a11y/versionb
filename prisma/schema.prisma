@@ -3912,3 +3912,655 @@ enum BillingInterval {
   YEARLY
   LIFETIME
 }
+
+// ═══════════════════════════════════════════════════════════════════
+// ERP CORE — Standalone ERP workspace models
+// All use workspaceId for tenant isolation (separate from companyId)
+// ═══════════════════════════════════════════════════════════════════
+
+enum ERPFiscalYearStatus {
+  OPEN
+  CLOSED
+  LOCKED
+}
+
+model ERPFiscalYear {
+  id          String             @id @default(cuid())
+  workspaceId String
+  name        String
+  startDate   DateTime
+  endDate     DateTime
+  isLocked    Boolean            @default(false)
+  status      ERPFiscalYearStatus @default(OPEN)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+  isDeleted   Boolean            @default(false)
+  accounts    ERPAccount[]
+  periods     ERPPeriod[]
+}
+
+model ERPPeriod {
+  id           String       @id @default(cuid())
+  workspaceId  String
+  fiscalYearId String
+  name         String
+  startDate    DateTime
+  endDate      DateTime
+  isLocked     Boolean      @default(false)
+  fiscalYear   ERPFiscalYear @relation(fields: [fiscalYearId], references: [id])
+  journalEntries ERPJournalEntry[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  isDeleted    Boolean      @default(false)
+}
+
+enum ERPAccountType {
+  ASSET
+  LIABILITY
+  EQUITY
+  REVENUE
+  EXPENSE
+}
+
+model ERPAccount {
+  id           String        @id @default(cuid())
+  workspaceId  String
+  fiscalYearId String
+  code         String
+  name         String
+  type         ERPAccountType
+  subtype      String?
+  parentId     String?
+  parent       ERPAccount?   @relation("ERPAccountTree", fields: [parentId], references: [id])
+  children     ERPAccount[]  @relation("ERPAccountTree")
+  isActive     Boolean       @default(true)
+  currency     String        @default("USD")
+  description  String?
+  fiscalYear   ERPFiscalYear @relation(fields: [fiscalYearId], references: [id])
+  journalLines   ERPJournalLine[]
+  accountBalances ERPAccountBalance[]
+  createdAt      DateTime          @default(now())
+  updatedAt    DateTime      @updatedAt
+  isDeleted    Boolean       @default(false)
+  @@unique([workspaceId, code])
+}
+
+enum ERPJournalStatus {
+  DRAFT
+  POSTED
+  REVERSED
+}
+
+model ERPJournalEntry {
+  id           String          @id @default(cuid())
+  workspaceId  String
+  periodId     String
+  entryNumber  String
+  date         DateTime
+  description  String
+  reference    String?
+  status       ERPJournalStatus @default(DRAFT)
+  sourceType   String?
+  sourceId     String?
+  createdById  String
+  approvedById String?
+  approvedAt   DateTime?
+  period       ERPPeriod       @relation(fields: [periodId], references: [id])
+  lines        ERPJournalLine[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  isDeleted    Boolean         @default(false)
+}
+
+model ERPJournalLine {
+  id             String          @id @default(cuid())
+  workspaceId    String
+  journalEntryId String
+  accountId      String
+  description    String?
+  debit          Int             @default(0)
+  credit         Int             @default(0)
+  currency       String          @default("USD")
+  exchangeRate   Float           @default(1.0)
+  departmentId   String?
+  projectId      String?
+  costCenterId   String?
+  isReconciled   Boolean         @default(false)
+  journalEntry   ERPJournalEntry @relation(fields: [journalEntryId], references: [id])
+  account        ERPAccount      @relation(fields: [accountId], references: [id])
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  isDeleted      Boolean         @default(false)
+}
+
+// ─── ACCOUNTS RECEIVABLE ────────────────────────────────────────────
+
+enum ERPARStatus {
+  OPEN
+  PARTIAL
+  PAID
+  OVERDUE
+  WRITTEN_OFF
+}
+
+model ERPARLedger {
+  id          String       @id @default(cuid())
+  workspaceId String
+  clientId    String?
+  clientName  String
+  clientEmail String?
+  invoiceRef  String?
+  amount      Int
+  amountPaid  Int          @default(0)
+  currency    String       @default("USD")
+  dueDate     DateTime
+  status      ERPARStatus  @default(OPEN)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  isDeleted   Boolean      @default(false)
+  payments    ERPARPayment[]
+}
+
+model ERPARPayment {
+  id          String     @id @default(cuid())
+  workspaceId String
+  arLedgerId  String
+  amount      Int
+  currency    String     @default("USD")
+  method      String
+  reference   String?
+  paidAt      DateTime
+  arLedger    ERPARLedger @relation(fields: [arLedgerId], references: [id])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  isDeleted   Boolean    @default(false)
+}
+
+// ─── ACCOUNTS PAYABLE ───────────────────────────────────────────────
+
+model ERPVendor {
+  id           String     @id @default(cuid())
+  workspaceId  String
+  name         String
+  taxId        String?
+  email        String?
+  phone        String?
+  address      String?
+  currency     String     @default("USD")
+  paymentTerms Int        @default(30)
+  bankName     String?
+  bankAccount  String?
+  isActive     Boolean    @default(true)
+  bills        ERPAPBill[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  isDeleted    Boolean    @default(false)
+}
+
+enum ERPAPStatus {
+  PENDING
+  APPROVED
+  PAID
+  OVERDUE
+  CANCELLED
+}
+
+model ERPAPBill {
+  id          String       @id @default(cuid())
+  workspaceId String
+  vendorId    String
+  billNumber  String
+  amount      Int
+  amountPaid  Int          @default(0)
+  currency    String       @default("USD")
+  issueDate   DateTime
+  dueDate     DateTime
+  status      ERPAPStatus  @default(PENDING)
+  description String?
+  vendor      ERPVendor    @relation(fields: [vendorId], references: [id])
+  payments    ERPAPPayment[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  isDeleted   Boolean      @default(false)
+}
+
+model ERPAPPayment {
+  id          String     @id @default(cuid())
+  workspaceId String
+  billId      String
+  amount      Int
+  currency    String     @default("USD")
+  method      String
+  reference   String?
+  paidAt      DateTime
+  bill        ERPAPBill  @relation(fields: [billId], references: [id])
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  isDeleted   Boolean    @default(false)
+}
+
+// ─── BUDGETING ───────────────────────────────────────────────────────
+
+enum ERPBudgetStatus {
+  DRAFT
+  APPROVED
+  ACTIVE
+  CLOSED
+}
+
+model ERPBudget {
+  id          String         @id @default(cuid())
+  workspaceId String
+  name        String
+  fiscalYearId String?
+  startDate   DateTime
+  endDate     DateTime
+  status      ERPBudgetStatus @default(DRAFT)
+  currency    String         @default("USD")
+  lines       ERPBudgetLine[]
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  isDeleted   Boolean        @default(false)
+}
+
+model ERPBudgetLine {
+  id           String     @id @default(cuid())
+  workspaceId  String
+  budgetId     String
+  accountCode  String
+  accountName  String
+  month        Int
+  year         Int
+  budgetAmount Int
+  actualAmount Int        @default(0)
+  budget       ERPBudget  @relation(fields: [budgetId], references: [id])
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  isDeleted    Boolean    @default(false)
+}
+
+// ─── PROCUREMENT ─────────────────────────────────────────────────────
+
+enum ERPPOStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  SENT_TO_VENDOR
+  PARTIALLY_RECEIVED
+  FULLY_RECEIVED
+  CLOSED
+  CANCELLED
+}
+
+model ERPPurchaseOrder {
+  id           String       @id @default(cuid())
+  workspaceId  String
+  poNumber     String
+  vendorId     String?
+  vendorName   String
+  status       ERPPOStatus  @default(DRAFT)
+  totalAmount  Int
+  currency     String       @default("USD")
+  requestedBy  String
+  approvedBy   String?
+  approvedAt   DateTime?
+  expectedDate DateTime?
+  notes        String?
+  lines        ERPPOLine[]
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  isDeleted    Boolean      @default(false)
+}
+
+model ERPPOLine {
+  id          String          @id @default(cuid())
+  workspaceId String
+  poId        String
+  description String
+  quantity    Int
+  unitPrice   Int
+  totalPrice  Int
+  unit        String?
+  receivedQty Int             @default(0)
+  po          ERPPurchaseOrder @relation(fields: [poId], references: [id])
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  isDeleted   Boolean         @default(false)
+}
+
+// ─── INVENTORY & ASSETS ──────────────────────────────────────────────
+
+model ERPInventoryItem {
+  id            String               @id @default(cuid())
+  workspaceId   String
+  sku           String
+  name          String
+  category      String?
+  unit          String               @default("piece")
+  currentStock  Int                  @default(0)
+  reorderPoint  Int                  @default(0)
+  reorderQty    Int                  @default(0)
+  unitCost      Int                  @default(0)
+  currency      String               @default("USD")
+  isActive      Boolean              @default(true)
+  movements     ERPInventoryMovement[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+  isDeleted     Boolean              @default(false)
+  @@unique([workspaceId, sku])
+}
+
+enum ERPMovementType {
+  PURCHASE
+  SALE
+  ADJUSTMENT
+  TRANSFER
+  RETURN
+}
+
+model ERPInventoryMovement {
+  id          String           @id @default(cuid())
+  workspaceId String
+  itemId      String
+  type        ERPMovementType
+  quantity    Int
+  unitCost    Int?
+  reference   String?
+  notes       String?
+  movedAt     DateTime         @default(now())
+  item        ERPInventoryItem @relation(fields: [itemId], references: [id])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  isDeleted   Boolean          @default(false)
+}
+
+enum ERPDepreciationMethod {
+  STRAIGHT_LINE
+  DECLINING_BALANCE
+}
+
+model ERPFixedAsset {
+  id                  String               @id @default(cuid())
+  workspaceId         String
+  name                String
+  category            String
+  serialNumber        String?
+  purchaseDate        DateTime
+  purchaseCost        Int
+  salvageValue        Int                  @default(0)
+  usefulLifeYears     Int
+  depreciationMethod  ERPDepreciationMethod @default(STRAIGHT_LINE)
+  currentBookValue    Int
+  isDisposed          Boolean              @default(false)
+  disposedAt          DateTime?
+  disposalValue       Int?
+  depreciations       ERPAssetDepreciation[]
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  isDeleted           Boolean              @default(false)
+}
+
+model ERPAssetDepreciation {
+  id              String           @id @default(cuid())
+  workspaceId     String
+  assetId         String
+  month           Int
+  year            Int
+  amount          Int
+  bookValueAfter  Int
+  isPosted        Boolean          @default(false)
+  asset           ERPFixedAsset    @relation(fields: [assetId], references: [id])
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  isDeleted       Boolean          @default(false)
+}
+
+// ─── HR & PAYROLL ─────────────────────────────────────────────────────
+
+enum ERPContractType {
+  FULL_TIME
+  PART_TIME
+  CONTRACT
+  INTERN
+}
+
+enum ERPPayFrequency {
+  MONTHLY
+  BIWEEKLY
+  WEEKLY
+}
+
+model ERPEmployee {
+  id              String            @id @default(cuid())
+  workspaceId     String
+  employeeNumber  String
+  firstName       String
+  lastName        String
+  email           String
+  phone           String?
+  jobTitle        String
+  departmentId    String?
+  managerId       String?
+  startDate       DateTime
+  endDate         DateTime?
+  contractType    ERPContractType   @default(FULL_TIME)
+  baseSalary      Int
+  currency        String            @default("USD")
+  payFrequency    ERPPayFrequency   @default(MONTHLY)
+  isActive        Boolean           @default(true)
+  department      ERPHRDepartment?  @relation(fields: [departmentId], references: [id])
+  payrollLines    ERPPayrollLine[]
+  leaveRequests   ERPLeaveRequest[]
+  leaveBalances   ERPLeaveBalance[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  isDeleted       Boolean           @default(false)
+  @@unique([workspaceId, employeeNumber])
+}
+
+model ERPHRDepartment {
+  id          String       @id @default(cuid())
+  workspaceId String
+  name        String
+  code        String?
+  managerId   String?
+  budget      Int?
+  employees   ERPEmployee[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  isDeleted   Boolean      @default(false)
+}
+
+enum ERPPayrollStatus {
+  DRAFT
+  PROCESSING
+  APPROVED
+  PAID
+  CANCELLED
+}
+
+model ERPPayrollRun {
+  id          String          @id @default(cuid())
+  workspaceId String
+  runNumber   String
+  period      String
+  startDate   DateTime
+  endDate     DateTime
+  payDate     DateTime
+  status      ERPPayrollStatus @default(DRAFT)
+  totalGross  Int             @default(0)
+  totalNet    Int             @default(0)
+  totalTax    Int             @default(0)
+  lines       ERPPayrollLine[]
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+  isDeleted   Boolean         @default(false)
+}
+
+model ERPPayrollLine {
+  id           String        @id @default(cuid())
+  workspaceId  String
+  payrollRunId String
+  employeeId   String
+  baseSalary   Int
+  allowances   Int           @default(0)
+  overtime     Int           @default(0)
+  deductions   Int           @default(0)
+  taxAmount    Int           @default(0)
+  netPay       Int
+  currency     String        @default("USD")
+  payrollRun   ERPPayrollRun @relation(fields: [payrollRunId], references: [id])
+  employee     ERPEmployee   @relation(fields: [employeeId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  isDeleted    Boolean       @default(false)
+}
+
+enum ERPLeaveType {
+  ANNUAL
+  SICK
+  UNPAID
+  MATERNITY
+  PATERNITY
+  OTHER
+}
+
+enum ERPLeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+model ERPLeaveRequest {
+  id            String       @id @default(cuid())
+  workspaceId   String
+  employeeId    String
+  type          ERPLeaveType
+  startDate     DateTime
+  endDate       DateTime
+  days          Int
+  reason        String?
+  status        ERPLeaveStatus @default(PENDING)
+  approvedById  String?
+  approvedAt    DateTime?
+  employee      ERPEmployee  @relation(fields: [employeeId], references: [id])
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  isDeleted     Boolean      @default(false)
+}
+
+model ERPLeaveBalance {
+  id          String       @id @default(cuid())
+  workspaceId String
+  employeeId  String
+  year        Int
+  type        ERPLeaveType
+  entitled    Int
+  used        Int          @default(0)
+  remaining   Int
+  employee    ERPEmployee  @relation(fields: [employeeId], references: [id])
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  isDeleted   Boolean      @default(false)
+  @@unique([workspaceId, employeeId, year, type])
+}
+
+// ─── ERP SETTINGS ─────────────────────────────────────────────────────
+
+model ERPSettings {
+  id                  String   @id @default(cuid())
+  workspaceId         String   @unique
+  defaultCurrency     String   @default("USD")
+  accountingBasis     String   @default("ACCRUAL")
+  fiscalYearStartMonth Int     @default(1)
+  taxRate             Float    @default(0)
+  taxName             String   @default("VAT")
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model ERPTaxRate {
+  id          String   @id @default(cuid())
+  workspaceId String
+  name        String
+  rate        Float
+  appliesTo   String   @default("BOTH") // INCOME, EXPENSE, BOTH
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  isDeleted   Boolean  @default(false)
+}
+
+enum ERPAlertType {
+  DUPLICATE_TRANSACTION
+  EXPENSE_SPIKE
+  ROUND_NUMBER
+  WEEKEND_POSTING
+  MISSING_REFERENCE
+  OVERDUE_AR
+  BUDGET_THRESHOLD
+  CASH_LOW
+  PAYROLL_ANOMALY
+}
+
+enum ERPAlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+model ERPAlert {
+  id           String           @id @default(cuid())
+  workspaceId  String
+  type         ERPAlertType
+  severity     ERPAlertSeverity
+  title        String
+  description  String
+  entityType   String
+  entityId     String
+  isRead       Boolean          @default(false)
+  isResolved   Boolean          @default(false)
+  aiConfidence Float
+  createdAt    DateTime         @default(now())
+  resolvedAt   DateTime?
+}
+
+model ERPVendorCategoryMapping {
+  id          String   @id @default(cuid())
+  workspaceId String
+  vendorName  String
+  accountCode String
+  confidence  Float    @default(0.9)
+  learnedAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workspaceId, vendorName])
+}
+
+model ERPAccountBalance {
+  id          String     @id @default(cuid())
+  workspaceId String
+  accountId   String
+  month       Int
+  year        Int
+  debitTotal  Int        @default(0)
+  creditTotal Int        @default(0)
+  netChange   Int        @default(0)
+  updatedAt   DateTime   @updatedAt
+  account     ERPAccount @relation(fields: [accountId], references: [id])
+
+  @@unique([workspaceId, accountId, month, year])
+}
+
+model ERPSetupProgress {
+  id          String    @id @default(cuid())
+  workspaceId String    @unique
+  step1Done   Boolean   @default(false)
+  step2Done   Boolean   @default(false)
+  step3Done   Boolean   @default(false)
+  step4Done   Boolean   @default(false)
+  step5Done   Boolean   @default(false)
+  step6Done   Boolean   @default(false)
+  completedAt DateTime?
+}

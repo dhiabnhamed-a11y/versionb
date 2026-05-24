@@ -6,6 +6,7 @@ export const COMPANY_TYPE_VALUES = [
   'ENTERPRISE_OPERATIONS',
   'CLINIC_HOSPITAL',
   'CORPORATE_IT_OPERATIONS',
+  'ERP_WORKSPACE',
   'OTHER',
 ] as const
 
@@ -186,6 +187,24 @@ export const COMPANY_TYPE_CONFIG = {
     groupPluralLabel: 'Departments',
     workspaceLabel: 'IT operations',
   },
+  ERP_WORKSPACE: {
+    label: 'ERP Workspace',
+    slug: 'erp-workspace',
+    title: 'Enterprise resource planning workspace.',
+    description: 'For businesses that need full financial management, procurement, inventory, and HR.',
+    bullets: ['Full double-entry accounting with journal entries', 'Accounts receivable and payable management', 'Procurement, inventory, and HR/payroll modules'],
+    signupTitle: 'Set up an ERP workspace for your business.',
+    signupDescription: 'Full-featured ERP with general ledger, AR/AP, budgets, procurement, inventory, and HR.',
+    overviewTitle: 'Complete ERP with financial, operations, and people modules.',
+    overviewDescription: 'Manage your entire business from one platform — accounting, procurement, inventory, and HR.',
+    projectLabel: 'Project',
+    projectPluralLabel: 'Projects',
+    taskLabel: 'Task',
+    taskPluralLabel: 'Tasks',
+    groupLabel: 'Module',
+    groupPluralLabel: 'Modules',
+    workspaceLabel: 'ERP workspace',
+  },
   OTHER: {
     label: 'Other',
     slug: 'other',
@@ -282,6 +301,10 @@ export function isEnterpriseOperationsCompanyType(type?: CompanyType | string | 
         normalizeCompanyType(type) as (typeof ENTERPRISE_OPERATIONS_COMPANY_TYPES)[number]
       )
   )
+}
+
+export function isErpWorkspaceType(type?: CompanyType | string | null) {
+  return normalizeCompanyType(type) === 'ERP_WORKSPACE'
 }
 
 export const DELIVERABLE_TYPE_OPTIONS = [

@@ -68,6 +68,7 @@ function rejectUnauthorizedApi(req: NextRequest) {
 
 const BILLING_EXEMPT_PREFIXES = [
   '/billing',
+  '/erp',
   '/auth',
   '/login',
   '/register',
@@ -125,22 +126,25 @@ export async function middleware(req: NextRequest) {
     return applySecurityHeaders(NextResponse.next(), req)
   }
 
-  if (pathname.startsWith('/dashboard')) {
+  if (pathname.startsWith('/dashboard') || pathname.startsWith('/erp')) {
     if (!hasSessionCookie) {
       return applySecurityHeaders(NextResponse.redirect(new URL('/login', req.url)), req)
     }
   }
 
-  if (!isBillingExempt(pathname) && hasSessionCookie) {
-    const token = await getToken({ req, secret: process.env.AUTH_SECRET })
-    if (token?.companyId) {
-      const access = checkBillingAccess(token.subscriptionStatus, token.trialEndsAt)
-      if (access === 'trial_expired' || access === 'payment_required') {
-        const upgradeUrl = new URL('/billing/upgrade', req.url)
-        upgradeUrl.searchParams.set('reason', access)
-        return applySecurityHeaders(NextResponse.redirect(upgradeUrl), req)
-      }
+  const token = hasSessionCookie ? await getToken({ req, secret: process.env.AUTH_SECRET }) : null
+
+  if (!isBillingExempt(pathname) && token?.companyId) {
+    const access = checkBillingAccess(token.subscriptionStatus, token.trialEndsAt)
+    if (access === 'trial_expired' || access === 'payment_required') {
+      const upgradeUrl = new URL('/billing/upgrade', req.url)
+      upgradeUrl.searchParams.set('reason', access)
+      return applySecurityHeaders(NextResponse.redirect(upgradeUrl), req)
     }
+  }
+
+  if (pathname.startsWith('/dashboard') && token?.companyType === 'ERP_WORKSPACE') {
+    return applySecurityHeaders(NextResponse.redirect(new URL('/erp', req.url)), req)
   }
 
   return applySecurityHeaders(NextResponse.next(), req)

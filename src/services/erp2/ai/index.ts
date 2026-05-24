@@ -1,0 +1,6 @@
+export { suggestJournalEntryForWorkspace } from '@/services/erp2/ai/suggest.service'
+export { getVendorMapping, learnVendorMapping, listVendorMappings } from '@/services/erp2/ai/vendor-learn.service'
+export { engineInfo } from '@/services/erp2/ai/engine'
+export { listAlerts, getAlertCounts, resolveAlert, markAlertRead, runAnomalyDetection, type AnomalyResult } from '@/services/erp2/ai/anomaly.service'
+export { computeCashForecast, type CashForecastResult } from '@/services/erp2/ai/cash-forecast.service'
+export { computeHealthScore, type HealthScoreResult } from '@/services/erp2/ai/health-score.service'
