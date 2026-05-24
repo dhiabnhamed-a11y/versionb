@@ -55,6 +55,12 @@ const GenerationExperience = dynamic(() => import('./onboarding/GenerationExperi
   loading: () => <GenerationSkeleton />,
 })
 
+const OnboardingFlow = dynamic(() => import('@/components/onboarding/OnboardingFlow'), {
+  loading: () => <PreviewSkeleton />,
+})
+
+const smartOnboardingEnabled = String(process.env.NEXT_PUBLIC_SMART_ONBOARDING || '').toLowerCase() === 'true'
+
 type SignupRole = 'OWNER' | 'MANAGER' | 'EMPLOYEE'
 
 type InvitePreview = {
@@ -342,7 +348,13 @@ export default function SignupOnboardingClient({
         content = <WelcomeStep onStart={() => goTo('company-type')} />
         break
       case 'company-type':
-        content = (
+        content = smartOnboardingEnabled ? (
+          <OnboardingFlow
+            onSelect={setTemplateId}
+            onSubmit={() => goTo('generating')}
+            onBack={() => goTo('welcome')}
+          />
+        ) : (
           <CompanyTypeStep
             selected={templateId}
             onSelect={(next) => {
