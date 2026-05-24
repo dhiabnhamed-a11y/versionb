@@ -1,121 +1,108 @@
-import { requireSessionUser } from '@/modules/shared/session'
-import { NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { z } from 'zod'
+import { apiData, handleApiRoute, validateJson, type ApiParams } from '@/lib/api'
 
 import { normalizeCompanyType } from '@/lib/company-types'
 import { prisma } from '@/lib/db'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
 
-export async function GET() {
-  const user = await requireSessionUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+const createRoomSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+})
 
-  if (!user.companyId) {
-    return NextResponse.json([])
-  }
+export async function GET(req: NextRequest) {
+  return handleApiRoute<ApiParams, unknown>(
+    req,
+    undefined,
+    async ({ user }) => {
+      if (!user.companyId) {
+        return apiData([])
+      }
 
-  try {
-    const rooms = await prisma.room.findMany({
-      where: {
-        companyId: user.companyId,
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: {
-            projects: true,
-          },
+      const rooms = await prisma.room.findMany({
+        where: { companyId: user.companyId },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: { select: { projects: true } },
         },
-      },
-      orderBy: [{ createdAt: 'asc' }],
-    })
+        orderBy: [{ createdAt: 'asc' }],
+      })
 
-    return NextResponse.json(
-      rooms.map((room) => ({
+      return apiData(
+        rooms.map((room) => ({
+          id: room.id,
+          name: room.name,
+          description: room.description,
+          createdAt: room.createdAt,
+          updatedAt: room.updatedAt,
+          projectCount: room._count.projects,
+        }))
+      )
+    },
+    {
+      auth: 'required',
+      rateLimit: { max: 30, namespace: 'rooms.list', windowMs: 60_000 },
+      responseMode: 'canonical',
+      route: '/api/rooms',
+    }
+  )
+}
+
+export async function POST(req: NextRequest) {
+  return handleApiRoute<ApiParams, unknown>(
+    req,
+    undefined,
+    async ({ user }) => {
+      if (!user.companyId) {
+        return apiData({ error: 'No company found for this account.' }, { status: 400 })
+      }
+      if (user.role === 'EMPLOYEE') {
+        return apiData({ error: 'Forbidden' }, { status: 403 })
+      }
+      if (normalizeCompanyType(user.companyType) !== 'INDUSTRY') {
+        return apiData({ error: 'Rooms are only available for industry workspaces.' }, { status: 403 })
+      }
+
+      const parsed = await validateJson(req, createRoomSchema)
+      const name = parsed.name.trim()
+      const description = parsed.description?.trim() || null
+
+      const room = await prisma.room.create({
+        data: { companyId: user.companyId, name, description },
+        select: {
+          id: true,
+          name: true,
+          description: true,
+          createdAt: true,
+          updatedAt: true,
+          _count: { select: { projects: true } },
+        },
+      })
+
+      const responseRoom = {
         id: room.id,
         name: room.name,
         description: room.description,
         createdAt: room.createdAt,
         updatedAt: room.updatedAt,
         projectCount: room._count.projects,
-      }))
-    )
-  } catch (error) {
-    console.error(error)
-    return NextResponse.json({ error: 'Failed to load rooms.' }, { status: 500 })
-  }
-}
+      }
 
-export async function POST(req: NextRequest) {
-  const user = await requireSessionUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+      emitCompanyRealtime(user.companyId, 'room_created', { room: responseRoom })
 
-  if (!user.companyId) {
-    return NextResponse.json({ error: 'No company found for this account.' }, { status: 400 })
-  }
-
-  if (user.role === 'EMPLOYEE') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
-
-  if (normalizeCompanyType(user.companyType) !== 'INDUSTRY') {
-    return NextResponse.json({ error: 'Rooms are only available for industry workspaces.' }, { status: 403 })
-  }
-
-  try {
-    const body = (await req.json()) as {
-      name?: string
-      description?: string
+      return apiData(responseRoom, { status: 201 })
+    },
+    {
+      auth: 'required',
+      idempotency: true,
+      rateLimit: { max: 20, namespace: 'rooms.create', windowMs: 60_000 },
+      responseMode: 'canonical',
+      route: '/api/rooms',
     }
-
-    const name = body.name?.trim()
-    const description = body.description?.trim()
-
-    if (!name) {
-      return NextResponse.json({ error: 'Room name is required.' }, { status: 400 })
-    }
-
-    const room = await prisma.room.create({
-      data: {
-        companyId: user.companyId,
-        name,
-        description: description || null,
-      },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        createdAt: true,
-        updatedAt: true,
-        _count: {
-          select: {
-            projects: true,
-          },
-        },
-      },
-    })
-
-    const responseRoom = {
-      id: room.id,
-      name: room.name,
-      description: room.description,
-      createdAt: room.createdAt,
-      updatedAt: room.updatedAt,
-      projectCount: room._count.projects,
-    }
-
-    emitCompanyRealtime(user.companyId, 'room_created', { room: responseRoom })
-
-    return NextResponse.json(responseRoom, { status: 201 })
-  } catch (error) {
-    console.error(error)
-    return NextResponse.json({ error: 'Failed to create room.' }, { status: 500 })
-  }
+  )
 }

@@ -1,6 +1,6 @@
-import { requireSessionUser } from '@/modules/shared/session'
-import { NextRequest, NextResponse } from 'next/server'
-import { Prisma } from '@prisma/client'
+import type { NextRequest } from 'next/server'
+import { z } from 'zod'
+import { apiData, handleApiRoute, validateJson, type ApiParams } from '@/lib/api'
 
 import { isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
@@ -10,82 +10,75 @@ import {
   getProjectCategorySupport,
 } from '@/lib/project-category-support'
 
-export async function GET() {
-  const user = await requireSessionUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+const createCategorySchema = z.object({
+  name: z.string().min(1),
+  description: z.string().optional(),
+})
 
-  if (!user.companyId) {
-    return NextResponse.json([])
-  }
+export async function GET(req: NextRequest) {
+  return handleApiRoute<ApiParams, unknown>(
+    req,
+    undefined,
+    async ({ user }) => {
+      if (!user.companyId) {
+        return apiData([])
+      }
+      if (!isAgencyCompanyType(normalizeCompanyType(user.companyType))) {
+        return apiData([])
+      }
 
-  if (!isAgencyCompanyType(normalizeCompanyType(user.companyType))) {
-    return NextResponse.json([])
-  }
-
-  try {
-    return NextResponse.json(await findProjectCategories(user.companyId))
-  } catch (error) {
-    console.error(error)
-    return NextResponse.json({ error: 'Failed to load categories.' }, { status: 500 })
-  }
+      const categories = await findProjectCategories(user.companyId)
+      return apiData(categories)
+    },
+    {
+      auth: 'required',
+      rateLimit: { max: 30, namespace: 'categories.list', windowMs: 60_000 },
+      responseMode: 'canonical',
+      route: '/api/project-categories',
+    }
+  )
 }
 
 export async function POST(req: NextRequest) {
-  const user = await requireSessionUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  return handleApiRoute<ApiParams, unknown>(
+    req,
+    undefined,
+    async ({ user }) => {
+      if (!user.companyId) {
+        return apiData({ error: 'No company found for this account.' }, { status: 400 })
+      }
+      if (user.role === 'EMPLOYEE') {
+        return apiData({ error: 'Forbidden' }, { status: 403 })
+      }
+      if (!isAgencyCompanyType(normalizeCompanyType(user.companyType))) {
+        return apiData({ error: 'Categories are only available for agency workspaces.' }, { status: 403 })
+      }
 
-  if (!user.companyId) {
-    return NextResponse.json({ error: 'No company found for this account.' }, { status: 400 })
-  }
+      const support = await getProjectCategorySupport()
+      if (!support.hasCategoryTable || !support.hasProjectCategoryColumns) {
+        return apiData({ error: 'Project categories are not ready. Apply the latest database migration first.' }, { status: 503 })
+      }
 
-  if (user.role === 'EMPLOYEE') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+      const parsed = await validateJson(req, createCategorySchema)
+      const name = parsed.name.trim()
+      const description = parsed.description?.trim() || null
 
-  if (!isAgencyCompanyType(normalizeCompanyType(user.companyType))) {
-    return NextResponse.json({ error: 'Categories are only available for agency workspaces.' }, { status: 403 })
-  }
-
-  const support = await getProjectCategorySupport()
-  if (!support.hasCategoryTable || !support.hasProjectCategoryColumns) {
-    return NextResponse.json(
-      { error: 'Project categories are not ready. Apply the latest database migration first.' },
-      { status: 503 }
-    )
-  }
-
-  try {
-    const body = (await req.json()) as {
-      name?: string
-      description?: string
-    }
-
-    const name = body.name?.trim()
-    const description = body.description?.trim()
-
-    if (!name) {
-      return NextResponse.json({ error: 'Category name is required.' }, { status: 400 })
-    }
-
-    const category = await createProjectCategory({
+      const category = await createProjectCategory({
         companyId: user.companyId,
         name,
-        description: description || null,
+        description,
       })
 
-    emitCompanyRealtime(user.companyId, 'project_category_created', { category })
+      emitCompanyRealtime(user.companyId, 'project_category_created', { category })
 
-    return NextResponse.json(category, { status: 201 })
-  } catch (error) {
-    console.error(error)
-    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
-      return NextResponse.json({ error: 'A category with this name already exists.' }, { status: 409 })
+      return apiData(category, { status: 201 })
+    },
+    {
+      auth: 'required',
+      idempotency: true,
+      rateLimit: { max: 20, namespace: 'categories.create', windowMs: 60_000 },
+      responseMode: 'canonical',
+      route: '/api/project-categories',
     }
-
-    return NextResponse.json({ error: 'Failed to create category.' }, { status: 500 })
-  }
+  )
 }

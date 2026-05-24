@@ -1,90 +1,97 @@
-import { requireSessionUser } from '@/modules/shared/session'
-import { NextRequest, NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+import { z } from 'zod'
+import { apiData, handleApiRoute, validateJson, type ApiParams } from '@/lib/api'
 
 import { listCompanyAccessRequests, reviewCompanyAccessRequest, submitDomainAccessRequest } from '@/lib/onboarding'
-import { InviteFlowError } from '@/lib/invites'
 
-export async function GET() {
-  const user = await requireSessionUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+const accessRequestCreateSchema = z.object({
+  name: z.string().min(1),
+  email: z.string().email(),
+  role: z.string().optional().default(''),
+})
 
-  if (!user.companyId) {
-    return NextResponse.json([])
-  }
+const accessRequestReviewSchema = z.object({
+  requestId: z.string().min(1),
+  action: z.enum(['APPROVE', 'REJECT']).optional().default('REJECT'),
+  ttlHours: z.coerce.number().int().positive().optional(),
+})
 
-  if (!user.id || user.role === 'EMPLOYEE') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+export async function GET(req: NextRequest) {
+  return handleApiRoute<ApiParams, unknown>(
+    req,
+    undefined,
+    async ({ user }) => {
+      if (!user.companyId) {
+        return apiData([])
+      }
+      if (!user.id || user.role === 'EMPLOYEE') {
+        return apiData({ error: 'Forbidden' }, { status: 403 })
+      }
 
-  try {
-    const requests = await listCompanyAccessRequests(user.companyId)
-    return NextResponse.json(requests)
-  } catch (error) {
-    console.error(error)
-    return NextResponse.json({ error: 'Failed to load access requests.' }, { status: 500 })
-  }
+      const requests = await listCompanyAccessRequests(user.companyId)
+      return apiData(requests)
+    },
+    {
+      auth: 'required',
+      rateLimit: { max: 30, namespace: 'access-requests.list', windowMs: 60_000 },
+      responseMode: 'canonical',
+      route: '/api/access-requests',
+    }
+  )
 }
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = (await req.json()) as {
-      name?: string
-      email?: string
-      role?: string
+  return handleApiRoute<ApiParams, unknown>(
+    req,
+    undefined,
+    async () => {
+      const parsed = await validateJson(req, accessRequestCreateSchema)
+
+      const request = await submitDomainAccessRequest({
+        name: parsed.name,
+        email: parsed.email,
+        role: parsed.role,
+      })
+
+      return apiData(request, { status: 201 })
+    },
+    {
+      auth: 'none',
+      rateLimit: { max: 5, namespace: 'access-requests.create', windowMs: 60_000 },
+      responseMode: 'canonical',
+      route: '/api/access-requests',
     }
-
-    const request = await submitDomainAccessRequest({
-      name: body.name ?? '',
-      email: body.email ?? '',
-      role: body.role ?? '',
-    })
-
-    return NextResponse.json(request, { status: 201 })
-  } catch (error) {
-    if (error instanceof InviteFlowError) {
-      return NextResponse.json({ error: error.message }, { status: error.status })
-    }
-
-    console.error(error)
-    return NextResponse.json({ error: 'Failed to create access request.' }, { status: 500 })
-  }
+  )
 }
 
 export async function PATCH(req: NextRequest) {
-  const user = await requireSessionUser()
-  if (!user) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
+  return handleApiRoute<ApiParams, unknown>(
+    req,
+    undefined,
+    async ({ user }) => {
+      if (!user.companyId || !user.id || user.role === 'EMPLOYEE') {
+        return apiData({ error: 'Forbidden' }, { status: 403 })
+      }
 
-  if (!user.companyId || !user.id || user.role === 'EMPLOYEE') {
-    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-  }
+      const parsed = await validateJson(req, accessRequestReviewSchema)
 
-  try {
-    const body = (await req.json()) as {
-      requestId?: string
-      action?: 'APPROVE' | 'REJECT'
-      ttlHours?: number
+      const result = await reviewCompanyAccessRequest({
+        requestId: parsed.requestId,
+        action: parsed.action,
+        reviewerId: user.id,
+        reviewerRole: user.role ?? 'EMPLOYEE',
+        companyId: user.companyId,
+        ttlHours: parsed.ttlHours,
+      })
+
+      return apiData(result)
+    },
+    {
+      auth: 'required',
+      idempotency: true,
+      rateLimit: { max: 20, namespace: 'access-requests.review', windowMs: 60_000 },
+      responseMode: 'canonical',
+      route: '/api/access-requests',
     }
-
-    const result = await reviewCompanyAccessRequest({
-      requestId: body.requestId ?? '',
-      action: body.action ?? 'REJECT',
-      reviewerId: user.id,
-      reviewerRole: user.role ?? 'EMPLOYEE',
-      companyId: user.companyId,
-      ttlHours: body.ttlHours,
-    })
-
-    return NextResponse.json(result)
-  } catch (error) {
-    if (error instanceof InviteFlowError) {
-      return NextResponse.json({ error: error.message }, { status: error.status })
-    }
-
-    console.error(error)
-    return NextResponse.json({ error: 'Failed to review access request.' }, { status: 500 })
-  }
+  )
 }
