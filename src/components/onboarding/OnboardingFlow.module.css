@@ -1,0 +1,705 @@
+.flowStage {
+  --fit-bg: #080d16;
+  --fit-surface: rgba(15, 23, 42, 0.82);
+  --fit-surface-strong: rgba(15, 23, 42, 0.96);
+  --fit-surface-soft: rgba(255, 255, 255, 0.045);
+  --fit-border: rgba(148, 163, 184, 0.2);
+  --fit-border-strong: rgba(34, 211, 238, 0.5);
+  --fit-text: #f8fafc;
+  --fit-muted: #aebed0;
+  --fit-soft: #dbeafe;
+  --fit-accent: #22d3ee;
+  --fit-accent-strong: #67e8f9;
+  width: min(100% - 2rem, 72rem);
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: clamp(1rem, 3vw, 1.4rem);
+  margin: 0 auto;
+  padding: 6.8rem 0 2rem;
+  color: var(--fit-text);
+}
+
+.flowShell {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+  min-height: min(42rem, calc(100vh - 8.8rem));
+  border: 1px solid var(--fit-border);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 12% 6%, rgba(34, 211, 238, 0.16), transparent 20rem),
+    radial-gradient(circle at 88% 12%, rgba(52, 211, 153, 0.1), transparent 18rem),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.94), rgba(2, 6, 23, 0.92));
+  box-shadow:
+    0 30px 100px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.flowShell::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.7), transparent 78%);
+  pointer-events: none;
+}
+
+.flowMain {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  padding: clamp(1rem, 4vw, 2.2rem);
+}
+
+.progressHeader {
+  width: min(100%, 39rem);
+  display: grid;
+  gap: 0.75rem;
+  margin: 0 auto 1.55rem;
+}
+
+.progressMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  color: var(--fit-muted);
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.timeBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  border: 1px solid rgba(34, 211, 238, 0.22);
+  border-radius: 999px;
+  background: rgba(34, 211, 238, 0.09);
+  color: #c8fbff;
+  padding: 0 0.6rem;
+  font-size: 0.72rem;
+  font-weight: 900;
+}
+
+.progressTrack {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.45rem;
+}
+
+.progressSegment {
+  height: 0.38rem;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.18);
+}
+
+.progressSegmentActive {
+  background: linear-gradient(90deg, var(--fit-accent), #34d399);
+  box-shadow: 0 0 18px rgba(34, 211, 238, 0.28);
+}
+
+.questionFrame {
+  width: min(100%, 39rem);
+  display: flex;
+  flex-direction: column;
+  min-height: 33rem;
+  margin: 0 auto;
+}
+
+.questionIntro {
+  margin-bottom: 1.5rem;
+}
+
+.questionMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.58rem;
+}
+
+.questionLabel,
+.stepCount,
+.recommendationLabel {
+  color: var(--fit-accent-strong);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.stepCount {
+  color: var(--fit-muted);
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.questionTitle {
+  margin: 0;
+  color: var(--fit-text);
+  font-size: clamp(1.65rem, 4vw, 2.45rem);
+  font-weight: 850;
+  line-height: 1.08;
+  text-wrap: balance;
+}
+
+.questionSubtitle {
+  margin: 0.6rem 0 0;
+  color: var(--fit-muted);
+  font-size: 0.94rem;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.optionsStack {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.optionButton {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.85rem;
+  width: 100%;
+  min-height: 5.1rem;
+  border: 1px solid var(--fit-border);
+  border-radius: 8px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.035)),
+    rgba(15, 23, 42, 0.82);
+  color: inherit;
+  padding: 0.86rem 1rem;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.045);
+  transition:
+    transform 160ms ease,
+    border-color 180ms ease,
+    background 180ms ease,
+    box-shadow 180ms ease,
+    opacity 180ms ease;
+}
+
+.optionButton:hover {
+  border-color: rgba(103, 232, 249, 0.48);
+  background:
+    radial-gradient(circle at 96% 12%, rgba(34, 211, 238, 0.15), transparent 7rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.045)),
+    rgba(15, 23, 42, 0.96);
+  transform: translateY(-1px);
+}
+
+.optionSelected {
+  border-color: var(--fit-border-strong);
+  background:
+    radial-gradient(circle at 96% 12%, rgba(34, 211, 238, 0.24), transparent 8rem),
+    linear-gradient(180deg, rgba(34, 211, 238, 0.14), rgba(255, 255, 255, 0.045)),
+    rgba(8, 18, 30, 0.98);
+  box-shadow:
+    0 0 0 1px rgba(34, 211, 238, 0.22),
+    0 16px 42px rgba(0, 0, 0, 0.24);
+}
+
+.optionDisabled {
+  cursor: default;
+  opacity: 0.48;
+}
+
+.optionIcon {
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+  font-size: 1.42rem;
+  line-height: 1;
+}
+
+.optionSelected .optionIcon {
+  border-color: rgba(103, 232, 249, 0.46);
+  background: rgba(34, 211, 238, 0.13);
+}
+
+.optionCopy {
+  min-width: 0;
+}
+
+.optionLabel {
+  display: block;
+  color: var(--fit-text);
+  font-size: 0.95rem;
+  font-weight: 900;
+  line-height: 1.25;
+  overflow-wrap: break-word;
+}
+
+.optionSubtitle {
+  display: block;
+  margin-top: 0.18rem;
+  color: var(--fit-muted);
+  font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1.42;
+  overflow-wrap: break-word;
+}
+
+.optionMark,
+.rankBadge {
+  display: grid;
+  width: 1.45rem;
+  height: 1.45rem;
+  place-items: center;
+  border: 1px solid rgba(148, 163, 184, 0.34);
+  border-radius: 999px;
+  color: transparent;
+}
+
+.optionSelected .optionMark {
+  border-color: var(--fit-accent);
+  background: var(--fit-accent);
+  color: #04111c;
+}
+
+.rankBadge {
+  border-color: var(--fit-accent);
+  background: var(--fit-accent);
+  color: #04111c;
+  font-size: 0.76rem;
+  font-weight: 950;
+}
+
+.questionActions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.9rem;
+  margin-top: auto;
+  padding-top: 1.5rem;
+}
+
+.backButton,
+.continueButton,
+.linkButton,
+.detailsButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.44rem;
+  border: 0;
+  background: transparent;
+  color: var(--fit-muted);
+  font: inherit;
+  font-size: 0.84rem;
+  font-weight: 850;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    color 160ms ease,
+    background 160ms ease,
+    border-color 160ms ease,
+    opacity 160ms ease;
+}
+
+.backButton {
+  min-height: 2.5rem;
+  padding: 0;
+}
+
+.backButton:hover,
+.linkButton:hover,
+.detailsButton:hover {
+  color: var(--fit-accent-strong);
+}
+
+.continueButton,
+.confirmButton {
+  min-height: 2.9rem;
+  border: 1px solid rgba(34, 211, 238, 0.3);
+  border-radius: 8px;
+  background: var(--fit-accent);
+  color: #04111c;
+  padding: 0 1.1rem;
+  font-weight: 950;
+}
+
+.continueButton:hover,
+.confirmButton:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 18px 34px rgba(34, 211, 238, 0.2);
+}
+
+.continueButton:disabled {
+  cursor: not-allowed;
+  border-color: rgba(148, 163, 184, 0.12);
+  background: rgba(148, 163, 184, 0.16);
+  color: rgba(203, 213, 225, 0.55);
+  transform: none;
+  box-shadow: none;
+}
+
+.recommendation {
+  width: min(100%, 42rem);
+  min-height: 34rem;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.successMark {
+  display: grid;
+  width: 4.5rem;
+  height: 4.5rem;
+  place-items: center;
+  margin-bottom: 1.05rem;
+  border: 1px solid rgba(52, 211, 153, 0.38);
+  border-radius: 8px;
+  background: rgba(52, 211, 153, 0.12);
+  color: #86efac;
+  box-shadow: 0 18px 44px rgba(52, 211, 153, 0.14);
+}
+
+.recommendationTitle {
+  margin: 0.7rem 0 0;
+  color: var(--fit-text);
+  font-size: clamp(1.8rem, 4vw, 2.7rem);
+  font-weight: 900;
+  line-height: 1.05;
+}
+
+.recommendationLead {
+  margin: 0.62rem 0 1.2rem;
+  color: var(--fit-muted);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.recommendationCard {
+  width: 100%;
+  border: 1px solid rgba(34, 211, 238, 0.24);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.18), transparent 13rem),
+    rgba(15, 23, 42, 0.72);
+  padding: 1.2rem;
+  text-align: left;
+}
+
+.recommendationCard h3 {
+  margin: 0;
+  color: var(--fit-text);
+  font-size: clamp(1.35rem, 3vw, 1.85rem);
+  font-weight: 950;
+}
+
+.recommendationCard p {
+  margin: 0.45rem 0 0;
+  color: var(--fit-soft);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.note {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  border: 1px solid rgba(52, 211, 153, 0.22);
+  border-radius: 8px;
+  background: rgba(52, 211, 153, 0.09);
+  color: #bbf7d0;
+  padding: 0.68rem 0.8rem;
+  font-size: 0.82rem;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.benefits {
+  width: 100%;
+  margin-top: 1.1rem;
+}
+
+.benefits h4 {
+  margin: 0 0 0.65rem;
+  color: var(--fit-muted);
+  font-size: 0.72rem;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.benefitList {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.benefitItem {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  min-height: 2.85rem;
+  border: 1px solid var(--fit-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--fit-text);
+  padding: 0.65rem 0.8rem;
+  font-size: 0.86rem;
+  font-weight: 750;
+  text-align: left;
+}
+
+.benefitItem svg {
+  flex: 0 0 auto;
+  color: #86efac;
+}
+
+.alternative {
+  margin: 0.85rem 0 0;
+  border: 1px solid rgba(251, 191, 36, 0.22);
+  border-radius: 8px;
+  background: rgba(251, 191, 36, 0.08);
+  color: #fde68a;
+  padding: 0.68rem 0.8rem;
+  font-size: 0.8rem;
+  font-weight: 700;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.alternative strong {
+  color: #fff7cc;
+}
+
+.confirmButton {
+  width: min(100%, 22rem);
+  margin-top: 1.15rem;
+}
+
+.linkButton {
+  margin-top: 0.7rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.smallPrint {
+  margin: 0.55rem 0 0;
+  color: rgba(174, 190, 208, 0.82);
+  font-size: 0.76rem;
+  font-weight: 650;
+}
+
+.detailsButton {
+  margin-top: 0.9rem;
+}
+
+.detailsPanel {
+  width: 100%;
+  overflow: hidden;
+  margin-top: 0.75rem;
+  border: 1px solid var(--fit-border);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--fit-muted);
+  padding: 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1.55;
+  text-align: left;
+}
+
+.detailsPanel ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.1rem;
+}
+
+.detailsPanel li + li {
+  margin-top: 0.22rem;
+}
+
+.sidePanel {
+  position: relative;
+  z-index: 1;
+  display: none;
+  align-content: end;
+  border-left: 1px solid rgba(148, 163, 184, 0.14);
+  background:
+    linear-gradient(180deg, rgba(34, 211, 238, 0.08), transparent 42%),
+    rgba(2, 6, 23, 0.28);
+  padding: 2rem;
+}
+
+.sideCard {
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  background: rgba(2, 6, 23, 0.42);
+  padding: 1rem;
+}
+
+.sideCard strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  color: var(--fit-text);
+  font-size: 0.95rem;
+  font-weight: 950;
+}
+
+.sideCard p {
+  margin: 0.35rem 0 0;
+  color: var(--fit-muted);
+  font-size: 0.82rem;
+  font-weight: 650;
+  line-height: 1.55;
+}
+
+.sideStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.8rem;
+}
+
+.sideStats span {
+  min-width: 0;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.055);
+  color: var(--fit-soft);
+  padding: 0.62rem;
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1.25;
+}
+
+@media (min-width: 980px) {
+  .flowShell {
+    grid-template-columns: minmax(0, 1fr) minmax(17rem, 0.44fr);
+  }
+
+  .sidePanel {
+    display: grid;
+  }
+}
+
+@media (max-width: 768px) {
+  .flowStage {
+    width: min(100% - 1rem, 72rem);
+    padding-top: 7.9rem;
+  }
+
+  .flowShell {
+    min-height: calc(100vh - 8.8rem);
+  }
+
+  .flowMain {
+    padding: 1rem;
+  }
+
+  .questionFrame {
+    min-height: 32rem;
+  }
+
+  .optionButton {
+    min-height: 4.75rem;
+    gap: 0.7rem;
+    padding: 0.8rem;
+  }
+
+  .optionIcon {
+    width: 2.45rem;
+    height: 2.45rem;
+    font-size: 1.22rem;
+  }
+
+  .questionActions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .continueButton,
+  .backButton {
+    width: 100%;
+  }
+
+  .backButton {
+    min-height: 2.25rem;
+  }
+}
+
+@media (prefers-color-scheme: light) {
+  .flowStage {
+    --fit-bg: #f8fbff;
+    --fit-surface: rgba(255, 255, 255, 0.9);
+    --fit-surface-strong: #ffffff;
+    --fit-surface-soft: rgba(15, 23, 42, 0.035);
+    --fit-border: rgba(15, 23, 42, 0.13);
+    --fit-border-strong: rgba(14, 116, 144, 0.45);
+    --fit-text: #0f172a;
+    --fit-muted: #52637a;
+    --fit-soft: #334155;
+    --fit-accent: #0891b2;
+    --fit-accent-strong: #0e7490;
+  }
+
+  .flowShell {
+    background:
+      radial-gradient(circle at 12% 6%, rgba(8, 145, 178, 0.13), transparent 20rem),
+      radial-gradient(circle at 88% 12%, rgba(22, 163, 74, 0.08), transparent 18rem),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(241, 245, 249, 0.94));
+    box-shadow: 0 26px 80px rgba(15, 23, 42, 0.12);
+  }
+
+  .optionButton,
+  .recommendationCard,
+  .benefitItem,
+  .detailsPanel,
+  .sideCard,
+  .sideStats span {
+    background:
+      linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.9)),
+      #ffffff;
+  }
+
+  .optionButton:hover,
+  .optionSelected {
+    background:
+      radial-gradient(circle at 96% 12%, rgba(8, 145, 178, 0.13), transparent 7rem),
+      linear-gradient(180deg, rgba(255, 255, 255, 1), rgba(240, 249, 255, 0.92));
+  }
+
+  .sidePanel {
+    background: rgba(248, 250, 252, 0.62);
+  }
+
+  .continueButton,
+  .confirmButton,
+  .rankBadge,
+  .optionSelected .optionMark {
+    color: #ffffff;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .optionButton,
+  .backButton,
+  .continueButton,
+  .confirmButton,
+  .linkButton,
+  .detailsButton {
+    transition: none;
+  }
+}

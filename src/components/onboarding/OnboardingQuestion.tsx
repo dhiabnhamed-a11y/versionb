@@ -1,9 +1,11 @@
 'use client'
 
-import { motion, AnimatePresence } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
+import { ArrowLeft, ArrowRight } from 'lucide-react'
 import OnboardingOption from './OnboardingOption'
-import type { Question, QuestionId } from './onboardingData'
 import { QUESTION_LABELS } from './onboardingData'
+import type { Question, QuestionId } from './onboardingData'
+import styles from './OnboardingFlow.module.css'
 
 interface OnboardingQuestionProps {
   question: Question
@@ -19,9 +21,9 @@ interface OnboardingQuestionProps {
 }
 
 const slideVariants = {
-  enter: (dir: number) => ({ x: dir > 0 ? 300 : -300, opacity: 0 }),
+  enter: (dir: number) => ({ x: dir > 0 ? 220 : -220, opacity: 0 }),
   center: { x: 0, opacity: 1 },
-  exit: (dir: number) => ({ x: dir > 0 ? -300 : 300, opacity: 0 }),
+  exit: (dir: number) => ({ x: dir > 0 ? -220 : 220, opacity: 0 }),
 }
 
 export default function OnboardingQuestion({
@@ -63,24 +65,18 @@ export default function OnboardingQuestion({
   const canContinue = isMulti ? multiSelected.length > 0 : isRank ? rankSelected.length === 2 : true
 
   return (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', width: '100%', maxWidth: '560px', margin: '0 auto' }}>
-      <div style={{ marginBottom: '32px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-          <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-muted, #64748b)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+    <div className={styles.questionFrame}>
+      <div className={styles.questionIntro}>
+        <div className={styles.questionMeta}>
+          <span className={styles.questionLabel}>
             {QUESTION_LABELS[stepIndex] ?? `Step ${stepIndex + 1}`}
           </span>
-          <span style={{ fontSize: '12px', color: 'var(--text-muted, #64748b)' }}>
+          <span className={styles.stepCount}>
             {stepIndex + 1} of {totalSteps}
           </span>
         </div>
-        <h2 style={{ fontSize: '20px', fontWeight: 700, color: 'var(--text-primary, #f1f5f9)', lineHeight: 1.3, margin: 0 }}>
-          {question.question}
-        </h2>
-        {question.subtitle && (
-          <p style={{ fontSize: '13px', color: 'var(--text-muted, #64748b)', marginTop: '6px', margin: '6px 0 0 0' }}>
-            {question.subtitle}
-          </p>
-        )}
+        <h2 className={styles.questionTitle}>{question.question}</h2>
+        {question.subtitle && <p className={styles.questionSubtitle}>{question.subtitle}</p>}
       </div>
 
       <AnimatePresence mode="wait" custom={direction}>
@@ -92,7 +88,7 @@ export default function OnboardingQuestion({
           animate="center"
           exit="exit"
           transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-          style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}
+          className={styles.optionsStack}
         >
           {question.options.map((opt) => {
             let selected = false
@@ -128,27 +124,10 @@ export default function OnboardingQuestion({
         </motion.div>
       </AnimatePresence>
 
-      <div style={{ marginTop: 'auto', paddingTop: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <button
-          type="button"
-          onClick={onBack}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-muted, #64748b)',
-            cursor: 'pointer',
-            fontSize: '13px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            padding: '8px 0',
-            fontFamily: 'inherit',
-            transition: 'color 0.15s',
-          }}
-          onMouseOver={(e) => (e.currentTarget.style.color = 'var(--text-secondary, #cbd5e1)')}
-          onMouseOut={(e) => (e.currentTarget.style.color = 'var(--text-muted, #64748b)')}
-        >
-          ← Back
+      <div className={styles.questionActions}>
+        <button type="button" onClick={onBack} className={styles.backButton}>
+          <ArrowLeft size={16} aria-hidden="true" />
+          Back
         </button>
 
         {(isMulti || isRank) && (
@@ -156,21 +135,10 @@ export default function OnboardingQuestion({
             type="button"
             onClick={onContinue}
             disabled={!canContinue}
-            style={{
-              padding: '10px 24px',
-              borderRadius: '10px',
-              border: 'none',
-              background: canContinue ? 'var(--accent, #3b82f6)' : 'var(--border, #1e293b)',
-              color: canContinue ? '#fff' : 'var(--text-muted, #64748b)',
-              fontWeight: 600,
-              fontSize: '13px',
-              cursor: canContinue ? 'pointer' : 'default',
-              fontFamily: 'inherit',
-              transition: 'background 0.15s',
-              opacity: canContinue ? 1 : 0.5,
-            }}
+            className={styles.continueButton}
           >
-            Continue →
+            Continue
+            <ArrowRight size={16} aria-hidden="true" />
           </button>
         )}
       </div>

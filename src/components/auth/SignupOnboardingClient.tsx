@@ -10,17 +10,28 @@ import {
   ArrowLeft,
   ArrowRight,
   Bot,
+  BriefcaseBusiness,
+  Building2,
   Check,
   CheckCircle2,
   ChevronRight,
   CreditCard,
+  Database,
+  GraduationCap,
   Globe2,
+  HardHat,
+  HeartPulse,
+  Hospital,
   Infinity,
+  Landmark,
   Loader2,
   Lock,
   Mail,
   Plus,
+  Scale,
+  ServerCog,
   ShieldCheck,
+  Sparkles,
   Users,
   Zap,
   Trash2,
@@ -60,6 +71,20 @@ const OnboardingFlow = dynamic(() => import('@/components/onboarding/OnboardingF
 })
 
 const smartOnboardingEnabled = String(process.env.NEXT_PUBLIC_SMART_ONBOARDING || '').toLowerCase() === 'true'
+
+const templateIcons = {
+  briefcase: BriefcaseBusiness,
+  heartPulse: HeartPulse,
+  hospital: Hospital,
+  building: Building2,
+  server: ServerCog,
+  scale: Scale,
+  hardHat: HardHat,
+  landmark: Landmark,
+  graduationCap: GraduationCap,
+  database: Database,
+  sparkles: Sparkles,
+} as const
 
 type SignupRole = 'OWNER' | 'MANAGER' | 'EMPLOYEE'
 
@@ -540,17 +565,18 @@ function CompanyTypeStep({
         </button>
         <p className={styles.stepKicker}>
           <Bot size={14} />
-          Adaptive workspace design
+          Organization fit
         </p>
-        <h1>Tell TASKIT what kind of company you run.</h1>
+        <h1>What best describes your organization?</h1>
         <p>
-          Pick the closest fit. The live preview updates instantly so you can see the operating system TASKIT will create.
+          Select the closest fit. The live preview updates instantly with the workspace TASKIT will generate.
         </p>
 
         <div className={styles.templateGrid} role="radiogroup" aria-label="Company type">
           {TEMPLATE_ORDER.map((id) => {
             const option = ONBOARDING_TEMPLATES[id]
             const isSelected = selected === id
+            const OptionIcon = templateIcons[option.icon as keyof typeof templateIcons] ?? Zap
 
             return (
               <button
@@ -563,7 +589,7 @@ function CompanyTypeStep({
                 onClick={() => onSelect(id)}
               >
                 <span className={styles.templateIcon}>
-                  <Zap size={16} aria-hidden="true" />
+                  <OptionIcon size={18} aria-hidden="true" />
                 </span>
                 <strong>{option.title}</strong>
                 <span>{option.sentence}</span>

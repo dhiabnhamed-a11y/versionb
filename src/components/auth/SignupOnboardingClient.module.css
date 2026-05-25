@@ -93,8 +93,8 @@
   height: 32px;
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 999px;
-  background: transparent;
-  color: rgba(226, 232, 240, 0.5);
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(226, 232, 240, 0.68);
   padding: 0 0.75rem;
   font-size: 0.72rem;
   font-weight: 700;
@@ -107,15 +107,16 @@
 
 .progressDotActive {
   border-color: #00D4FF;
-  background: #00D4FF;
-  color: #0A0E1A;
+  background: linear-gradient(135deg, #00D4FF, #34d399);
+  color: #031018;
   font-weight: 800;
+  box-shadow: 0 0 26px rgba(0, 212, 255, 0.22);
 }
 
 .progressDotDone {
-  border-color: #00D4FF;
-  background: #00D4FF;
-  color: #0A0E1A;
+  border-color: rgba(0, 212, 255, 0.66);
+  background: rgba(0, 212, 255, 0.14);
+  color: #a5f3fc;
 }
 
 .loginLink,
@@ -324,6 +325,20 @@
   min-width: 0;
 }
 
+.selectionCopy {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  border-radius: 8px;
+  background:
+    radial-gradient(circle at 100% 0%, rgba(34, 211, 238, 0.14), transparent 18rem),
+    linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(2, 6, 23, 0.76));
+  padding: clamp(1rem, 3vw, 1.55rem);
+  box-shadow:
+    0 28px 88px rgba(0, 0, 0, 0.28),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
 .selectionCopy h1,
 .setupPanel h1,
 .successPanel h1 {
@@ -332,8 +347,8 @@
 
 .templateGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 13.5rem), 1fr));
-  gap: 0.65rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14.5rem), 1fr));
+  gap: 0.72rem;
   margin-top: 1.25rem;
 }
 
@@ -341,17 +356,18 @@
   --template-accent: #22d3ee;
   --template-soft: rgba(34, 211, 238, 0.13);
   min-width: 0;
-  min-height: 9.2rem;
+  min-height: 9.8rem;
   display: grid;
-  grid-template-rows: auto auto 1fr;
-  gap: 0.42rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto 1fr;
+  gap: 0.55rem 0.72rem;
+  border: 1px solid rgba(148, 163, 184, 0.18);
   border-radius: 8px;
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.095), rgba(255, 255, 255, 0.045)),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.035)),
     rgba(13, 20, 32, 0.92);
   color: #ffffff;
-  padding: 0.85rem;
+  padding: 0.95rem;
   text-align: left;
   transition:
     transform 170ms ease,
@@ -364,8 +380,8 @@
 .templateTileSelected {
   border-color: color-mix(in srgb, var(--template-accent) 72%, white 0%);
   background:
-    radial-gradient(circle at 82% 10%, var(--template-soft), transparent 7rem),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.055)),
+    radial-gradient(circle at 92% 8%, var(--template-soft), transparent 8rem),
+    linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.052)),
     rgba(13, 20, 32, 0.96);
   transform: translateY(-2px);
 }
@@ -376,8 +392,8 @@
 
 .templateIcon {
   display: grid;
-  width: 2.25rem;
-  height: 2.25rem;
+  width: 2.55rem;
+  height: 2.55rem;
   place-items: center;
   border: 1px solid color-mix(in srgb, var(--template-accent) 42%, transparent);
   border-radius: 8px;
@@ -388,16 +404,18 @@
 .templateTile strong {
   min-width: 0;
   color: #ffffff;
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 950;
   line-height: 1.2;
   overflow-wrap: break-word;
+  align-self: center;
 }
 
 .templateTile span:last-child {
+  grid-column: 1 / -1;
   min-width: 0;
-  color: #9fb0c4;
-  font-size: 0.78rem;
+  color: #b7c7da;
+  font-size: 0.82rem;
   font-weight: 650;
   line-height: 1.5;
   overflow-wrap: break-word;
@@ -408,10 +426,10 @@
   flex-direction: column;
   gap: 0.85rem;
   margin-top: 1rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(34, 211, 238, 0.2);
   border-radius: 8px;
-  background: rgba(13, 20, 32, 0.9);
-  padding: 0.8rem;
+  background: rgba(8, 18, 30, 0.86);
+  padding: 0.9rem;
   backdrop-filter: blur(18px);
   -webkit-backdrop-filter: blur(18px);
 }
@@ -428,7 +446,7 @@
 
 .selectionActionBar span {
   margin-top: 0.12rem;
-  color: #9fb0c4;
+  color: #b7c7da;
   font-size: 0.78rem;
 }
 
@@ -1474,6 +1492,7 @@
   .secondaryCta,
   .templateTile,
   .planOption,
+  .selectionCopy,
   .setupPanel,
   .successPanel,
   .previewShell {
@@ -1493,6 +1512,11 @@
   .checkRow,
   .previewInsight {
     color: #40536b;
+  }
+
+  .selectionActionBar {
+    border-color: rgba(8, 145, 178, 0.18);
+    background: rgba(255, 255, 255, 0.86);
   }
 
   .templateTile strong,
