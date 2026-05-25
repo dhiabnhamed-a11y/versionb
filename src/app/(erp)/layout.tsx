@@ -6,6 +6,8 @@ import { getWorkspaceHomePath } from '@/lib/workspace-routing'
 import { ERPShell } from '@/components/erp/ERPShell'
 import { prisma } from '@/lib/db'
 import { ensureErpWorkspaceInitialized } from '@/services/erp2/setup.service'
+import { LocaleProvider } from '@/components/i18n/LocaleProvider'
+import { getUserLanguageSettings } from '@/lib/settings'
 
 export default async function ERPRootLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -24,9 +26,13 @@ export default async function ERPRootLayout({ children }: { children: React.Reac
     await prisma.$transaction((tx) => ensureErpWorkspaceInitialized(tx, session.user.companyId!))
   }
 
+  const initialLanguage = await getUserLanguageSettings(session.user.id)
+
   return (
     <SessionProvider>
-      <ERPShell>{children}</ERPShell>
+      <LocaleProvider initialLocale={initialLanguage.locale}>
+        <ERPShell>{children}</ERPShell>
+      </LocaleProvider>
     </SessionProvider>
   )
 }

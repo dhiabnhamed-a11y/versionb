@@ -3,6 +3,8 @@
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
 import { signOut, useSession } from 'next-auth/react'
+import LanguageSwitcher from '@/components/i18n/LanguageSwitcher'
+import { useLocale } from '@/components/i18n/LocaleProvider'
 import {
   LayoutDashboard,
   BarChart3,
@@ -68,9 +70,11 @@ const NAV_SECTIONS: NavSection[] = [
 
 function Sidebar() {
   const pathname = usePathname()
+  const { direction } = useLocale()
 
   return (
     <nav
+      dir={direction}
       style={{
         width: '240px',
         minWidth: '240px',
@@ -207,10 +211,12 @@ function Sidebar() {
 
 function TopBar() {
   const { data: session } = useSession()
+  const { direction } = useLocale()
   const user = session?.user as { name?: string; email?: string } | undefined
 
   return (
     <header
+      dir={direction}
       style={{
         height: '64px',
         borderBottom: '1px solid #e2e8f0',
@@ -228,6 +234,7 @@ function TopBar() {
         <span style={{ color: '#0f172a', fontWeight: 600 }}>ERP</span> / <span id="erp-page-title">Command Center</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+        <LanguageSwitcher compact />
         <button style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', position: 'relative', padding: '4px' }}>
           <Bell size={18} />
         </button>
@@ -243,8 +250,10 @@ function TopBar() {
 }
 
 export function ERPShell({ children }: { children: React.ReactNode }) {
+  const { direction } = useLocale()
+
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#f8fafc' }}>
+    <div dir={direction} style={{ display: 'flex', height: '100vh', background: '#f8fafc' }}>
       <Sidebar />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
         <TopBar />

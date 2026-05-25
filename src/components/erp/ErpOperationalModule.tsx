@@ -13,6 +13,9 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
+import { useLocale } from '@/components/i18n/LocaleProvider'
+import { tErp, translateErpStatus, translateModuleConfig, translateColumnLabel, translateActionLabel, translateHeaderActionLabel, translateSecondaryColumnLabel, formatErpMoney, formatErpDate, formatErpNumber } from '@/components/erp/erpLocale'
+import type { AppLocale } from '@/lib/i18n'
 
 type ModuleName =
   | 'general-ledger'
@@ -409,17 +412,15 @@ function defaultFormState(fields: Field[] = []) {
   }, {})
 }
 
-function formatCell(value: unknown, column: Column) {
+function formatCell(value: unknown, column: Column, locale: AppLocale, currency = 'USD') {
   if (value === null || value === undefined || value === '') return '-'
   if (column.format === 'money' && typeof value === 'number') {
-    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value / 100)
+    return formatErpMoney(value, locale, currency)
   }
   if (column.format === 'date') {
-    const date = new Date(String(value))
-    if (Number.isNaN(date.getTime())) return '—'
-    return date.toLocaleDateString()
+    return formatErpDate(String(value), locale)
   }
-  if (column.format === 'number' && typeof value === 'number') return value.toLocaleString()
+  if (column.format === 'number' && typeof value === 'number') return formatErpNumber(value, locale)
   if (column.format === 'percent' && typeof value === 'number') return `${value.toFixed(2)}%`
   return String(value)
 }
@@ -435,17 +436,17 @@ function statusColor(value: unknown) {
   return { background: '#fffbeb', color: '#92400e', border: '#fde68a' }
 }
 
-function renderCell(row: Row, column: Column) {
+function renderCell(row: Row, column: Column, locale: AppLocale) {
   const value = row[column.key]
   if (column.format === 'status') {
     const style = statusColor(value)
     return (
       <span style={{ display: 'inline-flex', padding: '2px 8px', borderRadius: '999px', border: `1px solid ${style.border}`, background: style.background, color: style.color, fontSize: '11px', fontWeight: 700 }}>
-        {formatCell(value, column)}
+        {translateErpStatus(locale, String(formatCell(value, column, locale)))}
       </span>
     )
   }
-  return formatCell(value, column)
+  return formatCell(value, column, locale)
 }
 
 function actionStyle(tone: RowAction['tone']) {
@@ -455,7 +456,9 @@ function actionStyle(tone: RowAction['tone']) {
 }
 
 export function ErpOperationalModule({ module }: { module: ModuleName }) {
+  const { locale } = useLocale()
   const config = CONFIG[module]
+  const tc = translateModuleConfig(locale, module, config)
   const [payload, setPayload] = useState<ModulePayload | null>(null)
   const [form, setForm] = useState<Record<string, string | boolean | number>>(() => defaultFormState(config.fields))
   const [query, setQuery] = useState('')
@@ -558,8 +561,8 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', alignItems: 'flex-start', marginBottom: '20px' }}>
         <div>
-          <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>{config.title}</h1>
-          <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>{config.description}</p>
+          <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a', marginBottom: '4px' }}>{tc.title}</h1>
+          <p style={{ fontSize: '13px', color: '#64748b', margin: 0 }}>{tc.description}</p>
         </div>
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {config.headerActions?.map((action) => {
@@ -573,7 +576,7 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
                 style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', border: `1px solid ${styles.border}`, background: styles.background, color: styles.color, borderRadius: '6px', padding: '8px 12px', fontSize: '12px', fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer' }}
               >
                 <Sparkles size={14} />
-                {action.label}
+                {translateHeaderActionLabel(locale, action.label)}
               </button>
             )
           })}
@@ -584,7 +587,7 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
               style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', border: '1px solid #bfdbfe', background: '#eff6ff', color: '#1d4ed8', borderRadius: '6px', padding: '8px 12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
             >
               <Plus size={14} />
-              {config.createLabel}
+              {tc.createLabel}
             </button>
           )}
           <button
@@ -593,7 +596,7 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
             style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', border: '1px solid #e2e8f0', background: '#fff', color: '#475569', borderRadius: '6px', padding: '8px 12px', fontSize: '12px', fontWeight: 700, cursor: 'pointer' }}
           >
             <RefreshCw size={14} />
-            Refresh
+            {tErp(locale, 'refresh')}
           </button>
         </div>
       </div>
@@ -611,7 +614,7 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
           return (
             <div key={metric.label} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '14px' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{metric.label}</div>
-              <div style={{ color, fontSize: '18px', fontWeight: 700, marginTop: '6px' }}>{formatCell(metric.value, { key: 'value', label: metric.label, format: metric.format === 'money' ? 'money' : metric.format === 'percent' ? 'percent' : metric.format === 'number' ? 'number' : 'text' })}</div>
+              <div style={{ color, fontSize: '18px', fontWeight: 700, marginTop: '6px' }}>{formatCell(metric.value, { key: 'value', label: metric.label, format: metric.format === 'money' ? 'money' : metric.format === 'percent' ? 'percent' : metric.format === 'number' ? 'number' : 'text' }, locale)}</div>
             </div>
           )
         })}
@@ -620,12 +623,12 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
       <div style={{ display: 'grid', gridTemplateColumns: showForm && !config.noCreate ? 'minmax(280px, 360px) 1fr' : '1fr', gap: '16px', alignItems: 'start' }}>
         {showForm && !config.noCreate && (
           <form onSubmit={submitForm} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', display: 'grid', gap: '12px' }}>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>{config.createLabel}</div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>{tc.createLabel}</div>
             {(config.fields ?? []).map((field) => {
               const fieldOptions = optionsFor(field)
               return (
                 <label key={field.name} style={{ display: 'grid', gap: '5px', fontSize: '12px', fontWeight: 700, color: '#334155' }}>
-                  {field.label}
+                  {translateColumnLabel(locale, field.label)}
                   {field.type === 'select' ? (
                     <select
                       value={String(form[field.name] ?? '')}
@@ -633,10 +636,10 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
                       onChange={(event) => setForm((current) => ({ ...current, [field.name]: event.target.value }))}
                       style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', color: '#0f172a', background: '#fff' }}
                     >
-                      <option value="">{field.required ? 'Select...' : 'None'}</option>
+                      <option value="">{field.required ? tErp(locale, 'selectRequired') : tErp(locale, 'selectOptional')}</option>
                       {fieldOptions.map((option) => (
                         <option key={option.value} value={option.value}>
-                          {option.label}
+                          {translateErpStatus(locale, option.label)}
                         </option>
                       ))}
                     </select>
@@ -671,7 +674,7 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
             })}
             <button type="submit" disabled={submitting} style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: '8px', border: 'none', borderRadius: '6px', background: '#2563eb', color: '#fff', padding: '10px 12px', fontSize: '13px', fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}>
               {submitting ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
-              Save
+              {tErp(locale, 'save')}
             </button>
           </form>
         )}
@@ -680,16 +683,16 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
           <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '12px' }}>
             <label style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: '1 1 260px', minWidth: 0, border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 10px' }}>
               <Search size={15} color="#64748b" />
-              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search records" style={{ border: 'none', outline: 'none', flex: 1, minWidth: 0, fontSize: '13px' }} />
+              <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={tErp(locale, 'searchRecords')} style={{ border: 'none', outline: 'none', flex: 1, minWidth: 0, fontSize: '13px' }} />
             </label>
             {config.statusOptions && (
               <label style={{ display: 'flex', alignItems: 'center', gap: '8px', border: '1px solid #e2e8f0', borderRadius: '6px', padding: '8px 10px' }}>
                 <Filter size={15} color="#64748b" />
                 <select value={status} onChange={(event) => setStatus(event.target.value)} style={{ border: 'none', outline: 'none', fontSize: '13px', background: '#fff' }}>
-                  <option value="">All statuses</option>
+                  <option value="">{tErp(locale, 'allStatuses')}</option>
                   {config.statusOptions.map((value) => (
                     <option key={value} value={value}>
-                      {value}
+                      {translateErpStatus(locale, value)}
                     </option>
                   ))}
                 </select>
@@ -701,14 +704,14 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
             {loading ? (
               <div style={{ minHeight: '220px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', gap: '8px', fontSize: '13px' }}>
                 <Loader2 size={18} className="animate-spin" />
-                Loading {config.title.toLowerCase()}...
+                {tErp(locale, 'loading')} {tc.title.toLowerCase()}...
               </div>
             ) : (payload?.rows ?? []).length === 0 ? (
               <div style={{ minHeight: '220px', display: 'grid', placeItems: 'center', color: '#64748b', textAlign: 'center', padding: '24px' }}>
                 <div>
                   <CheckCircle2 size={28} color="#16a34a" style={{ marginBottom: '8px' }} />
-                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>No records match this view</div>
-                  <div style={{ fontSize: '13px', marginTop: '4px' }}>Create a record or change the filters to refresh the operational table.</div>
+                  <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>{tErp(locale, 'noRecordsTitle')}</div>
+                  <div style={{ fontSize: '13px', marginTop: '4px' }}>{tErp(locale, 'noRecordsBody')}</div>
                 </div>
               </div>
             ) : (
@@ -717,9 +720,9 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
                   <thead>
                     <tr style={{ background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
                       {config.columns.map((column) => (
-                        <th key={column.key} style={{ textAlign: 'left', padding: '10px 12px', color: '#475569', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{column.label}</th>
+                        <th key={column.key} style={{ textAlign: 'left', padding: '10px 12px', color: '#475569', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{translateColumnLabel(locale, column.label)}</th>
                       ))}
-                      {config.actions && <th style={{ textAlign: 'right', padding: '10px 12px', color: '#475569', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Actions</th>}
+                      {config.actions && <th style={{ textAlign: 'right', padding: '10px 12px', color: '#475569', fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{tErp(locale, 'actions')}</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -727,7 +730,7 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
                       <tr key={row.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
                         {config.columns.map((column) => (
                           <td key={column.key} style={{ padding: '11px 12px', color: '#334155', verticalAlign: 'top', maxWidth: column.key === 'lines' ? '260px' : undefined }}>
-                            {renderCell(row, column)}
+                            {renderCell(row, column, locale)}
                           </td>
                         ))}
                         {config.actions && (
@@ -743,7 +746,7 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
                                     disabled={submitting}
                                     style={{ border: `1px solid ${styles.border}`, background: styles.background, color: styles.color, borderRadius: '6px', padding: '5px 8px', fontSize: '11px', fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer' }}
                                   >
-                                    {action.label}
+                                    {translateActionLabel(locale, action.label)}
                                   </button>
                                 )
                               })}
@@ -762,7 +765,7 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '14px', display: 'grid', gap: '8px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 700, color: '#0f172a' }}>
                 <Sparkles size={15} color="#2563eb" />
-                Operational Intelligence
+                {tErp(locale, 'operationalIntelligence')}
               </div>
               {payload.insights.map((insight) => (
                 <div key={insight} style={{ fontSize: '13px', color: '#475569' }}>
@@ -774,15 +777,15 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
 
           {config.secondaryColumns && payload?.secondaryRows && payload.secondaryRows.length > 0 && (
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
-              <div style={{ padding: '12px 14px', fontSize: '13px', fontWeight: 700, color: '#0f172a', borderBottom: '1px solid #e2e8f0' }}>{config.secondaryTitle}</div>
+              <div style={{ padding: '12px 14px', fontSize: '13px', fontWeight: 700, color: '#0f172a', borderBottom: '1px solid #e2e8f0' }}>{tc.secondaryTitle || config.secondaryTitle}</div>
               <div style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                   <tbody>
                     {payload.secondaryRows.map((row) => (
                       <tr key={row.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                        {config.secondaryColumns!.map((column) => (
+                          {config.secondaryColumns!.map((column) => (
                           <td key={column.key} style={{ padding: '10px 12px', color: '#334155' }}>
-                            {renderCell(row, column)}
+                            {renderCell(row, column, locale)}
                           </td>
                         ))}
                       </tr>

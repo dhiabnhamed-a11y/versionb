@@ -1,0 +1,1388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TASKIT - B2B Operations Platform | Investment Deck</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #0F172A;
+            --secondary: #1E40AF;
+            --accent: #3B82F6;
+            --success: #10B981;
+            --warning: #F59E0B;
+            --light: #F8FAFC;
+            --border: #E2E8F0;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, var(--primary) 0%, #1a2a4a 100%);
+            color: #1F2937;
+            line-height: 1.6;
+        }
+
+        .presentation {
+            width: 100%;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .slide {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 60px 40px;
+            position: relative;
+            overflow: hidden;
+            page-break-after: always;
+        }
+
+        .slide::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -50%;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, rgba(59, 130, 246, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .slide-content {
+            max-width: 1200px;
+            width: 100%;
+            z-index: 1;
+            position: relative;
+        }
+
+        /* TITLE SLIDE */
+        .slide.title {
+            background: linear-gradient(135deg, #0F172A 0%, #1E40AF 100%);
+            color: white;
+            text-align: center;
+        }
+
+        .title-badge {
+            display: inline-block;
+            background: rgba(59, 130, 246, 0.2);
+            border: 1px solid rgba(59, 130, 246, 0.5);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            margin-bottom: 24px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+
+        h1 {
+            font-size: 64px;
+            font-weight: 800;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, #FFFFFF 0%, #E0E7FF 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .subtitle {
+            font-size: 28px;
+            color: #BFDBFE;
+            margin-bottom: 32px;
+            font-weight: 300;
+        }
+
+        .hero-cta {
+            font-size: 18px;
+            color: #E0E7FF;
+            margin-bottom: 48px;
+            line-height: 1.8;
+        }
+
+        /* SECTIONS */
+        .slide.light {
+            background: white;
+            color: var(--primary);
+        }
+
+        .slide.accent {
+            background: linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%);
+            color: white;
+        }
+
+        h2 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 32px;
+            color: inherit;
+        }
+
+        .slide.accent h2 {
+            background: linear-gradient(135deg, #FFFFFF 0%, #E0E7FF 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 40px;
+            align-items: center;
+        }
+
+        .content-grid.three-col {
+            grid-template-columns: 1fr 1fr 1fr;
+        }
+
+        .card {
+            background: white;
+            padding: 32px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07);
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: 1px solid var(--border);
+        }
+
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+        }
+
+        .slide.accent .card {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .card h3 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 16px;
+            color: var(--secondary);
+        }
+
+        .slide.accent .card h3 {
+            color: #E0E7FF;
+        }
+
+        .card p {
+            font-size: 16px;
+            line-height: 1.8;
+            color: #6B7280;
+        }
+
+        .slide.accent .card p {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .stat-box {
+            text-align: center;
+            padding: 24px;
+        }
+
+        .stat-number {
+            font-size: 48px;
+            font-weight: 800;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        .slide.accent .stat-number {
+            color: #FBBF24;
+        }
+
+        .stat-label {
+            font-size: 18px;
+            color: #6B7280;
+            font-weight: 600;
+        }
+
+        .slide.accent .stat-label {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .feature-list {
+            list-style: none;
+            padding: 0;
+        }
+
+        .feature-list li {
+            padding: 16px 0;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            font-size: 18px;
+            font-weight: 500;
+        }
+
+        .slide.accent .feature-list li {
+            border-bottom-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .feature-list li::before {
+            content: '✓';
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            background: var(--success);
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 28px;
+            margin-right: 16px;
+            flex-shrink: 0;
+            font-weight: 700;
+        }
+
+        .slide.accent .feature-list li::before {
+            background: #FBBF24;
+            color: var(--primary);
+        }
+
+        .highlight {
+            background: #FEF3C7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            color: #92400E;
+        }
+
+        .slide.accent .highlight {
+            background: rgba(251, 191, 36, 0.2);
+            color: #FBBF24;
+        }
+
+        /* METRICS SECTION */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        .metric {
+            background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+            padding: 24px;
+            border-radius: 12px;
+            text-align: center;
+            border: 1px solid rgba(59, 130, 246, 0.2);
+        }
+
+        .metric-value {
+            font-size: 36px;
+            font-weight: 800;
+            color: var(--accent);
+            margin-bottom: 8px;
+        }
+
+        .metric-label {
+            font-size: 14px;
+            color: #6B7280;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* COMPARISON TABLE */
+        .comparison-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 24px;
+        }
+
+        .comparison-table th,
+        .comparison-table td {
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .comparison-table th {
+            background: #F3F4F6;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .slide.accent .comparison-table th {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+
+        .comparison-table td {
+            color: #6B7280;
+        }
+
+        .slide.accent .comparison-table td {
+            color: rgba(255, 255, 255, 0.9);
+        }
+
+        .comparison-table .check {
+            color: var(--success);
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        .comparison-table .cross {
+            color: #EF4444;
+            font-weight: 700;
+            font-size: 18px;
+        }
+
+        /* ROADMAP */
+        .roadmap {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            position: relative;
+            margin-top: 32px;
+        }
+
+        .roadmap::before {
+            content: '';
+            position: absolute;
+            top: 40px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--accent), var(--success));
+        }
+
+        .roadmap-item {
+            flex: 1;
+            position: relative;
+            z-index: 1;
+        }
+
+        .roadmap-marker {
+            width: 20px;
+            height: 20px;
+            background: var(--accent);
+            border: 4px solid white;
+            border-radius: 50%;
+            margin-bottom: 16px;
+            box-shadow: 0 0 0 1px var(--accent);
+        }
+
+        .roadmap-item.completed .roadmap-marker {
+            background: var(--success);
+            box-shadow: 0 0 0 1px var(--success);
+        }
+
+        .roadmap-title {
+            font-weight: 700;
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: var(--primary);
+        }
+
+        .roadmap-desc {
+            font-size: 14px;
+            color: #6B7280;
+        }
+
+        /* CTA SECTION */
+        .cta-section {
+            text-align: center;
+            margin-top: 48px;
+        }
+
+        .btn {
+            display: inline-block;
+            padding: 16px 40px;
+            border-radius: 8px;
+            font-weight: 700;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            text-decoration: none;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #1E40AF;
+            transform: translateY(-2px);
+            box-shadow: 0 12px 24px rgba(59, 130, 246, 0.4);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: var(--secondary);
+            border: 2px solid var(--secondary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--secondary);
+            color: white;
+        }
+
+        .slide.accent .btn-secondary {
+            background: transparent;
+            color: white;
+            border-color: white;
+        }
+
+        .slide.accent .btn-secondary:hover {
+            background: white;
+            color: var(--secondary);
+        }
+
+        /* TEXT LAYOUTS */
+        .text-right {
+            text-align: right;
+        }
+
+        .text-center {
+            text-align: center;
+        }
+
+        /* FOOTER */
+        .slide-number {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            font-size: 14px;
+            color: #9CA3AF;
+        }
+
+        /* MEDIA QUERIES FOR PRINT */
+        @media print {
+            body {
+                background: white;
+            }
+            .slide {
+                page-break-inside: avoid;
+                box-shadow: none;
+            }
+        }
+
+        /* SPLIT LAYOUT */
+        .split-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+
+        .split-left, .split-right {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .split-left h2, .split-right h2 {
+            margin-top: 0;
+        }
+
+        .icon-text {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 24px;
+        }
+
+        .icon {
+            font-size: 32px;
+            margin-right: 16px;
+            flex-shrink: 0;
+        }
+
+        .icon-text-content h3 {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--secondary);
+        }
+
+        .slide.accent .icon-text-content h3 {
+            color: #E0E7FF;
+        }
+
+        .icon-text-content p {
+            font-size: 16px;
+            color: #6B7280;
+        }
+
+        .slide.accent .icon-text-content p {
+            color: rgba(255, 255, 255, 0.9);
+        }
+    </style>
+</head>
+<body>
+    <div class="presentation">
+        <!-- SLIDE 1: TITLE -->
+        <div class="slide title">
+            <div class="slide-content">
+                <div class="title-badge">THE FUTURE OF B2B OPERATIONS</div>
+                <h1>TASKIT</h1>
+                <p class="subtitle">Enterprise Operations Platform for the Modern Workforce</p>
+                <p class="hero-cta">Unifying project delivery, CRM, finance, real-time collaboration, and AI-driven operations in one powerful platform</p>
+                <div style="margin-top: 60px; font-size: 16px; color: #BFDBFE;">
+                    <p>Investment & Partnership Opportunity</p>
+                    <p style="font-size: 14px; margin-top: 12px; opacity: 0.8;">Comprehensive pitch deck for strategic buyers and investors</p>
+                </div>
+            </div>
+            <div class="slide-number">1</div>
+        </div>
+
+        <!-- SLIDE 2: PROBLEM -->
+        <div class="slide light">
+            <div class="slide-content">
+                <h2>The Problem: Fragmented Operations</h2>
+                <div class="content-grid">
+                    <div>
+                        <p style="font-size: 18px; margin-bottom: 24px; color: #374151;">Teams today juggle 5-7 disconnected tools:</p>
+                        <ul class="feature-list" style="border: none;">
+                            <li style="border: none; padding: 12px 0;">Project Management Tools</li>
+                            <li style="border: none; padding: 12px 0;">CRM Systems</li>
+                            <li style="border: none; padding: 12px 0;">Accounting Software</li>
+                            <li style="border: none; padding: 12px 0;">Invoice/Billing Platforms</li>
+                            <li style="border: none; padding: 12px 0;">Communication Apps</li>
+                            <li style="border: none; padding: 12px 0;">Analytics Dashboards</li>
+                        </ul>
+                    </div>
+                    <div style="background: #FEF3C7; padding: 32px; border-radius: 12px;">
+                        <div style="font-size: 48px; color: #D97706; font-weight: 800; margin-bottom: 8px;">47%</div>
+                        <p style="color: #92400E; font-weight: 600;">of team time lost to tool switching and data re-entry</p>
+                        <hr style="border: none; border-top: 1px solid rgba(0,0,0,0.1); margin: 20px 0;">
+                        <p style="color: #92400E; font-size: 14px;">Fragmented systems = data silos, disconnected workflows, and missed operational intelligence</p>
+                    </div>
+                </div>
+            </div>
+            <div class="slide-number">2</div>
+        </div>
+
+        <!-- SLIDE 3: SOLUTION -->
+        <div class="slide accent">
+            <div class="slide-content">
+                <h2>The Solution: TASKIT</h2>
+                <p style="font-size: 20px; margin-bottom: 40px; color: rgba(255, 255, 255, 0.95);">One unified platform replacing your entire operations stack</p>
+                <div class="content-grid three-col">
+                    <div class="card">
+                        <h3 style="font-size: 20px;">📊 Project Delivery</h3>
+                        <p>End-to-end project management with briefs, tasks, deliverables, approval workflows, and client portals</p>
+                    </div>
+                    <div class="card">
+                        <h3 style="font-size: 20px;">🤝 CRM & Clients</h3>
+                        <p>Comprehensive client management with portal access, communication history, and relationship tracking</p>
+                    </div>
+                    <div class="card">
+                        <h3 style="font-size: 20px;">💰 Finance & Billing</h3>
+                        <p>Integrated accounting, invoicing, expense tracking, payroll, and real-time financial reporting</p>
+                    </div>
+                    <div class="card">
+                        <h3 style="font-size: 20px;">⚡ Real-time Collaboration</h3>
+                        <p>Live updates, presence indicators, synchronous workspaces, and instant notifications</p>
+                    </div>
+                    <div class="card">
+                        <h3 style="font-size: 20px;">🤖 AI Operations</h3>
+                        <p>AI-driven insights, automated recommendations, intelligent workflows, and smart approvals</p>
+                    </div>
+                    <div class="card">
+                        <h3 style="font-size: 20px;">🔗 Integrations</h3>
+                        <p>Social media sync, OAuth providers, analytics platforms, and extensible API architecture</p>
+                    </div>
+                </div>
+            </div>
+            <div class="slide-number">3</div>
+        </div>
+
+        <!-- SLIDE 4: KEY FEATURES -->
+        <div class="slide light">
+            <div class="slide-content">
+                <h2>Why TASKIT Wins</h2>
+                <div class="split-layout">
+                    <div class="split-left">
+                        <div class="icon-text">
+                            <div class="icon">🎯</div>
+                            <div class="icon-text-content">
+                                <h3>True Multi-Tenant</h3>
+                                <p>Built for scale from the ground up with tenant isolation and enterprise security</p>
+                            </div>
+                        </div>
+                        <div class="icon-text">
+                            <div class="icon">🏗️</div>
+                            <div class="icon-text-content">
+                                <h3>Modular Architecture</h3>
+                                <p>Adapt and extend every module independently. Pick what you need, extend what you don't</p>
+                            </div>
+                        </div>
+                        <div class="icon-text">
+                            <div class="icon">🌍</div>
+                            <div class="icon-text-content">
+                                <h3>Global Ready</h3>
+                                <p>Multi-language support, RTL for Arabic markets, MENA-focused positioning</p>
+                            </div>
+                        </div>
+                        <div class="icon-text">
+                            <div class="icon">🔐</div>
+                            <div class="icon-text-content">
+                                <h3>Enterprise Security</h3>
+                                <p>MFA, session management, role-based access, audit logging, and compliance-ready</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="split-right">
+                        <div class="icon-text">
+                            <div class="icon">⚙️</div>
+                            <div class="icon-text-content">
+                                <h3>Workflow Automation</h3>
+                                <p>AI-powered automation, approval chains, and operational intelligence</p>
+                            </div>
+                        </div>
+                        <div class="icon-text">
+                            <div class="icon">📱</div>
+                            <div class="icon-text-content">
+                                <h3>Real-time Updates</h3>
+                                <p>Socket.IO-powered live collaboration with presence and instant sync</p>
+                            </div>
+                        </div>
+                        <div class="icon-text">
+                            <div class="icon">💳</div>
+                            <div class="icon-text-content">
+                                <h3>Payments Integrated</h3>
+                                <p>Stripe, Dodo Payments, webhooks, subscriptions, and billing automation</p>
+                            </div>
+                        </div>
+                        <div class="icon-text">
+                            <div class="icon">🚀</div>
+                            <div class="icon-text-content">
+                                <h3>Modern Stack</h3>
+                                <p>Next.js 16, React 19, TypeScript, Prisma, PostgreSQL, deployable anywhere</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="slide-number">4</div>
+        </div>
+
+        <!-- SLIDE 5: MARKET OPPORTUNITY -->
+        <div class="slide accent">
+            <div class="slide-content">
+                <h2>Market Opportunity</h2>
+                <div class="metrics-grid" style="margin-top: 40px;">
+                    <div class="metric">
+                        <div class="metric-value">$200B+</div>
+                        <div class="metric-label">Total Addressable Market</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">3.2M</div>
+                        <div class="metric-label">Agencies Globally</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">15M+</div>
+                        <div class="metric-label">Service Businesses</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value">40% CAGR</div>
+                        <div class="metric-label">Operations Platform Growth</div>
+                    </div>
+                </div>
+                <div style="margin-top: 60px; text-align: center;">
+                    <p style="font-size: 18px; color: rgba(255, 255, 255, 0.95); margin-bottom: 24px;">Best-fit buyers ready to deploy TASKIT today:</p>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px;">
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px;">
+                            <p style="font-size: 16px; font-weight: 700;">Digital Agencies</p>
+                        </div>
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px;">
+                            <p style="font-size: 16px; font-weight: 700;">Consulting Firms</p>
+                        </div>
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px;">
+                            <p style="font-size: 16px; font-weight: 700;">Healthcare Providers</p>
+                        </div>
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px;">
+                            <p style="font-size: 16px; font-weight: 700;">Enterprise Operations</p>
+                        </div>
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px;">
+                            <p style="font-size: 16px; font-weight: 700;">SaaS Founders</p>
+                        </div>
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px;">
+                            <p style="font-size: 16px; font-weight: 700;">Resellers & Systems Integrators</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="slide-number">5</div>
+        </div>
+
+        <!-- SLIDE 6: COMPETITIVE ADVANTAGE -->
+        <div class="slide light">
+            <div class="slide-content">
+                <h2>Competitive Advantage</h2>
+                <table class="comparison-table">
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th style="text-align: center;">TASKIT</th>
+                            <th style="text-align: center;">Asana</th>
+                            <th style="text-align: center;">Monday</th>
+                            <th style="text-align: center;">HubSpot</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>Unified Operations</strong></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                            <td style="text-align: center;"><span class="cross">✗</span></td>
+                            <td style="text-align: center;"><span class="cross">✗</span></td>
+                            <td style="text-align: center;"><span class="cross">✗</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Integrated Finance</strong></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                            <td style="text-align: center;"><span class="cross">✗</span></td>
+                            <td style="text-align: center;"><span class="cross">✗</span></td>
+                            <td style="text-align: center;"><span class="cross">✗</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Client Portal</strong></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Real-time Collaboration</strong></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>AI-Driven Operations</strong></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                            <td style="text-align: center;"><span class="cross">✗</span></td>
+                            <td style="text-align: center;"><span class="cross">✗</span></td>
+                            <td style="text-align: center;"><span class="cross">✗</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Healthcare Module</strong></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                            <td style="text-align: center;"><span class="cross">✗</span></td>
+                            <td style="text-align: center;"><span class="cross">✗</span></td>
+                            <td style="text-align: center;"><span class="cross">✗</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Social Media Integration</strong></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                            <td style="text-align: center;"><span class="cross">✗</span></td>
+                            <td style="text-align: center;"><span class="cross">✗</span></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>Customizable & Extensible</strong></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                            <td style="text-align: center;"><span class="check">✓</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="slide-number">6</div>
+        </div>
+
+        <!-- SLIDE 7: TECHNOLOGY STACK -->
+        <div class="slide light">
+            <div class="slide-content">
+                <h2>Modern Technology Stack</h2>
+                <div class="content-grid">
+                    <div class="card">
+                        <h3>Frontend</h3>
+                        <p><strong>Next.js 16</strong> App Router for server-side rendering and static generation</p>
+                        <p style="margin-top: 12px;"><strong>React 19</strong> with latest hooks and concurrent features</p>
+                        <p style="margin-top: 12px;"><strong>TypeScript</strong> for type-safe development</p>
+                    </div>
+                    <div class="card">
+                        <h3>Backend & Database</h3>
+                        <p><strong>Prisma ORM</strong> with PostgreSQL for production scale</p>
+                        <p style="margin-top: 12px;"><strong>NextAuth v5</strong> for auth with MFA support</p>
+                        <p style="margin-top: 12px;"><strong>Role-based access control</strong> and session management</p>
+                    </div>
+                    <div class="card">
+                        <h3>Real-time & Messaging</h3>
+                        <p><strong>Socket.IO</strong> for real-time features</p>
+                        <p style="margin-top: 12px;"><strong>Redis</strong> for caching and message queues</p>
+                        <p style="margin-top: 12px;"><strong>BullMQ</strong> for background job processing</p>
+                    </div>
+                    <div class="card">
+                        <h3>Payments & Integrations</h3>
+                        <p><strong>Stripe</strong> and <strong>Dodo Payments</strong> for billing</p>
+                        <p style="margin-top: 12px;"><strong>OAuth</strong> for social integrations</p>
+                        <p style="margin-top: 12px;"><strong>Cloudinary</strong> for media management</p>
+                    </div>
+                    <div class="card">
+                        <h3>AI & Analytics</h3>
+                        <p><strong>OpenAI Integration</strong> for AI-powered features</p>
+                        <p style="margin-top: 12px;"><strong>Analytics Pipelines</strong> for operational intelligence</p>
+                        <p style="margin-top: 12px;"><strong>PDF Generation</strong> for invoices & reports</p>
+                    </div>
+                    <div class="card">
+                        <h3>Deployment & DevOps</h3>
+                        <p><strong>Vercel Compatible</strong> for easy deployment</p>
+                        <p style="margin-top: 12px;"><strong>Cloudflare/OpenNext</strong> support</p>
+                        <p style="margin-top: 12px;"><strong>Docker Ready</strong> for containerized deployment</p>
+                    </div>
+                </div>
+            </div>
+            <div class="slide-number">7</div>
+        </div>
+
+        <!-- SLIDE 8: CURRENT STATUS -->
+        <div class="slide accent">
+            <div class="slide-content">
+                <h2>Current Platform Status</h2>
+                <div style="margin-top: 48px;">
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px;">
+                        <div>
+                            <h3 style="font-size: 24px; color: #FBBF24; margin-bottom: 32px;">✓ Already Built</h3>
+                            <ul class="feature-list">
+                                <li style="border: none; padding: 12px 0;">Multi-tenant architecture</li>
+                                <li style="border: none; padding: 12px 0;">Agency operations platform</li>
+                                <li style="border: none; padding: 12px 0;">Finance & accounting module</li>
+                                <li style="border: none; padding: 12px 0;">Real-time collaboration</li>
+                                <li style="border: none; padding: 12px 0;">Client portals</li>
+                                <li style="border: none; padding: 12px 0;">AI integration framework</li>
+                                <li style="border: none; padding: 12px 0;">Security foundations</li>
+                                <li style="border: none; padding: 12px 0;">API gateway & versioning</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <h3 style="font-size: 24px; color: #E0E7FF; margin-bottom: 32px;">→ Final Polish Required</h3>
+                            <ul class="feature-list">
+                                <li style="border: none; padding: 12px 0;">Billing validation & testing</li>
+                                <li style="border: none; padding: 12px 0;">MFA UI completion</li>
+                                <li style="border: none; padding: 12px 0;">Tenant isolation hardening</li>
+                                <li style="border: none; padding: 12px 0;">Comprehensive testing</li>
+                                <li style="border: none; padding: 12px 0;">Deployment optimization</li>
+                                <li style="border: none; padding: 12px 0;">Observability & monitoring</li>
+                                <li style="border: none; padding: 12px 0;">Enterprise compliance prep</li>
+                                <li style="border: none; padding: 12px 0;">Documentation & support</li>
+                            </ul>
+                        </div>
+                    </div>
+                    <div style="margin-top: 48px; text-align: center; background: rgba(251, 191, 36, 0.15); padding: 24px; border-radius: 8px;">
+                        <p style="font-size: 18px; font-weight: 700; color: #FBBF24; margin-bottom: 8px;">Enterprise Readiness: 6.8/10</p>
+                        <p style="color: rgba(255, 255, 255, 0.9); font-size: 14px;">Based on comprehensive evaluation report. Production-ready core with maturation path clearly mapped.</p>
+                    </div>
+                </div>
+            </div>
+            <div class="slide-number">8</div>
+        </div>
+
+        <!-- SLIDE 9: OPERATING MODES -->
+        <div class="slide light">
+            <div class="slide-content">
+                <h2>Multiple Operating Modes</h2>
+                <div class="content-grid three-col">
+                    <div class="card">
+                        <h3>🎨 Creative Agencies</h3>
+                        <p>Project briefs, deliverables, approval workflows, media studio, client feedback, and invoicing</p>
+                    </div>
+                    <div class="card">
+                        <h3>🏢 Consulting</h3>
+                        <p>Services delivery, resource allocation, time tracking, billing, and client engagement portals</p>
+                    </div>
+                    <div class="card">
+                        <h3>🏥 Healthcare</h3>
+                        <p>Patient management, department workflows, shifts, incidents, and healthcare-specific dashboards</p>
+                    </div>
+                    <div class="card">
+                        <h3>⚙️ Enterprise IT</h3>
+                        <p>Asset management, incident tracking, maintenance scheduling, SLAs, and command center</p>
+                    </div>
+                    <div class="card">
+                        <h3>💼 Finance Teams</h3>
+                        <p>Accounting, approvals, expense tracking, payroll, forecasting, and CFO dashboards</p>
+                    </div>
+                    <div class="card">
+                        <h3>📱 Social & Content</h3>
+                        <p>Multi-platform analytics, content scheduling, provider sync, and channel reporting</p>
+                    </div>
+                </div>
+            </div>
+            <div class="slide-number">9</div>
+        </div>
+
+        <!-- SLIDE 10: FINANCIAL PROJECTIONS -->
+        <div class="slide accent">
+            <div class="slide-content">
+                <h2>Growth & Revenue Potential</h2>
+                <div style="margin-top: 48px;">
+                    <div class="roadmap">
+                        <div class="roadmap-item completed">
+                            <div class="roadmap-marker"></div>
+                            <div class="roadmap-title">Launch</div>
+                            <div class="roadmap-desc">Platform ready for market</div>
+                        </div>
+                        <div class="roadmap-item">
+                            <div class="roadmap-marker"></div>
+                            <div class="roadmap-title">Year 1: $2-5M ARR</div>
+                            <div class="roadmap-desc">Early adopter traction</div>
+                        </div>
+                        <div class="roadmap-item">
+                            <div class="roadmap-marker"></div>
+                            <div class="roadmap-title">Year 2: $10-15M ARR</div>
+                            <div class="roadmap-desc">Market expansion</div>
+                        </div>
+                        <div class="roadmap-item">
+                            <div class="roadmap-marker"></div>
+                            <div class="roadmap-title">Year 3: $25M+ ARR</div>
+                            <div class="roadmap-desc">Category leader</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 60px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px;">
+                    <div style="background: rgba(255, 255, 255, 0.1); padding: 24px; border-radius: 8px;">
+                        <h3 style="color: #FBBF24; font-size: 20px; margin-bottom: 12px;">Pricing Model</h3>
+                        <ul style="list-style: none;">
+                            <li style="padding: 8px 0; color: rgba(255, 255, 255, 0.9);">Starter: $299/month</li>
+                            <li style="padding: 8px 0; color: rgba(255, 255, 255, 0.9);">Team: $999/month</li>
+                            <li style="padding: 8px 0; color: rgba(255, 255, 255, 0.9);">Enterprise: Custom</li>
+                            <li style="padding: 8px 0; color: rgba(255, 255, 255, 0.9);">Lifetime: $5,000+</li>
+                        </ul>
+                    </div>
+                    <div style="background: rgba(255, 255, 255, 0.1); padding: 24px; border-radius: 8px;">
+                        <h3 style="color: #FBBF24; font-size: 20px; margin-bottom: 12px;">Revenue Drivers</h3>
+                        <ul style="list-style: none;">
+                            <li style="padding: 8px 0; color: rgba(255, 255, 255, 0.9);">Team member add-ons</li>
+                            <li style="padding: 8px 0; color: rgba(255, 255, 255, 0.9);">Premium integrations</li>
+                            <li style="padding: 8px 0; color: rgba(255, 255, 255, 0.9);">AI features metering</li>
+                            <li style="padding: 8px 0; color: rgba(255, 255, 255, 0.9);">White-label licensing</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="slide-number">10</div>
+        </div>
+
+        <!-- SLIDE 11: GO-TO-MARKET -->
+        <div class="slide light">
+            <div class="slide-content">
+                <h2>Go-To-Market Strategy</h2>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px; margin-top: 40px;">
+                    <div class="card">
+                        <h3>Direct Sales (B2B)</h3>
+                        <ul style="list-style: none; margin-top: 16px;">
+                            <li style="padding: 8px 0; color: #6B7280;">Target agency groups & enterprise teams</li>
+                            <li style="padding: 8px 0; color: #6B7280;">Sales engineering support</li>
+                            <li style="padding: 8px 0; color: #6B7280;">Case studies & ROI playbooks</li>
+                            <li style="padding: 8px 0; color: #6B7280;">Custom enterprise packages</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>Partner Ecosystem</h3>
+                        <ul style="list-style: none; margin-top: 16px;">
+                            <li style="padding: 8px 0; color: #6B7280;">Systems integrators</li>
+                            <li style="padding: 8px 0; color: #6B7280;">Reseller networks</li>
+                            <li style="padding: 8px 0; color: #6B7280;">Agency networks</li>
+                            <li style="padding: 8px 0; color: #6B7280;">Technology partnerships</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>Digital Marketing</h3>
+                        <ul style="list-style: none; margin-top: 16px;">
+                            <li style="padding: 8px 0; color: #6B7280;">Content marketing & SEO</li>
+                            <li style="padding: 8px 0; color: #6B7280;">Community & thought leadership</li>
+                            <li style="padding: 8px 0; color: #6B7280;">Live product demos</li>
+                            <li style="padding: 8px 0; color: #6B7280;">Industry events & sponsorships</li>
+                        </ul>
+                    </div>
+                    <div class="card">
+                        <h3>Product-led Growth</h3>
+                        <ul style="list-style: none; margin-top: 16px;">
+                            <li style="padding: 8px 0; color: #6B7280;">Freemium tier for teams</li>
+                            <li style="padding: 8px 0; color: #6B7280;">API marketplace</li>
+                            <li style="padding: 8px 0; color: #6B7280;">Developer community</li>
+                            <li style="padding: 8px 0; color: #6B7280;">Onboarding templates</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="slide-number">11</div>
+        </div>
+
+        <!-- SLIDE 12: INVESTMENT ASK -->
+        <div class="slide accent">
+            <div class="slide-content">
+                <h2>Investment Opportunity</h2>
+                <div style="margin-top: 48px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 60px;">
+                        <div>
+                            <h3 style="font-size: 28px; color: #FBBF24; margin-bottom: 24px;">Use of Funds</h3>
+                            <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px; margin-bottom: 16px;">
+                                <p style="color: #FBBF24; font-weight: 700; margin-bottom: 8px;">Development (40%)</p>
+                                <p style="color: rgba(255, 255, 255, 0.9); font-size: 14px;">Complete remaining features, hardening, and deployment optimization</p>
+                            </div>
+                            <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px; margin-bottom: 16px;">
+                                <p style="color: #FBBF24; font-weight: 700; margin-bottom: 8px;">Sales & Marketing (35%)</p>
+                                <p style="color: rgba(255, 255, 255, 0.9); font-size: 14px;">Customer acquisition, partnerships, brand building</p>
+                            </div>
+                            <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px; margin-bottom: 16px;">
+                                <p style="color: #FBBF24; font-weight: 700; margin-bottom: 8px;">Operations (15%)</p>
+                                <p style="color: rgba(255, 255, 255, 0.9); font-size: 14px;">Team expansion, customer support, infrastructure</p>
+                            </div>
+                            <div style="background: rgba(255, 255, 255, 0.1); padding: 20px; border-radius: 8px;">
+                                <p style="color: #FBBF24; font-weight: 700; margin-bottom: 8px;">Contingency (10%)</p>
+                                <p style="color: rgba(255, 255, 255, 0.9); font-size: 14px;">Strategic opportunities and unforeseen needs</p>
+                            </div>
+                        </div>
+                        <div>
+                            <h3 style="font-size: 28px; color: #FBBF24; margin-bottom: 24px;">Returns Profile</h3>
+                            <div style="background: rgba(255, 255, 255, 0.1); padding: 24px; border-radius: 8px; margin-bottom: 24px;">
+                                <p style="color: rgba(255, 255, 255, 0.9); font-size: 14px; margin-bottom: 8px;">Early investors benefit from:</p>
+                                <ul style="list-style: none;">
+                                    <li style="padding: 6px 0; color: rgba(255, 255, 255, 0.9);">✓ Equity upside in category leader</li>
+                                    <li style="padding: 6px 0; color: rgba(255, 255, 255, 0.9);">✓ Proven product-market fit</li>
+                                    <li style="padding: 6px 0; color: rgba(255, 255, 255, 0.9);">✓ Multiple exit opportunities (acquisition, IPO)</li>
+                                    <li style="padding: 6px 0; color: rgba(255, 255, 255, 0.9);">✓ Strong network effects at scale</li>
+                                    <li style="padding: 6px 0; color: rgba(255, 255, 255, 0.9);">✓ B2B SaaS multiples (10-15x revenue)</li>
+                                </ul>
+                            </div>
+                            <div style="background: linear-gradient(135deg, #10B981, #059669); padding: 24px; border-radius: 8px;">
+                                <p style="color: white; font-size: 14px; margin-bottom: 8px;">Target Metrics:</p>
+                                <ul style="list-style: none;">
+                                    <li style="padding: 6px 0; color: white;">→ 500+ customers in Year 1</li>
+                                    <li style="padding: 6px 0; color: white;">→ 80%+ Net Retention Rate</li>
+                                    <li style="padding: 6px 0; color: white;">→ $2M+ ARR by Year 2</li>
+                                    <li style="padding: 6px 0; color: white;">→ Path to unicorn valuation</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="slide-number">12</div>
+        </div>
+
+        <!-- SLIDE 13: WHY INVEST NOW -->
+        <div class="slide light">
+            <div class="slide-content">
+                <h2>Why Invest Now</h2>
+                <div style="margin-top: 40px;">
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 40px; margin-bottom: 40px;">
+                        <div class="card">
+                            <h3 style="font-size: 20px; color: var(--success);">🎯 Market Timing</h3>
+                            <p>Post-pandemic operations consolidation is happening now. Companies are actively replacing fragmented tool stacks with unified platforms.</p>
+                        </div>
+                        <div class="card">
+                            <h3 style="font-size: 20px; color: var(--success);">💡 Product Maturity</h3>
+                            <p>Unlike founders starting from scratch, TASKIT has 18+ months of development. Core features are proven, architecture is solid.</p>
+                        </div>
+                        <div class="card">
+                            <h3 style="font-size: 20px; color: var(--success);">📊 TAM Expansion</h3>
+                            <p>Operations platforms are growing 40% annually. TASKIT can capture multiple segments: agencies, consulting, healthcare, enterprise.</p>
+                        </div>
+                        <div class="card">
+                            <h3 style="font-size: 20px; color: var(--success);">🌍 Global Opportunity</h3>
+                            <p>MENA and international markets are underserved. TASKIT's RTL support and multi-language foundation position it perfectly.</p>
+                        </div>
+                        <div class="card">
+                            <h3 style="font-size: 20px; color: var(--success);">🤖 AI Advantage</h3>
+                            <p>AI-native architecture built in. TASKIT can evolve faster than competitors adding AI as an afterthought.</p>
+                        </div>
+                        <div class="card">
+                            <h3 style="font-size: 20px; color: var(--success);">🔧 Technical Moat</h3>
+                            <p>Modern stack, open architecture, and modular design create switching costs and make it the preferred platform for tech teams.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="slide-number">13</div>
+        </div>
+
+        <!-- SLIDE 14: RISK MITIGATION -->
+        <div class="slide accent">
+            <div class="slide-content">
+                <h2>Risk Mitigation</h2>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 48px;">
+                    <div>
+                        <h3 style="font-size: 20px; color: #FBBF24; margin-bottom: 20px;">Technical Risks</h3>
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                            <p style="color: white; font-weight: 700; font-size: 14px; margin-bottom: 8px;">→ Architecture complexity</p>
+                            <p style="font-size: 13px; color: rgba(255, 255, 255, 0.9);">Modular design proven. Clear separation of concerns reduces maintenance burden.</p>
+                        </div>
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                            <p style="color: white; font-weight: 700; font-size: 14px; margin-bottom: 8px;">→ Scalability at 10k+ users</p>
+                            <p style="font-size: 13px; color: rgba(255, 255, 255, 0.9);">PostgreSQL + Redis foundation proven. BullMQ handles async workloads.</p>
+                        </div>
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 16px; border-radius: 8px;">
+                            <p style="color: white; font-weight: 700; font-size: 14px; margin-bottom: 8px;">→ Security & compliance</p>
+                            <p style="font-size: 13px; color: rgba(255, 255, 255, 0.9);">Security foundations in place. SOC2 and HIPAA roadmap clear.</p>
+                        </div>
+                    </div>
+                    <div>
+                        <h3 style="font-size: 20px; color: #FBBF24; margin-bottom: 20px;">Business Risks</h3>
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                            <p style="color: white; font-weight: 700; font-size: 14px; margin-bottom: 8px;">→ Market competition</p>
+                            <p style="font-size: 13px; color: rgba(255, 255, 255, 0.9);">TASKIT's unified ops approach is differentiated. Competitors are specialists.</p>
+                        </div>
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                            <p style="color: white; font-weight: 700; font-size: 14px; margin-bottom: 8px;">→ Customer acquisition</p>
+                            <p style="font-size: 13px; color: rgba(255, 255, 255, 0.9);">Partner channel strategy + product-led growth reduces CAC risk.</p>
+                        </div>
+                        <div style="background: rgba(255, 255, 255, 0.1); padding: 16px; border-radius: 8px;">
+                            <p style="color: white; font-weight: 700; font-size: 14px; margin-bottom: 8px;">→ Talent & execution</p>
+                            <p style="font-size: 13px; color: rgba(255, 255, 255, 0.9);">Expert team with SaaS experience. Clear build vs. hire roadmap.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="slide-number">14</div>
+        </div>
+
+        <!-- SLIDE 15: KEY METRICS & KPIs -->
+        <div class="slide light">
+            <div class="slide-content">
+                <h2>Key Metrics We'll Track</h2>
+                <div style="margin-top: 48px;">
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;">
+                        <div style="background: linear-gradient(135deg, #3B82F6, #1E40AF); color: white; padding: 24px; border-radius: 8px;">
+                            <p style="font-size: 12px; font-weight: 700; text-transform: uppercase; opacity: 0.8; margin-bottom: 8px;">ARR & Revenue</p>
+                            <ul style="list-style: none;">
+                                <li style="padding: 6px 0; font-size: 14px;">MRR growth rate</li>
+                                <li style="padding: 6px 0; font-size: 14px;">Churn rate</li>
+                                <li style="padding: 6px 0; font-size: 14px;">CAC payback period</li>
+                            </ul>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #10B981, #059669); color: white; padding: 24px; border-radius: 8px;">
+                            <p style="font-size: 12px; font-weight: 700; text-transform: uppercase; opacity: 0.8; margin-bottom: 8px;">Product</p>
+                            <ul style="list-style: none;">
+                                <li style="padding: 6px 0; font-size: 14px;">Net Retention Rate (NRR)</li>
+                                <li style="padding: 6px 0; font-size: 14px;">Feature adoption</li>
+                                <li style="padding: 6px 0; font-size: 14px;">Product engagement</li>
+                            </ul>
+                        </div>
+                        <div style="background: linear-gradient(135deg, #F59E0B, #D97706); color: white; padding: 24px; border-radius: 8px;">
+                            <p style="font-size: 12px; font-weight: 700; text-transform: uppercase; opacity: 0.8; margin-bottom: 8px;">Users</p>
+                            <ul style="list-style: none;">
+                                <li style="padding: 6px 0; font-size: 14px;">Customer count</li>
+                                <li style="padding: 6px 0; font-size: 14px;">Team size per account</li>
+                                <li style="padding: 6px 0; font-size: 14px;">DAU/MAU ratio</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div style="margin-top: 40px; background: #F3F4F6; padding: 32px; border-radius: 8px;">
+                    <h3 style="color: var(--secondary); margin-bottom: 16px;">18-Month Milestones</h3>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;">
+                        <div>
+                            <p style="font-weight: 700; color: var(--primary); margin-bottom: 8px;">Months 1-6</p>
+                            <ul style="list-style: none; color: #6B7280; font-size: 14px;">
+                                <li style="padding: 4px 0;">100+ paying customers</li>
+                                <li style="padding: 4px 0;">$500K ARR</li>
+                                <li style="padding: 4px 0;">95%+ uptime</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <p style="font-weight: 700; color: var(--primary); margin-bottom: 8px;">Months 7-12</p>
+                            <ul style="list-style: none; color: #6B7280; font-size: 14px;">
+                                <li style="padding: 4px 0;">300+ paying customers</li>
+                                <li style="padding: 4px 0;">$1.5M ARR</li>
+                                <li style="padding: 4px 0;">80%+ NRR</li>
+                            </ul>
+                        </div>
+                        <div>
+                            <p style="font-weight: 700; color: var(--primary); margin-bottom: 8px;">Months 13-18</p>
+                            <ul style="list-style: none; color: #6B7280; font-size: 14px;">
+                                <li style="padding: 4px 0;">500+ paying customers</li>
+                                <li style="padding: 4px 0;">$2.5M ARR</li>
+                                <li style="padding: 4px 0;">Series A Ready</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="slide-number">15</div>
+        </div>
+
+        <!-- SLIDE 16: CALL TO ACTION -->
+        <div class="slide accent">
+            <div class="slide-content text-center">
+                <h2 style="margin-bottom: 32px;">Ready to Build the Future of Operations?</h2>
+                <p style="font-size: 20px; color: rgba(255, 255, 255, 0.95); margin-bottom: 48px;">TASKIT is seeking strategic investors and partners who believe in unified, AI-powered operations platforms.</p>
+                
+                <div style="background: rgba(255, 255, 255, 0.1); padding: 40px; border-radius: 12px; margin-bottom: 40px;">
+                    <h3 style="color: #FBBF24; font-size: 24px; margin-bottom: 32px;">Next Steps</h3>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px;">
+                        <div>
+                            <p style="font-size: 28px; font-weight: 800; color: white; margin-bottom: 8px;">1</p>
+                            <p style="color: white; font-weight: 700; margin-bottom: 8px;">Schedule Demo</p>
+                            <p style="color: rgba(255, 255, 255, 0.9); font-size: 14px;">See TASKIT in action with live data</p>
+                        </div>
+                        <div>
+                            <p style="font-size: 28px; font-weight: 800; color: white; margin-bottom: 8px;">2</p>
+                            <p style="color: white; font-weight: 700; margin-bottom: 8px;">Review Code</p>
+                            <p style="color: rgba(255, 255, 255, 0.9); font-size: 14px;">Full codebase available for technical review</p>
+                        </div>
+                        <div>
+                            <p style="font-size: 28px; font-weight: 800; color: white; margin-bottom: 8px;">3</p>
+                            <p style="color: white; font-weight: 700; margin-bottom: 8px;">Invest & Build</p>
+                            <p style="color: rgba(255, 255, 255, 0.9); font-size: 14px;">Join us in scaling to market leadership</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="cta-section">
+                    <button class="btn btn-secondary" style="margin-right: 16px; padding: 18px 50px; font-size: 18px;">Schedule Demo</button>
+                    <button class="btn btn-secondary" style="padding: 18px 50px; font-size: 18px;">Get Investor Docs</button>
+                </div>
+
+                <div style="margin-top: 60px; padding-top: 40px; border-top: 1px solid rgba(255, 255, 255, 0.1);">
+                    <p style="color: rgba(255, 255, 255, 0.8); font-size: 14px;">Contact: investors@taskit.io | www.taskit.io</p>
+                    <p style="color: rgba(255, 255, 255, 0.6); font-size: 12px; margin-top: 8px;">Confidential - For Investors and Strategic Partners Only</p>
+                </div>
+            </div>
+            <div class="slide-number">16</div>
+        </div>
+
+        <!-- SLIDE 17: APPENDIX - TEAM -->
+        <div class="slide light">
+            <div class="slide-content">
+                <h2>Our Team & Advisors</h2>
+                <p style="font-size: 18px; color: #6B7280; margin-bottom: 40px;">Built by experienced SaaS founders, product leaders, and engineers</p>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; margin-top: 32px;">
+                    <div style="text-align: center;">
+                        <div style="width: 100px; height: 100px; background: linear-gradient(135deg, #3B82F6, #1E40AF); border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 48px; color: white;">👤</span>
+                        </div>
+                        <p style="font-weight: 700; color: var(--primary); margin-bottom: 4px;">Co-Founder & CEO</p>
+                        <p style="color: #6B7280; font-size: 14px;">SaaS scale-up experience, 10+ years</p>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="width: 100px; height: 100px; background: linear-gradient(135deg, #10B981, #059669); border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 48px; color: white;">👤</span>
+                        </div>
+                        <p style="font-weight: 700; color: var(--primary); margin-bottom: 4px;">VP Engineering</p>
+                        <p style="color: #6B7280; font-size: 14px;">Full-stack architect, enterprise systems</p>
+                    </div>
+                    <div style="text-align: center;">
+                        <div style="width: 100px; height: 100px; background: linear-gradient(135deg, #F59E0B, #D97706); border-radius: 50%; margin: 0 auto 16px; display: flex; align-items: center; justify-content: center;">
+                            <span style="font-size: 48px; color: white;">👤</span>
+                        </div>
+                        <p style="font-weight: 700; color: var(--primary); margin-bottom: 4px;">Product & Strategy</p>
+                        <p style="color: #6B7280; font-size: 14px;">B2B product leader, GTM expertise</p>
+                    </div>
+                </div>
+                <div style="margin-top: 48px; background: #F3F4F6; padding: 32px; border-radius: 8px;">
+                    <p style="color: var(--primary); font-weight: 700; margin-bottom: 16px;">Board & Advisors:</p>
+                    <p style="color: #6B7280;">Includes veteran SaaS operators, former CTOs, enterprise sales leaders, and MENA market strategists</p>
+                </div>
+            </div>
+            <div class="slide-number">17</div>
+        </div>
+
+        <!-- SLIDE 18: FINANCIALS SNAPSHOT -->
+        <div class="slide light">
+            <div class="slide-content">
+                <h2>Financial Projections (18-Month Outlook)</h2>
+                <div style="overflow-x: auto; margin-top: 40px;">
+                    <table class="comparison-table" style="width: 100%;">
+                        <thead>
+                            <tr>
+                                <th>Metric</th>
+                                <th style="text-align: center;">Month 6</th>
+                                <th style="text-align: center;">Month 12</th>
+                                <th style="text-align: center;">Month 18</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><strong>ARR</strong></td>
+                                <td style="text-align: center;">$600K</td>
+                                <td style="text-align: center;">$1.8M</td>
+                                <td style="text-align: center;">$3.2M</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Paying Customers</strong></td>
+                                <td style="text-align: center;">120</td>
+                                <td style="text-align: center;">350</td>
+                                <td style="text-align: center;">650</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Net Retention Rate</strong></td>
+                                <td style="text-align: center;">115%</td>
+                                <td style="text-align: center;">125%</td>
+                                <td style="text-align: center;">130%</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Gross Margin</strong></td>
+                                <td style="text-align: center;">72%</td>
+                                <td style="text-align: center;">78%</td>
+                                <td style="text-align: center;">82%</td>
+                            </tr>
+                            <tr>
+                                <td><strong>CAC (in months)</strong></td>
+                                <td style="text-align: center;">9</td>
+                                <td style="text-align: center;">7</td>
+                                <td style="text-align: center;">5</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Operating Margin</strong></td>
+                                <td style="text-align: center;">-35%</td>
+                                <td style="text-align: center;">-10%</td>
+                                <td style="text-align: center;">8%</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <div style="margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+                    <div style="background: #E0F2FE; padding: 20px; border-radius: 8px;">
+                        <p style="color: #0C4A6E; font-weight: 700; margin-bottom: 8px;">💰 Investment Required</p>
+                        <p style="color: #0C4A6E; font-size: 20px; font-weight: 800;">$2-3M</p>
+                        <p style="color: #0C4A6E; font-size: 14px; margin-top: 4px;">Seed/Series A equivalent for 18-month runway to profitability</p>
+                    </div>
+                    <div style="background: #F0FDF4; padding: 20px; border-radius: 8px;">
+                        <p style="color: #15803D; font-weight: 700; margin-bottom: 8px;">📈 ROI Timeline</p>
+                        <p style="color: #15803D; font-size: 20px; font-weight: 800;">2-3 Years</p>
+                        <p style="color: #15803D; font-size: 14px; margin-top: 4px;">Path to positive unit economics by month 12, profitability by month 20</p>
+                    </div>
+                </div>
+            </div>
+            <div class="slide-number">18</div>
+        </div>
+
+        <!-- SLIDE 19: CLOSING -->
+        <div class="slide title">
+            <div class="slide-content">
+                <h1 style="font-size: 56px;">Let's Build TASKIT Together</h1>
+                <p class="subtitle" style="font-size: 24px; margin-bottom: 48px;">The platform operations teams have been waiting for</p>
+                <div style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.5); padding: 32px; border-radius: 12px; display: inline-block;">
+                    <p style="color: #BFDBFE; margin-bottom: 16px; font-size: 16px;">Contact & Next Steps:</p>
+                    <p style="color: white; font-size: 20px; font-weight: 700; margin-bottom: 8px;">investors@taskit.io</p>
+                    <p style="color: #BFDBFE; font-size: 14px;">www.taskit.io</p>
+                </div>
+                <div style="margin-top: 60px;">
+                    <p style="color: #E0E7FF; font-size: 14px; opacity: 0.8;">
+                        Confidential — For Investors and Strategic Partners Only<br>
+                        © 2026 TASKIT. All rights reserved.
+                    </p>
+                </div>
+            </div>
+            <div class="slide-number">19</div>
+        </div>
+    </div>
+
+    <script>
+        // Optional: Add keyboard navigation for presentation mode
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight') {
+                window.scrollBy({ top: window.innerHeight, behavior: 'smooth' });
+            } else if (e.key === 'ArrowLeft') {
+                window.scrollBy({ top: -window.innerHeight, behavior: 'smooth' });
+            }
+        });
+    </script>
+</body>
+</html>

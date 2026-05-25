@@ -14,6 +14,8 @@ import {
   WalletCards,
 } from 'lucide-react'
 import { HealthScoreWidget } from '@/components/erp/HealthScoreGauge'
+import { useLocale } from '@/components/i18n/LocaleProvider'
+import { tErp, formatErpMoney, formatErpNumber } from '@/components/erp/erpLocale'
 
 type DashboardMetric = {
   label: string
@@ -84,6 +86,8 @@ export function CommandCenterDashboard(props: {
   operations?: { lowStockItems: number; dueSoonReceivables: number; defaultCurrency: string }
   recentActivity?: ActivityItem[]
 }) {
+  const { locale, direction } = useLocale()
+  const currency = props.operations?.defaultCurrency ?? 'USD'
   const [alertCounts, setAlertCounts] = useState<{ total: number; unresolved: number; critical: number } | null>(null)
 
   useEffect(() => {
@@ -97,19 +101,16 @@ export function CommandCenterDashboard(props: {
 
   const formatMetric = (metric: DashboardMetric) => {
     if (metric.format === 'money' && typeof metric.value === 'number') {
-      return new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: props.operations?.defaultCurrency ?? 'USD',
-      }).format(metric.value / 100)
+      return formatErpMoney(metric.value, locale, currency)
     }
-    if (typeof metric.value === 'number') return metric.value.toLocaleString()
+    if (typeof metric.value === 'number') return formatErpNumber(metric.value, locale)
     return metric.value
   }
 
   return (
-    <div>
+    <div dir={direction}>
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
-        <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>Command Center</h1>
+        <h1 style={{ fontSize: '20px', fontWeight: 700, color: '#0f172a' }}>{tErp(locale, 'commandCenter')}</h1>
         {alertCounts && alertCounts.unresolved > 0 && (
           <div
             style={{
@@ -130,14 +131,14 @@ export function CommandCenterDashboard(props: {
         )}
       </div>
       <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '24px' }}>
-        ERP overview with live finance, operations, and people signals.
+        {tErp(locale, 'erpOverview')}
       </p>
 
       <div style={{ display: 'flex', gap: '16px', flexWrap: 'wrap', marginBottom: '16px' }}>
-        <StatCard icon={<BookOpen size={20} />} label="Chart of Accounts" value={props.totalAccounts} color="#3b82f6" />
-        <StatCard icon={<TrendingUp size={20} />} label="Journal Entries" value={props.totalJournalEntries} color="#10b981" />
-        <StatCard icon={<ShoppingCart size={20} />} label="Purchase Orders" value={props.totalPurchaseOrders} color="#f59e0b" />
-        <StatCard icon={<Users size={20} />} label="Employees" value={props.totalEmployees} color="#8b5cf6" />
+        <StatCard icon={<BookOpen size={20} />} label={tErp(locale, 'chartOfAccounts')} value={props.totalAccounts} color="#3b82f6" />
+        <StatCard icon={<TrendingUp size={20} />} label={tErp(locale, 'journalEntries')} value={props.totalJournalEntries} color="#10b981" />
+        <StatCard icon={<ShoppingCart size={20} />} label={tErp(locale, 'purchaseOrders')} value={props.totalPurchaseOrders} color="#f59e0b" />
+        <StatCard icon={<Users size={20} />} label={tErp(locale, 'employees')} value={props.totalEmployees} color="#8b5cf6" />
       </div>
 
       {props.metrics && props.metrics.length > 0 && (
@@ -166,13 +167,13 @@ export function CommandCenterDashboard(props: {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
         <HealthScoreWidget />
         <div style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '20px' }}>
-          <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>Quick Actions</div>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>{tErp(locale, 'quickActions')}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
             {[
-              { label: 'New Journal Entry', href: '/erp/general-ledger' },
-              { label: 'Run Anomaly Scan', href: '/erp/alerts' },
-              { label: 'Cash Forecast', href: '/erp/reports' },
-              { label: 'Setup Guide', href: '/erp/settings' },
+              { label: tErp(locale, 'newJournalEntryAction'), href: '/erp/general-ledger' },
+              { label: tErp(locale, 'runAnomalyScanAction'), href: '/erp/alerts' },
+              { label: tErp(locale, 'cashForecastAction'), href: '/erp/reports' },
+              { label: tErp(locale, 'setupGuideAction'), href: '/erp/settings' },
             ].map((action) => (
               <Link
                 key={action.href}
@@ -204,19 +205,19 @@ export function CommandCenterDashboard(props: {
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginTop: '16px' }}>
         <div style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '20px' }}>
-          <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>Operational Watchlist</div>
+          <div style={{ fontSize: '14px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>{tErp(locale, 'operationalWatchlist')}</div>
           <div style={{ display: 'grid', gap: '10px' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#334155' }}>
               <Boxes size={16} color={props.operations?.lowStockItems ? '#dc2626' : '#16a34a'} />
-              {props.operations?.lowStockItems ?? 0} SKUs at or below reorder point
+              {props.operations?.lowStockItems ?? 0} {tErp(locale, 'skusAtReorder')}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#334155' }}>
               <ReceiptText size={16} color={props.operations?.dueSoonReceivables ? '#d97706' : '#16a34a'} />
-              {props.operations?.dueSoonReceivables ?? 0} receivables due in the next 30 days
+              {props.operations?.dueSoonReceivables ?? 0} {tErp(locale, 'receivablesDue')}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '13px', color: '#334155' }}>
               <AlertTriangle size={16} color={alertCounts?.unresolved ? '#d97706' : '#16a34a'} />
-              {alertCounts?.unresolved ?? 0} unresolved AI anomaly alerts
+              {alertCounts?.unresolved ?? 0} {tErp(locale, 'unresolvedAlerts')}
             </div>
           </div>
         </div>
@@ -224,16 +225,16 @@ export function CommandCenterDashboard(props: {
         <div style={{ background: '#fff', borderRadius: '8px', border: '1px solid #e2e8f0', padding: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 600, color: '#0f172a', marginBottom: '12px' }}>
             <WalletCards size={16} />
-            Recent ERP Activity
+            {tErp(locale, 'recentErpActivity')}
           </div>
           <div style={{ display: 'grid', gap: '8px' }}>
             {(props.recentActivity ?? []).length === 0 && (
-              <div style={{ fontSize: '13px', color: '#64748b' }}>No ERP activity yet. Create the first operational record to start the audit trail.</div>
+              <div style={{ fontSize: '13px', color: '#64748b' }}>{tErp(locale, 'noErpActivity')}</div>
             )}
             {(props.recentActivity ?? []).map((activity) => (
               <div key={activity.id} style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', borderBottom: '1px solid #f1f5f9', paddingBottom: '8px' }}>
                 <span style={{ fontSize: '13px', color: '#334155' }}>{activity.action.replaceAll('.', ' ')}</span>
-                <span style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{new Date(activity.createdAt).toLocaleDateString()}</span>
+                <span style={{ fontSize: '11px', color: '#94a3b8', whiteSpace: 'nowrap' }}>{new Date(activity.createdAt).toLocaleDateString(locale === 'ar' ? 'ar-SA' : locale === 'fr' ? 'fr-FR' : 'en-US')}</span>
               </div>
             ))}
           </div>
