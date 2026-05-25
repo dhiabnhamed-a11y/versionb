@@ -36,7 +36,6 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ module: st
     },
     {
       auth: 'required',
-      idempotency: { responseStatus: 201 },
       responseMode: 'canonical',
       route: '/api/v1/erp2/modules/{module}',
     }
