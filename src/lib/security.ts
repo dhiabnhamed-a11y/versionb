@@ -1,3 +1,5 @@
+import { getWorkspaceHomePath } from '@/lib/workspace-routing'
+
 type EmailIdentity = {
   email?: string | null
 }
@@ -135,17 +137,8 @@ export function getAuthBlockReason(state: AuthState) {
   return 'Your account is not allowed to access the platform.'
 }
 
-export function getRoleHomePath(role?: string | null) {
-  const normalizedRole = normalizeUserRole(role)
-  if (normalizedRole === 'SUPER_ADMIN') {
-    return '/dashboard/super-admin'
-  }
-
-  if (normalizedRole === 'EMPLOYEE') {
-    return '/dashboard/employee'
-  }
-
-  return '/dashboard/admin'
+export function getRoleHomePath(role?: string | null, companyType?: string | null) {
+  return getWorkspaceHomePath({ role, companyType })
 }
 
 export function hasWorkspaceManagerRole(role?: string | null) {

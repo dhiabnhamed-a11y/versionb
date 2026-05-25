@@ -6,7 +6,7 @@
  * Or via package.json: "prisma": { "seed": "..." }
  */
 import { PrismaClient } from '@prisma/client'
-import type { FinancialAccountType, FinancialNormalBalance } from '@prisma/client'
+import type { FinancialAccountType, FinancialNormalBalance, Prisma } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
@@ -92,7 +92,7 @@ async function seedCompanyFinancials(companyId: string, userId: string) {
     const createdAccounts: { id: string; code: string }[] = []
 
     for (const acct of ACCOUNTS) {
-      const data: any = {
+      const data: Prisma.AccountUncheckedCreateInput = {
         companyId,
         chartId: chart.id,
         categoryId: categoryMap.get(acct.categoryCode) ?? null,

@@ -1,5 +1,6 @@
 import 'server-only'
 
+import type { ERPAlertSeverity, ERPAlertType, Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 
 function daysAgo(days: number): Date {
@@ -21,18 +22,18 @@ export type AnomalyResult = {
 }
 
 export async function listAlerts(workspaceId: string, unresolvedOnly = false): Promise<AnomalyResult[]> {
-  const where: Record<string, unknown> = { workspaceId }
+  const where: Prisma.ERPAlertWhereInput = { workspaceId }
   if (unresolvedOnly) where.isResolved = false
 
   const alerts = await prisma.eRPAlert.findMany({
-    where: where as any,
-    orderBy: [{ severity: 'asc' as any }, { createdAt: 'desc' as any }],
+    where,
+    orderBy: [{ severity: 'asc' }, { createdAt: 'desc' }],
   })
 
   return alerts.map(a => ({
     id: a.id,
-    type: (a as any).type,
-    severity: (a as any).severity,
+    type: a.type,
+    severity: a.severity,
     title: a.title,
     description: a.description,
     entityType: a.entityType,
@@ -44,9 +45,9 @@ export async function listAlerts(workspaceId: string, unresolvedOnly = false): P
 
 export async function getAlertCounts(workspaceId: string) {
   const [total, unresolved, critical] = await Promise.all([
-    prisma.eRPAlert.count({ where: { workspaceId, isResolved: false } as any }),
-    prisma.eRPAlert.count({ where: { workspaceId, isResolved: false, severity: 'CRITICAL' as any } as any }),
-    prisma.eRPAlert.count({ where: { workspaceId, isResolved: false } as any }),
+    prisma.eRPAlert.count({ where: { workspaceId } }),
+    prisma.eRPAlert.count({ where: { workspaceId, isResolved: false } }),
+    prisma.eRPAlert.count({ where: { workspaceId, isResolved: false, severity: 'CRITICAL' } }),
   ])
 
   return { total, unresolved, critical }
@@ -54,14 +55,14 @@ export async function getAlertCounts(workspaceId: string) {
 
 export async function resolveAlert(alertId: string) {
   return prisma.eRPAlert.update({
-    where: { id: alertId } as any,
+    where: { id: alertId },
     data: { isResolved: true, resolvedAt: new Date() },
   })
 }
 
 export async function markAlertRead(alertId: string) {
   return prisma.eRPAlert.update({
-    where: { id: alertId } as any,
+    where: { id: alertId },
     data: { isRead: true },
   })
 }
@@ -71,7 +72,7 @@ export async function runAnomalyDetection(workspaceId: string): Promise<number> 
   let alertCount = 0
 
   const recentEntries = await prisma.eRPJournalEntry.findMany({
-    where: { workspaceId, date: { gte: sevenDaysAgo }, isDeleted: false } as any,
+    where: { workspaceId, date: { gte: sevenDaysAgo }, isDeleted: false },
     include: { lines: true },
     orderBy: { date: 'desc' },
   })
@@ -79,7 +80,7 @@ export async function runAnomalyDetection(workspaceId: string): Promise<number> 
   // 1. Duplicate transactions
   const descAmountMap = new Map<string, typeof recentEntries>()
   for (const entry of recentEntries) {
-    const total = entry.lines.reduce((s, l) => s + Math.abs((l as any).amount), 0)
+    const total = journalEntryMagnitude(entry.lines)
     const key = `${entry.description}|${total}`
     const existing = descAmountMap.get(key) || []
     existing.push(entry)
@@ -98,7 +99,7 @@ export async function runAnomalyDetection(workspaceId: string): Promise<number> 
 
   // 2. Round-number transactions
   for (const entry of recentEntries) {
-    const total = entry.lines.reduce((s, l) => s + Math.abs((l as any).amount), 0)
+    const total = journalEntryMagnitude(entry.lines)
     if (total > 0 && total % 50000 === 0) {
       alertCount++
       await createAlert(workspaceId, 'ROUND_NUMBER', 'INFO',
@@ -135,8 +136,8 @@ export async function runAnomalyDetection(workspaceId: string): Promise<number> 
 
 async function createAlert(
   workspaceId: string,
-  type: string,
-  severity: string,
+  type: ERPAlertType,
+  severity: ERPAlertSeverity,
   title: string,
   description: string,
   entityType: string,
@@ -146,13 +147,19 @@ async function createAlert(
   await prisma.eRPAlert.create({
     data: {
       workspaceId,
-      type: type as any,
-      severity: severity as any,
+      type,
+      severity,
       title,
       description,
       entityType,
       entityId,
       aiConfidence,
-    } as any,
+    },
   }).catch(() => {})
+}
+
+function journalEntryMagnitude(lines: Array<{ debit: number; credit: number }>) {
+  const debit = lines.reduce((sum, line) => sum + Math.abs(line.debit), 0)
+  const credit = lines.reduce((sum, line) => sum + Math.abs(line.credit), 0)
+  return Math.max(debit, credit)
 }

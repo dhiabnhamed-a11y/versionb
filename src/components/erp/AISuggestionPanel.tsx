@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Sparkles, Check, X, Edit3 } from 'lucide-react'
+import { Sparkles, Check, X } from 'lucide-react'
 
 type SuggestedLine = {
   accountCode: string
@@ -26,7 +26,7 @@ interface AISuggestionPanelProps {
   onDismiss: () => void
 }
 
-export function AISuggestionPanel({ description, amount, workspaceId, onAccept, onDismiss }: AISuggestionPanelProps) {
+export function AISuggestionPanel({ description, amount, onAccept, onDismiss }: AISuggestionPanelProps) {
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)

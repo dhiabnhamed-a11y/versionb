@@ -1,12 +1,12 @@
 import bcrypt from 'bcryptjs'
 import { Prisma } from '@prisma/client'
 
-import { isCompanyType, type CompanyType } from '@/lib/company-types'
+import { isCompanyType, normalizeCompanyType, type CompanyType } from '@/lib/company-types'
 import { prisma } from '@/lib/db'
 import { persistSignupLegalConsents, type LegalRequestContext, type SignupLegalAcceptance } from '@/lib/legal'
 import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'
 import { createSignupAuthUser, rollbackSignupAuthUser } from '@/lib/signup-auth-user'
-import { provisionEnterpriseOperationsWorkspace } from '@/modules/enterprise/enterprise-onboarding'
+import { provisionWorkspaceForCompany } from '@/lib/workspace-provisioning'
 import { logger } from '@/modules/shared/logger'
 import {
   createCompanyInvite,
@@ -175,7 +175,7 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
   const country = input.country.trim()
   const industry = input.industry.trim()
   const registrationNumber = input.registrationNumber.trim().toUpperCase()
-  const companyType = input.companyType.trim().toUpperCase()
+  const companyType = normalizeCompanyType(input.companyType)
   const emailDomain = extractEmailDomain(email)
 
   if (!name) {
@@ -314,14 +314,20 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
         })
 
         try {
-          await provisionEnterpriseOperationsWorkspace(tx, {
+          const workspaceProvisioning = await provisionWorkspaceForCompany(tx, {
             companyId: company.id,
             ownerId: user.id,
             companyType,
           })
+          logger.info('signup.workspace_provisioned', {
+            companyId: company.id,
+            companyType,
+            homePath: workspaceProvisioning.homePath,
+            shell: workspaceProvisioning.shell,
+          })
         } catch (error) {
           if (!isMissingDatabaseObjectError(error)) throw error
-          logger.warn('signup.enterprise_workspace_provisioning_skipped_missing_schema', {
+          logger.warn('signup.workspace_provisioning_skipped_missing_schema', {
             companyId: company.id,
             companyType,
           })

@@ -2,7 +2,6 @@ import 'server-only'
 
 import { prisma } from '@/lib/db'
 import { suggestJournalEntry } from '@/services/erp2/ai/engine'
-import { getVendorMapping } from '@/services/erp2/ai/vendor-learn.service'
 
 export type SuggestJournalEntryInput = {
   description: string
@@ -12,7 +11,7 @@ export type SuggestJournalEntryInput = {
 
 export async function suggestJournalEntryForWorkspace(input: SuggestJournalEntryInput) {
   const { description, workspaceId } = input
-  let amountCents = input.amount ?? null
+  const amountCents = input.amount ?? null
 
   // Try to find a vendor mapping first
   const lowerDesc = description.toLowerCase()

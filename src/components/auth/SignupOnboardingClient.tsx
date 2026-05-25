@@ -39,6 +39,7 @@ import {
 } from 'lucide-react'
 import logo from '@/app/logo.png'
 import type { CompanyType } from '@/lib/company-types'
+import { getWorkspaceHomePath } from '@/lib/workspace-routing'
 import {
   getTemplate,
   getTemplateForCompanyType,
@@ -171,6 +172,9 @@ export default function SignupOnboardingClient({
   const [error, setError] = useState('')
   const [invitePreview, setInvitePreview] = useState<InvitePreview | null>(null)
   const [validatingInvite, setValidatingInvite] = useState(false)
+  const [workspaceHomePath, setWorkspaceHomePath] = useState(() =>
+    getWorkspaceHomePath({ role: 'OWNER', companyType: initialCompanyType })
+  )
 
   const inviteCode = initialInviteCode.trim()
   const inviteMode = Boolean(inviteCode)
@@ -345,6 +349,7 @@ export default function SignupOnboardingClient({
     const data = (await response.json().catch(() => ({}))) as {
       error?: string
       details?: { password?: string[] }
+      workspaceHomePath?: string
     }
     setLoading(false)
 
@@ -355,6 +360,13 @@ export default function SignupOnboardingClient({
     }
 
     trackOnboardingEvent('registration_submitted', { templateId, inviteMode, inviteCount: invites.length })
+    setWorkspaceHomePath(
+      data.workspaceHomePath ??
+        getWorkspaceHomePath({
+          role: inviteMode ? invitePreview?.role : 'OWNER',
+          companyType: selectedCompanyType,
+        })
+    )
     if (!inviteMode && invites.length > 0) {
       window.localStorage.setItem(
         'taskit:onboarding:queued-invites',
@@ -469,7 +481,15 @@ export default function SignupOnboardingClient({
             templateId={templateId}
             inviteMode={inviteMode}
             selectedPlan={selectedPlan}
-            onEnter={() => router.push(`/login?registered=${inviteMode ? '1' : 'pending'}${selectedPlan ? `&plan=${selectedPlan}` : ''}`)}
+            workspaceHomePath={workspaceHomePath}
+            onEnter={() => {
+              const params = new URLSearchParams({
+                registered: inviteMode ? '1' : 'workspace',
+                callbackUrl: workspaceHomePath,
+              })
+              if (selectedPlan) params.set('plan', selectedPlan)
+              router.push(`/login?${params.toString()}`)
+            }}
           />
         )
         break
@@ -1058,6 +1078,7 @@ function SuccessStep({
   invites,
   inviteMode,
   selectedPlan,
+  workspaceHomePath,
   onEnter,
 }: {
   companyName: string
@@ -1065,6 +1086,7 @@ function SuccessStep({
   invites: InviteRow[]
   inviteMode: boolean
   selectedPlan: string | null
+  workspaceHomePath: string
   onEnter: () => void
 }) {
   const template = getTemplate(templateId)
@@ -1114,7 +1136,7 @@ function SuccessStep({
         </div>
 
         <button type="button" className={styles.primaryCta} onClick={onEnter}>
-          Enter Workspace
+          Enter {workspaceHomePath.startsWith('/erp') ? 'ERP Workspace' : 'Workspace'}
           <ChevronRight size={18} />
         </button>
       </section>

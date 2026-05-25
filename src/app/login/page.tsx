@@ -29,6 +29,11 @@ function getSignInErrorMessage(error?: string | null) {
   return 'Invalid email or password'
 }
 
+function safeRelativeCallbackUrl(value?: string | null) {
+  if (!value || !value.startsWith('/') || value.startsWith('//')) return '/dashboard'
+  return value
+}
+
 function LoginContent() {
   const searchParams = useSearchParams()
   const [email, setEmail] = useState('')
@@ -42,9 +47,12 @@ function LoginContent() {
   const [error, setError] = useState('')
   const registrationState = searchParams.get('registered')
   const inactiveReason = searchParams.get('reason')
+  const callbackUrl = safeRelativeCallbackUrl(searchParams.get('callbackUrl'))
 
   const notice =
-    registrationState === 'pending'
+    registrationState === 'workspace'
+      ? 'Your workspace was created successfully. Sign in to enter the correct workspace.'
+      : registrationState === 'pending'
       ? 'Registration submitted. A Super Admin must approve your company before you can sign in.'
       : registrationState === '1'
         ? 'Your account was created successfully.'
@@ -63,13 +71,13 @@ function LoginContent() {
       email: trimmedEmail,
       password,
       redirect: false,
-      callbackUrl: '/dashboard',
+      callbackUrl,
     }).catch(() => null)
     if (!res || res.error) {
       setLoading(false)
       setError(getSignInErrorMessage(res?.error))
     } else {
-      window.location.assign(res.url || '/dashboard')
+      window.location.assign(res.url || callbackUrl)
     }
   }
 

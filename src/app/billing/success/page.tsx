@@ -14,7 +14,7 @@ export default function BillingSuccessPage() {
         </p>
         <div className="flex flex-col gap-3">
           <Link
-            href="/dashboard/admin"
+            href="/dashboard"
             className="inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-blue-600 text-white font-semibold hover:bg-blue-700 transition-colors"
           >
             Go to Dashboard <ArrowRight className="w-4 h-4" />

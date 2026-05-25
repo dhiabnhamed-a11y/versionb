@@ -339,8 +339,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   secret: getAuthSecret(),
 })
 
-export function getSessionHomePath(session: { user?: { role?: string | null } | null }) {
-  return getRoleHomePath(session.user?.role)
+export function getSessionHomePath(session: { user?: { role?: string | null; companyType?: string | null } | null }) {
+  return getRoleHomePath(session.user?.role, session.user?.companyType)
 }
 
 export function isSuperAdminSession(session: { user?: { email?: string | null; role?: string | null } | null }) {

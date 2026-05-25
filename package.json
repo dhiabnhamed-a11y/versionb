@@ -20,7 +20,7 @@
     "realtime:load-test": "tsx scripts/realtime-load-test.ts",
     "api:audit": "tsx scripts/audit-api-platform.ts",
     "test:api-governance": "tsx scripts/audit-api-platform.ts",
-    "test:unit": "tsx --test src/lib/idempotency/idempotency.test.ts src/lib/legal.test.ts src/modules/security/security-foundations.test.ts src/services/erp/erp-foundation.test.ts",
+    "test:unit": "tsx --test src/lib/idempotency/idempotency.test.ts src/lib/legal.test.ts src/lib/workspace-routing.test.ts src/modules/security/security-foundations.test.ts src/services/erp/erp-foundation.test.ts",
     "typecheck": "tsc --noEmit",
     "prepush": "npm run lint && npm run typecheck && npm run test:unit && npm run build",
     "verify:env": "tsx scripts/verify-vercel-env.ts",

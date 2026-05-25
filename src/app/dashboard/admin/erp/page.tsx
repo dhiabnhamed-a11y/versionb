@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { useSession } from 'next-auth/react'
 import {
   BookOpen,
   TrendingUp,
@@ -136,7 +135,6 @@ function ModuleCard({ title, href, icon, description }: ModuleLink) {
 }
 
 export default function ErpCommandCenterPage() {
-  const { data: session } = useSession()
   const [kpis, setKpis] = useState<Record<string, KpiData>>({})
 
   useEffect(() => {

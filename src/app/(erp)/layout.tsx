@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { SessionProvider } from 'next-auth/react'
 import { auth } from '@/lib/auth'
 import { normalizeCompanyType, isErpWorkspaceType } from '@/lib/company-types'
+import { getWorkspaceHomePath } from '@/lib/workspace-routing'
 import { ERPShell } from '@/components/erp/ERPShell'
 
 export default async function ERPRootLayout({ children }: { children: React.ReactNode }) {
@@ -14,12 +15,12 @@ export default async function ERPRootLayout({ children }: { children: React.Reac
   const companyType = normalizeCompanyType(session.user.companyType)
 
   if (!isErpWorkspaceType(companyType)) {
-    redirect('/dashboard')
+    redirect(getWorkspaceHomePath(session.user))
   }
 
   return (
     <SessionProvider>
-      <ERPShell companyId={session.user.companyId!}>{children}</ERPShell>
+      <ERPShell>{children}</ERPShell>
     </SessionProvider>
   )
 }

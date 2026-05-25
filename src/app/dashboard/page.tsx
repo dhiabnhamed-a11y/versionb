@@ -13,5 +13,5 @@ export default async function DashboardIndexPage() {
     redirect('/login?reason=inactive')
   }
 
-  redirect(getRoleHomePath(session.user.role))
+  redirect(getRoleHomePath(session.user.role, session.user.companyType))
 }

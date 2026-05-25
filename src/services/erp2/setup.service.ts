@@ -1,23 +1,58 @@
 import 'server-only'
 
+import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
 import { badRequest } from '@/modules/shared/errors'
 import { STANDARD_COA } from '@/services/erp2/coa'
 
-export async function setupErpWorkspace(workspaceId: string, baseCurrency?: string) {
-  const existing = await prisma.eRPFiscalYear.findFirst({
+type TransactionClient = Prisma.TransactionClient
+
+export async function ensureErpWorkspaceInitialized(
+  tx: TransactionClient,
+  workspaceId: string,
+  baseCurrency?: string
+) {
+  const existing = await tx.eRPFiscalYear.findFirst({
     where: { workspaceId, isDeleted: false },
+    select: { id: true },
   })
 
   if (existing) {
-    throw badRequest('ERP workspace is already initialized')
+    await Promise.all([
+      tx.eRPSettings.upsert({
+        where: { workspaceId },
+        create: {
+          workspaceId,
+          defaultCurrency: baseCurrency ?? 'USD',
+          accountingBasis: 'ACCRUAL',
+          fiscalYearStartMonth: 1,
+        },
+        update: {},
+      }),
+      tx.eRPSetupProgress.upsert({
+        where: { workspaceId },
+        create: {
+          workspaceId,
+          step1Done: true,
+          step2Done: true,
+          step3Done: true,
+          step4Done: true,
+          step5Done: true,
+          step6Done: true,
+          completedAt: new Date(),
+        },
+        update: {},
+      }),
+    ])
+
+    return { initialized: false as const, fiscalYearId: existing.id, accountsCreated: 0, currency: baseCurrency ?? 'USD' }
   }
 
   const currency = baseCurrency ?? 'USD'
   const now = new Date()
   const year = now.getFullYear()
 
-  const fiscalYear = await prisma.eRPFiscalYear.create({
+  const fiscalYear = await tx.eRPFiscalYear.create({
     data: {
       workspaceId,
       name: `FY ${year}`,
@@ -36,12 +71,11 @@ export async function setupErpWorkspace(workspaceId: string, baseCurrency?: stri
     include: { periods: true },
   })
 
-  const parentCodes = new Set(STANDARD_COA.filter((a) => !a.parentCode).map((a) => a.code))
   const parentMap = new Map<string, string>()
 
   for (const acc of STANDARD_COA) {
     if (!acc.parentCode) {
-      const created = await prisma.eRPAccount.create({
+      const created = await tx.eRPAccount.create({
         data: {
           workspaceId,
           fiscalYearId: fiscalYear.id,
@@ -57,7 +91,7 @@ export async function setupErpWorkspace(workspaceId: string, baseCurrency?: stri
 
   for (const acc of STANDARD_COA) {
     if (acc.parentCode) {
-      await prisma.eRPAccount.create({
+      await tx.eRPAccount.create({
         data: {
           workspaceId,
           fiscalYearId: fiscalYear.id,
@@ -71,5 +105,59 @@ export async function setupErpWorkspace(workspaceId: string, baseCurrency?: stri
     }
   }
 
-  return { fiscalYearId: fiscalYear.id, accountsCreated: STANDARD_COA.length, currency }
+  await Promise.all([
+    tx.eRPSettings.upsert({
+      where: { workspaceId },
+      create: {
+        workspaceId,
+        defaultCurrency: currency,
+        accountingBasis: 'ACCRUAL',
+        fiscalYearStartMonth: 1,
+      },
+      update: {
+        defaultCurrency: currency,
+      },
+    }),
+    tx.eRPSetupProgress.upsert({
+      where: { workspaceId },
+      create: {
+        workspaceId,
+        step1Done: true,
+        step2Done: true,
+        step3Done: true,
+        step4Done: true,
+        step5Done: true,
+        step6Done: true,
+        completedAt: new Date(),
+      },
+      update: {
+        step1Done: true,
+        step2Done: true,
+        step3Done: true,
+        step4Done: true,
+        step5Done: true,
+        step6Done: true,
+        completedAt: new Date(),
+      },
+    }),
+  ])
+
+  return { initialized: true as const, fiscalYearId: fiscalYear.id, accountsCreated: STANDARD_COA.length, currency }
+}
+
+export async function setupErpWorkspace(workspaceId: string, baseCurrency?: string) {
+  const existing = await prisma.eRPFiscalYear.findFirst({
+    where: { workspaceId, isDeleted: false },
+    select: { id: true },
+  })
+
+  if (existing) {
+    throw badRequest('ERP workspace is already initialized')
+  }
+
+  return prisma.$transaction((tx) => ensureErpWorkspaceInitialized(tx, workspaceId, baseCurrency), {
+    maxWait: 10_000,
+    timeout: 30_000,
+    isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+  })
 }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createOwnerSignup, isSignupRole } from '@/lib/onboarding'
 import type { CompanyType } from '@/lib/company-types'
+import { getWorkspaceHomePath } from '@/lib/workspace-routing'
 import { assertSignupLegalAcceptance, getLegalRequestContext } from '@/lib/legal'
 import { redeemInviteSignup } from '@/lib/invites'
 import { withApiError } from '@/modules/shared/api'
@@ -66,7 +67,8 @@ export async function POST(req: NextRequest) {
               success: true,
               userId: owner.userId,
               companyId: owner.companyId,
-              message: 'Registration submitted. A Super Admin must approve your company before you can sign in.',
+              workspaceHomePath: getWorkspaceHomePath({ role: 'OWNER', companyType }),
+              message: 'Workspace created. Sign in to enter your provisioned TASKIT workspace.',
             },
             { status: 201 }
           )

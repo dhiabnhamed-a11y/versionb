@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 
 import { auth, getSessionHomePath } from '@/lib/auth'
+import { isErpWorkspaceType } from '@/lib/company-types'
 import {
   canManageSettings,
   getSettingsTeamUsers,
@@ -14,6 +15,10 @@ export default async function SettingsPage() {
   const session = await auth()
   if (!session?.user?.email) {
     redirect('/login')
+  }
+
+  if (isErpWorkspaceType(session.user.companyType)) {
+    redirect('/erp/settings')
   }
 
   const user = session.user as SettingsSessionUser

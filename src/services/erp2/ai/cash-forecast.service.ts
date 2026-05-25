@@ -25,89 +25,80 @@ export type CashForecastResult = {
 export async function computeCashForecast(workspaceId: string, days = 90, cashBankCode = '1010'): Promise<CashForecastResult> {
   const now = new Date()
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const projectionEnd = new Date(startOfToday.getTime() + days * 86400000)
   const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1)
 
-  // Current cash balance from the cash/bank account
-  const bankAccount = await prisma.eRPAccount.findFirst({
-    where: { workspaceId, code: cashBankCode, isDeleted: false } as any,
-    select: { id: true, name: true },
-  })
-  const currentCash = 0 // Starting balance — would come from opening balances
-
-  // Open AR: money coming in (credit lines on AR account)
-  const openAR = await prisma.eRPJournalEntry.findMany({
-    where: {
-      workspaceId,
-      status: 'POSTED',
-      isDeleted: false,
-      lines: {
-        some: { account: { code: '1020' } },
+  const [openAR, openAP, historicalEntries] = await Promise.all([
+    prisma.eRPJournalEntry.findMany({
+      where: {
+        workspaceId,
+        status: 'POSTED',
+        isDeleted: false,
+        lines: {
+          some: { account: { code: '1020' } },
+        },
       },
-    } as any,
-    include: { lines: { include: { account: true } } },
-    orderBy: { date: 'asc' },
-  })
-
-  // Open AP: money going out
-  const openAP = await prisma.eRPJournalEntry.findMany({
-    where: {
-      workspaceId,
-      status: 'POSTED',
-      isDeleted: false,
-      lines: {
-        some: { account: { code: '2010' } },
+      include: { lines: { include: { account: true } } },
+      orderBy: { date: 'asc' },
+    }),
+    prisma.eRPJournalEntry.findMany({
+      where: {
+        workspaceId,
+        status: 'POSTED',
+        isDeleted: false,
+        lines: {
+          some: { account: { code: '2010' } },
+        },
       },
-    } as any,
-    include: { lines: { include: { account: true } } },
-    orderBy: { date: 'asc' },
-  })
+      include: { lines: { include: { account: true } } },
+      orderBy: { date: 'asc' },
+    }),
+    prisma.eRPJournalEntry.findMany({
+      where: {
+        workspaceId,
+        status: 'POSTED',
+        isDeleted: false,
+        date: { gte: twelveMonthsAgo },
+      },
+      include: { lines: { include: { account: true } } },
+    }),
+  ])
 
-  // Historical monthly net cash flow (for pattern detection)
-  const historicalEntries = await prisma.eRPJournalEntry.findMany({
-    where: {
-      workspaceId,
-      status: 'POSTED',
-      isDeleted: false,
-      date: { gte: twelveMonthsAgo },
-    } as any,
-    include: { lines: true },
-  })
+  const currentCash = historicalEntries.reduce((sum, entry) => {
+    return sum + entry.lines
+      .filter((line) => line.account?.code === cashBankCode)
+      .reduce((lineSum, line) => lineSum + line.debit - line.credit, 0)
+  }, 0)
 
-  // Calculate monthly net cash flow from history
   const monthlyNets: number[] = []
   for (let m = 0; m < 12; m++) {
     const monthStart = new Date(now.getFullYear(), now.getMonth() - 11 + m, 1)
     const monthEnd = new Date(now.getFullYear(), now.getMonth() - 11 + m + 1, 0, 23, 59, 59, 999)
-    const monthEntries = historicalEntries.filter(e => e.date >= monthStart && e.date <= monthEnd)
-    const net = monthEntries.reduce((sum, e) => {
-      const lineTotal = e.lines.reduce((s, l) => s + (l as any).amount * ((l as any).side === 'debit' ? 1 : -1), 0)
-      return sum + lineTotal
+    const monthEntries = historicalEntries.filter((entry) => entry.date >= monthStart && entry.date <= monthEnd)
+    const net = monthEntries.reduce((sum, entry) => {
+      const cashLineTotal = entry.lines
+        .filter((line) => line.account?.code === cashBankCode)
+        .reduce((lineSum, line) => lineSum + line.debit - line.credit, 0)
+      return sum + cashLineTotal
     }, 0)
     monthlyNets.push(net)
   }
 
   const avgMonthlyNet = monthlyNets.length > 0
-    ? monthlyNets.reduce((s, n) => s + n, 0) / monthlyNets.length
+    ? monthlyNets.reduce((sum, net) => sum + net, 0) / monthlyNets.length
     : 0
 
-  // Build day-by-day projection
-  const projected: CashForecastDay[] = []
-  let runningCash = currentCash
-
-  // AR inflows per day (simplified: spread evenly across 30 days from post date)
   const arInflowsPerDay = openAR.length > 0
-    ? openAR.reduce((sum, e) => sum + e.lines.reduce((s, l) => s + Math.abs((l as any).amount), 0), 0) / 30
+    ? openAR.reduce((sum, entry) => sum + entry.lines.reduce((lineSum, line) => lineSum + lineMagnitude(line), 0), 0) / 30
     : 0
 
-  // AP outflows per day
   const apOutflowsPerDay = openAP.length > 0
-    ? openAP.reduce((sum, e) => sum + e.lines.reduce((s, l) => s + Math.abs((l as any).amount), 0), 0) / 30
+    ? openAP.reduce((sum, entry) => sum + entry.lines.reduce((lineSum, line) => lineSum + lineMagnitude(line), 0), 0) / 30
     : 0
 
   const dailyBaseFlow = avgMonthlyNet / 30
-  const volatility = Math.abs(dailyBaseFlow) * 0.3 // 30% volatility band
-
+  const volatility = Math.abs(dailyBaseFlow) * 0.3
+  const projected: CashForecastDay[] = []
+  let runningCash = currentCash
   let minBalance = runningCash
   let minBalanceDate: string | null = null
   let crisisDetected = false
@@ -116,7 +107,6 @@ export async function computeCashForecast(workspaceId: string, days = 90, cashBa
   for (let d = 0; d < days; d++) {
     const date = new Date(startOfToday.getTime() + d * 86400000)
     const dateStr = date.toISOString().split('T')[0]
-
     const inflows = arInflowsPerDay
     const outflows = apOutflowsPerDay + Math.max(0, dailyBaseFlow)
     const netDay = inflows - outflows
@@ -148,7 +138,7 @@ export async function computeCashForecast(workspaceId: string, days = 90, cashBa
     recommendations.push(`Cash crisis projected on ${crisisDate}. Consider collecting outstanding AR or reducing discretionary spending.`)
   }
   if (minBalance < currentCash * 0.2) {
-    recommendations.push(`Cash balance may drop to ${(minBalance / 100).toFixed(0)} — below 20% of current. Review upcoming payables.`)
+    recommendations.push(`Cash balance may drop to ${(minBalance / 100).toFixed(0)} below 20% of current. Review upcoming payables.`)
   }
   if (arInflowsPerDay > 0) {
     recommendations.push(`Collecting AR faster by 10 days would add ~$${Math.round(arInflowsPerDay * 10 / 100)} to cash position.`)
@@ -164,4 +154,8 @@ export async function computeCashForecast(workspaceId: string, days = 90, cashBa
     crisisDate,
     recommendations,
   }
+}
+
+function lineMagnitude(line: { debit: number; credit: number }) {
+  return Math.max(Math.abs(line.debit), Math.abs(line.credit))
 }

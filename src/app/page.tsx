@@ -27,12 +27,12 @@ async function getLandingStats() {
 
 export default async function HomePage() {
   const [session, liveStats] = await Promise.all([auth(), getLandingStats()])
-  const role = (session?.user as { role?: string } | undefined)?.role
+  const user = session?.user as { role?: string; companyType?: string | null } | undefined
 
   return (
     <div>
       <TaskitLandingPage
-        dashboardHref={getRoleHomePath(role)}
+        dashboardHref={getRoleHomePath(user?.role, user?.companyType)}
         isSignedIn={Boolean(session?.user?.email)}
         liveStats={liveStats}
       />

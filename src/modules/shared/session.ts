@@ -77,6 +77,7 @@ export async function requireSessionUser(req?: Request) {
   if (
     !sameNullable(user.role, currentUser.role) ||
     !sameNullable(user.companyId, currentUser.companyId) ||
+    !sameNullable(user.companyType, currentUser.companyType) ||
     !sameNullable(user.accountStatus, currentUser.accountStatus) ||
     !sameNullable(user.companyStatus, currentUser.companyStatus)
   ) {

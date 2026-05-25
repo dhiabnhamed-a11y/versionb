@@ -1,7 +1,9 @@
 import type { NextRequest } from 'next/server'
 import { NextResponse } from 'next/server'
 import { getToken } from 'next-auth/jwt'
+import { getAuthSecret } from '@/lib/env'
 import { isPublicApiPath } from '@/lib/security/config'
+import { getWorkspaceHomePath, getWorkspaceRouteRedirect } from '@/lib/workspace-routing'
 
 function securityHeaders(req: NextRequest) {
   const isDev = process.env.NODE_ENV !== 'production'
@@ -106,9 +108,16 @@ function checkBillingAccess(
   return 'allowed'
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl
   const hasSessionCookie = hasAuthSessionCookie(req)
+  const token = hasSessionCookie
+    ? await getToken({
+        req,
+        secret: getAuthSecret('proxy'),
+        secureCookie: process.env.NODE_ENV === 'production',
+      })
+    : null
 
   if (pathname.startsWith('/api')) {
     if (isPublicApiPath(pathname)) {
@@ -121,7 +130,13 @@ export async function middleware(req: NextRequest) {
 
   if (pathname === '/login' || pathname === '/signup' || pathname === '/') {
     if (hasSessionCookie) {
-      return applySecurityHeaders(NextResponse.redirect(new URL('/dashboard', req.url)), req)
+      const destination = token
+        ? getWorkspaceHomePath({
+            role: typeof token.role === 'string' ? token.role : null,
+            companyType: typeof token.companyType === 'string' ? token.companyType : null,
+          })
+        : '/dashboard'
+      return applySecurityHeaders(NextResponse.redirect(new URL(destination, req.url)), req)
     }
     return applySecurityHeaders(NextResponse.next(), req)
   }
@@ -130,9 +145,18 @@ export async function middleware(req: NextRequest) {
     if (!hasSessionCookie) {
       return applySecurityHeaders(NextResponse.redirect(new URL('/login', req.url)), req)
     }
-  }
 
-  const token = hasSessionCookie ? await getToken({ req, secret: process.env.AUTH_SECRET }) : null
+    if (token) {
+      const routeRedirect = getWorkspaceRouteRedirect(pathname, {
+        role: typeof token.role === 'string' ? token.role : null,
+        companyType: typeof token.companyType === 'string' ? token.companyType : null,
+      })
+
+      if (routeRedirect) {
+        return applySecurityHeaders(NextResponse.redirect(new URL(routeRedirect.destination, req.url)), req)
+      }
+    }
+  }
 
   if (!isBillingExempt(pathname) && token?.companyId) {
     const access = checkBillingAccess(token.subscriptionStatus, token.trialEndsAt)
@@ -141,10 +165,6 @@ export async function middleware(req: NextRequest) {
       upgradeUrl.searchParams.set('reason', access)
       return applySecurityHeaders(NextResponse.redirect(upgradeUrl), req)
     }
-  }
-
-  if (pathname.startsWith('/dashboard') && token?.companyType === 'ERP_WORKSPACE') {
-    return applySecurityHeaders(NextResponse.redirect(new URL('/erp', req.url)), req)
   }
 
   return applySecurityHeaders(NextResponse.next(), req)

@@ -1,14 +1,13 @@
 import { redirect } from 'next/navigation'
+
 import { auth, getSessionHomePath } from '@/lib/auth'
 import { prisma } from '@/lib/db'
-import { isErpWorkspaceType } from '@/lib/company-types'
-import ProfileClient from './profile-client'
+import ProfileClient from '@/app/dashboard/profile/profile-client'
 
-export default async function ProfilePage() {
+export default async function ERPProfilePage() {
   const session = await auth()
   if (!session?.user?.email) redirect('/login')
   if (!session.user.id) redirect(getSessionHomePath(session))
-  if (isErpWorkspaceType(session.user.companyType)) redirect('/erp/profile')
 
   const user = await prisma.user.findUnique({
     where: { id: session.user.id },

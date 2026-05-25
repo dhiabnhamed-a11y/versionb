@@ -19,7 +19,7 @@
 
 ## Implemented (this pass)
 
-- `src/middleware.ts` — wires `proxy.ts` (CSP, HSTS, API cookie gate, dashboard guard)
+- `src/proxy.ts` - CSP, HSTS, API cookie gate, billing gate, and workspace route guard
 - Session revocation — `jti` on JWT, `AuthSession` + `RevokedToken`, `/api/auth/sessions/revoke`
 - MFA — `/api/auth/mfa/enroll|verify|status` (TOTP + recovery codes)
 - CSRF — production mutations require `Origin`/`Referer`
@@ -44,7 +44,7 @@
 
 ## Implementation order
 
-1. Security middleware + session revocation ✅
+1. Security proxy + session revocation ✅
 2. API governance migration (legacy → `handleApiRoute`)
 3. RLS + tenant extension expansion
 4. Billing (Stripe)

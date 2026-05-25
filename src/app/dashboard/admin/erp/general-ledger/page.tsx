@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { BookOpen, Plus, X, Check, RotateCcw, Loader2, AlertCircle } from 'lucide-react'
+import { BookOpen, Plus, X, Check, Loader2, AlertCircle } from 'lucide-react'
 
 // --- Types ---
 

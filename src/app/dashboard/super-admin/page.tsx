@@ -16,7 +16,7 @@ export default async function SuperAdminDashboardPage(props: PageProps<'/dashboa
   }
 
   if (!isAuthorizedSuperAdminIdentity(session.user)) {
-    redirect(getRoleHomePath(session.user.role))
+    redirect(getRoleHomePath(session.user.role, session.user.companyType))
   }
 
   const searchParams = await props.searchParams

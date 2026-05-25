@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { TrendingUp, TrendingDown, AlertTriangle, Lightbulb } from 'lucide-react'
+import { TrendingUp, Lightbulb } from 'lucide-react'
 
 type HealthFactor = {
   name: string

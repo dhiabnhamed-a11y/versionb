@@ -248,8 +248,11 @@ export function getCompanyTypeSlug(type: CompanyType) {
 export function getCompanyTypeFromSlug(value?: string | null): CompanyType | null {
   if (!value) return null
 
-  const normalized = value.trim().toLowerCase()
-  const match = COMPANY_TYPE_VALUES.find((type) => COMPANY_TYPE_CONFIG[type].slug === normalized)
+  const raw = value.trim().toLowerCase()
+  const normalized = raw.replace(/_/g, '-')
+  const match = COMPANY_TYPE_VALUES.find(
+    (type) => COMPANY_TYPE_CONFIG[type].slug === normalized || type.toLowerCase() === raw
+  )
   return match ?? null
 }
 

@@ -4,6 +4,7 @@ import { useState, useCallback, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { TEMPLATE_ORDER, ONBOARDING_TEMPLATES, trackOnboardingEvent } from '@/lib/onboarding-engine'
 import type { OnboardingTemplateId } from '@/lib/onboarding-engine'
+import { getCompanyTypeSlug } from '@/lib/company-types'
 import type { CSSProperties } from 'react'
 import { Zap } from 'lucide-react'
 
@@ -99,12 +100,8 @@ function ChooseTypeInner() {
   const handleConfirm = useCallback(() => {
     if (!selected) return
     trackOnboardingEvent('template_selected', { templateId: selected })
-    router.push(`/signup?companyType=${ONBOARDING_TEMPLATES[selected].companyType.toLowerCase()}`)
+    router.push(`/signup?companyType=${getCompanyTypeSlug(ONBOARDING_TEMPLATES[selected].companyType)}`)
   }, [selected, router])
-
-  if (!selected && recommended) {
-    setSelected(recommended)
-  }
 
   return (
     <div style={styles.page}>

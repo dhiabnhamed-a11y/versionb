@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/db'
 import { isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
+import { getWorkspaceAiContext, getWorkspaceBlueprint } from '@/lib/workspace-routing'
 import { canManageFinance, canManageWorkspace } from '@/modules/permissions/permissions'
 import { okJson, withApiError } from '@/modules/shared/api'
 import { requireSessionUser } from '@/modules/shared/session'
@@ -12,8 +13,13 @@ export async function GET() {
     const companyId = user.companyId
 
     if (!companyId) {
+      const companyType = normalizeCompanyType(user.companyType)
+      const blueprint = getWorkspaceBlueprint(companyType)
       return okJson({
-        companyType: normalizeCompanyType(user.companyType),
+        companyType,
+        workspaceSurface: blueprint.surface,
+        workspaceModules: blueprint.modules,
+        aiContext: getWorkspaceAiContext({ companyType, role: user.role }),
         canManageWorkspace: false,
         canManageFinance: false,
         clients: [],
@@ -36,6 +42,7 @@ export async function GET() {
     const mayManageWorkspace = canManageWorkspace(user)
     const mayManageFinance = canManageFinance(user)
     const companyType = normalizeCompanyType(user.companyType)
+    const blueprint = getWorkspaceBlueprint(companyType)
     const employeeProjectWhere = user.role === 'EMPLOYEE' ? { tasks: { some: { assigneeId: user.id } } } : {}
 
     const [clients, campaigns, categories, managers, rooms, invoiceCurrencies] = await Promise.all([
@@ -110,6 +117,9 @@ export async function GET() {
 
     return okJson({
       companyType,
+      workspaceSurface: blueprint.surface,
+      workspaceModules: blueprint.modules,
+      aiContext: getWorkspaceAiContext({ companyType, role: user.role }),
       canManageWorkspace: mayManageWorkspace,
       canManageFinance: mayManageFinance,
       clients: clients.map((client) => ({

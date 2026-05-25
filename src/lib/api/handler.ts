@@ -13,6 +13,7 @@ import type { UserRole } from '@/lib/security'
 import type { PermissionAction, PermissionResource, PermissionSubject } from '@/modules/permissions/permissions'
 import { logger } from '@/modules/shared/logger'
 import { runWithPrismaTenantContext } from '@/lib/tenant/prisma-context'
+import { getWorkspaceApiAccessError } from '@/lib/workspace-routing'
 import type { RateLimitOptions, RateLimitResult } from '@/modules/shared/rate-limit'
 
 const API_ROUTE_RESULT = Symbol('API_ROUTE_RESULT')
@@ -303,6 +304,11 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
     const nextContext = user
       ? { ...baseContext, actorId: user.id, companyId: user.companyId ?? undefined, user }
       : baseContext
+
+    if (user) {
+      const workspaceApiError = getWorkspaceApiAccessError(route, user)
+      if (workspaceApiError) throw forbidden(workspaceApiError)
+    }
 
     if (options.requiredRole) {
       requireRole((nextContext as AuthenticatedApiHandlerContext<TParams>).user, options.requiredRole)

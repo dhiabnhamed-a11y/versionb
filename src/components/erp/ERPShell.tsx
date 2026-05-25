@@ -2,7 +2,7 @@
 
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
-import { useSession } from 'next-auth/react'
+import { signOut, useSession } from 'next-auth/react'
 import {
   LayoutDashboard,
   BarChart3,
@@ -16,11 +16,11 @@ import {
   CalendarDays,
   Settings,
   ShieldCheck,
-  ArrowLeft,
   Bell,
   UserCircle,
   LogOut,
   Building2,
+  CreditCard,
 } from 'lucide-react'
 
 type NavSection = { title: string; items: { label: string; href: string; icon: React.ReactNode }[] }
@@ -135,10 +135,9 @@ function Sidebar() {
         ))}
       </div>
 
-      {/* Back to workspaces */}
-      <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ padding: '12px 16px', borderTop: '1px solid rgba(255,255,255,0.06)', display: 'grid', gap: '6px' }}>
         <Link
-          href="/dashboard"
+          href="/erp/profile"
           style={{
             display: 'flex',
             alignItems: 'center',
@@ -154,15 +153,59 @@ function Sidebar() {
           onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#94a3b8' }}
           onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b' }}
         >
-          <ArrowLeft size={14} />
-          ← Back to workspaces
+          <UserCircle size={14} />
+          Profile
         </Link>
+        <Link
+          href="/billing"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            textDecoration: 'none',
+            fontSize: '12px',
+            color: '#64748b',
+            fontWeight: 500,
+            transition: 'background 0.12s, color 0.12s',
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#94a3b8' }}
+          onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b' }}
+        >
+          <CreditCard size={14} />
+          Subscription
+        </Link>
+        <button
+          type="button"
+          onClick={() => signOut({ callbackUrl: '/login' })}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            border: 'none',
+            background: 'transparent',
+            fontSize: '12px',
+            color: '#64748b',
+            fontWeight: 500,
+            cursor: 'pointer',
+            fontFamily: 'inherit',
+            transition: 'background 0.12s, color 0.12s',
+          }}
+          onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.color = '#94a3b8' }}
+          onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b' }}
+        >
+          <LogOut size={14} />
+          Sign out
+        </button>
       </div>
     </nav>
   )
 }
 
-function TopBar({ companyId }: { companyId: string }) {
+function TopBar() {
   const { data: session } = useSession()
   const user = session?.user as { name?: string; email?: string } | undefined
 
@@ -199,12 +242,12 @@ function TopBar({ companyId }: { companyId: string }) {
   )
 }
 
-export function ERPShell({ children, companyId }: { children: React.ReactNode; companyId: string }) {
+export function ERPShell({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#f8fafc' }}>
       <Sidebar />
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-        <TopBar companyId={companyId} />
+        <TopBar />
         <main style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
           {children}
         </main>
