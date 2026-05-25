@@ -8,12 +8,17 @@ import OnboardingRecommendation from './OnboardingRecommendation'
 import { computeRecommendation } from './useOnboardingLogic'
 import { QUESTIONS } from './onboardingData'
 import { Q2_OPTIONS } from './onboardingData'
-import type { QuestionId, Answers, Question, TemplateId } from './onboardingData'
+import type { QuestionId, Answers, CompanyType, Question, TemplateId } from './onboardingData'
 import styles from './OnboardingFlow.module.css'
 
+export type OnboardingSelection = {
+  companyType: CompanyType
+  templateId: TemplateId
+}
+
 interface OnboardingFlowProps {
-  onSelect: (templateId: TemplateId) => void
-  onSubmit: (templateId: TemplateId) => void
+  onSelect: (selection: OnboardingSelection) => void
+  onSubmit: (selection: OnboardingSelection) => void
   onBack: () => void
 }
 
@@ -91,8 +96,12 @@ export default function OnboardingFlow({ onSelect, onSubmit, onBack }: Onboardin
 
   function handleConfirm() {
     if (!recommendation) return
-    onSelect(recommendation.templateId)
-    onSubmit(recommendation.templateId)
+    const selection = {
+      companyType: recommendation.companyType,
+      templateId: recommendation.templateId,
+    }
+    onSelect(selection)
+    onSubmit(selection)
   }
 
   if (step >= TOTAL_QUESTIONS && recommendation) {

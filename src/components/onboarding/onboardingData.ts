@@ -24,9 +24,18 @@ export type Answers = {
   q5: string[]
 }
 
-export type CompanyType = 'INDUSTRY' | 'DIGITAL_AGENCY' | 'CONTENT_CREATION_AGENCY' | 'HEALTHCARE' | 'ENTERPRISE_OPERATIONS' | 'CLINIC_HOSPITAL' | 'CORPORATE_IT_OPERATIONS' | 'OTHER'
+export type CompanyType =
+  | 'INDUSTRY'
+  | 'DIGITAL_AGENCY'
+  | 'CONTENT_CREATION_AGENCY'
+  | 'HEALTHCARE'
+  | 'ENTERPRISE_OPERATIONS'
+  | 'CLINIC_HOSPITAL'
+  | 'CORPORATE_IT_OPERATIONS'
+  | 'ERP_WORKSPACE'
+  | 'OTHER'
 
-export type TemplateId = 'AGENCY' | 'HEALTHCARE' | 'CLINIC_HOSPITAL' | 'ENTERPRISE' | 'IT_OPERATIONS' | 'LEGAL' | 'CONSTRUCTION' | 'FINANCE' | 'EDUCATION' | 'OTHER'
+export type TemplateId = 'AGENCY' | 'HEALTHCARE' | 'CLINIC_HOSPITAL' | 'ENTERPRISE' | 'IT_OPERATIONS' | 'ERP' | 'LEGAL' | 'CONSTRUCTION' | 'FINANCE' | 'EDUCATION' | 'OTHER'
 
 export interface Recommendation {
   companyType: CompanyType
@@ -60,6 +69,7 @@ export const Q2_OPTIONS: Record<string, Option[]> = {
     { value: 'locations', label: 'We manage physical locations, plants, or sites', subtitle: 'Multi-site operations and logistics', icon: '🏭' },
     { value: 'clients', label: 'We serve clients and deliver projects', subtitle: 'Project-based work and client management', icon: '👥' },
     { value: 'departments', label: 'We run departments and shared services', subtitle: 'Internal operations and cross-team workflows', icon: '📦' },
+    { value: 'erp', label: 'We need finance, inventory, HR, or procurement', subtitle: 'ERP modules, controls, and company resources', icon: '🧾' },
     { value: 'it', label: 'We manage IT, assets, and service queues', subtitle: 'Infrastructure, assets, and support tickets', icon: '🔧' },
   ],
   healthcare: [
@@ -203,6 +213,13 @@ export const WORKSPACE_TYPES: Record<string, WorkspaceTypeInfo> = {
     label: 'IT Operations',
     description: 'Built for service desk, infrastructure, and IT asset management.',
     features: ['Service desk and ticketing', 'Asset and inventory management', 'Incident and change management'],
+  },
+  ERP_WORKSPACE: {
+    companyType: 'ERP_WORKSPACE',
+    templateId: 'ERP',
+    label: 'ERP Workspace',
+    description: 'Built for finance, procurement, inventory, HR, and company resource planning.',
+    features: ['General ledger and finance controls', 'Procurement and inventory management', 'HR and company resource planning'],
   },
   OTHER: {
     companyType: 'OTHER',

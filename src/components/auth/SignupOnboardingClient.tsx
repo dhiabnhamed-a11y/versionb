@@ -52,6 +52,7 @@ import {
   type OnboardingTemplateId,
 } from '@/lib/onboarding-engine'
 import styles from './SignupOnboardingClient.module.css'
+import type { OnboardingSelection } from '@/components/onboarding/OnboardingFlow'
 import { isBlockedOwnerEmailDomain } from '@/lib/signup-hints'
 import {
   evaluatePasswordPolicy,
@@ -124,6 +125,7 @@ type LegalConsentState = {
 type PersistedOnboarding = {
   step: OnboardingStepId
   templateId: OnboardingTemplateId
+  companyType?: CompanyType
   form: SetupForm
   invites: InviteRow[]
 }
@@ -153,6 +155,7 @@ export default function SignupOnboardingClient({
   const initialTemplateId = getTemplateForCompanyType(initialCompanyType)
   const [step, setStep] = useState<OnboardingStepId>('welcome')
   const [templateId, setTemplateId] = useState<OnboardingTemplateId>(initialTemplateId)
+  const [selectedCompanyType, setSelectedCompanyType] = useState<CompanyType>(initialCompanyType)
   const [form, setForm] = useState<SetupForm>(blankForm)
   const [invites, setInvites] = useState<InviteRow[]>([])
   const [inviteDraft, setInviteDraft] = useState({ email: '', role: 'Member' as InviteRow['role'], department: '' })
@@ -198,14 +201,15 @@ export default function SignupOnboardingClient({
 
     setStep(saved.step === 'generating' ? 'company-type' : saved.step)
     setTemplateId(saved.templateId)
+    setSelectedCompanyType(saved.companyType ?? getTemplate(saved.templateId).companyType)
     setForm(saved.form)
     setInvites(saved.invites)
   }, [inviteMode])
 
   useEffect(() => {
     if (inviteMode) return
-    persistOnboardingProgress({ step, templateId, form, invites } satisfies PersistedOnboarding)
-  }, [form, invites, inviteMode, step, templateId])
+    persistOnboardingProgress({ step, templateId, companyType: selectedCompanyType, form, invites } satisfies PersistedOnboarding)
+  }, [form, invites, inviteMode, selectedCompanyType, step, templateId])
 
   useEffect(() => {
     trackOnboardingEvent('step_viewed', { step, templateId })
@@ -232,6 +236,7 @@ export default function SignupOnboardingClient({
 
         setInvitePreview(data)
         setTemplateId(getTemplateForCompanyType(data.companyType))
+        setSelectedCompanyType(data.companyType)
         setStep('setup')
       } catch (fetchError) {
         if ((fetchError as Error).name !== 'AbortError') {
@@ -256,6 +261,11 @@ export default function SignupOnboardingClient({
   function goTo(nextStep: OnboardingStepId) {
     setStep(nextStep)
     setError('')
+  }
+
+  function applySmartOnboardingSelection(selection: OnboardingSelection) {
+    setTemplateId(selection.templateId)
+    setSelectedCompanyType(selection.companyType)
   }
 
   function addInvite() {
@@ -314,7 +324,7 @@ export default function SignupOnboardingClient({
           country: form.country.trim(),
           industry: `${template.industryDefault} (${form.companySize})`,
           registrationNumber: registrationToken,
-          companyType: template.companyType,
+          companyType: selectedCompanyType,
           locale: navigator.language,
           legalConsent,
           onboarding: {
@@ -375,8 +385,15 @@ export default function SignupOnboardingClient({
       case 'company-type':
         content = smartOnboardingEnabled ? (
           <OnboardingFlow
-            onSelect={setTemplateId}
-            onSubmit={() => goTo('generating')}
+            onSelect={applySmartOnboardingSelection}
+            onSubmit={(selection) => {
+              applySmartOnboardingSelection(selection)
+              trackOnboardingEvent('template_selected', {
+                templateId: selection.templateId,
+                companyType: selection.companyType,
+              })
+              goTo('generating')
+            }}
             onBack={() => goTo('welcome')}
           />
         ) : (
@@ -384,6 +401,7 @@ export default function SignupOnboardingClient({
             selected={templateId}
             onSelect={(next) => {
               setTemplateId(next)
+              setSelectedCompanyType(ONBOARDING_TEMPLATES[next].companyType)
               trackOnboardingEvent('template_selected', { templateId: next })
             }}
             onBack={() => goTo('welcome')}
