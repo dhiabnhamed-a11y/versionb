@@ -4,6 +4,10 @@ import { clientCreateSchema, clientPatchSchema } from '@/modules/clients/validat
 import { createInvoiceSchema, deleteInvoiceSchema, updateInvoiceSchema } from '@/modules/invoices/invoice.validation'
 import { createProjectSchema, updateProjectSchema } from '@/modules/projects/validation'
 import { createTaskSchema, updateTaskSchema } from '@/modules/tasks/task.validation'
+import {
+  erpGenericModuleCreateSchema,
+  erpGenericModulePatchSchema,
+} from '@/services/erp2/operations.validation'
 
 type HttpMethod = 'get' | 'post' | 'patch' | 'delete'
 type JsonSchema = Record<string, unknown>
@@ -348,6 +352,51 @@ export const apiRouteContracts = [
     summary: 'Delete a client',
     tags: ['Clients'],
   },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/ErpModulePayload',
+    method: 'get',
+    operationId: 'getErpModule',
+    parameters: [
+      { in: 'path', name: 'module', required: true, schema: { type: 'string' } },
+      { in: 'query', name: 'q', schema: { type: 'string' } },
+      { in: 'query', name: 'status', schema: { type: 'string' } },
+    ],
+    path: '/erp2/modules/{module}',
+    permission: 'erp:read',
+    summary: 'Load an ERP workspace module',
+    tags: ['ERP'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/ErpMutationResult',
+    idempotency: 'optional',
+    method: 'post',
+    operationId: 'createErpModuleRecord',
+    parameters: [{ in: 'path', name: 'module', required: true, schema: { type: 'string' } }],
+    path: '/erp2/modules/{module}',
+    permission: 'erp:write',
+    requestSchema: erpGenericModuleCreateSchema,
+    requestSchemaName: 'ErpModuleCreateRequest',
+    responseDescription: 'ERP module record created',
+    status: 201,
+    summary: 'Create a record in an ERP workspace module',
+    tags: ['ERP'],
+  },
+  {
+    auth: 'required',
+    dataSchemaRef: '#/components/schemas/ErpMutationResult',
+    idempotency: 'optional',
+    method: 'patch',
+    operationId: 'updateErpModuleRecord',
+    parameters: [{ in: 'path', name: 'module', required: true, schema: { type: 'string' } }],
+    path: '/erp2/modules/{module}',
+    permission: 'erp:write',
+    requestSchema: erpGenericModulePatchSchema,
+    requestSchemaName: 'ErpModulePatchRequest',
+    summary: 'Update or execute an ERP workspace module action',
+    tags: ['ERP'],
+  },
 ] satisfies RouteContract[]
 
 function schemaFromZod(schema: z.ZodType): JsonSchema {
@@ -462,6 +511,7 @@ export function generateOpenApiV1Spec(contracts: readonly RouteContract[] = apiR
       { name: 'Projects' },
       { name: 'Tasks' },
       { name: 'Invoices' },
+      { name: 'ERP' },
     ],
     paths: buildPaths(contracts),
     components: {
@@ -678,6 +728,24 @@ export function generateOpenApiV1Spec(contracts: readonly RouteContract[] = apiR
           properties: {
             ok: { type: 'boolean' },
           },
+        },
+        ErpModulePayload: {
+          type: 'object',
+          additionalProperties: true,
+          required: ['module', 'metrics', 'rows', 'generatedAt'],
+          properties: {
+            module: { type: 'string' },
+            metrics: { type: 'array', items: { type: 'object', additionalProperties: true } },
+            rows: { type: 'array', items: { type: 'object', additionalProperties: true } },
+            secondaryRows: { type: 'array', items: { type: 'object', additionalProperties: true } },
+            options: { type: 'object', additionalProperties: true },
+            insights: { type: 'array', items: { type: 'string' } },
+            generatedAt: { type: 'string', format: 'date-time' },
+          },
+        },
+        ErpMutationResult: {
+          type: 'object',
+          additionalProperties: true,
         },
         ...buildRequestSchemas(contracts),
       },

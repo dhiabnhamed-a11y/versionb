@@ -28,29 +28,21 @@ export async function computeCashForecast(workspaceId: string, days = 90, cashBa
   const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1)
 
   const [openAR, openAP, historicalEntries] = await Promise.all([
-    prisma.eRPJournalEntry.findMany({
+    prisma.eRPARLedger.findMany({
       where: {
         workspaceId,
-        status: 'POSTED',
         isDeleted: false,
-        lines: {
-          some: { account: { code: '1020' } },
-        },
+        status: { in: ['OPEN', 'PARTIAL', 'OVERDUE'] },
       },
-      include: { lines: { include: { account: true } } },
-      orderBy: { date: 'asc' },
+      orderBy: { dueDate: 'asc' },
     }),
-    prisma.eRPJournalEntry.findMany({
+    prisma.eRPAPBill.findMany({
       where: {
         workspaceId,
-        status: 'POSTED',
         isDeleted: false,
-        lines: {
-          some: { account: { code: '2010' } },
-        },
+        status: { in: ['PENDING', 'APPROVED', 'OVERDUE'] },
       },
-      include: { lines: { include: { account: true } } },
-      orderBy: { date: 'asc' },
+      orderBy: { dueDate: 'asc' },
     }),
     prisma.eRPJournalEntry.findMany({
       where: {
@@ -88,15 +80,18 @@ export async function computeCashForecast(workspaceId: string, days = 90, cashBa
     : 0
 
   const arInflowsPerDay = openAR.length > 0
-    ? openAR.reduce((sum, entry) => sum + entry.lines.reduce((lineSum, line) => lineSum + lineMagnitude(line), 0), 0) / 30
+    ? openAR.reduce((sum, item) => sum + Math.max(0, item.amount - item.amountPaid), 0) / 30
     : 0
 
   const apOutflowsPerDay = openAP.length > 0
-    ? openAP.reduce((sum, entry) => sum + entry.lines.reduce((lineSum, line) => lineSum + lineMagnitude(line), 0), 0) / 30
+    ? openAP.reduce((sum, item) => sum + Math.max(0, item.amount - item.amountPaid), 0) / 30
     : 0
 
   const dailyBaseFlow = avgMonthlyNet / 30
-  const volatility = Math.abs(dailyBaseFlow) * 0.3
+  const avgDeviation = monthlyNets.length > 0
+    ? monthlyNets.reduce((sum, net) => sum + Math.abs(net - avgMonthlyNet), 0) / monthlyNets.length
+    : 0
+  const scenarioSpread = Math.max(Math.abs(dailyBaseFlow) * 0.3, avgDeviation / 30)
   const projected: CashForecastDay[] = []
   let runningCash = currentCash
   let minBalance = runningCash
@@ -110,9 +105,10 @@ export async function computeCashForecast(workspaceId: string, days = 90, cashBa
     const inflows = arInflowsPerDay
     const outflows = apOutflowsPerDay + Math.max(0, dailyBaseFlow)
     const netDay = inflows - outflows
-    const noise = (Math.random() - 0.5) * volatility
+    const weekdayFactor = date.getDay() === 0 || date.getDay() === 6 ? -0.08 : 0.03
+    const deterministicAdjustment = netDay * weekdayFactor
 
-    runningCash += netDay + noise
+    runningCash += netDay + deterministicAdjustment
 
     if (runningCash < minBalance) {
       minBalance = runningCash
@@ -126,8 +122,8 @@ export async function computeCashForecast(workspaceId: string, days = 90, cashBa
     projected.push({
       date: dateStr,
       expected: Math.round(runningCash),
-      optimistic: Math.round(runningCash + Math.abs(volatility)),
-      pessimistic: Math.round(runningCash - Math.abs(volatility)),
+      optimistic: Math.round(runningCash + Math.abs(scenarioSpread)),
+      pessimistic: Math.round(runningCash - Math.abs(scenarioSpread)),
       inflows: Math.round(inflows),
       outflows: Math.round(outflows),
     })
@@ -154,8 +150,4 @@ export async function computeCashForecast(workspaceId: string, days = 90, cashBa
     crisisDate,
     recommendations,
   }
-}
-
-function lineMagnitude(line: { debit: number; credit: number }) {
-  return Math.max(Math.abs(line.debit), Math.abs(line.credit))
 }

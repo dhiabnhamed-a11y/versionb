@@ -1,13 +1,8 @@
-'use client'
+import { redirect } from 'next/navigation'
+import { auth } from '@/lib/auth'
+import { isErpWorkspaceType } from '@/lib/company-types'
 
-import { Construction } from 'lucide-react'
-
-export default function ReportsPage() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full gap-4 text-muted-foreground" style={{ minHeight: '60vh' }}>
-      <Construction size={48} />
-      <h2 className="text-xl font-semibold">Financial Reports</h2>
-      <p className="text-sm">P&L, Balance Sheet, and Cash Flow reports are being set up.</p>
-    </div>
-  )
+export default async function ReportsPage() {
+  const session = await auth()
+  redirect(isErpWorkspaceType(session?.user?.companyType) ? '/erp/reports' : '/dashboard/admin/reports')
 }

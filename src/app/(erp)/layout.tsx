@@ -4,6 +4,8 @@ import { auth } from '@/lib/auth'
 import { normalizeCompanyType, isErpWorkspaceType } from '@/lib/company-types'
 import { getWorkspaceHomePath } from '@/lib/workspace-routing'
 import { ERPShell } from '@/components/erp/ERPShell'
+import { prisma } from '@/lib/db'
+import { ensureErpWorkspaceInitialized } from '@/services/erp2/setup.service'
 
 export default async function ERPRootLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -16,6 +18,10 @@ export default async function ERPRootLayout({ children }: { children: React.Reac
 
   if (!isErpWorkspaceType(companyType)) {
     redirect(getWorkspaceHomePath(session.user))
+  }
+
+  if (session.user.companyId) {
+    await prisma.$transaction((tx) => ensureErpWorkspaceInitialized(tx, session.user.companyId!))
   }
 
   return (
