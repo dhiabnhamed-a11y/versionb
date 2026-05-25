@@ -206,7 +206,7 @@ const CONFIG: Record<ModuleName, ModuleConfig> = {
       { name: 'vendorName', label: 'Vendor name', type: 'text', required: true },
       { name: 'description', label: 'Line item', type: 'text', required: true },
       { name: 'quantity', label: 'Quantity', type: 'number', required: true, defaultValue: 1 },
-      { name: 'unitPrice', label: 'Unit price', type: 'number', required: true },
+      { name: 'unitPrice', label: 'Unit price', type: 'number', required: true, defaultValue: 0 },
       { name: 'unit', label: 'Unit', type: 'text', placeholder: 'piece, hour, license' },
       { name: 'expectedDate', label: 'Expected date', type: 'date' },
       { name: 'notes', label: 'Notes', type: 'textarea' },
