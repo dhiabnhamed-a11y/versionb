@@ -52,12 +52,12 @@ export default function GenerationExperience({
       <div className={styles.generationCopy}>
         <p className={styles.stepKicker}>
           <Zap size={14} />
-          AI workspace generation
+          AI ERP generation
         </p>
         <h1>TASKIT AI is preparing your {template.title.toLowerCase()} workspace...</h1>
         <p>
-          Departments, permissions, dashboards, workflows, finance foundations, copilots, and realtime collaboration are
-          being assembled now.
+          Departments, RBAC, audit logs, dashboards, workflows, finance foundations, copilots, event automations,
+          analytics, and realtime collaboration are being assembled now.
         </p>
       </div>
 

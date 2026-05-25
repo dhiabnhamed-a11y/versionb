@@ -44,6 +44,7 @@ import {
   getTemplateForCompanyType,
   ONBOARDING_STEPS,
   ONBOARDING_TEMPLATES,
+  ENTERPRISE_ERP_MODULES,
   persistOnboardingProgress,
   readOnboardingProgress,
   TEMPLATE_ORDER,
@@ -544,12 +545,12 @@ function WelcomeStep({ onStart }: { onStart: () => void }) {
         </div>
         <p className={styles.stepKicker}>
           <Zap size={15} />
-          AI-native onboarding
+          AI-native ERP provisioning
         </p>
-        <h1 id="welcome-title">Build your company operating system in under 60 seconds.</h1>
+        <h1 id="welcome-title">Provision your enterprise operating system in under 60 seconds.</h1>
         <p>
-          TASKIT understands your company type, generates the workspace structure, and prepares the dashboards, workflows,
-          copilots, and collaboration layer before you configure anything.
+          TASKIT generates a tenant-isolated workspace graph with modules, dashboards, RBAC, audit trails, workflows,
+          copilots, realtime collaboration, and event-driven automations before your team configures anything.
         </p>
         <button type="button" className={styles.primaryCta} onClick={onStart}>
           <Bot size={18} />
@@ -680,13 +681,13 @@ function SetupStep({
 
         <p className={styles.stepKicker}>
           <ShieldCheck size={14} />
-          Minimal setup
+          Enterprise workspace identity
         </p>
-        <h1>{inviteMode ? 'Secure your invited account.' : 'Add the essentials. TASKIT handles the structure.'}</h1>
+        <h1>{inviteMode ? 'Secure your invited account.' : 'Add the control-plane essentials. TASKIT handles the structure.'}</h1>
         <p className={styles.setupLead}>
           {inviteMode && invitePreview
             ? `You are joining ${invitePreview.companyName}. Finish your account and TASKIT will connect you to the workspace.`
-            : 'No long configuration. Just enough context to name the workspace and prepare approval-ready defaults.'}
+            : 'No long configuration. Just enough context to name the tenant, localize the workspace, and prepare approval-ready defaults.'}
         </p>
 
         <div className={styles.formGrid}>
@@ -1078,6 +1079,9 @@ function SuccessStep({
     `${template.assets.length} asset groups`,
     `${template.finance.length} finance modules`,
     'Realtime collaboration',
+    `${ENTERPRISE_ERP_MODULES.length} connected ERP modules`,
+    'Tenant RBAC and audit layer',
+    'Event-driven automation engine',
     invites.length ? `${invites.length} queued invites` : 'Team invites ready later',
     planLabel,
   ]
@@ -1096,8 +1100,8 @@ function SuccessStep({
         <p>
           {selectedPlan
             ? `You selected the ${planLabel}. After signing in, head to Billing in the sidebar to complete payment and activate your subscription.`
-            : `TASKIT generated the structure, defaults, copilots, dashboards, workflows, assets, finance layer, and realtime
-          collaboration system for a ${template.title.toLowerCase()} team. Your 7-day free trial has started.`}
+            : `TASKIT generated the structure, defaults, copilots, dashboards, workflows, assets, finance layer, automation graph,
+          RBAC, audit layer, and realtime collaboration system for a ${template.title.toLowerCase()} team. Your 7-day free trial has started.`}
         </p>
 
         <div className={styles.generatedGrid}>
@@ -1193,7 +1197,7 @@ function GenerationSkeleton({ label = 'Loading AI workspace engine' }: { label?:
           {label}
         </p>
         <h1>Preparing TASKIT AI...</h1>
-        <p>Loading workspace intelligence, template registry, and generation system.</p>
+        <p>Loading workspace intelligence, tenant policy, automation templates, and generation system.</p>
       </div>
     </section>
   )

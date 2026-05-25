@@ -21,6 +21,16 @@ export type WorkspacePreviewModule = {
   detail: string
 }
 
+export type OperationalAutomation = {
+  trigger: string
+  actions: readonly string[]
+}
+
+export type RoleExperience = {
+  role: string
+  focus: string
+}
+
 export type OnboardingTemplate = {
   id: OnboardingTemplateId
   title: string
@@ -40,6 +50,57 @@ export type OnboardingTemplate = {
   suggestions: readonly string[]
   whyItMatters: string
 }
+
+export const ENTERPRISE_ERP_MODULES = [
+  'Executive dashboard',
+  'CRM',
+  'Sales pipeline',
+  'Client lifecycle',
+  'Projects',
+  'Campaigns',
+  'Tasks',
+  'Kanban',
+  'Collaboration',
+  'Files',
+  'Contracts',
+  'Finance',
+  'Invoices',
+  'Procurement',
+  'HR',
+  'Knowledge base',
+  'Calendar',
+  'Notifications',
+  'AI operations',
+  'Automation engine',
+  'Workflow builder',
+  'Analytics',
+  'Reports',
+  'Client portal',
+  'Admin',
+  'Global search',
+  'Command palette',
+  'Integrations',
+  'Activity logs',
+  'Approvals',
+] as const
+
+const BASE_ARCHITECTURE_PILLARS = [
+  'Tenant-isolated workspace graph',
+  'Permission-aware workflows',
+  'Audit-ready activity stream',
+  'Realtime event synchronization',
+  'AI governance and approvals',
+  'Queue-backed background work',
+] as const
+
+const BASE_ROLE_EXPERIENCES: RoleExperience[] = [
+  { role: 'CEO', focus: 'Revenue forecast, client risk, margin, workload, and operating exceptions' },
+  { role: 'Finance', focus: 'Cash, AR/AP, approvals, period close, budget variance, and audit evidence' },
+  { role: 'Operations', focus: 'Workflow throughput, escalations, automations, capacity, and SLA health' },
+  { role: 'Project manager', focus: 'Delivery risk, staffing, project profitability, approvals, and client updates' },
+  { role: 'Sales', focus: 'Pipeline movement, deal health, next-best actions, contracts, and handoff readiness' },
+  { role: 'Client', focus: 'Portal access, approvals, files, invoices, timelines, and shared decisions' },
+]
 
 export type GenerationLog = {
   label: string
@@ -312,10 +373,12 @@ export function getTemplate(id: OnboardingTemplateId) {
 
 export function createWorkspaceModules(template: OnboardingTemplate): WorkspacePreviewModule[] {
   return [
+    { label: 'ERP modules', value: String(ENTERPRISE_ERP_MODULES.length), detail: 'CRM, finance, projects, HR, automation, BI' },
     { label: 'Departments', value: String(template.departments.length), detail: template.departments.slice(0, 3).join(', ') },
     { label: 'Workflows', value: String(template.workflows.length), detail: template.workflows.slice(0, 3).join(', ') },
     { label: 'AI copilots', value: String(template.copilots.length), detail: template.copilots.slice(0, 2).join(', ') },
     { label: 'Dashboards', value: String(template.dashboards.length), detail: template.dashboards.slice(0, 2).join(', ') },
+    { label: 'Security layer', value: 'RBAC', detail: 'Tenant scope, audit logs, approvals, policy gates' },
   ]
 }
 
@@ -332,6 +395,11 @@ export function createGenerationPlan(template: OnboardingTemplate): GenerationLo
       artifact: `${template.departments.length} departments`,
     },
     {
+      label: 'Installing ERP module graph',
+      detail: 'CRM, sales, projects, tasks, contracts, finance, procurement, HR, reports, portal, and admin.',
+      artifact: `${ENTERPRISE_ERP_MODULES.length} modules`,
+    },
+    {
       label: 'Generating workflows',
       detail: template.workflows.join(' + '),
       artifact: `${template.workflows.length} workflows`,
@@ -343,8 +411,8 @@ export function createGenerationPlan(template: OnboardingTemplate): GenerationLo
     },
     {
       label: 'Configuring permissions',
-      detail: 'Owner, manager, member, finance, and department-level defaults.',
-      artifact: 'Access model',
+      detail: 'Tenant scope, role matrix, module restrictions, field visibility, approvals, and audit coverage.',
+      artifact: 'RBAC + audit',
     },
     {
       label: 'Preparing dashboards',
@@ -358,15 +426,77 @@ export function createGenerationPlan(template: OnboardingTemplate): GenerationLo
     },
     {
       label: 'Activating automations',
-      detail: template.automations.join(' + '),
-      artifact: `${template.automations.length} automations`,
+      detail: createOperationalAutomations(template).map((automation) => automation.trigger).join(' + '),
+      artifact: 'Event workflows',
+    },
+    {
+      label: 'Wiring analytics and BI',
+      detail: 'Executive KPIs, forecasts, profitability, workload, churn risk, automation insights, and audit exports.',
+      artifact: 'BI layer',
     },
     {
       label: 'Syncing realtime collaboration',
       detail: 'Presence, activity, notifications, approvals, and live workspace updates.',
       artifact: 'Realtime layer',
     },
+    {
+      label: 'Provisioning enterprise runtime',
+      detail: BASE_ARCHITECTURE_PILLARS.join(' + '),
+      artifact: 'Production backbone',
+    },
   ]
+}
+
+export function createOperationalAutomations(template: OnboardingTemplate): OperationalAutomation[] {
+  const invoiceOwner = template.departments.includes('Finance Ops') ? 'Finance Ops' : template.departments.find((department) => /Finance|Accounting|Treasury/.test(department)) ?? 'Finance'
+
+  return [
+    {
+      trigger: 'Deal closed',
+      actions: [
+        'Create client record',
+        'Generate contract',
+        'Create kickoff project',
+        'Queue first invoice',
+        'Notify stakeholders',
+      ],
+    },
+    {
+      trigger: 'Project status changed',
+      actions: [
+        'Update executive dashboard',
+        'Recalculate workload',
+        'Refresh billing state',
+        'Trigger manager alert',
+      ],
+    },
+    {
+      trigger: 'Invoice overdue',
+      actions: [
+        `Route risk alert to ${invoiceOwner}`,
+        'Update client health score',
+        'Notify account owner',
+        'Generate follow-up workflow',
+      ],
+    },
+  ]
+}
+
+export function createRoleExperiencePlan(template: OnboardingTemplate): RoleExperience[] {
+  const templateLeadRole =
+    template.id === 'FINANCE' || template.id === 'ERP'
+      ? { role: 'CFO', focus: 'Cash command center, ledger integrity, approvals, forecasts, and anomaly review' }
+      : template.id === 'AGENCY'
+        ? { role: 'Account lead', focus: 'Client health, campaign delivery, approvals, files, and margin protection' }
+        : template.id === 'HEALTHCARE' || template.id === 'CLINIC_HOSPITAL'
+          ? { role: 'Compliance lead', focus: 'Incident evidence, asset readiness, escalations, audits, and maintenance risk' }
+          : { role: 'Admin', focus: 'Workspace controls, roles, integrations, audit exports, and automation governance' }
+
+  return [templateLeadRole, ...BASE_ROLE_EXPERIENCES].slice(0, 5)
+}
+
+export function createArchitecturePillars() {
+  return BASE_ARCHITECTURE_PILLARS
 }
 
 export function persistOnboardingProgress(value: unknown) {

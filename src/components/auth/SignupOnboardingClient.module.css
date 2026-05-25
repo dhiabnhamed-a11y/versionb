@@ -543,6 +543,10 @@
 .previewSidePanel,
 .previewMetric,
 .previewRail,
+.previewAutomationPanel,
+.previewRolePanel,
+.previewAutomation,
+.previewRole,
 .previewInsight,
 .generationLog,
 .legalBox,
@@ -672,6 +676,46 @@
 .previewRailItems svg {
   flex: 0 0 auto;
   color: var(--template-accent);
+}
+
+.previewAutomationPanel,
+.previewRolePanel {
+  display: grid;
+  gap: 0.65rem;
+  padding: 0.75rem;
+}
+
+.previewAutomationGrid,
+.previewRoleGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.52rem;
+}
+
+.previewAutomation,
+.previewRole {
+  min-width: 0;
+  padding: 0.65rem;
+}
+
+.previewAutomation strong,
+.previewRole strong {
+  display: block;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 950;
+  line-height: 1.25;
+}
+
+.previewAutomation span,
+.previewRole span {
+  display: block;
+  margin-top: 0.22rem;
+  color: #9fb0c4;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: break-word;
 }
 
 .previewInsight {
@@ -1362,6 +1406,11 @@
     grid-template-columns: minmax(0, 1.15fr) minmax(11rem, 0.85fr);
   }
 
+  .previewAutomationGrid,
+  .previewRoleGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .formGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1523,6 +1572,8 @@
   .planMeta strong,
   .planSummary strong,
   .previewHeader h2,
+  .previewAutomation strong,
+  .previewRole strong,
   .generationLog strong,
   .inviteRow strong {
     color: #0b1628;
@@ -1558,6 +1609,10 @@
   .previewSidePanel,
   .previewMetric,
   .previewRail,
+  .previewAutomationPanel,
+  .previewRolePanel,
+  .previewAutomation,
+  .previewRole,
   .previewInsight,
   .generationLog,
   .inviteRow,

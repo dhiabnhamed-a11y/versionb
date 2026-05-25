@@ -3,11 +3,13 @@
 import { AnimatePresence, motion } from 'framer-motion'
 import type { CSSProperties, ReactNode } from 'react'
 import {
+  Activity,
   BadgeDollarSign,
   BriefcaseBusiness,
   Building2,
   CheckCircle2,
   GraduationCap,
+  GitBranch,
   HardHat,
   HeartPulse,
   Hospital,
@@ -15,9 +17,13 @@ import {
   Layers3,
   Scale,
   ServerCog,
+  ShieldCheck,
   Zap,
 } from 'lucide-react'
 import {
+  createArchitecturePillars,
+  createOperationalAutomations,
+  createRoleExperiencePlan,
   createWorkspaceModules,
   getTemplate,
   type OnboardingTemplate,
@@ -41,6 +47,9 @@ const iconMap = {
 export default function WorkspacePreview({ templateId, compact = false }: { templateId: OnboardingTemplateId; compact?: boolean }) {
   const template = getTemplate(templateId)
   const modules = createWorkspaceModules(template)
+  const automations = createOperationalAutomations(template)
+  const roleExperiences = createRoleExperiencePlan(template)
+  const architecturePillars = createArchitecturePillars()
   const Icon = iconMap[template.icon as keyof typeof iconMap] ?? Zap
 
   return (
@@ -76,7 +85,7 @@ export default function WorkspacePreview({ templateId, compact = false }: { temp
           <div className={styles.previewDashboard}>
             <div className={styles.previewPrimaryPanel}>
               <div className={styles.previewPanelHead}>
-                <span>Workspace map</span>
+                <span>Tenant workspace graph</span>
                 <CheckCircle2 size={14} />
               </div>
               <div className={styles.previewDepartmentGrid}>
@@ -116,13 +125,47 @@ export default function WorkspacePreview({ templateId, compact = false }: { temp
 
           <PreviewRail title="Workflows" items={template.workflows} template={template} />
           <PreviewRail title="AI copilots" items={template.copilots} template={template} icon={<Zap size={13} />} />
+
+          <div className={styles.previewAutomationPanel}>
+            <div className={styles.previewPanelHead}>
+              <span>Event-driven automations</span>
+              <GitBranch size={14} />
+            </div>
+            <div className={styles.previewAutomationGrid}>
+              {automations.map((automation) => (
+                <div key={automation.trigger} className={styles.previewAutomation}>
+                  <strong>{automation.trigger}</strong>
+                  <span>{automation.actions.slice(0, 3).join(' -> ')}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className={styles.previewRolePanel}>
+            <div className={styles.previewPanelHead}>
+              <span>Role command centers</span>
+              <Activity size={14} />
+            </div>
+            <div className={styles.previewRoleGrid}>
+              {roleExperiences.map((experience) => (
+                <div key={experience.role} className={styles.previewRole}>
+                  <strong>{experience.role}</strong>
+                  <span>{experience.focus}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
+        <div className={styles.previewInsight}>
+          <ShieldCheck size={16} aria-hidden="true" />
+          <span>{architecturePillars.slice(0, 4).join(' / ')}</span>
+        </div>
         <div className={styles.previewInsight}>
           <Layers3 size={16} aria-hidden="true" />
           <span>{template.whyItMatters}</span>
         </div>
-        <p className={styles.previewTagline}>Your workspace is being prepared based on your answers.</p>
+        <p className={styles.previewTagline}>Your workspace is being prepared as a connected, permission-aware operating system.</p>
       </motion.aside>
     </AnimatePresence>
   )
