@@ -1,0 +1,183 @@
+:root {
+  /* TASKIT OS design tokens. Built for premium B2B SaaS density with dark/light support. */
+  color-scheme: dark;
+
+  /* Brand and neutral palette */
+  --tk-color-bg: #080d18;
+  --tk-color-bg-subtle: #0b1220;
+  --tk-color-surface: #111827;
+  --tk-color-surface-raised: #172033;
+  --tk-color-surface-overlay: #1d283c;
+  --tk-color-border: #223049;
+  --tk-color-border-strong: #33435f;
+  --tk-color-brand: #2f6df6;
+  --tk-color-brand-hover: #2459d6;
+  --tk-color-brand-active: #1f4fbe;
+  --tk-color-brand-soft: rgba(47, 109, 246, 0.14);
+  --tk-color-text: #f4f7fb;
+  --tk-color-text-soft: #c7d2e2;
+  --tk-color-text-muted: #8ea0b8;
+  --tk-color-text-dim: #53647d;
+
+  /* Semantic palette */
+  --tk-color-success: #10b981;
+  --tk-color-success-soft: rgba(16, 185, 129, 0.13);
+  --tk-color-warning: #f59e0b;
+  --tk-color-warning-soft: rgba(245, 158, 11, 0.14);
+  --tk-color-danger: #ef4444;
+  --tk-color-danger-soft: rgba(239, 68, 68, 0.13);
+  --tk-color-info: #38bdf8;
+  --tk-color-info-soft: rgba(56, 189, 248, 0.13);
+
+  /* Product taxonomy colors. Used only with icons/text, never as standalone meaning. */
+  --tk-color-crm: #38bdf8;
+  --tk-color-projects: #a78bfa;
+  --tk-color-finance: #10b981;
+  --tk-color-contracts: #f59e0b;
+  --tk-color-ai: #2f6df6;
+  --tk-color-admin: #94a3b8;
+
+  /* Typography */
+  --tk-font-ui: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --tk-font-display: Sora, Inter, ui-sans-serif, system-ui, sans-serif;
+  --tk-font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+
+  --tk-text-hero-size: 56px;
+  --tk-text-hero-line: 1.02;
+  --tk-text-hero-weight: 700;
+  --tk-text-hero-tracking: -0.035em;
+
+  --tk-text-display-size: 40px;
+  --tk-text-display-line: 1.1;
+  --tk-text-display-weight: 700;
+  --tk-text-display-tracking: -0.025em;
+
+  --tk-text-h1-size: 30px;
+  --tk-text-h1-line: 1.18;
+  --tk-text-h1-weight: 650;
+  --tk-text-h1-tracking: -0.02em;
+
+  --tk-text-h2-size: 22px;
+  --tk-text-h2-line: 1.28;
+  --tk-text-h2-weight: 650;
+  --tk-text-h2-tracking: -0.012em;
+
+  --tk-text-h3-size: 17px;
+  --tk-text-h3-line: 1.35;
+  --tk-text-h3-weight: 600;
+  --tk-text-h3-tracking: 0;
+
+  --tk-text-body-size: 14px;
+  --tk-text-body-line: 1.6;
+  --tk-text-body-weight: 400;
+  --tk-text-body-tracking: 0;
+
+  --tk-text-label-size: 12px;
+  --tk-text-label-line: 1.35;
+  --tk-text-label-weight: 600;
+  --tk-text-label-tracking: 0.04em;
+  --tk-text-label-caps-tracking: 0.08em;
+
+  --tk-text-caption-size: 11px;
+  --tk-text-caption-line: 1.45;
+  --tk-text-caption-weight: 450;
+  --tk-text-code-size: 13px;
+  --tk-text-code-line: 1.55;
+
+  /* 8px grid with 4px escape hatch for optical alignment */
+  --tk-space-0: 0;
+  --tk-space-1: 4px;
+  --tk-space-2: 8px;
+  --tk-space-3: 12px;
+  --tk-space-4: 16px;
+  --tk-space-5: 24px;
+  --tk-space-6: 32px;
+  --tk-space-7: 48px;
+  --tk-space-8: 64px;
+  --tk-space-9: 96px;
+  --tk-space-10: 128px;
+
+  /* Layout */
+  --tk-layout-max: 1200px;
+  --tk-layout-wide: 1360px;
+  --tk-layout-sidebar: 248px;
+  --tk-layout-sidebar-compact: 72px;
+  --tk-layout-topbar: 64px;
+  --tk-layout-page-padding: 32px;
+  --tk-layout-mobile-padding: 20px;
+
+  /* Radius */
+  --tk-radius-xs: 4px;
+  --tk-radius-sm: 6px;
+  --tk-radius-md: 8px;
+  --tk-radius-lg: 12px;
+  --tk-radius-xl: 16px;
+  --tk-radius-pill: 999px;
+
+  /* Elevation */
+  --tk-shadow-xs: 0 1px 1px rgba(0, 0, 0, 0.32);
+  --tk-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.38), 0 8px 20px rgba(0, 0, 0, 0.12);
+  --tk-shadow-md: 0 8px 24px rgba(0, 0, 0, 0.42);
+  --tk-shadow-lg: 0 18px 56px rgba(0, 0, 0, 0.54);
+  --tk-shadow-focus: 0 0 0 3px rgba(47, 109, 246, 0.24);
+
+  /* Motion */
+  --tk-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --tk-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --tk-duration-fast: 100ms;
+  --tk-duration-base: 150ms;
+  --tk-duration-slow: 220ms;
+  --tk-duration-panel: 280ms;
+
+  /* Component sizing */
+  --tk-control-sm: 32px;
+  --tk-control-md: 40px;
+  --tk-control-lg: 48px;
+  --tk-table-row: 48px;
+  --tk-topbar-search: 440px;
+}
+
+[data-theme="light"] {
+  color-scheme: light;
+  --tk-color-bg: #f6f8fb;
+  --tk-color-bg-subtle: #eef3f8;
+  --tk-color-surface: #ffffff;
+  --tk-color-surface-raised: #f8fafc;
+  --tk-color-surface-overlay: #ffffff;
+  --tk-color-border: #d8e1ee;
+  --tk-color-border-strong: #bdc9d9;
+  --tk-color-text: #111827;
+  --tk-color-text-soft: #334155;
+  --tk-color-text-muted: #64748b;
+  --tk-color-text-dim: #94a3b8;
+  --tk-color-brand-soft: rgba(47, 109, 246, 0.1);
+  --tk-shadow-xs: 0 1px 1px rgba(15, 23, 42, 0.06);
+  --tk-shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.07), 0 8px 20px rgba(15, 23, 42, 0.06);
+  --tk-shadow-md: 0 8px 24px rgba(15, 23, 42, 0.1);
+  --tk-shadow-lg: 0 18px 56px rgba(15, 23, 42, 0.18);
+}
+
+@media (max-width: 768px) {
+  :root {
+    --tk-layout-page-padding: 24px;
+    --tk-text-hero-size: 42px;
+    --tk-text-display-size: 34px;
+  }
+}
+
+@media (max-width: 420px) {
+  :root {
+    --tk-layout-page-padding: 20px;
+    --tk-text-hero-size: 36px;
+    --tk-text-h1-size: 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --tk-duration-fast: 1ms;
+    --tk-duration-base: 1ms;
+    --tk-duration-slow: 1ms;
+    --tk-duration-panel: 1ms;
+  }
+}
