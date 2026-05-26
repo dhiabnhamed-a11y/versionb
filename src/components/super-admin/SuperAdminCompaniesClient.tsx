@@ -1,10 +1,11 @@
 'use client'
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { Building2, CheckCircle2, Eye, Loader2, Search, ShieldCheck, XCircle, CreditCard } from 'lucide-react'
+import { Building2, CheckCircle2, Eye, Loader2, Search, ShieldCheck, XCircle, CreditCard, Users } from 'lucide-react'
 
 import styles from './SuperAdminCompaniesClient.module.css'
 import SuperAdminBillingOverview from './SuperAdminBillingOverview'
+import SuperAdminAccountManager from './SuperAdminAccountManager'
 
 type CompanyStatus = 'PENDING' | 'ACTIVE' | 'REJECTED' | 'DISABLED'
 type StatusFilter = CompanyStatus | 'ALL'
@@ -43,14 +44,15 @@ type CompanyResponse = {
   companies: CompanyRecord[]
 }
 
-type AdminView = StatusFilter | 'BILLING'
+type AdminView = StatusFilter | 'BILLING' | 'ACCOUNTS'
 
-const statusTabs: { value: AdminView; label: string }[] = [
+const statusTabs: { value: AdminView; label: string; icon?: React.ReactNode }[] = [
   { value: 'PENDING', label: 'Pending' },
   { value: 'ACTIVE', label: 'Approved' },
   { value: 'REJECTED', label: 'Rejected' },
   { value: 'DISABLED', label: 'Disabled' },
-  { value: 'BILLING', label: 'Billing' },
+  { value: 'BILLING', label: 'Billing', icon: <CreditCard size={14} /> },
+  { value: 'ACCOUNTS', label: 'Accounts', icon: <Users size={14} /> },
 ]
 
 function formatDate(value: string | null) {
@@ -78,7 +80,7 @@ function getActionButtons(company: CompanyRecord) {
 
 export default function SuperAdminCompaniesClient({ initialStatus }: { initialStatus: string }) {
   const [status, setStatus] = useState<AdminView>(
-    initialStatus === 'ACTIVE' || initialStatus === 'REJECTED' || initialStatus === 'DISABLED' || initialStatus === 'ALL' || initialStatus === 'BILLING'
+    initialStatus === 'ACTIVE' || initialStatus === 'REJECTED' || initialStatus === 'DISABLED' || initialStatus === 'ALL' || initialStatus === 'BILLING' || initialStatus === 'ACCOUNTS'
       ? (initialStatus as AdminView)
       : 'PENDING'
   )
@@ -181,9 +183,9 @@ export default function SuperAdminCompaniesClient({ initialStatus }: { initialSt
               onClick={() => setStatus(tab.value)}
               className={`${styles.tabButton} ${status === tab.value ? styles.tabButtonActive : ''}`}
             >
-              {tab.value === 'BILLING' ? <CreditCard size={14} /> : null}
+              {tab.icon}
               <span>{tab.label}</span>
-              {tab.value !== 'BILLING' && (
+              {tab.value !== 'BILLING' && tab.value !== 'ACCOUNTS' && (
                 <span className={styles.tabCount}>{data?.counts[tab.value as CompanyStatus] ?? 0}</span>
               )}
             </button>
@@ -218,7 +220,11 @@ export default function SuperAdminCompaniesClient({ initialStatus }: { initialSt
         <SuperAdminBillingOverview />
       ) : null}
 
-      <div className={styles.contentGrid} style={{ display: status === 'BILLING' ? 'none' : undefined }}>
+      {status === 'ACCOUNTS' ? (
+        <SuperAdminAccountManager />
+      ) : null}
+
+      <div className={styles.contentGrid} style={{ display: status === 'BILLING' || status === 'ACCOUNTS' ? 'none' : undefined }}>
         <div className="card">
           <div className={styles.tableHeader}>
             <div>
