@@ -56,6 +56,7 @@ import {
 import styles from './SignupOnboardingClient.module.css'
 import type { OnboardingSelection } from '@/components/onboarding/OnboardingFlow'
 import { isBlockedOwnerEmailDomain } from '@/lib/signup-hints'
+import { getCountryCurrencyOptions } from '@/lib/currencies'
 import {
   evaluatePasswordPolicy,
   PASSWORD_MIN_LENGTH,
@@ -134,7 +135,7 @@ type PersistedOnboarding = {
 
 const companySizes = ['1-10', '11-50', '51-200', '201-1000', '1000+']
 const languages = ['English', 'Arabic', 'French', 'Spanish', 'German']
-const countries = ['United States', 'Tunisia', 'France', 'United Kingdom', 'Germany', 'Canada', 'United Arab Emirates']
+const countries = getCountryCurrencyOptions().map((option) => option.value)
 
 const blankForm: SetupForm = {
   name: '',

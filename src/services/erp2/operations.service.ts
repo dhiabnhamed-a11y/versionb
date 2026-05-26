@@ -1,6 +1,14 @@
 import 'server-only'
 
 import { Prisma } from '@prisma/client'
+import {
+  currencyMinorFactorNumber,
+  defaultCurrencyForCountry,
+  getCountryCurrencyOptions,
+  getCurrencyOptions,
+  minorUnitsToMajor,
+  normalizeCurrencyCode,
+} from '@/lib/currencies'
 import { prisma } from '@/lib/db'
 import { normalizeUserRole } from '@/lib/security'
 import { badRequest, forbidden, notFound } from '@/modules/shared/errors'
@@ -49,6 +57,14 @@ type ModulePayload = {
   rows: Array<Record<string, unknown>>
   secondaryRows?: Array<Record<string, unknown>>
   options?: Record<string, SelectOption[]>
+  settings?: {
+    defaultCurrency: string
+    country: string
+    accountingBasis: string
+    fiscalYearStartMonth: number
+    taxName: string
+    taxRate: number
+  }
   insights?: string[]
   generatedAt: string
 }
@@ -79,13 +95,18 @@ function requireOwner(user: SessionUser) {
   }
 }
 
-function toCents(value: unknown) {
-  if (typeof value === 'number') return Math.round(value * 100)
+function toMinorUnits(value: unknown, currency: string) {
+  const factor = currencyMinorFactorNumber(currency)
+  if (typeof value === 'number') return Math.round(value * factor)
   if (typeof value === 'string') {
     const normalized = value.replace(/[$,\s]/g, '')
-    return Math.round(Number(normalized || '0') * 100)
+    return Math.round(Number(normalized || '0') * factor)
   }
   return 0
+}
+
+function formatMinorAmount(value: number, currency: string) {
+  return `${minorUnitsToMajor(value, currency).toFixed(Math.min(currencyMinorFactorNumber(currency) === 1 ? 0 : currencyMinorFactorNumber(currency) === 1000 ? 3 : 2, 3))} ${currency}`
 }
 
 function toDate(value: string, fallback = new Date()) {
@@ -167,7 +188,7 @@ async function defaultCurrency(tx: TransactionClient, workspaceId: string) {
     where: { workspaceId },
     select: { defaultCurrency: true },
   })
-  return settings?.defaultCurrency ?? 'USD'
+  return normalizeCurrencyCode(settings?.defaultCurrency)
 }
 
 async function getOpenPeriod(tx: TransactionClient, workspaceId: string, date: Date) {
@@ -416,42 +437,73 @@ export async function getErpCommandCenter(user: SessionUser) {
     operations: {
       lowStockItems,
       dueSoonReceivables,
-      defaultCurrency: settings?.defaultCurrency ?? 'USD',
+      defaultCurrency: normalizeCurrencyCode(settings?.defaultCurrency),
     },
     recentActivity,
   }
 }
 
 export async function listErpModule(user: SessionUser, rawModule: string, query: QueryInput): Promise<ModulePayload> {
-  const module = erpModuleNameSchema.parse(rawModule)
+  const erpModule = erpModuleNameSchema.parse(rawModule)
   const workspaceId = workspaceIdFor(user)
   await ensureReady(workspaceId)
 
-  switch (module) {
+  let payload: ModulePayload
+  switch (erpModule) {
     case 'general-ledger':
-      return listGeneralLedger(workspaceId, module, query)
+      payload = await listGeneralLedger(workspaceId, erpModule, query)
+      break
     case 'accounts-receivable':
-      return listAccountsReceivable(workspaceId, module, query)
+      payload = await listAccountsReceivable(workspaceId, erpModule, query)
+      break
     case 'accounts-payable':
-      return listAccountsPayable(workspaceId, module, query)
+      payload = await listAccountsPayable(workspaceId, erpModule, query)
+      break
     case 'budgets':
-      return listBudgets(workspaceId, module, query)
+      payload = await listBudgets(workspaceId, erpModule, query)
+      break
     case 'procurement':
-      return listProcurement(workspaceId, module, query)
+      payload = await listProcurement(workspaceId, erpModule, query)
+      break
     case 'inventory':
-      return listInventory(workspaceId, module, query)
+      payload = await listInventory(workspaceId, erpModule, query)
+      break
     case 'hr':
-      return listHr(workspaceId, module, query)
+      payload = await listHr(workspaceId, erpModule, query)
+      break
     case 'leave':
-      return listLeave(workspaceId, module, query)
+      payload = await listLeave(workspaceId, erpModule, query)
+      break
     case 'reports':
-      return listReports(workspaceId, module)
+      payload = await listReports(workspaceId, erpModule)
+      break
     case 'settings':
-      return listSettings(workspaceId, module)
+      return listSettings(workspaceId, erpModule)
     case 'roles':
-      return listRoles(workspaceId, module)
+      payload = await listRoles(workspaceId, erpModule)
+      break
     default:
       throw notFound()
+  }
+
+  const settings = await prisma.eRPSettings.findUnique({
+    where: { workspaceId },
+    select: { defaultCurrency: true },
+  })
+  return {
+    ...payload,
+    settings: {
+      defaultCurrency: normalizeCurrencyCode(settings?.defaultCurrency),
+      country: '',
+      accountingBasis: 'ACCRUAL',
+      fiscalYearStartMonth: 1,
+      taxName: 'VAT',
+      taxRate: 0,
+    },
+    options: {
+      ...(payload.options ?? {}),
+      currencies: getCurrencyOptions(),
+    },
   }
 }
 
@@ -507,6 +559,7 @@ async function listGeneralLedger(workspaceId: string, module: ErpModuleName, que
         entry.lines.reduce((sum, line) => sum + line.debit, 0),
         entry.lines.reduce((sum, line) => sum + line.credit, 0)
       ),
+      currency: entry.lines[0]?.currency,
       lines: entry.lines.map((line) => `${line.account.code} ${line.account.name}`).join(' / '),
       createdAt: entry.createdAt,
     })),
@@ -998,22 +1051,36 @@ async function listReports(workspaceId: string, module: ErpModuleName): Promise<
 }
 
 async function listSettings(workspaceId: string, module: ErpModuleName): Promise<ModulePayload> {
-  const [settings, fiscalYears, periods, taxRates, progress] = await Promise.all([
+  const [settings, company, fiscalYears, periods, taxRates, progress] = await Promise.all([
     prisma.eRPSettings.findUnique({ where: { workspaceId } }),
+    prisma.company.findUnique({ where: { id: workspaceId }, select: { country: true } }),
     prisma.eRPFiscalYear.findMany({ where: { workspaceId, isDeleted: false }, orderBy: { startDate: 'desc' }, take: 10 }),
     prisma.eRPPeriod.findMany({ where: { workspaceId, isDeleted: false }, orderBy: { startDate: 'desc' }, take: 24 }),
     prisma.eRPTaxRate.findMany({ where: { workspaceId, isDeleted: false }, orderBy: { createdAt: 'desc' }, take: 50 }),
     prisma.eRPSetupProgress.findUnique({ where: { workspaceId } }),
   ])
+  const defaultCurrency = normalizeCurrencyCode(settings?.defaultCurrency, defaultCurrencyForCountry(company?.country))
 
   return makePayload({
     module,
     metrics: [
-      { label: 'Default currency', value: settings?.defaultCurrency ?? 'USD', format: 'text', tone: 'neutral' },
+      { label: 'Default currency', value: defaultCurrency, format: 'text', tone: 'neutral' },
       { label: 'Fiscal years', value: fiscalYears.length, format: 'number', tone: fiscalYears.length > 0 ? 'good' : 'warning' },
       { label: 'Open periods', value: periods.filter((period) => !period.isLocked).length, format: 'number', tone: 'good' },
       { label: 'Tax rates', value: taxRates.length, format: 'number', tone: 'neutral' },
     ],
+    settings: {
+      defaultCurrency,
+      country: company?.country ?? '',
+      accountingBasis: settings?.accountingBasis ?? 'ACCRUAL',
+      fiscalYearStartMonth: settings?.fiscalYearStartMonth ?? 1,
+      taxName: settings?.taxName ?? 'VAT',
+      taxRate: settings?.taxRate ?? 0,
+    },
+    options: {
+      currencies: getCurrencyOptions(),
+      countries: getCountryCurrencyOptions(),
+    },
     rows: taxRates.map((rate) => ({
       id: rate.id,
       name: rate.name,
@@ -1072,12 +1139,12 @@ async function listRoles(workspaceId: string, module: ErpModuleName): Promise<Mo
 }
 
 export async function createErpModuleRecord(user: SessionUser, rawModule: string, input: unknown) {
-  const module = erpModuleNameSchema.parse(rawModule)
+  const erpModule = erpModuleNameSchema.parse(rawModule)
   requireManager(user)
   const workspaceId = workspaceIdFor(user)
   await ensureReady(workspaceId)
 
-  switch (module) {
+  switch (erpModule) {
     case 'general-ledger':
       return createJournalRecord(user, input)
     case 'accounts-receivable':
@@ -1097,18 +1164,18 @@ export async function createErpModuleRecord(user: SessionUser, rawModule: string
     case 'settings':
       return createTaxRateRecord(user, input)
     default:
-      throw badRequest(`Create is not available for ${module}.`)
+      throw badRequest(`Create is not available for ${erpModule}.`)
   }
 }
 
 async function createJournalRecord(user: SessionUser, input: unknown) {
   const workspaceId = workspaceIdFor(user)
   const parsed = createErpJournalEntrySchema.parse(input)
-  const amountCents = toCents(parsed.amount)
 
   return prisma.$transaction(
     async (tx) => {
       const currency = parsed.currency ?? (await defaultCurrency(tx, workspaceId))
+      const amountCents = toMinorUnits(parsed.amount, currency)
       return createSimpleJournal(tx, user, {
         date: toDate(parsed.date),
         description: parsed.description,
@@ -1129,11 +1196,11 @@ async function createJournalRecord(user: SessionUser, input: unknown) {
 async function createReceivableRecord(user: SessionUser, input: unknown) {
   const workspaceId = workspaceIdFor(user)
   const parsed = createErpReceivableSchema.parse(input)
-  const amount = toCents(parsed.amount)
   const dueDate = toDate(parsed.dueDate)
 
   return prisma.$transaction(async (tx) => {
     const currency = parsed.currency ?? (await defaultCurrency(tx, workspaceId))
+    const amount = toMinorUnits(parsed.amount, currency)
     const receivable = await tx.eRPARLedger.create({
       data: {
         workspaceId,
@@ -1152,7 +1219,7 @@ async function createReceivableRecord(user: SessionUser, input: unknown) {
         type: 'OVERDUE_AR',
         severity: 'WARNING',
         title: 'Receivable created overdue',
-        description: `${parsed.clientName} has an overdue receivable for ${(amount / 100).toFixed(2)} ${currency}.`,
+        description: `${parsed.clientName} has an overdue receivable for ${formatMinorAmount(amount, currency)}.`,
         entityType: 'ERPARLedger',
         entityId: receivable.id,
       })
@@ -1192,12 +1259,12 @@ async function findOrCreateVendor(tx: TransactionClient, workspaceId: string, in
 async function createPayableRecord(user: SessionUser, input: unknown) {
   const workspaceId = workspaceIdFor(user)
   const parsed = createErpPayableSchema.parse(input)
-  const amount = toCents(parsed.amount)
   const issueDate = toDate(parsed.issueDate)
   const dueDate = toDate(parsed.dueDate)
 
   return prisma.$transaction(async (tx) => {
     const currency = parsed.currency ?? (await defaultCurrency(tx, workspaceId))
+    const amount = toMinorUnits(parsed.amount, currency)
     const vendor = await findOrCreateVendor(tx, workspaceId, {
       vendorId: parsed.vendorId || undefined,
       vendorName: parsed.vendorName,
@@ -1231,7 +1298,6 @@ async function createPayableRecord(user: SessionUser, input: unknown) {
 async function createBudgetRecord(user: SessionUser, input: unknown) {
   const workspaceId = workspaceIdFor(user)
   const parsed = createErpBudgetSchema.parse(input)
-  const monthlyAmount = toCents(parsed.monthlyAmount)
   const startDate = toDate(parsed.startDate)
   const endDate = toDate(parsed.endDate)
 
@@ -1239,6 +1305,7 @@ async function createBudgetRecord(user: SessionUser, input: unknown) {
 
   return prisma.$transaction(async (tx) => {
     const currency = parsed.currency ?? (await defaultCurrency(tx, workspaceId))
+    const monthlyAmount = toMinorUnits(parsed.monthlyAmount, currency)
     const fiscalYear = await tx.eRPFiscalYear.findFirst({
       where: { workspaceId, isDeleted: false, startDate: { lte: startDate }, endDate: { gte: startDate } },
       select: { id: true },
@@ -1291,11 +1358,11 @@ async function createBudgetRecord(user: SessionUser, input: unknown) {
 async function createPurchaseOrderRecord(user: SessionUser, input: unknown) {
   const workspaceId = workspaceIdFor(user)
   const parsed = createErpPurchaseOrderSchema.parse(input)
-  const unitPrice = toCents(parsed.unitPrice)
-  const totalAmount = unitPrice * parsed.quantity
 
   return prisma.$transaction(async (tx) => {
     const currency = parsed.currency ?? (await defaultCurrency(tx, workspaceId))
+    const unitPrice = toMinorUnits(parsed.unitPrice, currency)
+    const totalAmount = unitPrice * parsed.quantity
     const vendor = await findOrCreateVendor(tx, workspaceId, {
       vendorId: parsed.vendorId || undefined,
       vendorName: parsed.vendorName,
@@ -1342,6 +1409,7 @@ async function createInventoryRecord(user: SessionUser, input: unknown) {
 
   return prisma.$transaction(async (tx) => {
     const currency = parsed.currency ?? (await defaultCurrency(tx, workspaceId))
+    const unitCost = toMinorUnits(parsed.unitCost, currency)
     const item = await tx.eRPInventoryItem.create({
       data: {
         workspaceId,
@@ -1352,7 +1420,7 @@ async function createInventoryRecord(user: SessionUser, input: unknown) {
         currentStock: parsed.currentStock,
         reorderPoint: parsed.reorderPoint,
         reorderQty: parsed.reorderQty,
-        unitCost: toCents(parsed.unitCost),
+        unitCost,
         currency,
       },
     })
@@ -1382,6 +1450,7 @@ async function createEmployeeRecord(user: SessionUser, input: unknown) {
 
   return prisma.$transaction(async (tx) => {
     const currency = parsed.currency ?? (await defaultCurrency(tx, workspaceId))
+    const baseSalary = toMinorUnits(parsed.baseSalary, currency)
     if (parsed.departmentId) {
       const department = await tx.eRPHRDepartment.findFirst({
         where: { id: parsed.departmentId, workspaceId, isDeleted: false },
@@ -1402,7 +1471,7 @@ async function createEmployeeRecord(user: SessionUser, input: unknown) {
         departmentId: parsed.departmentId || undefined,
         startDate: toDate(parsed.startDate),
         contractType: parsed.contractType,
-        baseSalary: toCents(parsed.baseSalary),
+        baseSalary,
         currency,
         payFrequency: parsed.payFrequency,
       },
@@ -1482,16 +1551,16 @@ async function createTaxRateRecord(user: SessionUser, input: unknown) {
 }
 
 export async function patchErpModuleRecord(user: SessionUser, rawModule: string, input: unknown) {
-  const module = erpModuleNameSchema.parse(rawModule)
+  const erpModule = erpModuleNameSchema.parse(rawModule)
   const parsed = erpGenericModulePatchSchema.parse(input)
   const workspaceId = workspaceIdFor(user)
 
-  if (module === 'roles') requireOwner(user)
+  if (erpModule === 'roles') requireOwner(user)
   else requireManager(user)
 
   await ensureReady(workspaceId)
 
-  switch (module) {
+  switch (erpModule) {
     case 'general-ledger':
       return postJournalRecord(user, parsed.id)
     case 'accounts-receivable':
@@ -1513,7 +1582,7 @@ export async function patchErpModuleRecord(user: SessionUser, rawModule: string,
     case 'roles':
       return applyRoleAction(user, parsed)
     default:
-      throw badRequest(`Update is not available for ${module}.`)
+      throw badRequest(`Update is not available for ${erpModule}.`)
   }
 }
 
@@ -1542,12 +1611,12 @@ async function postJournalRecord(user: SessionUser, id: string) {
 async function applyReceivableAction(user: SessionUser, input: Record<string, unknown>) {
   const workspaceId = workspaceIdFor(user)
   if (input.action !== 'record-payment') throw badRequest('Unsupported receivable action.')
-  const paymentAmount = toCents(input.amount)
-  if (paymentAmount <= 0) throw badRequest('Payment amount must be greater than zero.')
 
   return prisma.$transaction(async (tx) => {
     const receivable = await tx.eRPARLedger.findFirst({ where: { id: input.id as string, workspaceId, isDeleted: false } })
     if (!receivable) throw notFound()
+    const paymentAmount = toMinorUnits(input.amount, receivable.currency)
+    if (paymentAmount <= 0) throw badRequest('Payment amount must be greater than zero.')
     const remaining = receivable.amount - receivable.amountPaid
     const amount = Math.min(paymentAmount, remaining)
     const nextPaid = receivable.amountPaid + amount
@@ -1590,7 +1659,7 @@ async function applyPayableAction(user: SessionUser, input: Record<string, unkno
     }
 
     if (input.action === 'pay') {
-      const amount = Math.min(toCents(input.amount) || bill.amount - bill.amountPaid, bill.amount - bill.amountPaid)
+      const amount = Math.min(toMinorUnits(input.amount, bill.currency) || bill.amount - bill.amountPaid, bill.amount - bill.amountPaid)
       if (amount <= 0) throw badRequest('No unpaid amount remains on this bill.')
       const payment = await tx.eRPAPPayment.create({
         data: {
@@ -1796,34 +1865,43 @@ async function applyLeaveAction(user: SessionUser, input: Record<string, unknown
 async function applySettingsAction(user: SessionUser, input: unknown) {
   const workspaceId = workspaceIdFor(user)
   const parsed = updateErpSettingsSchema.parse(input)
-  const updated = await prisma.eRPSettings.upsert({
-    where: { workspaceId },
-    create: {
-      workspaceId,
-      defaultCurrency: parsed.defaultCurrency,
-      accountingBasis: parsed.accountingBasis,
-      fiscalYearStartMonth: parsed.fiscalYearStartMonth,
-      taxName: parsed.taxName,
-      taxRate: parsed.taxRate,
-    },
-    update: {
-      defaultCurrency: parsed.defaultCurrency,
-      accountingBasis: parsed.accountingBasis,
-      fiscalYearStartMonth: parsed.fiscalYearStartMonth,
-      taxName: parsed.taxName,
-      taxRate: parsed.taxRate,
-    },
-  })
-  await prisma.auditLog.create({
-    data: {
-      companyId: workspaceId,
-      actorId: user.id,
-      action: 'erp.settings.updated',
-      entityType: 'ERPSettings',
-      entityId: updated.id,
-      after: parsed,
-      metadata: { surface: 'erp' },
-    },
+  const updated = await prisma.$transaction(async (tx) => {
+    if (parsed.country !== undefined) {
+      await tx.company.update({
+        where: { id: workspaceId },
+        data: { country: parsed.country || null },
+      })
+    }
+    const settings = await tx.eRPSettings.upsert({
+      where: { workspaceId },
+      create: {
+        workspaceId,
+        defaultCurrency: parsed.defaultCurrency,
+        accountingBasis: parsed.accountingBasis,
+        fiscalYearStartMonth: parsed.fiscalYearStartMonth,
+        taxName: parsed.taxName,
+        taxRate: parsed.taxRate,
+      },
+      update: {
+        defaultCurrency: parsed.defaultCurrency,
+        accountingBasis: parsed.accountingBasis,
+        fiscalYearStartMonth: parsed.fiscalYearStartMonth,
+        taxName: parsed.taxName,
+        taxRate: parsed.taxRate,
+      },
+    })
+    await tx.auditLog.create({
+      data: {
+        companyId: workspaceId,
+        actorId: user.id,
+        action: 'erp.settings.updated',
+        entityType: 'ERPSettings',
+        entityId: settings.id,
+        after: parsed,
+        metadata: { surface: 'erp' },
+      },
+    })
+    return settings
   })
   return updated
 }

@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client'
+import { currencyMinorUnit, normalizeCurrencyCode } from '@/lib/currencies'
 import { badRequest } from '@/modules/shared/errors'
 
 export type DecimalInput = Prisma.Decimal | string | number | null | undefined
@@ -20,10 +21,7 @@ export function sumDecimals(values: Prisma.Decimal[]) {
 }
 
 export function currencyMinorFactor(currency: string) {
-  const normalized = normalizeCurrency(currency)
-  if (['BHD', 'JOD', 'KWD', 'OMR', 'TND'].includes(normalized)) return new Prisma.Decimal(1000)
-  if (['CLP', 'JPY', 'KRW', 'VND'].includes(normalized)) return new Prisma.Decimal(1)
-  return new Prisma.Decimal(100)
+  return new Prisma.Decimal(10).pow(currencyMinorUnit(currency))
 }
 
 export function decimalToMinorUnits(value: Prisma.Decimal, currency: string, field = 'amount') {
@@ -35,6 +33,5 @@ export function decimalToMinorUnits(value: Prisma.Decimal, currency: string, fie
 }
 
 export function normalizeCurrency(value: unknown) {
-  const currency = typeof value === 'string' ? value.trim().toUpperCase() : ''
-  return /^[A-Z]{3}$/.test(currency) ? currency : 'USD'
+  return normalizeCurrencyCode(value)
 }

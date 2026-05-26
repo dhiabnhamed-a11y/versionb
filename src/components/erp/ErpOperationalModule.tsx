@@ -14,7 +14,8 @@ import {
 } from 'lucide-react'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { useLocale } from '@/components/i18n/LocaleProvider'
-import { tErp, translateErpStatus, translateModuleConfig, translateColumnLabel, translateActionLabel, translateHeaderActionLabel, translateSecondaryColumnLabel, formatErpMoney, formatErpDate, formatErpNumber } from '@/components/erp/erpLocale'
+import { tErp, translateErpStatus, translateModuleConfig, translateColumnLabel, translateActionLabel, translateHeaderActionLabel, formatErpMoney, formatErpDate, formatErpNumber } from '@/components/erp/erpLocale'
+import { getCountryCurrencyOptions, getCurrencyOptions } from '@/lib/currencies'
 import type { AppLocale } from '@/lib/i18n'
 
 type ModuleName =
@@ -73,6 +74,14 @@ type ModulePayload = {
   rows: Row[]
   secondaryRows?: Row[]
   options?: Record<string, Option[]>
+  settings?: {
+    defaultCurrency: string
+    country: string
+    accountingBasis: string
+    fiscalYearStartMonth: number
+    taxName: string
+    taxRate: number
+  }
   insights?: string[]
   generatedAt: string
 }
@@ -85,6 +94,8 @@ const nextMonth = () => {
 }
 const endOfYear = () => `${new Date().getFullYear()}-12-31`
 const startOfYear = () => `${new Date().getFullYear()}-01-01`
+const CURRENCY_OPTIONS = getCurrencyOptions()
+const COUNTRY_OPTIONS = getCountryCurrencyOptions()
 
 const CONFIG: Record<ModuleName, ModuleConfig> = {
   'general-ledger': {
@@ -98,6 +109,7 @@ const CONFIG: Record<ModuleName, ModuleConfig> = {
       { name: 'debitAccountId', label: 'Debit account', type: 'select', optionKey: 'accounts', required: true },
       { name: 'creditAccountId', label: 'Credit account', type: 'select', optionKey: 'accounts', required: true },
       { name: 'amount', label: 'Amount', type: 'number', required: true, placeholder: '1200.00' },
+      { name: 'currency', label: 'Currency', type: 'select', optionKey: 'currencies' },
       { name: 'postNow', label: 'Post immediately', type: 'checkbox', defaultValue: true },
     ],
     columns: [
@@ -121,6 +133,7 @@ const CONFIG: Record<ModuleName, ModuleConfig> = {
       { name: 'clientEmail', label: 'Client email', type: 'email' },
       { name: 'invoiceRef', label: 'Invoice ref', type: 'text' },
       { name: 'amount', label: 'Amount', type: 'number', required: true },
+      { name: 'currency', label: 'Currency', type: 'select', optionKey: 'currencies' },
       { name: 'dueDate', label: 'Due date', type: 'date', required: true, defaultValue: nextMonth() },
     ],
     columns: [
@@ -144,6 +157,7 @@ const CONFIG: Record<ModuleName, ModuleConfig> = {
       { name: 'vendorEmail', label: 'Vendor email', type: 'email' },
       { name: 'billNumber', label: 'Bill number', type: 'text', required: true },
       { name: 'amount', label: 'Amount', type: 'number', required: true },
+      { name: 'currency', label: 'Currency', type: 'select', optionKey: 'currencies' },
       { name: 'issueDate', label: 'Issue date', type: 'date', required: true, defaultValue: today() },
       { name: 'dueDate', label: 'Due date', type: 'date', required: true, defaultValue: nextMonth() },
       { name: 'description', label: 'Description', type: 'textarea' },
@@ -175,6 +189,7 @@ const CONFIG: Record<ModuleName, ModuleConfig> = {
       { name: 'name', label: 'Budget name', type: 'text', required: true },
       { name: 'accountCode', label: 'Account', type: 'select', optionKey: 'accounts', required: true },
       { name: 'monthlyAmount', label: 'Monthly amount', type: 'number', required: true },
+      { name: 'currency', label: 'Currency', type: 'select', optionKey: 'currencies' },
       { name: 'startDate', label: 'Start date', type: 'date', required: true, defaultValue: startOfYear() },
       { name: 'endDate', label: 'End date', type: 'date', required: true, defaultValue: endOfYear() },
       {
@@ -210,6 +225,7 @@ const CONFIG: Record<ModuleName, ModuleConfig> = {
       { name: 'description', label: 'Line item', type: 'text', required: true },
       { name: 'quantity', label: 'Quantity', type: 'number', required: true, defaultValue: 1 },
       { name: 'unitPrice', label: 'Unit price', type: 'number', required: true, defaultValue: 0 },
+      { name: 'currency', label: 'Currency', type: 'select', optionKey: 'currencies' },
       { name: 'unit', label: 'Unit', type: 'text', placeholder: 'piece, hour, license' },
       { name: 'expectedDate', label: 'Expected date', type: 'date' },
       { name: 'notes', label: 'Notes', type: 'textarea' },
@@ -241,6 +257,7 @@ const CONFIG: Record<ModuleName, ModuleConfig> = {
       { name: 'reorderPoint', label: 'Reorder point', type: 'number', defaultValue: 0 },
       { name: 'reorderQty', label: 'Reorder quantity', type: 'number', defaultValue: 0 },
       { name: 'unitCost', label: 'Unit cost', type: 'number', defaultValue: 0 },
+      { name: 'currency', label: 'Currency', type: 'select', optionKey: 'currencies' },
     ],
     columns: [
       { key: 'sku', label: 'SKU' },
@@ -282,6 +299,7 @@ const CONFIG: Record<ModuleName, ModuleConfig> = {
         options: ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN'].map((value) => ({ value, label: value })),
       },
       { name: 'baseSalary', label: 'Base salary', type: 'number', required: true },
+      { name: 'currency', label: 'Currency', type: 'select', optionKey: 'currencies' },
     ],
     columns: [
       { key: 'employeeNumber', label: 'No.' },
@@ -412,6 +430,20 @@ function defaultFormState(fields: Field[] = []) {
   }, {})
 }
 
+function defaultSettingsForm(payload?: ModulePayload | null) {
+  const settings = payload?.settings
+  return {
+    id: 'settings',
+    action: 'update-settings',
+    country: settings?.country ?? '',
+    defaultCurrency: settings?.defaultCurrency ?? 'USD',
+    accountingBasis: settings?.accountingBasis ?? 'ACCRUAL',
+    fiscalYearStartMonth: settings?.fiscalYearStartMonth ?? 1,
+    taxName: settings?.taxName ?? 'VAT',
+    taxRate: settings?.taxRate ?? 0,
+  }
+}
+
 function formatCell(value: unknown, column: Column, locale: AppLocale, currency = 'USD') {
   if (value === null || value === undefined || value === '') return '-'
   if (column.format === 'money' && typeof value === 'number') {
@@ -438,6 +470,7 @@ function statusColor(value: unknown) {
 
 function renderCell(row: Row, column: Column, locale: AppLocale) {
   const value = row[column.key]
+  const currency = typeof row.currency === 'string' ? row.currency : 'USD'
   if (column.format === 'status') {
     const style = statusColor(value)
     return (
@@ -446,7 +479,7 @@ function renderCell(row: Row, column: Column, locale: AppLocale) {
       </span>
     )
   }
-  return formatCell(value, column, locale)
+  return formatCell(value, column, locale, currency)
 }
 
 function actionStyle(tone: RowAction['tone']) {
@@ -461,6 +494,7 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
   const tc = translateModuleConfig(locale, module, config)
   const [payload, setPayload] = useState<ModulePayload | null>(null)
   const [form, setForm] = useState<Record<string, string | boolean | number>>(() => defaultFormState(config.fields))
+  const [settingsForm, setSettingsForm] = useState(() => defaultSettingsForm())
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState('')
   const [loading, setLoading] = useState(true)
@@ -495,6 +529,10 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
     void fetchData()
   }, [fetchData])
 
+  useEffect(() => {
+    if (payload?.settings) setSettingsForm(defaultSettingsForm(payload))
+  }, [payload])
+
   useRealtimeSubscription(
     ['workspace_event', 'finance.journal_entry.created', 'finance.journal_entry.posted', 'notification.created'],
     () => void fetchData(),
@@ -527,6 +565,38 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
     }
   }
 
+  const submitSettings = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setSubmitting(true)
+    setError(null)
+    try {
+      const response = await fetch('/api/v1/erp2/modules/settings', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Idempotency-Key': crypto.randomUUID(),
+        },
+        body: JSON.stringify(settingsForm),
+      })
+      const body = await response.json()
+      if (!response.ok || !body.success) throw new Error(body.error?.message ?? 'Unable to save ERP settings')
+      await fetchData()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to save ERP settings')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const updateSettingsCountry = (country: string) => {
+    const selected = (payload?.options?.countries ?? COUNTRY_OPTIONS).find((option) => option.value === country)
+    setSettingsForm((current) => ({
+      ...current,
+      country,
+      defaultCurrency: selected?.meta ?? current.defaultCurrency,
+    }))
+  }
+
   const runAction = async (row: Row | { id: string }, action: RowAction) => {
     setSubmitting(true)
     setError(null)
@@ -555,7 +625,12 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
     }
   }
 
-  const optionsFor = (field: Field) => field.options ?? (field.optionKey ? payload?.options?.[field.optionKey] ?? [] : [])
+  const optionsFor = (field: Field) => {
+    if (field.options) return field.options
+    if (field.optionKey === 'currencies') return payload?.options?.currencies ?? CURRENCY_OPTIONS
+    if (field.optionKey === 'countries') return payload?.options?.countries ?? COUNTRY_OPTIONS
+    return field.optionKey ? payload?.options?.[field.optionKey] ?? [] : []
+  }
 
   return (
     <div>
@@ -614,11 +689,68 @@ export function ErpOperationalModule({ module }: { module: ModuleName }) {
           return (
             <div key={metric.label} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '14px' }}>
               <div style={{ fontSize: '11px', fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{metric.label}</div>
-              <div style={{ color, fontSize: '18px', fontWeight: 700, marginTop: '6px' }}>{formatCell(metric.value, { key: 'value', label: metric.label, format: metric.format === 'money' ? 'money' : metric.format === 'percent' ? 'percent' : metric.format === 'number' ? 'number' : 'text' }, locale)}</div>
+              <div style={{ color, fontSize: '18px', fontWeight: 700, marginTop: '6px' }}>{formatCell(metric.value, { key: 'value', label: metric.label, format: metric.format === 'money' ? 'money' : metric.format === 'percent' ? 'percent' : metric.format === 'number' ? 'number' : 'text' }, locale, payload?.settings?.defaultCurrency ?? 'USD')}</div>
             </div>
           )
         })}
       </div>
+
+      {module === 'settings' && payload?.settings && (
+        <form onSubmit={submitSettings} style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', padding: '16px', display: 'grid', gap: '12px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ fontSize: '14px', fontWeight: 700, color: '#0f172a' }}>Workspace currency</div>
+              <div style={{ fontSize: '12px', color: '#64748b', marginTop: '2px' }}>New ERP records use this currency by default.</div>
+            </div>
+            <button type="submit" disabled={submitting} style={{ display: 'inline-flex', justifyContent: 'center', alignItems: 'center', gap: '8px', border: 'none', borderRadius: '6px', background: '#2563eb', color: '#fff', padding: '9px 12px', fontSize: '12px', fontWeight: 700, cursor: submitting ? 'not-allowed' : 'pointer', opacity: submitting ? 0.7 : 1 }}>
+              {submitting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              {tErp(locale, 'save')}
+            </button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(180px, 1fr))', gap: '12px' }}>
+            <label style={{ display: 'grid', gap: '5px', fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+              Country
+              <select value={String(settingsForm.country)} onChange={(event) => updateSettingsCountry(event.target.value)} style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', color: '#0f172a', background: '#fff' }}>
+                <option value="">Select country</option>
+                {(payload.options?.countries ?? COUNTRY_OPTIONS).map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label style={{ display: 'grid', gap: '5px', fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+              Default currency
+              <select value={String(settingsForm.defaultCurrency)} onChange={(event) => setSettingsForm((current) => ({ ...current, defaultCurrency: event.target.value }))} required style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', color: '#0f172a', background: '#fff' }}>
+                {(payload.options?.currencies ?? CURRENCY_OPTIONS).map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label style={{ display: 'grid', gap: '5px', fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+              Accounting basis
+              <select value={String(settingsForm.accountingBasis)} onChange={(event) => setSettingsForm((current) => ({ ...current, accountingBasis: event.target.value }))} required style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', color: '#0f172a', background: '#fff' }}>
+                <option value="ACCRUAL">Accrual</option>
+                <option value="CASH">Cash</option>
+              </select>
+            </label>
+            <label style={{ display: 'grid', gap: '5px', fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+              Fiscal year start month
+              <input type="number" min={1} max={12} value={String(settingsForm.fiscalYearStartMonth)} onChange={(event) => setSettingsForm((current) => ({ ...current, fiscalYearStartMonth: Number(event.target.value) }))} required style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', color: '#0f172a' }} />
+            </label>
+            <label style={{ display: 'grid', gap: '5px', fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+              Tax name
+              <input value={String(settingsForm.taxName)} onChange={(event) => setSettingsForm((current) => ({ ...current, taxName: event.target.value }))} required style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', color: '#0f172a' }} />
+            </label>
+            <label style={{ display: 'grid', gap: '5px', fontSize: '12px', fontWeight: 700, color: '#334155' }}>
+              Tax rate %
+              <input type="number" min={0} max={100} step="0.01" value={String(settingsForm.taxRate)} onChange={(event) => setSettingsForm((current) => ({ ...current, taxRate: Number(event.target.value) }))} required style={{ border: '1px solid #cbd5e1', borderRadius: '6px', padding: '8px 10px', fontSize: '13px', color: '#0f172a' }} />
+            </label>
+          </div>
+        </form>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: showForm && !config.noCreate ? 'minmax(280px, 360px) 1fr' : '1fr', gap: '16px', alignItems: 'start' }}>
         {showForm && !config.noCreate && (

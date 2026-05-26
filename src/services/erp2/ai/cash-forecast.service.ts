@@ -1,5 +1,6 @@
 import 'server-only'
 
+import { minorUnitsToMajor, normalizeCurrencyCode } from '@/lib/currencies'
 import { prisma } from '@/lib/db'
 
 export type CashForecastDay = {
@@ -22,12 +23,21 @@ export type CashForecastResult = {
   recommendations: string[]
 }
 
+function formatMinorCurrency(value: number, currency: string) {
+  const normalizedCurrency = normalizeCurrencyCode(currency)
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: normalizedCurrency }).format(minorUnitsToMajor(value, normalizedCurrency))
+}
+
 export async function computeCashForecast(workspaceId: string, days = 90, cashBankCode = '1010'): Promise<CashForecastResult> {
   const now = new Date()
   const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate())
   const twelveMonthsAgo = new Date(now.getFullYear() - 1, now.getMonth(), 1)
 
-  const [openAR, openAP, historicalEntries] = await Promise.all([
+  const [settings, openAR, openAP, historicalEntries] = await Promise.all([
+    prisma.eRPSettings.findUnique({
+      where: { workspaceId },
+      select: { defaultCurrency: true },
+    }),
     prisma.eRPARLedger.findMany({
       where: {
         workspaceId,
@@ -54,6 +64,7 @@ export async function computeCashForecast(workspaceId: string, days = 90, cashBa
       include: { lines: { include: { account: true } } },
     }),
   ])
+  const currency = normalizeCurrencyCode(settings?.defaultCurrency)
 
   const currentCash = historicalEntries.reduce((sum, entry) => {
     return sum + entry.lines
@@ -134,10 +145,10 @@ export async function computeCashForecast(workspaceId: string, days = 90, cashBa
     recommendations.push(`Cash crisis projected on ${crisisDate}. Consider collecting outstanding AR or reducing discretionary spending.`)
   }
   if (minBalance < currentCash * 0.2) {
-    recommendations.push(`Cash balance may drop to ${(minBalance / 100).toFixed(0)} below 20% of current. Review upcoming payables.`)
+    recommendations.push(`Cash balance may drop to ${formatMinorCurrency(minBalance, currency)} below 20% of current. Review upcoming payables.`)
   }
   if (arInflowsPerDay > 0) {
-    recommendations.push(`Collecting AR faster by 10 days would add ~$${Math.round(arInflowsPerDay * 10 / 100)} to cash position.`)
+    recommendations.push(`Collecting AR faster by 10 days would add about ${formatMinorCurrency(Math.round(arInflowsPerDay * 10), currency)} to cash position.`)
   }
 
   return {

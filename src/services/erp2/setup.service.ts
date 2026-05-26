@@ -2,6 +2,7 @@ import 'server-only'
 
 import { Prisma } from '@prisma/client'
 import { prisma } from '@/lib/db'
+import { defaultCurrencyForCountry, normalizeCurrencyCode } from '@/lib/currencies'
 import { badRequest } from '@/modules/shared/errors'
 import { STANDARD_COA } from '@/services/erp2/coa'
 
@@ -12,18 +13,24 @@ export async function ensureErpWorkspaceInitialized(
   workspaceId: string,
   baseCurrency?: string
 ) {
+  const company = await tx.company.findUnique({
+    where: { id: workspaceId },
+    select: { country: true },
+  })
+  const requestedCurrency = baseCurrency ? normalizeCurrencyCode(baseCurrency) : null
+  const workspaceCurrency = requestedCurrency ?? defaultCurrencyForCountry(company?.country)
   const existing = await tx.eRPFiscalYear.findFirst({
     where: { workspaceId, isDeleted: false },
     select: { id: true },
   })
 
   if (existing) {
-    await Promise.all([
+    const [settings] = await Promise.all([
       tx.eRPSettings.upsert({
         where: { workspaceId },
         create: {
           workspaceId,
-          defaultCurrency: baseCurrency ?? 'USD',
+          defaultCurrency: workspaceCurrency,
           accountingBasis: 'ACCRUAL',
           fiscalYearStartMonth: 1,
         },
@@ -45,10 +52,10 @@ export async function ensureErpWorkspaceInitialized(
       }),
     ])
 
-    return { initialized: false as const, fiscalYearId: existing.id, accountsCreated: 0, currency: baseCurrency ?? 'USD' }
+    return { initialized: false as const, fiscalYearId: existing.id, accountsCreated: 0, currency: settings.defaultCurrency }
   }
 
-  const currency = baseCurrency ?? 'USD'
+  const currency = workspaceCurrency
   const now = new Date()
   const year = now.getFullYear()
 

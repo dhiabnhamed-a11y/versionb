@@ -1,4 +1,5 @@
 import { type AppLocale } from '@/lib/i18n'
+import { minorUnitsToMajor, normalizeCurrencyCode } from '@/lib/currencies'
 
 const STATUS_TRANSLATIONS: Record<AppLocale, Record<string, string>> = {
   en: {
@@ -847,10 +848,11 @@ export function translateSecondaryColumnLabel(locale: AppLocale, englishLabel: s
 }
 
 export function formatErpMoney(value: number, locale: AppLocale, currency = 'USD'): string {
+  const normalizedCurrency = normalizeCurrencyCode(currency)
   return new Intl.NumberFormat(locale === 'ar' ? 'ar-SA' : locale === 'fr' ? 'fr-FR' : 'en-US', {
     style: 'currency',
-    currency,
-  }).format(value / 100)
+    currency: normalizedCurrency,
+  }).format(minorUnitsToMajor(value, normalizedCurrency))
 }
 
 export function formatErpDate(dateStr: string, locale: AppLocale): string {

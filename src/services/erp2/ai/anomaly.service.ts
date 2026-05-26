@@ -1,12 +1,18 @@
 import 'server-only'
 
 import type { ERPAlertSeverity, ERPAlertType, Prisma } from '@prisma/client'
+import { minorUnitsToMajor, normalizeCurrencyCode } from '@/lib/currencies'
 import { prisma } from '@/lib/db'
 
 function daysAgo(days: number): Date {
   const d = new Date()
   d.setDate(d.getDate() - days)
   return d
+}
+
+function formatMinorCurrency(value: number, currency: string | undefined) {
+  const normalizedCurrency = normalizeCurrencyCode(currency)
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: normalizedCurrency }).format(minorUnitsToMajor(value, normalizedCurrency))
 }
 
 export type AnomalyResult = {
@@ -104,7 +110,7 @@ export async function runAnomalyDetection(workspaceId: string): Promise<number> 
       alertCount++
       await createAlert(workspaceId, 'ROUND_NUMBER', 'INFO',
         'Round-number transaction',
-        `Entry "${entry.description}" has exactly ${(total / 100).toFixed(0)} total`,
+        `Entry "${entry.description}" has exactly ${formatMinorCurrency(total, entry.lines[0]?.currency)} total`,
         'ERPJournalEntry', entry.id, 0.4)
     }
   }

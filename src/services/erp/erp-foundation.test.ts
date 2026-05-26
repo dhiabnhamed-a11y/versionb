@@ -9,6 +9,10 @@ test('decimalToMinorUnits stores USD in cents without floats', () => {
   assert.equal(decimalToMinorUnits(new Prisma.Decimal('123.45'), 'USD').toString(), '12345')
 })
 
+test('decimalToMinorUnits stores TND with three decimal minor units', () => {
+  assert.equal(decimalToMinorUnits(new Prisma.Decimal('123.456'), 'TND').toString(), '123456')
+})
+
 test('decimalToMinorUnits rejects precision below the currency minor unit', () => {
   assert.throws(() => decimalToMinorUnits(new Prisma.Decimal('10.005'), 'USD'), /more precision/)
 })

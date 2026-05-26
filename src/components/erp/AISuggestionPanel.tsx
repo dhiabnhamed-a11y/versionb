@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { Sparkles, Check, X } from 'lucide-react'
+import { minorUnitsToMajor, normalizeCurrencyCode } from '@/lib/currencies'
 
 type SuggestedLine = {
   accountCode: string
@@ -21,12 +22,13 @@ type Suggestion = {
 interface AISuggestionPanelProps {
   description: string
   amount?: number | null
+  currency?: string
   workspaceId: string
   onAccept: (lines: SuggestedLine[]) => void
   onDismiss: () => void
 }
 
-export function AISuggestionPanel({ description, amount, onAccept, onDismiss }: AISuggestionPanelProps) {
+export function AISuggestionPanel({ description, amount, currency = 'USD', onAccept, onDismiss }: AISuggestionPanelProps) {
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -62,6 +64,7 @@ export function AISuggestionPanel({ description, amount, onAccept, onDismiss }: 
   }, [description, amount])
 
   if (!description.trim()) return null
+  const normalizedCurrency = normalizeCurrencyCode(currency)
 
   return (
     <div style={{
@@ -145,7 +148,7 @@ export function AISuggestionPanel({ description, amount, onAccept, onDismiss }: 
                     </span>
                   </td>
                   <td style={{ padding: '4px 8px', textAlign: 'right', fontFamily: 'monospace' }}>
-                    ${(line.amount / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                    {new Intl.NumberFormat('en-US', { style: 'currency', currency: normalizedCurrency }).format(minorUnitsToMajor(line.amount, normalizedCurrency))}
                   </td>
                 </tr>
               ))}

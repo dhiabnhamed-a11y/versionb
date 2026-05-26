@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { normalizeCurrencyCode } from '@/lib/currencies'
 
 export const erpModuleNameSchema = z.enum([
   'general-ledger',
@@ -21,6 +22,11 @@ const positiveMoneyAmount = z.coerce.number().finite().positive()
 const positiveInteger = z.coerce.number().int().positive()
 const nonnegativeInteger = z.coerce.number().int().nonnegative()
 const dateString = z.string().trim().min(1)
+const currencyCode = z.string().trim().min(3).max(3).transform((value) => normalizeCurrencyCode(value))
+const optionalCurrencyCode = z.preprocess(
+  (value) => (typeof value === 'string' && value.trim() === '' ? undefined : value),
+  currencyCode.optional()
+)
 
 export const erpGenericModuleCreateSchema = z
   .object({
@@ -42,7 +48,7 @@ export const createErpJournalEntrySchema = z.object({
   debitAccountId: requiredText,
   creditAccountId: requiredText,
   amount: positiveMoneyAmount,
-  currency: z.string().trim().min(3).max(3).optional(),
+  currency: optionalCurrencyCode,
   postNow: z.coerce.boolean().default(true),
 })
 
@@ -52,7 +58,7 @@ export const createErpReceivableSchema = z.object({
   clientEmail: optionalText,
   invoiceRef: optionalText,
   amount: positiveMoneyAmount,
-  currency: z.string().trim().min(3).max(3).optional(),
+  currency: optionalCurrencyCode,
   dueDate: dateString,
 })
 
@@ -63,7 +69,7 @@ export const createErpPayableSchema = z.object({
   vendorPhone: optionalText,
   billNumber: requiredText,
   amount: positiveMoneyAmount,
-  currency: z.string().trim().min(3).max(3).optional(),
+  currency: optionalCurrencyCode,
   issueDate: dateString,
   dueDate: dateString,
   description: optionalText,
@@ -74,7 +80,7 @@ export const createErpBudgetSchema = z.object({
   accountCode: requiredText,
   accountName: optionalText,
   monthlyAmount: positiveMoneyAmount,
-  currency: z.string().trim().min(3).max(3).optional(),
+  currency: optionalCurrencyCode,
   startDate: dateString,
   endDate: dateString,
   status: z.enum(['DRAFT', 'APPROVED', 'ACTIVE', 'CLOSED']).optional(),
@@ -89,7 +95,7 @@ export const createErpPurchaseOrderSchema = z.object({
   unit: optionalText,
   expectedDate: optionalText,
   notes: optionalText,
-  currency: z.string().trim().min(3).max(3).optional(),
+  currency: optionalCurrencyCode,
 })
 
 export const createErpInventoryItemSchema = z.object({
@@ -101,7 +107,7 @@ export const createErpInventoryItemSchema = z.object({
   reorderPoint: nonnegativeInteger.default(0),
   reorderQty: nonnegativeInteger.default(0),
   unitCost: moneyAmount.default(0),
-  currency: z.string().trim().min(3).max(3).optional(),
+  currency: optionalCurrencyCode,
 })
 
 export const createErpEmployeeSchema = z.object({
@@ -115,7 +121,7 @@ export const createErpEmployeeSchema = z.object({
   startDate: dateString,
   contractType: z.enum(['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERN']).default('FULL_TIME'),
   baseSalary: positiveMoneyAmount,
-  currency: z.string().trim().min(3).max(3).optional(),
+  currency: optionalCurrencyCode,
   payFrequency: z.enum(['MONTHLY', 'BIWEEKLY', 'WEEKLY']).default('MONTHLY'),
 })
 
@@ -128,7 +134,8 @@ export const createErpLeaveRequestSchema = z.object({
 })
 
 export const updateErpSettingsSchema = z.object({
-  defaultCurrency: z.string().trim().min(3).max(3),
+  defaultCurrency: currencyCode,
+  country: optionalText,
   accountingBasis: z.enum(['ACCRUAL', 'CASH']),
   fiscalYearStartMonth: z.coerce.number().int().min(1).max(12),
   taxName: requiredText,
