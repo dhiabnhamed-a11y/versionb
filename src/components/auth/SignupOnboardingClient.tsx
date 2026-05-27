@@ -156,7 +156,7 @@ export default function SignupOnboardingClient({
 }) {
   const router = useRouter()
   const initialTemplateId = getTemplateForCompanyType(initialCompanyType)
-  const [step, setStep] = useState<OnboardingStepId>('welcome')
+  const [step, setStep] = useState<OnboardingStepId>(initialCompanyType !== 'OTHER' ? 'generating' : 'welcome')
   const [templateId, setTemplateId] = useState<OnboardingTemplateId>(initialTemplateId)
   const [selectedCompanyType, setSelectedCompanyType] = useState<CompanyType>(initialCompanyType)
   const [form, setForm] = useState<SetupForm>(blankForm)
@@ -204,13 +204,14 @@ export default function SignupOnboardingClient({
   useEffect(() => {
     const saved = readOnboardingProgress<PersistedOnboarding>()
     if (!saved || inviteMode) return
+    if (initialCompanyType !== 'OTHER') return
 
     setStep(saved.step === 'generating' ? 'company-type' : saved.step)
     setTemplateId(saved.templateId)
     setSelectedCompanyType(saved.companyType ?? getTemplate(saved.templateId).companyType)
     setForm(saved.form)
     setInvites(saved.invites)
-  }, [inviteMode])
+  }, [inviteMode, initialCompanyType])
 
   useEffect(() => {
     if (inviteMode) return
