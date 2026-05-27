@@ -30,7 +30,8 @@
     "lint": "eslint",
     "db:migrate": "prisma migrate dev --name init",
     "db:generate": "prisma generate",
-    "db:seed": "tsx prisma/seed.ts"
+    "db:seed": "tsx prisma/seed.ts",
+    "db:seed:ems": "tsx prisma/seed-ems.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.2",

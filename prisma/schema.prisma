@@ -4690,6 +4690,12 @@ model EmsCompany {
   timezone       String   @default("UTC")
   dispatchMode   String   @default("semi_auto") // manual | semi_auto | auto
   defaultRadioChannel String?
+  autoDispatchThreshold Float?  @default(0.6)
+  responseTimeTarget    Int?    @default(480)
+  enableAiClassification Boolean? @default(true)
+  enableAutoDispatch    Boolean? @default(false)
+  enablePredictiveAlerts Boolean? @default(true)
+  settings      Json?    // UI config, preferences, notification prefs
   mciPlanUrl     String?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
