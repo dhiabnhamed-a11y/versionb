@@ -1,7 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { Player } from '@lottiefiles/react-lottie-player'
+import dynamic from 'next/dynamic'
+
+const Player = dynamic(() => import('@lottiefiles/react-lottie-player').then((m) => m.Player), { ssr: false })
 
 interface LottiePlayerProps {
   src: string

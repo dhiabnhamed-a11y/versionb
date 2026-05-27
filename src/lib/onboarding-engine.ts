@@ -11,6 +11,7 @@ export type OnboardingTemplateId =
   | 'CONSTRUCTION'
   | 'FINANCE'
   | 'EDUCATION'
+  | 'EMS'
   | 'OTHER'
 
 export type OnboardingStepId = 'welcome' | 'company-type' | 'generating' | 'setup' | 'plan' | 'team' | 'success'
@@ -309,24 +310,43 @@ export const ONBOARDING_TEMPLATES: Record<OnboardingTemplateId, OnboardingTempla
     suggestions: ['Start with chart of accounts', 'Connect vendors', 'Invite finance lead'],
     whyItMatters: 'ERP Workspace gives you full control over financials, procurement, inventory, and people — all in one platform.',
   },
+  EMS: {
+    id: 'EMS',
+    title: 'EMS Agency',
+    sentence: 'Real-time dispatch, fleet tracking, incident management, hospital coordination, and AI-powered analytics.',
+    icon: 'ambulance',
+    companyType: 'EMS_AGENCY',
+    accent: '#dc2626',
+    softAccent: 'rgba(220, 38, 38, 0.14)',
+    industryDefault: 'Emergency medical services',
+    departments: ['Dispatch', 'Fleet Operations', 'Field Response', 'Hospital Coordination'],
+    workflows: ['Incident dispatch', 'Unit assignment', 'Patient transport', 'Hospital handoff'],
+    assets: ['Incident reports', 'Unit logs', 'Protocol library'],
+    dashboards: ['Command Center', 'Fleet Status', 'Incident Analytics'],
+    copilots: ['Dispatch AI', 'Fleet analyst', 'Incident commander'],
+    automations: ['Auto-dispatch rules', 'Hospital alerting', 'Crew fatigue monitoring'],
+    finance: ['Transport billing', 'Insurance claims', 'Medicare/Medicaid'],
+    suggestions: ['Register your fleet first', 'Set up hospital contacts', 'Invite dispatchers and supervisors'],
+    whyItMatters: 'EMS OS gives your agency real-time visibility, AI-assisted dispatch, and full incident lifecycle management in one mission-control workspace.',
+  },
   OTHER: {
     id: 'OTHER',
     title: 'Other',
-    sentence: 'A flexible AI-generated operating system for projects, tasks, finance, assets, and teams.',
-    icon: 'sparkles',
+    sentence: 'Start with core project management and task features. No specialized setup.',
+    icon: 'layoutDashboard',
     companyType: 'OTHER',
-    accent: '#f472b6',
-    softAccent: 'rgba(244, 114, 182, 0.14)',
-    industryDefault: 'Business operations',
-    departments: ['Operations', 'Finance', 'People', 'Delivery'],
-    workflows: ['Task intake', 'Approval routing', 'Team planning', 'Weekly review'],
-    assets: ['Projects', 'Files', 'Knowledge base', 'Operating docs'],
-    dashboards: ['Team focus', 'Delivery risk', 'Workspace health'],
-    copilots: ['Operations copilot', 'Planning assistant', 'Finance helper'],
-    automations: ['Smart routing', 'Status summaries', 'Reminder loops'],
-    finance: ['Budgets', 'Invoices', 'Expenses'],
-    suggestions: ['Start flexible', 'Invite one operator', 'Add structure as your team grows'],
-    whyItMatters: 'TASKIT can start general and become specialized as it learns how your company works.',
+    accent: '#6b7280',
+    softAccent: 'rgba(107, 114, 128, 0.14)',
+    industryDefault: '',
+    departments: ['General Operations'],
+    workflows: ['General work'],
+    assets: ['Documents'],
+    dashboards: ['Overview'],
+    copilots: [],
+    automations: [],
+    finance: [],
+    suggestions: ['Start with a project structure', 'Add team members later', 'Keep it simple'],
+    whyItMatters: 'You can always add structure and module support later as your team scales.',
   },
 }
 
@@ -341,6 +361,7 @@ export const TEMPLATE_ORDER: OnboardingTemplateId[] = [
   'CONSTRUCTION',
   'FINANCE',
   'EDUCATION',
+  'EMS',
   'OTHER',
 ]
 
@@ -361,6 +382,8 @@ export function getTemplateForCompanyType(companyType: CompanyType): OnboardingT
       return 'IT_OPERATIONS'
     case 'INDUSTRY':
       return 'CONSTRUCTION'
+    case 'EMS_AGENCY':
+      return 'EMS'
     case 'OTHER':
     default:
       return 'OTHER'
