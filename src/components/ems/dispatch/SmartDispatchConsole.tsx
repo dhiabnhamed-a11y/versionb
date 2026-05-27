@@ -6,6 +6,7 @@ import {
   Radio, Target, Navigation, Brain, AlertTriangle, CheckCircle2, XCircle,
   Loader2, Search, MapPin, Clock, Shield, Activity, Zap, Siren, Gauge,
   Filter, ArrowUpDown, Fuel, Users, TrendingUp, Crosshair, Bell, Satellite,
+  Map, Crosshair as CrosshairIcon,
 } from 'lucide-react'
 import EmsLiveMap from './EmsLiveMap'
 import AiRecommendationPanel from './AiRecommendationPanel'
@@ -20,6 +21,8 @@ import {
   type AutoDispatchResult,
 } from '@/lib/api-client/ems-dispatch'
 import { EMS_STATUS_COLORS, EMS_SEVERITY_COLORS } from '@/lib/ems-config'
+import { useGeolocation } from '@/hooks/useGeolocation'
+import { useRealtimeFleet } from '@/hooks/useRealtimeFleet'
 
 type TimelineEvent = {
   id: string
@@ -54,6 +57,9 @@ export default function SmartDispatchConsole() {
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'score' | 'eta' | 'distance'>('score')
   const [radioMessages, setRadioMessages] = useState<RadioMessage[]>([])
+
+  const geo = useGeolocation({ enableHighAccuracy: true, watchMode: true })
+  const { livePositions, connectionState } = useRealtimeFleet(undefined)
 
   const addTimelineEvent = useCallback((type: TimelineEvent['type'], title: string, description: string, critical = false) => {
     setTimelineEvents((prev) => [...prev, { id: crypto.randomUUID(), type, title, description, timestamp: new Date(), critical }])
@@ -174,6 +180,7 @@ export default function SmartDispatchConsole() {
         ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15) }
         input::placeholder { color: #475569 }
         select option { background: #0f0f1a; color: #e2e8f0 }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
       `}</style>
 
       {/* Header */}
@@ -200,6 +207,65 @@ export default function SmartDispatchConsole() {
           </p>
         </div>
       </div>
+
+      {/* Location Status Bar */}
+      <AnimatePresence>
+        {geo.permissionState === 'prompt' && !geo.hasLocation && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            style={{
+              padding: '8px 14px', borderRadius: 8, marginBottom: 12,
+              background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.2)',
+              display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#93c5fd',
+            }}
+          >
+            <MapPin size={13} />
+            <span style={{ flex: 1 }}>Enable location access for live GPS tracking and auto-incident detection</span>
+            <button onClick={geo.requestPermission}
+              style={{
+                padding: '4px 10px', borderRadius: 4, border: 'none',
+                background: 'rgba(59,130,246,0.2)', color: '#60a5fa', fontSize: 10, fontWeight: 600, cursor: 'pointer',
+              }}
+            >Enable GPS</button>
+          </motion.div>
+        )}
+        {geo.permissionState === 'denied' && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            style={{
+              padding: '8px 14px', borderRadius: 8, marginBottom: 12,
+              background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)',
+              display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#fde68a',
+            }}
+          >
+            <CrosshairIcon size={13} />
+            <span style={{ flex: 1 }}>Location access denied. Enable GPS in your browser settings for live tracking.</span>
+          </motion.div>
+        )}
+        {geo.hasLocation && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            style={{
+              padding: '8px 14px', borderRadius: 8, marginBottom: 12,
+              background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)',
+              display: 'flex', alignItems: 'center', gap: 8, fontSize: 11, color: '#86efac',
+            }}
+          >
+            <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block',
+              boxShadow: '0 0 8px #22c55e' }} />
+            <span style={{ flex: 1 }}>
+              Live GPS active · {geo.latitude?.toFixed(4)}, {geo.longitude?.toFixed(4)}
+              {geo.heading ? ` · ${Math.round(geo.heading)}° heading` : ''}
+              {geo.speed != null && geo.speed > 0 ? ` · ${Math.round(geo.speed * 3.6)} km/h` : ''}
+            </span>
+            <span style={{ fontSize: 9, color: '#22c55e', display: 'flex', alignItems: 'center', gap: 3 }}>
+              <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#22c55e', display: 'inline-block',
+                animation: 'pulse 1.5s infinite' }} />
+              {connectionState === 'connected' ? 'FLEET LIVE' : 'LOCAL'}
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Error / Success Alerts */}
       <AnimatePresence>
@@ -487,6 +553,9 @@ export default function SmartDispatchConsole() {
               severity={severity}
               units={units}
               dispatchedUnitId={dispatchedUnitId}
+              userLocation={geo.hasLocation ? { latitude: geo.latitude!, longitude: geo.longitude!, heading: geo.heading } : null}
+              livePositions={livePositions}
+              fleetConnectionState={connectionState}
             />
           ) : (
             <div style={{
