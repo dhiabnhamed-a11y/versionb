@@ -7,7 +7,7 @@ import {
   type CompanyType,
 } from '@/lib/company-types'
 
-export type WorkspaceSurface = 'standard' | 'agency' | 'enterprise' | 'healthcare' | 'erp'
+export type WorkspaceSurface = 'standard' | 'agency' | 'enterprise' | 'healthcare' | 'erp' | 'ems'
 
 export type WorkspaceModuleId =
   | 'overview'
@@ -38,6 +38,17 @@ export type WorkspaceModuleId =
   | 'erpHr'
   | 'erpReports'
   | 'erpSettings'
+  // EMS modules
+  | 'emsCommandCenter'
+  | 'emsDispatch'
+  | 'emsIncidents'
+  | 'emsFleet'
+  | 'emsUnits'
+  | 'emsHospitals'
+  | 'emsCrews'
+  | 'emsAnalytics'
+  | 'emsAutomation'
+  | 'emsProtocols'
 
 export type WorkspaceBlueprint = {
   companyType: CompanyType
@@ -209,6 +220,31 @@ export const WORKSPACE_BLUEPRINTS = {
     aiContext: {
       persona: 'ERP financial operations controller',
       priorities: ['ledger integrity', 'cash forecasting', 'procurement control', 'HR and payroll readiness'],
+    },
+  },
+  EMS_AGENCY: {
+    companyType: 'EMS_AGENCY',
+    surface: 'ems',
+    homePath: '/dashboard/admin/ems',
+    shell: 'dashboard',
+    modules: [
+      'emsCommandCenter',
+      'emsDispatch',
+      'emsIncidents',
+      'emsFleet',
+      'emsUnits',
+      'emsHospitals',
+      'emsCrews',
+      'emsAnalytics',
+      'emsAutomation',
+      'emsProtocols',
+      'tasks',
+      'calendar',
+      'alerts',
+    ],
+    aiContext: {
+      persona: 'EMS operations commander',
+      priorities: ['emergency response time', 'unit availability', 'hospital coordination', 'crew readiness', 'incident resolution'],
     },
   },
   OTHER: {

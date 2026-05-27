@@ -4564,3 +4564,661 @@ model ERPSetupProgress {
   step6Done   Boolean   @default(false)
   completedAt DateTime?
 }
+
+// ══════════════════════════════════════════════════════════════════════════════
+// EMS — Emergency Medical Services Operating System
+// ══════════════════════════════════════════════════════════════════════════════
+
+enum EmsCallSource {
+  PHONE
+  RADIO
+  MOBILE_APP
+  WEBSITE
+  ALERT_SYSTEM
+  AI_DETECTED
+  HOSPITAL_TRANSFER
+  DIRECT_DISPATCH
+}
+
+enum EmsSeverity {
+  ALPHA   // Non-life threatening, minor
+  BRAVO   // Potentially serious
+  CHARLIE // Serious but stable
+  DELTA   // Life-threatening
+  ECHO    // Cardiac arrest / imminent death
+  OMEGA   // Mass casualty / disaster
+}
+
+enum EmsIncidentStatus {
+  PENDING
+  DISPATCHED
+  EN_ROUTE
+  ON_SCENE
+  TRANSPORTING
+  AT_HOSPITAL
+  COMPLETED
+  CANCELLED
+  STANDBY
+  ESCALATED
+}
+
+enum EmsUnitStatus {
+  AVAILABLE
+  DISPATCHED
+  EN_ROUTE
+  ON_SCENE
+  TRANSPORTING
+  AT_HOSPITAL
+  DECONTAMINATION
+  MAINTENANCE
+  OFFLINE
+  RESERVE
+}
+
+enum EmsUnitType {
+  AMBULANCE
+  ALS_AMBULANCE   // Advanced Life Support
+  BLS_AMBULANCE   // Basic Life Support
+  MICU            // Mobile ICU
+  RESPONSE_VEHICLE
+  AIR_AMBULANCE
+  SUPERVISOR
+  MASS_CASUALTY_BUS
+  REHAB_UNIT
+  COMMAND_VEHICLE
+  MOTORCYCLE_RESPONSE
+}
+
+enum EmsDispatchDecision {
+  AI_SUGGESTED
+  AI_AUTO_DISPATCH
+  DISPATCHER_MANUAL
+  SUPERVISOR_OVERRIDE
+  CREW_SELF_ASSIGN
+}
+
+enum EmsHospitalStatus {
+  OPEN
+  DIVERT
+  CONTAINMENT
+  FULL
+  CLOSED
+}
+
+enum EmsHospitalCapability {
+  LEVEL_1_TRAUMA
+  LEVEL_2_TRAUMA
+  LEVEL_3_TRAUMA
+  LEVEL_4_TRAUMA
+  STROKE_CENTER
+  CARDIAC_CENTER
+  BURN_CENTER
+  PEDIATRIC
+  NEONATAL_ICU
+  DECONTAMINATION
+}
+
+enum EmsAssignmentStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  TRANSFERRED
+}
+
+enum EmsPatientStatus {
+  STABLE
+  MODERATE
+  CRITICAL
+  DECEASED
+  TRANSPORTED
+  RELEASED
+}
+
+enum EmsTriageCategory {
+  IMMEDIATE
+  DELAYED
+  MINIMAL
+  EXPECTANT
+  UNKNOWN
+}
+
+model EmsCompany {
+  id             String   @id @default(cuid())
+  companyId      String   @unique
+  regionCode     String?  // e.g. "US-CA-01"
+  timezone       String   @default("UTC")
+  dispatchMode   String   @default("semi_auto") // manual | semi_auto | auto
+  defaultRadioChannel String?
+  mciPlanUrl     String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  units          EmsUnit[]
+  incidents      EmsIncident[]
+  stations       EmsStation[]
+  hospitals      EmsHospital[]
+  dispatchers    EmsDispatcher[]
+  crews          EmsCrew[]
+  protocols      EmsProtocol[]
+  automation     EmsAutomationRule[]
+  supplyStocks   EmsSupplyStock[]
+  notifications  EmsNotification[]
+  analytics      EmsAnalytics[]
+}
+
+model EmsStation {
+  id          String          @id @default(cuid())
+  companyId   String
+  name        String
+  code        String?         // Station identifier e.g. "S12"
+  lat         Float
+  lng         Float
+  address     String?
+  phone       String?
+  type        String          @default("primary") // primary | substation | staging
+  capacity    Int             @default(10)
+  status      EmsUnitStatus   @default(AVAILABLE)
+  coverage    Json?           // Polygon geometry for coverage zone
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  company     EmsCompany      @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  units       EmsUnit[]
+}
+
+model EmsUnit {
+  id              String        @id @default(cuid())
+  companyId       String
+  unitNumber      String        // e.g. "A-12", "MICU-3"
+  type            EmsUnitType   @default(AMBULANCE)
+  status          EmsUnitStatus @default(AVAILABLE)
+  stationId       String?
+  lat             Float?
+  lng             Float?
+  heading         Float?        // compass bearing
+  speed           Float?        // km/h
+  fuelLevel       Float?        // percentage
+  odometer        Float?        // km
+  crewCapacity    Int           @default(2)
+  patientCapacity Int           @default(1)
+  equipment       Json?         // Equipment inventory on board
+  capabilities    Json?         // Medical capability flags
+  lastGpsUpdate   DateTime?
+  lastPing        DateTime?
+  isOnline        Boolean       @default(true)
+  batteryLevel    Float?        // tablet battery %
+  currentIncidentId String?
+  shiftId         String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  company         EmsCompany    @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  station         EmsStation?   @relation(fields: [stationId], references: [id])
+  currentIncident EmsIncident?  @relation("UnitOnIncident", fields: [currentIncidentId], references: [id])
+  assignments     EmsAssignment[]
+  crewMembers     EmsCrewMember[]
+  maintenanceLogs EmsUnitMaintenance[]
+  locations       EmsUnitLocation[]
+  supplies        EmsSupplyStock[]
+
+  @@index([companyId, status])
+  @@index([companyId, stationId])
+}
+
+model EmsUnitLocation {
+  id        String   @id @default(cuid())
+  unitId    String
+  lat       Float
+  lng       Float
+  heading   Float?
+  speed     Float?
+  accuracy  Float?   // GPS accuracy in meters
+  source    String   @default("gps") // gps | network | manual
+  recordedAt DateTime @default(now())
+
+  unit      EmsUnit  @relation(fields: [unitId], references: [id], onDelete: Cascade)
+
+  @@index([unitId, recordedAt])
+  @@index([recordedAt])
+}
+
+model EmsCrew {
+  id             String   @id @default(cuid())
+  companyId      String
+  name           String
+  code           String?  // Crew identifier
+  type           String   @default("ALS") // ALS | BLS | MICU | FLIGHT
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  company        EmsCompany @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  members        EmsCrewMember[]
+}
+
+model EmsCrewMember {
+  id         String   @id @default(cuid())
+  crewId     String
+  userId     String
+  unitId     String?
+  role       String   // paramedic | emt | driver | supervisor | doctor | nurse
+  certified  Boolean  @default(true)
+  fatigue    Float?   // 0-100 fatigue score
+  status     String   @default("available") // available | on_call | off_duty | sick | training
+  joinedAt   DateTime @default(now())
+
+  crew       EmsCrew  @relation(fields: [crewId], references: [id], onDelete: Cascade)
+  unit       EmsUnit? @relation(fields: [unitId], references: [id])
+
+  @@unique([crewId, userId])
+}
+
+model EmsDispatcher {
+  id        String   @id @default(cuid())
+  companyId String
+  userId    String
+  consoleId String?  // Station console identifier
+  status    String   @default("offline") // online | busy | offline | break
+  isPrimary Boolean  @default(false)
+  lastPing  DateTime?
+  createdAt DateTime @default(now())
+
+  company   EmsCompany @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+}
+
+model EmsHospital {
+  id              String                   @id @default(cuid())
+  companyId       String
+  name            String
+  code            String?                  // Hospital identifier
+  lat             Float
+  lng             Float
+  address         String?
+  phone           String?
+  edPhone         String?                  // ED direct line
+  status          EmsHospitalStatus        @default(OPEN)
+  capabilities    EmsHospitalCapability[]
+  traumaLevel     Int?                     // 1-4
+  bedCount        Int                      @default(0)
+  availableBeds   Int                      @default(0)
+  icuBeds         Int                      @default(0)
+  availableIcu    Int                      @default(0)
+  waitTimeMinutes Int?                     // Current ED wait
+  diversionInfo   String?                  // Reason for diversion
+  lastUpdated     DateTime                 @default(now())
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  company         EmsCompany               @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  incidents       EmsIncident[]            @relation("HospitalDestination")
+  notifications   EmsNotification[]
+
+  @@index([companyId, status])
+}
+
+model EmsIncident {
+  id              String               @id @default(cuid())
+  companyId       String
+  incidentNumber  String               @unique   // e.g. "INC-2026-05-27-001"
+  callSource      EmsCallSource        @default(PHONE)
+  severity        EmsSeverity          @default(ALPHA)
+  status          EmsIncidentStatus    @default(PENDING)
+  triage          EmsTriageCategory?
+
+  // Location
+  lat             Float?
+  lng             Float?
+  address         String?
+  locationDetails String?              // Apt, floor, landmark
+  zone            String?              // Dispatch zone / sector
+
+  // Caller
+  callerName      String?
+  callerPhone     String?
+  callerNotes     String?
+
+  // Timeline
+  calledAt        DateTime?
+  dispatchedAt    DateTime?
+  enRouteAt       DateTime?
+  onSceneAt       DateTime?
+  transportingAt  DateTime?
+  atHospitalAt    DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  cancellationReason String?
+
+  // Medical
+  chiefComplaint  String?
+  symptoms        String?
+  mechanismOfInjury String?
+  patientCount    Int                  @default(1)
+  aiSeverityScore Float?               // AI confidence 0-1
+  aiSummary       String?              // AI-generated incident summary
+  aiClassification String?             // AI classified incident type
+
+  // Dispatch
+  dispatchDecision EmsDispatchDecision?
+  dispatchNotes    String?
+  priority         Int                  @default(3) // 1=critical .. 5=minor
+  etaSeconds       Int?                 // Calculated ETA
+  distanceKm       Float?               // Distance to scene
+
+  // Hospital
+  hospitalId       String?
+  hospitalEtaSeconds Int?
+
+  // Operations
+  assignedUnitId   String?
+  createdById      String?
+  weather          Json?                // Weather at scene
+  traffic          Json?                // Traffic conditions
+  metadata         Json?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  // Relations
+  company          EmsCompany           @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  assignedUnit     EmsUnit?             @relation("UnitOnIncident", fields: [assignedUnitId], references: [id])
+  hospital         EmsHospital?         @relation("HospitalDestination", fields: [hospitalId], references: [id])
+  assignments      EmsAssignment[]
+  patients         EmsPatient[]
+  timeline         EmsIncidentTimeline[]
+  communications  EmsCommunication[]
+  media            EmsIncidentMedia[]
+  notes            EmsIncidentNote[]
+  aiDecisions      EmsAiDecision[]
+  dispatchLog      EmsDispatchLog[]
+  workflows        EmsWorkflowExecution[]
+
+  @@index([companyId, status])
+  @@index([companyId, createdAt])
+  @@index([severity])
+  @@index([assignedUnitId])
+}
+
+model EmsAssignment {
+  id              String                @id @default(cuid())
+  incidentId      String
+  unitId          String
+  status          EmsAssignmentStatus   @default(ACTIVE)
+  role            String?               // primary | backup | supervisor | transport
+  assignedAt      DateTime              @default(now())
+  acceptedAt      DateTime?
+  completedAt     DateTime?
+  cancelledAt     DateTime?
+  cancellationReason String?
+  etaSeconds      Int?
+  distanceKm      Float?
+
+  incident        EmsIncident           @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  unit            EmsUnit               @relation(fields: [unitId], references: [id])
+
+  @@index([incidentId])
+  @@index([unitId])
+}
+
+model EmsPatient {
+  id              String              @id @default(cuid())
+  incidentId      String
+  patientNumber   Int                 @default(1) // Patient number in multi-casualty
+  name            String?
+  age             Int?
+  gender          String?
+  bloodType       String?
+  status          EmsPatientStatus    @default(STABLE)
+  triage          EmsTriageCategory?
+  chiefComplaint  String?
+  symptoms        String?             // Semi-colon delimited
+  medicalHistory  String?
+  allergies       String?
+  medications     String?
+  vitals          Json?               // Array of vitals snapshots
+  ecgUrl          String?
+  ecgInterpretation String?
+  aiAssessment    String?             // AI-generated assessment
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  incident        EmsIncident         @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+}
+
+model EmsIncidentTimeline {
+  id          String   @id @default(cuid())
+  incidentId  String
+  eventType   String   // dispatched | arrived | vitals_recorded | hospital_notified | etc
+  title       String
+  description String?
+  actorId     String?  // User who performed action
+  metadata    Json?
+  recordedAt  DateTime @default(now())
+
+  incident    EmsIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId, recordedAt])
+}
+
+model EmsCommunication {
+  id          String   @id @default(cuid())
+  incidentId  String
+  channel     String   @default("radio") // radio | phone | chat | system
+  fromUserId  String?
+  toUserId    String?
+  fromUnitId  String?
+  toUnitId    String?
+  messageType String   @default("voice") // voice | text | data | alert
+  content     String?
+  duration    Int?     // For voice: seconds
+  transcript  String?  // AI-transcribed text
+  aiSummary   String?
+  recordedAt  DateTime @default(now())
+
+  incident    EmsIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId, recordedAt])
+}
+
+model EmsIncidentMedia {
+  id          String   @id @default(cuid())
+  incidentId  String
+  type        String   // image | video | audio | document | ecg
+  url         String
+  thumbnailUrl String?
+  uploadedById String?
+  description String?
+  metadata    Json?    // Size, format, duration, etc
+  createdAt   DateTime @default(now())
+
+  incident    EmsIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+}
+
+model EmsIncidentNote {
+  id          String   @id @default(cuid())
+  incidentId  String
+  authorId    String
+  content     String
+  isPrivate   Boolean  @default(false)
+  pinned      Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  incident    EmsIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+}
+
+model EmsDispatchLog {
+  id              String               @id @default(cuid())
+  incidentId      String
+  action          String               // dispatched | rerouted | escalated | cancelled
+  dispatchedUnitIds String[]            // Unit IDs involved
+  decisionType    EmsDispatchDecision   @default(DISPATCHER_MANUAL)
+  aiConfidence    Float?
+  aiReasoning     String?              // Explainable AI reasoning
+  dispatcherId    String?
+  supervisorId    String?
+  responseTime    Int?                 // Seconds from call to dispatch
+  metadata        Json?
+  createdAt       DateTime             @default(now())
+
+  incident        EmsIncident          @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+}
+
+model EmsAiDecision {
+  id          String   @id @default(cuid())
+  incidentId  String
+  decisionType String  // severity_classification | unit_recommendation | hospital_recommendation | route_optimization | ets_prediction
+  input       Json?
+  output      Json?
+  confidence  Float?
+  reasoning   String?
+  modelVersion String?
+  accepted    Boolean? // Was the AI decision accepted by human?
+  createdAt   DateTime @default(now())
+
+  incident    EmsIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId, decisionType])
+}
+
+model EmsUnitMaintenance {
+  id          String   @id @default(cuid())
+  unitId      String
+  type        String   // scheduled | repair | inspection | decontamination
+  description String
+  status      String   @default("pending") // pending | in_progress | completed
+  startedAt   DateTime?
+  completedAt DateTime?
+  notes       String?
+  createdAt   DateTime @default(now())
+
+  unit        EmsUnit  @relation(fields: [unitId], references: [id], onDelete: Cascade)
+}
+
+model EmsProtocol {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  code        String?  // Protocol code e.g. "MCI-01"
+  type        String   // medical | operational | mci | hazmat | evacuation
+  severity    EmsSeverity?
+  content     Json?    // Structured protocol steps
+  pdfUrl      String?
+  isActive    Boolean  @default(true)
+  version     Int      @default(1)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     EmsCompany @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+}
+
+model EmsAutomationRule {
+  id          String   @id @default(cuid())
+  companyId   String
+  name        String
+  description String?
+  trigger     String   // incident_created | severity_changed | unit_available | etc
+  conditions  Json?    // Rule conditions (JSON logic)
+  actions     Json     // Array of actions to execute
+  isActive    Boolean  @default(true)
+  priority    Int      @default(0)
+  lastTriggeredAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     EmsCompany @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+}
+
+model EmsWorkflowExecution {
+  id          String   @id @default(cuid())
+  incidentId  String
+  ruleId      String?
+  status      String   @default("running") // pending | running | completed | failed
+  steps       Json?    // Execution steps and their states
+  startedAt   DateTime @default(now())
+  completedAt DateTime?
+
+  incident    EmsIncident       @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  rule        EmsAutomationRule? @relation(fields: [ruleId], references: [id])
+}
+
+model EmsSupplyStock {
+  id          String   @id @default(cuid())
+  companyId   String
+  unitId      String?
+  itemName    String
+  category    String   // medical | equipment | drug | consumable
+  quantity    Int      @default(0)
+  minQuantity Int      @default(10)
+  unitPrice   Float?
+  lotNumber   String?
+  expiryDate  DateTime?
+  lastRestocked DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  company     EmsCompany @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  unit        EmsUnit?   @relation(fields: [unitId], references: [id])
+}
+
+model EmsNotification {
+  id          String   @id @default(cuid())
+  companyId   String
+  incidentId  String?
+  hospitalId  String?
+  type        String   // dispatch_alert | hospital_notify | mass_notification | status_update | escalation
+  title       String
+  message     String
+  channel     String   @default("push") // push | sms | email | radio | all
+  recipients  Json?    // Array of user IDs or device tokens
+  sentAt      DateTime?
+  readBy      Json?    // User IDs who read it
+  createdAt   DateTime @default(now())
+
+  company     EmsCompany  @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  incident    EmsIncident? @relation(fields: [incidentId], references: [id])
+  hospital    EmsHospital? @relation(fields: [hospitalId], references: [id])
+}
+
+model EmsAnalytics {
+  id          String   @id @default(cuid())
+  companyId   String   @unique
+  date        DateTime @default(now())
+  totalIncidentsToday Int @default(0)
+  activeIncidents    Int @default(0)
+  avgResponseTime    Float?  // seconds
+  avgOnSceneTime     Float?  // seconds
+  avgTransportTime   Float?  // seconds
+  unitsAvailable     Int @default(0)
+  unitsInService     Int @default(0)
+  hospitalsOnDivert  Int @default(0)
+  peakHour           Int?
+  mciCount           Int @default(0)
+  aiDispatches       Int @default(0)
+  autoDispatches     Int @default(0)
+  metadata           Json?
+  updatedAt          DateTime @updatedAt
+
+  company            EmsCompany @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+}
+
+model EmsPredictiveZone {
+  id          String   @id @default(cuid())
+  companyId   String
+  zoneName    String
+  lat         Float
+  lng         Float
+  radiusKm    Float    @default(1.0)
+  riskScore   Float?   // Current incident risk 0-1
+  incidentCount Int   @default(0)
+  lastIncidentAt DateTime?
+  forecast    Json?    // Predicted incidents in next N hours
+  active      Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+  createdAt   DateTime @default(now())
+
+  company     EmsCompany @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+
+  @@index([companyId, active])
+}

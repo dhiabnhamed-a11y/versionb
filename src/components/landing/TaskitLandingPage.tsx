@@ -37,6 +37,7 @@ import {
   Zap,
   Infinity,
   Users,
+  Ambulance,
   type LucideIcon,
 } from 'lucide-react'
 import styles from './TaskitLandingPage.module.css'
@@ -292,6 +293,16 @@ const workflowTypePresentation = {
     audience: 'Finance, operations, HR, and inventory teams',
     focus: 'Full ERP suite: GL, AR/AP, budgets, procurement, inventory, HR, and compliance',
     flow: ['Command Center', 'Finance', 'Operations'],
+  },
+  EMS_AGENCY: {
+    icon: Ambulance,
+    eyebrow: 'EMS & emergency',
+    accent: '#dc2626',
+    surface: 'rgba(220, 38, 38, 0.1)',
+    outline: 'rgba(220, 38, 38, 0.22)',
+    audience: 'EMS agencies, fire departments, hospital networks, emergency operations centers',
+    focus: 'Real-time dispatch, fleet tracking, incident management, and hospital coordination',
+    flow: ['Command Center', 'Dispatch', 'Incidents', 'Analytics'],
   },
   OTHER: {
     icon: Layers3,

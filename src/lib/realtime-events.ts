@@ -73,6 +73,20 @@ export const REALTIME_EVENTS = [
   'social_metrics_updated',
   'social_insight_created',
   'social_webhook_processed',
+  // EMS events
+  'ems:incident:created',
+  'ems:incident:updated',
+  'ems:incident:status_changed',
+  'ems:unit:position',
+  'ems:unit:status',
+  'ems:unit:assigned',
+  'ems:hospital:status',
+  'ems:hospital:alert',
+  'ems:dispatch:decision',
+  'ems:ai:insight',
+  'ems:predictive:alert',
+  'ems:system:alert',
+  'ems:workflow:triggered',
 ] as const
 
 export type RealtimeEventName = (typeof REALTIME_EVENTS)[number]

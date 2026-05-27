@@ -7,6 +7,7 @@ export const COMPANY_TYPE_VALUES = [
   'CLINIC_HOSPITAL',
   'CORPORATE_IT_OPERATIONS',
   'ERP_WORKSPACE',
+  'EMS_AGENCY',
   'OTHER',
 ] as const
 
@@ -204,6 +205,27 @@ export const COMPANY_TYPE_CONFIG = {
     groupLabel: 'Module',
     groupPluralLabel: 'Modules',
     workspaceLabel: 'ERP workspace',
+  },
+  EMS_AGENCY: {
+    label: 'EMS Agency',
+    slug: 'ems-agency',
+    title: 'Emergency Medical Services command center for dispatch, fleet, and incident management.',
+    description:
+      'For EMS agencies, fire departments, hospital networks, and emergency operations centers that need real-time dispatch, fleet tracking, and incident coordination.',
+    bullets: ['Track incidents with severity-based dispatch', 'Manage ambulance fleet with live GPS', 'Coordinate with hospitals in real-time', 'AI-assisted dispatch and predictive analytics', 'Offline-capable mobile responder app'],
+    signupTitle: 'Launch your EMS Operations Center.',
+    signupDescription:
+      'Dispatch units, track fleet in real-time, manage incidents, and connect with hospitals — all in one mission-control workspace.',
+    overviewTitle: 'EMS Command Center with real-time dispatch, fleet tracking, and incident operations.',
+    overviewDescription:
+      'Built for emergency medical services that need a full-operations platform with AI-assisted dispatch, live unit tracking, hospital coordination, and offline-capable field operations.',
+    projectLabel: 'Operation',
+    projectPluralLabel: 'Operations',
+    taskLabel: 'Task',
+    taskPluralLabel: 'Tasks',
+    groupLabel: 'Station',
+    groupPluralLabel: 'Stations',
+    workspaceLabel: 'EMS Operations Center',
   },
   OTHER: {
     label: 'Other',
