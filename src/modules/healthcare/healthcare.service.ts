@@ -14,6 +14,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from '@/lib/db'
+import { badRequest, notFound } from '@/modules/shared/errors'
 
 export interface HealthcareDashboardMetrics {
   // Patient metrics
@@ -289,12 +290,12 @@ export class HealthcareService {
   }
 
   static async createShift(companyId: string, input: any) {
+    if (!companyId) throw badRequest('Company is required')
+    if (!String(input.name || '').trim()) throw badRequest('Shift name is required')
     const startsAt = new Date(input.startsAt)
     const endsAt = new Date(input.endsAt)
-    if (!companyId) throw new Error('Company is required')
-    if (!String(input.name || '').trim()) throw new Error('Shift name is required')
-    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) throw new Error('Valid shift start and end times are required')
-    if (endsAt.getTime() <= startsAt.getTime()) throw new Error('Shift end time must be after the start time')
+    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) throw badRequest('Valid shift start and end times are required')
+    if (endsAt.getTime() <= startsAt.getTime()) throw badRequest('Shift end time must be after the start time')
 
     const payload = {
       companyId,
@@ -312,7 +313,7 @@ export class HealthcareService {
 
   static async updateShift(companyId: string, id: string, input: any) {
     const existing = await prisma.enterpriseShift.findUnique({ where: { id } })
-    if (!existing || existing.companyId !== companyId) throw new Error('Not found')
+    if (!existing || existing.companyId !== companyId) throw notFound('Shift not found')
     const data: any = {}
     if (input.name !== undefined) data.name = String(input.name)
     if (input.department !== undefined) data.department = input.department
@@ -328,7 +329,7 @@ export class HealthcareService {
 
   static async deleteShift(companyId: string, id: string) {
     const existing = await prisma.enterpriseShift.findUnique({ where: { id } })
-    if (!existing || existing.companyId !== companyId) throw new Error('Not found')
+    if (!existing || existing.companyId !== companyId) throw notFound('Shift not found')
     await prisma.enterpriseShift.delete({ where: { id } })
     return { success: true }
   }
