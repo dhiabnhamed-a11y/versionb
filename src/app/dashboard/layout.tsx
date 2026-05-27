@@ -1,7 +1,7 @@
 import { redirect } from 'next/navigation'
 import { SessionProvider } from 'next-auth/react'
 import { auth } from '@/lib/auth'
-import { isHealthcareCompanyType, normalizeCompanyType } from '@/lib/company-types'
+import { isEmsCompanyType, isHealthcareCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { getUserDashboardDesignSettings, getUserLanguageSettings, getWorkspaceThemeSettings } from '@/lib/settings'
 import DashboardLayout from './layout-client'
 import HealthcareSidebar from '@/components/healthcare/HealthcareSidebar'
@@ -26,6 +26,7 @@ export default async function DashboardRootLayout({ children }: { children: Reac
 
   const companyType = normalizeCompanyType(session.user.companyType)
   const isHealthcare = isHealthcareCompanyType(companyType)
+  const isEms = isEmsCompanyType(companyType)
   const isSuperAdmin = session.user.role === 'SUPER_ADMIN'
 
   // Healthcare workspaces get a completely different shell
@@ -38,6 +39,21 @@ export default async function DashboardRootLayout({ children }: { children: Reac
           <HealthcareSidebar initialLocale={initialLanguage.locale}>
             {children}
           </HealthcareSidebar>
+          <AlertReceiver userId={session.user.id} />
+          <AiOperationsAssistant disabled={false} />
+        </LocaleProvider>
+      </SessionProvider>
+    )
+  }
+
+  // EMS workspaces get their own dedicated shell (sidebar handled by ems/layout.tsx)
+  if (isEms && !isSuperAdmin) {
+    return (
+      <SessionProvider>
+        <LocaleProvider initialLocale={initialLanguage.locale}>
+          <WorkspaceThemeProvider settings={initialThemeSettings} userDesign={initialUserDesign} />
+          <PushNotificationBootstrap userId={session.user.id} />
+          {children}
           <AlertReceiver userId={session.user.id} />
           <AiOperationsAssistant disabled={false} />
         </LocaleProvider>

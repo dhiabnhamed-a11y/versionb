@@ -332,6 +332,10 @@ export function isErpWorkspaceType(type?: CompanyType | string | null) {
   return normalizeCompanyType(type) === 'ERP_WORKSPACE'
 }
 
+export function isEmsCompanyType(type?: CompanyType | string | null) {
+  return normalizeCompanyType(type) === 'EMS_AGENCY'
+}
+
 export const DELIVERABLE_TYPE_OPTIONS = [
   { value: 'GENERAL', label: 'General work' },
   { value: 'IMAGE', label: 'Image' },
