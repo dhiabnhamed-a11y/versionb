@@ -1,9 +1,12 @@
-// @ts-nocheck — depends on prisma generate for Ems* models
 import type { NextRequest } from 'next/server'
-import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
+import { apiData as _apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { prisma } from '@/lib/db'
 
 export const runtime = 'nodejs'
+
+function apiData(data: any, opts?: any) {
+  return _apiData(data, opts)
+}
 
 export async function GET(req: NextRequest) {
   return handleApiRoute(req, undefined, async ({ user }) => {
@@ -19,7 +22,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function PUT(req: NextRequest) {
-  return handleApiRoute(req, undefined, async ({ user }) => {
+  return handleApiRoute(req, undefined, async ({ user }: any) => {
     const companyId = user.companyId || ''
     const body = await parseJsonObject(req)
     const allowed = [

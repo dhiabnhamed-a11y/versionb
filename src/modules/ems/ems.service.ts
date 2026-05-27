@@ -1,4 +1,3 @@
-// @ts-nocheck — depends on prisma generate for Ems* models
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { prisma } from '@/lib/db'
 import { badRequest, notFound, conflict } from '@/modules/shared/errors'
@@ -304,7 +303,6 @@ export class EmsService {
       where: { companyId },
       include: {
         station: true,
-        currentIncident: true,
         crewMembers: { include: { crew: true } },
         _count: { select: { supplies: true } },
       },

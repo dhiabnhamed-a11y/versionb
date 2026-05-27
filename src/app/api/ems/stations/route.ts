@@ -1,4 +1,3 @@
-// @ts-nocheck — depends on prisma generate for Ems* models
 import type { NextRequest } from 'next/server'
 import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { prisma } from '@/lib/db'

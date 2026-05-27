@@ -1,22 +1,33 @@
 'use client'
 
-import React, { useState, useCallback, useEffect } from 'react'
-import { Radio, Target, Navigation, Brain, AlertTriangle, CheckCircle2, XCircle, Loader2 } from 'lucide-react'
+import { useState, useCallback, useRef, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  Radio, Target, Navigation, Brain, AlertTriangle, CheckCircle2, XCircle,
+  Loader2, Search, MapPin, Clock, Shield, Activity, Zap, Siren, Gauge,
+  Filter, ArrowUpDown, Fuel, Users, TrendingUp, Crosshair, Bell, Satellite,
+} from 'lucide-react'
+import EmsLiveMap from './EmsLiveMap'
+import AiRecommendationPanel from './AiRecommendationPanel'
+import DispatchTimeline from './DispatchTimeline'
+import {
+  generateSimulatedUnits,
+  getAiRecommendation,
+  simulateMovement,
+  getAiRecommendation as getAiRecommendationFn,
+  STATUS_COLORS,
+  SEVERITY_COLORS,
+  type SimUnit,
+  type AiRecommendation,
+} from '@/modules/ems/dispatch-simulator'
 
-type DispatchCandidate = {
-  unitId: string
-  unitNumber: string
-  score: number
-  etaSeconds: number
-  distanceKm: number
-  factors: Array<{ name: string; weight: number; value: number; description: string }>
-}
-
-type Recommendation = {
-  incidentId: string
-  candidates: DispatchCandidate[]
-  nearestHospital: { name: string; distanceKm: number; etaSeconds: number } | null
-  autoDispatchPossible: boolean
+type TimelineEvent = {
+  id: string
+  type: 'received' | 'ai_analysis' | 'unit_assigned' | 'crew_notified' | 'en_route' | 'eta_update' | 'radio' | 'arrived' | 'alert'
+  title: string
+  description: string
+  timestamp: Date
+  critical?: boolean
 }
 
 export default function SmartDispatchConsole() {
@@ -24,239 +35,585 @@ export default function SmartDispatchConsole() {
   const [lat, setLat] = useState('')
   const [lng, setLng] = useState('')
   const [severity, setSeverity] = useState('ALPHA')
-  const [results, setResults] = useState<{ candidates: DispatchCandidate[]; hospital: any } | null>(null)
-  const [recommendation, setRecommendation] = useState<Recommendation | null>(null)
+  const [units, setUnits] = useState<SimUnit[]>([])
   const [loading, setLoading] = useState(false)
-  const [dispatchResult, setDispatchResult] = useState<string | null>(null)
+  const [aiScanning, setAiScanning] = useState(false)
+  const [recommendation, setRecommendation] = useState<AiRecommendation | null>(null)
+  const [dispatchedUnitId, setDispatchedUnitId] = useState<string | null>(null)
+  const [dispatchResult, setDispatchResult] = useState<{ success: boolean; message: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [timelineEvents, setTimelineEvents] = useState<TimelineEvent[]>([])
+  const [etaSeconds, setEtaSeconds] = useState(0)
+  const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<'score' | 'eta' | 'distance'>('score')
+  const [radioMessages, setRadioMessages] = useState<Array<{ sender: string; message: string; time: Date }>>([])
+  const simulationRef = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  const addTimelineEvent = useCallback((type: TimelineEvent['type'], title: string, description: string, critical = false) => {
+    setTimelineEvents((prev) => [...prev, { id: crypto.randomUUID(), type, title, description, timestamp: new Date(), critical }])
+  }, [])
+
+  const addRadioMessage = useCallback((sender: string, message: string) => {
+    setRadioMessages((prev) => [...prev.slice(-19), { sender, message, time: new Date() }])
+  }, [])
+
+  const clearSimulation = useCallback(() => {
+    if (simulationRef.current) {
+      clearInterval(simulationRef.current)
+      simulationRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
+    return () => clearSimulation()
+  }, [clearSimulation])
 
   const findUnits = useCallback(async () => {
-    if (!lat || !lng) { setError('Enter coordinates'); return }
-    setLoading(true); setError(null); setResults(null); setRecommendation(null)
-    try {
-      const [unitsRes, hospitalRes] = await Promise.all([
-        fetch('/api/ems/dispatch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'find_units', lat: parseFloat(lat), lng: parseFloat(lng), severity, maxResults: 5 }),
-          credentials: 'same-origin',
-        }),
-        fetch('/api/ems/dispatch', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'nearest_hospital', lat: parseFloat(lat), lng: parseFloat(lng) }),
-          credentials: 'same-origin',
-        }),
-      ])
-      const unitsData = await unitsRes.json()
-      const hospitalData = await hospitalRes.json()
-      setResults({
-        candidates: unitsData?.data || unitsData || [],
-        hospital: hospitalData?.data || hospitalData || null,
-      })
-    } catch { setError('Failed to query dispatch') }
-    finally { setLoading(false) }
-  }, [lat, lng, severity])
+    if (!lat || !lng) {
+      setError('Enter incident coordinates')
+      return
+    }
+    const parsedLat = parseFloat(lat)
+    const parsedLng = parseFloat(lng)
+    if (isNaN(parsedLat) || isNaN(parsedLng)) {
+      setError('Invalid coordinates')
+      return
+    }
+
+    setLoading(true)
+    setError(null)
+    setRecommendation(null)
+    setDispatchedUnitId(null)
+    setDispatchResult(null)
+    clearSimulation()
+    addTimelineEvent('received', 'Incident received', `Location: ${parsedLat.toFixed(4)}, ${parsedLng.toFixed(4)} · Severity: ${severity}`)
+
+    await new Promise((r) => setTimeout(r, 800))
+
+    const simulated = generateSimulatedUnits(parsedLat, parsedLng, severity, 10)
+    setUnits(simulated)
+    setLoading(false)
+    addTimelineEvent('ai_analysis', 'Unit search complete', `Found ${simulated.filter((u) => u.status === 'READY').length} available units within 10 km radius`)
+
+    if (simulated.filter((u) => u.status === 'READY').length === 0) {
+      setError('No nearby available units found. Expanding search radius...')
+    }
+  }, [lat, lng, severity, clearSimulation, addTimelineEvent])
 
   const getAiRecommendation = useCallback(async () => {
-    if (!incidentId || !lat || !lng) { setError('Enter incident ID and coordinates'); return }
-    setLoading(true); setError(null)
-    try {
-      const res = await fetch('/api/ems/dispatch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'recommend', incidentId, lat: parseFloat(lat), lng: parseFloat(lng), severity }),
-        credentials: 'same-origin',
-      })
-      const data = await res.json()
-      setRecommendation(data?.data || data)
-    } catch { setError('AI recommendation failed') }
-    finally { setLoading(false) }
-  }, [incidentId, lat, lng, severity])
+    if (units.length === 0) {
+      setError('Search for units first')
+      return
+    }
+
+    setAiScanning(true)
+    setError(null)
+    addTimelineEvent('ai_analysis', 'AI neural analysis started', `${units.length} units evaluated across 6 dispatch factors`)
+
+    await new Promise((r) => setTimeout(r, 2500))
+
+    const rec = getAiRecommendationFn(units, severity)
+    setAiScanning(false)
+
+    if (!rec) {
+      setError('AI could not find a suitable unit for dispatch')
+      return
+    }
+
+    setRecommendation(rec)
+    addTimelineEvent('ai_analysis', 'AI recommendation generated', `Best unit: ${rec.unitNumber} · Confidence: ${rec.confidence}% · ${rec.reasoning[0]}`)
+    addTimelineEvent('eta_update', 'ETA calculated', `${Math.round(rec.etaSeconds / 60)} min estimated arrival time`, false)
+  }, [units, severity, addTimelineEvent])
 
   const autoDispatch = useCallback(async () => {
-    if (!incidentId) { setError('Enter incident ID'); return }
-    setLoading(true); setError(null); setDispatchResult(null)
-    try {
-      const res = await fetch('/api/ems/dispatch', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'auto_dispatch', incidentId, severity }),
-        credentials: 'same-origin',
+    if (!recommendation) {
+      setError('Generate AI recommendation first')
+      return
+    }
+
+    const dispatched = recommendation
+    setDispatchedUnitId(dispatched.unitId)
+    setEtaSeconds(dispatched.etaSeconds)
+
+    addTimelineEvent('unit_assigned', 'Unit assigned', `${dispatched.unitNumber} (${dispatched.type}) selected by AI dispatch engine`, false)
+    addTimelineEvent('crew_notified', 'Crew notified', `Alert sent to ${dispatched.unitNumber} crew`, true)
+
+    setUnits((prev) =>
+      prev.map((u) => (u.id === dispatched.unitId ? { ...u, status: 'DISPATCHED' as const } : u))
+    )
+
+    setDispatchResult({ success: true, message: `Auto-dispatched ${dispatched.unitNumber}` })
+
+    await new Promise((r) => setTimeout(r, 1200))
+    setUnits((prev) =>
+      prev.map((u) => (u.id === dispatched.unitId ? { ...u, status: 'EN_ROUTE' as const } : u))
+    )
+    addTimelineEvent('en_route', 'Vehicle en route', `${dispatched.unitNumber} responding to incident`, true)
+    addRadioMessage('Dispatch', `${dispatched.unitNumber}, you are dispatched to ${incidentId || 'incident'} at ${lat}, ${lng}. Severity: ${severity}.`)
+    await new Promise((r) => setTimeout(r, 800))
+    addRadioMessage(dispatched.unitNumber, 'Copy dispatch. En route. ETA approximately ' + Math.round(dispatched.etaSeconds / 60) + ' minutes.')
+    addRadioMessage('Dispatch', '10-4. Other units stand by for backup if needed.')
+
+    addTimelineEvent('radio', 'Radio communication', 'Dispatch-to-unit handshake complete', false)
+
+    let elapsed = 0
+    const simInterval = setInterval(() => {
+      elapsed += 3
+      setUnits((prev) => {
+        const updated = simulateMovement(
+          prev,
+          parseFloat(lat),
+          parseFloat(lng),
+          elapsed
+        )
+        const dispatchedUnit = updated.find((u) => u.id === dispatched.unitId)
+        if (dispatchedUnit) {
+          setEtaSeconds(dispatchedUnit.etaSeconds)
+          if (dispatchedUnit.status === 'ON_SCENE' && prev.find((u) => u.id === dispatched.unitId)?.status !== 'ON_SCENE') {
+            addTimelineEvent('arrived', 'Unit arrived on scene', `${dispatchedUnit.unitNumber} arrived at incident location`, true)
+            addRadioMessage(dispatchedUnit.unitNumber, 'Dispatch, we are on scene.')
+            addRadioMessage('Dispatch', '10-0. Medical command notified.')
+            clearInterval(simInterval)
+          }
+        }
+        return updated
       })
-      const data = await res.json()
-      const result = data?.data || data
-      setDispatchResult(result.success ? `✅ Auto-dispatched ${result.assigned?.unitNumber}` : `❌ ${result.reasoning}`)
-    } catch { setError('Auto dispatch failed') }
-    finally { setLoading(false) }
-  }, [incidentId, severity])
+    }, 3000)
+    simulationRef.current = simInterval
+  }, [recommendation, incidentId, lat, lng, severity, addTimelineEvent, addRadioMessage])
+
+  const filteredUnits = units
+    .filter((u) => filterStatus === 'all' || u.status === filterStatus)
+    .sort((a, b) => {
+      if (sortBy === 'eta') return a.etaSeconds - b.etaSeconds
+      if (sortBy === 'distance') return a.distanceKm - b.distanceKm
+      return b.score - a.score
+    })
+
+  const availableCount = units.filter((u) => u.status === 'READY').length
 
   return (
     <div>
-      <div style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <Radio size={18} color="#3b82f6" />
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9', margin: 0 }}>Smart Dispatch Console</h1>
+      <style>{`
+        ::-webkit-scrollbar { width: 4px; height: 4px }
+        ::-webkit-scrollbar-track { background: transparent }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 2px }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.15) }
+        input::placeholder { color: #475569 }
+        select option { background: #0f0f1a; color: #e2e8f0 }
+      `}</style>
+
+      {/* Header */}
+      <div style={{ marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+            <div style={{
+              width: 32, height: 32, borderRadius: 8,
+              background: 'linear-gradient(135deg, #3b82f6, #7c3aed)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Satellite size={16} color="#fff" />
+            </div>
+            <h1 style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9', margin: 0, letterSpacing: '-0.02em' }}>
+              Smart Dispatch Console
+            </h1>
+          </div>
+          <p style={{ fontSize: 12, color: '#64748b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>AI-powered emergency unit dispatch</span>
+            <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#64748b', display: 'inline-block' }} />
+            <span style={{ color: availableCount > 0 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
+              {availableCount} units available
+            </span>
+          </p>
         </div>
-        <p style={{ fontSize: 13, color: '#64748b', margin: 0 }}>AI-assisted unit selection and dispatch optimization</p>
       </div>
 
-      {error && (
-        <div style={{ padding: '10px 14px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 6, color: '#fca5a5', fontSize: 12, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <AlertTriangle size={14} /> {error}
-          <button onClick={() => setError(null)} style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: '#fca5a5', cursor: 'pointer', fontSize: 12 }}>Dismiss</button>
-        </div>
-      )}
+      {/* Error / Success Alerts */}
+      <AnimatePresence>
+        {error && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            style={{
+              padding: '10px 14px', borderRadius: 8, marginBottom: 14,
+              background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)',
+              display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: '#fca5a5',
+            }}
+          >
+            <AlertTriangle size={14} />
+            <span style={{ flex: 1 }}>{error}</span>
+            <button onClick={() => setError(null)} style={{ background: 'none', border: 'none', color: '#fca5a5', cursor: 'pointer', fontSize: 14, opacity: 0.6 }}>×</button>
+          </motion.div>
+        )}
+        {dispatchResult && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            style={{
+              padding: '10px 14px', borderRadius: 8, marginBottom: 14,
+              background: dispatchResult.success ? 'rgba(34,197,94,0.08)' : 'rgba(234,179,8,0.08)',
+              border: `1px solid ${dispatchResult.success ? 'rgba(34,197,94,0.25)' : 'rgba(234,179,8,0.25)'}`,
+              display: 'flex', alignItems: 'center', gap: 8, fontSize: 12,
+              color: dispatchResult.success ? '#86efac' : '#fde68a',
+            }}
+          >
+            {dispatchResult.success ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+            <span style={{ flex: 1 }}>{dispatchResult.message}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {dispatchResult && (
-        <div style={{
-          padding: '10px 14px', borderRadius: 6, fontSize: 12, marginBottom: 16,
-          background: dispatchResult.startsWith('✅') ? 'rgba(34,197,94,0.1)' : 'rgba(234,179,8,0.1)',
-          border: `1px solid ${dispatchResult.startsWith('✅') ? 'rgba(34,197,94,0.3)' : 'rgba(234,179,8,0.3)'}`,
-          color: dispatchResult.startsWith('✅') ? '#86efac' : '#fde68a',
-        }}>
-          {dispatchResult}
-        </div>
-      )}
+      {/* Main Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '380px 1fr 300px', gap: 14, minHeight: 'calc(100vh - 200px)' }}>
+        {/* LEFT: Input + Units Panel */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* Dispatch Input */}
+          <div style={{
+            background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: 10, padding: 16,
+          }}>
+            <div style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Target size={12} color="#60a5fa" /> Dispatch Parameters
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div>
+                <label style={{ fontSize: 10, color: '#64748b', marginBottom: 3, display: 'block' }}>Incident ID</label>
+                <input value={incidentId} onChange={(e) => setIncidentId(e.target.value)}
+                  placeholder="e.g. INC-20260527-001"
+                  style={inputStyle}
+                />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                <div>
+                  <label style={{ fontSize: 10, color: '#64748b', marginBottom: 3, display: 'block' }}>Latitude</label>
+                  <input value={lat} onChange={(e) => setLat(e.target.value)} placeholder="36.1699" style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 10, color: '#64748b', marginBottom: 3, display: 'block' }}>Longitude</label>
+                  <input value={lng} onChange={(e) => setLng(e.target.value)} placeholder="-115.1398" style={inputStyle} />
+                </div>
+              </div>
+              <div>
+                <label style={{ fontSize: 10, color: '#64748b', marginBottom: 3, display: 'block' }}>Severity</label>
+                <select value={severity} onChange={(e) => setSeverity(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
+                  {['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'OMEGA'].map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+              <div style={{ display: 'flex', gap: 6, marginTop: 2 }}>
+                <motion.button
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                  onClick={findUnits} disabled={loading}
+                  style={{
+                    flex: 1, padding: '9px 12px', border: 'none', borderRadius: 6, cursor: loading ? 'not-allowed' : 'pointer',
+                    background: 'linear-gradient(135deg, #3b82f6, #2563eb)', color: '#fff', fontSize: 12, fontWeight: 600,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, opacity: loading ? 0.6 : 1,
+                  }}
+                >
+                  {loading ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={13} />}
+                  {loading ? 'Searching...' : 'Find Units'}
+                </motion.button>
+                <motion.button
+                  whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                  onClick={getAiRecommendation} disabled={units.length === 0 || aiScanning}
+                  style={{
+                    flex: 1, padding: '9px 12px', border: 'none', borderRadius: 6,
+                    cursor: units.length === 0 || aiScanning ? 'not-allowed' : 'pointer',
+                    background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', color: '#fff', fontSize: 12, fontWeight: 600,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, opacity: units.length === 0 || aiScanning ? 0.6 : 1,
+                  }}
+                >
+                  {aiScanning ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Brain size={13} />}
+                  {aiScanning ? 'Analyzing...' : 'AI Recommend'}
+                </motion.button>
+              </div>
+              <motion.button
+                whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                onClick={autoDispatch} disabled={!recommendation || !!dispatchedUnitId}
+                style={{
+                  padding: '9px 12px', border: 'none', borderRadius: 6,
+                  cursor: !recommendation || !!dispatchedUnitId ? 'not-allowed' : 'pointer',
+                  background: 'linear-gradient(135deg, #dc2626, #b91c1c)', color: '#fff', fontSize: 12, fontWeight: 600,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+                  opacity: !recommendation || !!dispatchedUnitId ? 0.6 : 1,
+                  boxShadow: recommendation && !dispatchedUnitId ? '0 0 20px rgba(220,38,38,0.3)' : 'none',
+                }}
+              >
+                {dispatchedUnitId ? <CheckCircle2 size={13} /> : <Radio size={13} />}
+                {dispatchedUnitId ? 'Dispatched' : 'Auto Dispatch (AI)'}
+              </motion.button>
+            </div>
+          </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
-        {/* Input Panel */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 18 }}>
-          <h2 style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Target size={14} color="#60a5fa" /> Dispatch Parameters
-          </h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div>
-              <label style={{ fontSize: 11, color: '#64748b', marginBottom: 4, display: 'block' }}>Incident ID</label>
-              <input value={incidentId} onChange={(e) => setIncidentId(e.target.value)} placeholder="inc_..." style={{
-                width: '100%', padding: '8px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 6, color: '#e2e8f0', fontSize: 13, outline: 'none',
+          {/* Severity Indicator */}
+          <div style={{
+            background: `linear-gradient(135deg, ${SEVERITY_COLORS[severity]}11, transparent)`,
+            border: `1px solid ${SEVERITY_COLORS[severity]}33`,
+            borderRadius: 10, padding: '10px 14px',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{
+                width: 10, height: 10, borderRadius: '50%',
+                background: SEVERITY_COLORS[severity],
+                boxShadow: `0 0 12px ${SEVERITY_COLORS[severity]}`,
               }} />
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
               <div>
-                <label style={{ fontSize: 11, color: '#64748b', marginBottom: 4, display: 'block' }}>Latitude</label>
-                <input value={lat} onChange={(e) => setLat(e.target.value)} placeholder="36.1699" style={{
-                  width: '100%', padding: '8px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 6, color: '#e2e8f0', fontSize: 13, outline: 'none',
-                }} />
+                <div style={{ fontSize: 12, fontWeight: 600, color: SEVERITY_COLORS[severity] }}>{severity}</div>
+                <div style={{ fontSize: 10, color: '#64748b' }}>
+                  {severity === 'ALPHA' ? 'Low priority' :
+                   severity === 'BRAVO' ? 'Moderate' :
+                   severity === 'CHARLIE' ? 'Urgent' :
+                   severity === 'DELTA' ? 'High risk' :
+                   severity === 'ECHO' ? 'Critical' : 'Mass casualty'}
+                </div>
               </div>
-              <div>
-                <label style={{ fontSize: 11, color: '#64748b', marginBottom: 4, display: 'block' }}>Longitude</label>
-                <input value={lng} onChange={(e) => setLng(e.target.value)} placeholder="-115.1398" style={{
-                  width: '100%', padding: '8px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                  borderRadius: 6, color: '#e2e8f0', fontSize: 13, outline: 'none',
-                }} />
-              </div>
-            </div>
-            <div>
-              <label style={{ fontSize: 11, color: '#64748b', marginBottom: 4, display: 'block' }}>Severity</label>
-              <select value={severity} onChange={(e) => setSeverity(e.target.value)} style={{
-                width: '100%', padding: '8px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)',
-                borderRadius: 6, color: '#e2e8f0', fontSize: 13, outline: 'none',
-              }}>
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 2 }}>
                 {['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'OMEGA'].map((s) => (
-                  <option key={s} value={s}>{s}</option>
+                  <div key={s} style={{
+                    width: 14, height: 14, borderRadius: 3,
+                    background: SEVERITY_COLORS[s],
+                    opacity: s === severity ? 1 : 0.15,
+                    transition: 'opacity 0.3s',
+                  }} />
                 ))}
-              </select>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-              <button onClick={findUnits} disabled={loading}
-                style={{
-                  flex: 1, padding: '9px 14px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 6,
-                  cursor: loading ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 600,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                }}>
-                {loading ? <Loader2 size={14} /> : <Navigation size={14} />} Find Units
-              </button>
-              <button onClick={getAiRecommendation} disabled={loading || !incidentId}
-                style={{
-                  flex: 1, padding: '9px 14px', background: '#7c3aed', color: '#fff', border: 'none', borderRadius: 6,
-                  cursor: loading ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 600,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                }}>
-                {loading ? <Loader2 size={14} /> : <Brain size={14} />} AI Recommend
-              </button>
+          </div>
+
+          {/* Units List */}
+          <div style={{
+            flex: 1, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: 10, overflow: 'hidden', display: 'flex', flexDirection: 'column',
+          }}>
+            <div style={{
+              padding: '10px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                <Shield size={12} color="#94a3b8" />
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#cbd5e1' }}>Available Units</span>
+                <span style={{
+                  fontSize: 9, padding: '1px 5px', borderRadius: 3,
+                  background: 'rgba(255,255,255,0.05)', color: '#64748b',
+                }}>{units.length}</span>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
+                  style={{
+                    fontSize: 10, padding: '3px 6px', background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, color: '#94a3b8', outline: 'none',
+                  }}
+                >
+                  <option value="all">All</option>
+                  <option value="READY">Ready</option>
+                  <option value="EN_ROUTE">En Route</option>
+                  <option value="TRANSPORTING">Transport</option>
+                </select>
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}
+                  style={{
+                    fontSize: 10, padding: '3px 6px', background: 'rgba(255,255,255,0.05)',
+                    border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, color: '#94a3b8', outline: 'none',
+                  }}
+                >
+                  <option value="score">Score</option>
+                  <option value="eta">ETA</option>
+                  <option value="distance">Distance</option>
+                </select>
+              </div>
             </div>
-            <button onClick={autoDispatch} disabled={loading || !incidentId}
-              style={{
-                padding: '9px 14px', background: '#dc2626', color: '#fff', border: 'none', borderRadius: 6,
-                cursor: loading ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 600,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              }}>
-              {loading ? <Loader2 size={14} /> : <Radio size={14} />} Auto Dispatch (AI)
-            </button>
+            <div style={{ flex: 1, overflow: 'auto', padding: '4px 0' }}>
+              {loading ? (
+                <div style={{ padding: 24, textAlign: 'center' }}>
+                  <Loader2 size={18} color="#64748b" style={{ animation: 'spin 1s linear infinite' }} />
+                  <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>Searching for units...</div>
+                </div>
+              ) : filteredUnits.length === 0 ? (
+                <div style={{ padding: 24, textAlign: 'center' }}>
+                  <Radio size={20} style={{ opacity: 0.2, color: '#64748b' }} />
+                  <div style={{ fontSize: 11, color: '#475569', marginTop: 6 }}>
+                    {units.length === 0 ? 'Enter coordinates and click Find Units' : 'No units match filter'}
+                  </div>
+                </div>
+              ) : (
+                <AnimatePresence>
+                  {filteredUnits.map((unit, i) => {
+                    const isDispatched = unit.id === dispatchedUnitId
+                    const color = STATUS_COLORS[unit.status] || '#6b7280'
+                    return (
+                      <motion.div
+                        key={unit.id}
+                        initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.04 }}
+                        style={{
+                          padding: '8px 14px', margin: '2px 6px', borderRadius: 6,
+                          background: isDispatched ? 'rgba(59,130,246,0.06)' : i === 0 && recommendation && unit.id === recommendation.unitId ? 'rgba(34,197,94,0.06)' : 'transparent',
+                          border: isDispatched ? '1px solid rgba(59,130,246,0.2)' : i === 0 && recommendation && unit.id === recommendation.unitId ? '1px solid rgba(34,197,94,0.2)' : '1px solid transparent',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <div style={{ width: 7, height: 7, borderRadius: '50%', background: color, flexShrink: 0 }} />
+                            <span style={{ fontSize: 12, fontWeight: 700, color: isDispatched ? '#60a5fa' : '#e2e8f0' }}>
+                              {unit.unitNumber}
+                            </span>
+                            <span style={{
+                              fontSize: 9, padding: '1px 4px', borderRadius: 3,
+                              background: color + '18', color, fontWeight: 600,
+                            }}>{unit.type}</span>
+                          </div>
+                          <span style={{
+                            fontSize: 10, fontWeight: 700,
+                            color: i === 0 && recommendation ? '#22c55e' : '#64748b',
+                          }}>
+                            {(unit.score * 100).toFixed(0)}
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, fontSize: 10, color: '#64748b' }}>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Clock size={9} /> {Math.round(unit.etaSeconds / 60)}m
+                          </span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Navigation size={9} /> {unit.distanceKm} km
+                          </span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Users size={9} /> {unit.crewCount}
+                          </span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Fuel size={9} /> {unit.fuelLevel}%
+                          </span>
+                          <span style={{ color: unit.status === 'READY' ? '#22c55e' : color, fontSize: 9 }}>
+                            {unit.status}
+                          </span>
+                        </div>
+                        {i === 0 && recommendation && !isDispatched && (
+                          <div style={{ marginTop: 3, fontSize: 9, color: '#22c55e' }}>
+                            ★ AI Recommended
+                          </div>
+                        )}
+                      </motion.div>
+                    )
+                  })}
+                </AnimatePresence>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Results Panel */}
-        <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 18 }}>
-          <h2 style={{ fontSize: 13, fontWeight: 600, color: '#e2e8f0', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Target size={14} color="#22c55e" /> Candidate Units
-          </h2>
-          {results ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {results.candidates.map((c, i) => (
-                <div key={c.unitId} style={{
-                  padding: '10px 12px', borderRadius: 6,
-                  background: i === 0 ? 'rgba(34,197,94,0.06)' : 'rgba(255,255,255,0.02)',
-                  border: i === 0 ? '1px solid rgba(34,197,94,0.2)' : '1px solid rgba(255,255,255,0.04)',
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                    <span style={{ fontWeight: 600, fontSize: 13, color: '#e2e8f0' }}>
-                      {c.unitNumber} {i === 0 && <span style={{ fontSize: 10, color: '#22c55e' }}>BEST</span>}
-                    </span>
-                    <span style={{ fontSize: 12, color: '#60a5fa', fontWeight: 600 }}>Score: {c.score}</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: '#64748b', display: 'flex', gap: 12 }}>
-                    <span>ETA: {Math.round(c.etaSeconds / 60)} min</span>
-                    <span>Dist: {c.distanceKm} km</span>
-                  </div>
-                  <div style={{ fontSize: 10, color: '#475569', marginTop: 4 }}>
-                    {c.factors.slice(0, 3).map((f) => (
-                      <span key={f.name} style={{ marginRight: 8 }}>{f.name}: {(f.value * 100).toFixed(0)}%</span>
-                    ))}
-                  </div>
-                </div>
-              ))}
-              {results.hospital && (
-                <div style={{ marginTop: 8, padding: '8px 12px', background: 'rgba(59,130,246,0.06)', borderRadius: 6, border: '1px solid rgba(59,130,246,0.15)' }}>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#93c5fd', marginBottom: 2 }}>Nearest Hospital</div>
-                  <div style={{ fontSize: 12, color: '#e2e8f0' }}>{results.hospital.name}</div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>{results.hospital.distanceKm} km · ETA {Math.round((results.hospital.etaSeconds || 0) / 60)} min</div>
-                </div>
-              )}
-            </div>
-          ) : recommendation ? (
-            <div>
-              {recommendation.candidates?.map((c, i) => (
-                <div key={c.unitId} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12 }}>
-                    <span style={{ color: '#e2e8f0', fontWeight: 600 }}>{c.unitNumber}</span>
-                    <span style={{ color: '#60a5fa' }}>Score: {c.score}</span>
-                  </div>
-                  <div style={{ fontSize: 11, color: '#64748b' }}>ETA {Math.round(c.etaSeconds / 60)}min · {c.distanceKm}km</div>
-                </div>
-              ))}
-              {recommendation.nearestHospital && (
-                <div style={{ marginTop: 8, fontSize: 11, color: '#93c5fd' }}>
-                  Hospital: {recommendation.nearestHospital.name}
-                </div>
-              )}
-              {recommendation.autoDispatchPossible && (
-                <div style={{ marginTop: 8, display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#22c55e' }}>
-                  <CheckCircle2 size={12} /> Auto-dispatch possible
-                </div>
-              )}
-            </div>
+        {/* CENTER: Map */}
+        <div style={{
+          background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
+          borderRadius: 10, overflow: 'hidden', position: 'relative', minHeight: 400,
+        }}>
+          {lat && lng ? (
+            <EmsLiveMap
+              incidentLat={parseFloat(lat)}
+              incidentLng={parseFloat(lng)}
+              incidentId={incidentId}
+              severity={severity}
+              units={units}
+              dispatchedUnitId={dispatchedUnitId}
+            />
           ) : (
-            <div style={{ padding: 20, textAlign: 'center', color: '#475569', fontSize: 12 }}>
-              <Radio size={20} style={{ opacity: 0.3, marginBottom: 6 }} />
-              <div>Enter coordinates and find available units</div>
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              height: '100%', color: '#475569', fontSize: 12, flexDirection: 'column', gap: 8,
+            }}>
+              <MapPin size={24} style={{ opacity: 0.2 }} />
+              <div>Enter coordinates to activate map</div>
             </div>
           )}
+          {/* Map overlay badge */}
+          <div style={{
+            position: 'absolute', top: 10, left: 10, zIndex: 1000,
+            padding: '4px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700,
+            background: 'rgba(0,0,0,0.7)', color: '#60a5fa',
+            border: '1px solid rgba(96,165,250,0.3)',
+            letterSpacing: '0.05em',
+            backdropFilter: 'blur(8px)',
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Crosshair size={10} /> EMS COMMAND MAP
+            </span>
+          </div>
+          {dispatchedUnitId && (
+            <div style={{
+              position: 'absolute', bottom: 10, left: 10, zIndex: 1000,
+              padding: '6px 12px', borderRadius: 6, fontSize: 10,
+              background: 'rgba(0,0,0,0.75)', color: '#22c55e',
+              border: '1px solid rgba(34,197,94,0.3)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex', alignItems: 'center', gap: 6,
+            }}>
+              <motion.span
+                animate={{ opacity: [1, 0.3, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}
+              />
+              LIVE TRACKING · Unit en route
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT: AI Panel + Timeline + Radio */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {/* AI Recommendation Panel */}
+          <div style={{
+            background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: 10, overflow: 'hidden',
+          }}>
+            <AiRecommendationPanel
+              recommendation={recommendation}
+              allUnits={units}
+              scanning={aiScanning}
+            />
+          </div>
+
+          {/* Dispatch Timeline */}
+          <DispatchTimeline events={timelineEvents} etaSeconds={etaSeconds} />
+
+          {/* Radio Communications */}
+          <div style={{
+            background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: 10, overflow: 'hidden', flex: 1, maxHeight: 200,
+          }}>
+            <div style={{
+              padding: '8px 14px', borderBottom: '1px solid rgba(255,255,255,0.06)',
+              display: 'flex', alignItems: 'center', gap: 5,
+            }}>
+              <Radio size={11} color="#eab308" />
+              <span style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Radio Communications
+              </span>
+            </div>
+            <div style={{ padding: '6px 14px', maxHeight: 140, overflow: 'auto' }}>
+              {radioMessages.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '12px 0', fontSize: 10, color: '#475569' }}>
+                  No radio traffic yet
+                </div>
+              ) : (
+                radioMessages.map((msg, i) => (
+                  <div key={i} style={{
+                    padding: '4px 0', borderBottom: i < radioMessages.length - 1 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+                    fontSize: 10,
+                  }}>
+                    <span style={{ color: msg.sender === 'Dispatch' ? '#f97316' : '#60a5fa', fontWeight: 600 }}>
+                      {msg.sender}:
+                    </span>{' '}
+                    <span style={{ color: '#94a3b8' }}>{msg.message}</span>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </div>
   )
+}
+
+const inputStyle: React.CSSProperties = {
+  width: '100%', padding: '7px 10px', background: 'rgba(255,255,255,0.04)',
+  border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6,
+  color: '#e2e8f0', fontSize: 12, outline: 'none',
+  transition: 'border-color 0.15s',
 }

@@ -1,11 +1,14 @@
-// @ts-nocheck — depends on prisma generate for Ems* models
 import type { NextRequest } from 'next/server'
-import { apiData, handleApiRoute } from '@/lib/api'
+import { apiData as _apiData, handleApiRoute } from '@/lib/api'
 import { prisma } from '@/lib/db'
 import { EmsService } from '@/modules/ems/ems.service'
 import { EmsAiService } from '@/modules/ems/ai/ems-ai-agent'
 
 export const runtime = 'nodejs'
+
+function apiData(data: any, opts?: any) {
+  return _apiData(data, opts)
+}
 
 export async function GET(req: NextRequest) {
   return handleApiRoute(req, undefined, async ({ user }: any) => {
