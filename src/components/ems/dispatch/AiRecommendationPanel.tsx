@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Brain, Cpu, TrendingUp, Activity, Zap, Shield, Target, Radio } from 'lucide-react'
 import type { AiRecommendationResult, DispatchCandidate } from '@/lib/api-client/ems-dispatch'
+import { useLocale } from '@/components/i18n/LocaleProvider'
 
 export default function AiRecommendationPanel({
   aiResult,
@@ -14,6 +15,7 @@ export default function AiRecommendationPanel({
   allUnits: DispatchCandidate[]
   scanning: boolean
 }) {
+  const { t } = useLocale()
   const [scanLines, setScanLines] = useState<number[]>([])
 
   useEffect(() => {
@@ -61,10 +63,10 @@ export default function AiRecommendationPanel({
             ))}
           </motion.div>
           <div style={{ fontSize: 12, color: '#60a5fa', fontWeight: 600, letterSpacing: '0.05em' }}>
-            AI neural engine scanning dispatch parameters...
+            {t('ems.dispatch.analyzing')}
           </div>
           <div style={{ fontSize: 11, color: '#475569', marginTop: 4 }}>
-            Analyzing {allUnits.length} units across 6 real-time factors
+            {t('ems.dispatch.searchingUnits')} {allUnits.length} {t('ems.dispatch.unitsAvailable')}
           </div>
         </div>
       </div>
@@ -109,7 +111,7 @@ export default function AiRecommendationPanel({
               <Brain size={14} color="#fff" />
             </div>
             <div>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#93c5fd', letterSpacing: '0.03em' }}>AI DISPATCH RECOMMENDATION</div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#93c5fd', letterSpacing: '0.03em' }}>{t('ems.dispatch.aiRecommended')}</div>
               <div style={{ fontSize: 10, color: '#475569' }}>Real-time 6-factor engine · DB-backed</div>
             </div>
             <motion.div
@@ -117,7 +119,7 @@ export default function AiRecommendationPanel({
               transition={{ duration: 2, repeat: Infinity }}
               style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 4, fontSize: 10, color: '#22c55e' }}
             >
-              <Activity size={10} /> LIVE
+              <Activity size={10} /> {t('ems.dispatch.fleetLive')}
             </motion.div>
           </div>
 

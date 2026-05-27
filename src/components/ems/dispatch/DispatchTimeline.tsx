@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Clock, Radio, Activity, Bell, Navigation, CheckCircle2, Zap, AlertTriangle } from 'lucide-react'
+import { useLocale } from '@/components/i18n/LocaleProvider'
 
 type TimelineEvent = {
   id: string
@@ -20,6 +21,7 @@ export default function DispatchTimeline({
   events: TimelineEvent[]
   etaSeconds: number
 }) {
+  const { t } = useLocale()
   const [etaDisplay, setEtaDisplay] = useState(etaSeconds)
 
   useEffect(() => {
@@ -58,7 +60,7 @@ export default function DispatchTimeline({
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <Clock size={13} color="#60a5fa" />
-          <span style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>Dispatch Timeline</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>{t('timeline.received')}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
           <motion.span
@@ -67,7 +69,7 @@ export default function DispatchTimeline({
             style={{ width: 4, height: 4, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}
           />
           <span style={{ fontSize: 10, color: '#64748b', fontVariantNumeric: 'tabular-nums' }}>
-            ETA {etaDisplay > 0 ? `${Math.floor(etaDisplay / 60)}m ${etaDisplay % 60}s` : 'ARRIVED'}
+            ETA {etaDisplay > 0 ? `${Math.floor(etaDisplay / 60)}m ${etaDisplay % 60}s` : t('timeline.arrived')}
           </span>
         </div>
       </div>
@@ -76,7 +78,7 @@ export default function DispatchTimeline({
         <AnimatePresence initial={false}>
           {events.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '20px 0', color: '#475569', fontSize: 11 }}>
-              No dispatch events yet
+              {t('timeline.noEvents')}
             </div>
           ) : (
             [...events].reverse().map((event, index) => (

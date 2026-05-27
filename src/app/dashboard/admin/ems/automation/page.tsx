@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react'
 import { Workflow, Plus, ToggleLeft, ToggleRight, Trash2, Loader2 } from 'lucide-react'
+import { useLocale } from '@/components/i18n/LocaleProvider'
 
 interface Rule {
   id: string
@@ -14,6 +15,7 @@ interface Rule {
 }
 
 export default function AutomationPage() {
+  const { t } = useLocale()
   const [rules, setRules] = useState<Rule[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -59,14 +61,14 @@ export default function AutomationPage() {
       <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Workflow size={18} color="#8b5cf6" /> Automation Rules
+            <Workflow size={18} color="#8b5cf6" /> {t('ems.automation.title')}
           </h1>
-          <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Event-driven workflow automation for EMS operations</p>
+          <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>{t('ems.dispatch.subtitle')}</p>
         </div>
       </div>
       {rules.length === 0 ? (
         <div style={{ padding: 40, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
-          No automation rules configured yet.
+          {t('common.noResults')}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -80,7 +82,7 @@ export default function AutomationPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Workflow size={14} color="#8b5cf6" />
                     <span style={{ fontWeight: 600, fontSize: 13, color: '#e2e8f0' }}>{rule.name}</span>
-                    <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: rule.isActive ? 'rgba(34,197,94,0.15)' : 'rgba(107,114,128,0.15)', color: rule.isActive ? '#22c55e' : '#6b7280' }}>{rule.isActive ? 'Active' : 'Disabled'}</span>
+                    <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: rule.isActive ? 'rgba(34,197,94,0.15)' : 'rgba(107,114,128,0.15)', color: rule.isActive ? '#22c55e' : '#6b7280' }}>{rule.isActive ? t('common.active') : t('common.inactive')}</span>
                   </div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button style={{ background: 'transparent', border: 'none', color: rule.isActive ? '#22c55e' : '#6b7280', cursor: 'pointer' }} onClick={() => toggleRule(rule.id, !rule.isActive)}>

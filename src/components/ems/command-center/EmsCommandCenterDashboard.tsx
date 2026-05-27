@@ -6,6 +6,7 @@ import {
   Activity, Truck, AlertTriangle, Building2, TrendingUp, Clock, Radio,
   Users, Siren, Map, Gauge, ShieldAlert, Bell, Satellite, Zap, Crosshair,
 } from 'lucide-react'
+import { useLocale } from '@/components/i18n/LocaleProvider'
 
 const severityColors: Record<string, string> = {
   ALPHA: '#22c55e', BRAVO: '#eab308', CHARLIE: '#f97316',
@@ -23,12 +24,12 @@ const telemMessages = [
 ]
 
 export default function EmsCommandCenterDashboard() {
+  const { t } = useLocale()
   const [loading, setLoading] = useState(true)
   const [time, setTime] = useState(new Date())
   const [telemIndex, setTelemIndex] = useState(0)
   const [simActive, setSimActive] = useState(false)
 
-  // Simulated metrics that work without API
   const [metrics, setMetrics] = useState({
     activeIncidents: 3,
     todayIncidents: 12,
@@ -94,12 +95,35 @@ export default function EmsCommandCenterDashboard() {
             transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
             style={{ width: 32, height: 32, border: '2px solid rgba(96,165,250,0.2)', borderTop: '2px solid #60a5fa', borderRadius: '50%', margin: '0 auto 12px' }}
           />
-          <div style={{ color: '#60a5fa', fontSize: 13, fontWeight: 600 }}>Initializing Command Center...</div>
-          <div style={{ color: '#475569', fontSize: 11, marginTop: 4 }}>Loading telemetry, fleet, and incident data</div>
+          <div style={{ color: '#60a5fa', fontSize: 13, fontWeight: 600 }}>{t('ems.command.initializing')}</div>
+          <div style={{ color: '#475569', fontSize: 11, marginTop: 4 }}>{t('ems.command.loadingTelemetry')}</div>
         </div>
       </div>
     )
   }
+
+  const kpiItems = [
+    { key: 'ems.command.activeIncidents', value: metrics.activeIncidents, icon: AlertTriangle, color: '#ef4444', sub: `${metrics.todayIncidents} ${t('ems.command.todayIncidents')}` },
+    { key: 'ems.command.unitsAvailable', value: metrics.unitsAvailable, icon: Truck, color: '#22c55e', sub: `${onlineUnits.length} ${t('common.online')}` },
+    { key: 'ems.command.unitsInField', value: activeUnits.length, icon: Radio, color: '#f97316', sub: `${fleet.length - activeUnits.length - metrics.unitsAvailable} ${t('status.available')}` },
+    { key: 'ems.command.hospitalsOnline', value: metrics.totalHospitals - metrics.hospitalsOnDivert, icon: Building2, color: '#3b82f6', sub: `${metrics.hospitalsOnDivert} ${t('status.dispatched')}` },
+    { key: 'ems.command.responseReadiness', value: readinessPct, icon: Gauge, color: readinessPct > 60 ? '#22c55e' : readinessPct > 30 ? '#eab308' : '#ef4444', suffix: '%', sub: `${fleet.length} total units` },
+  ]
+
+  const statusItems = [
+    { key: 'status.available', count: metrics.unitsAvailable, color: '#22c55e' },
+    { key: 'ems.command.unitsInField', count: activeUnits.length, color: '#f97316' },
+    { key: 'status.maintenance', count: fleet.filter((u) => u.status === 'MAINTENANCE').length, color: '#6b7280' },
+    { key: 'status.offline', count: fleet.filter((u) => u.status === 'OFFLINE').length, color: '#374151' },
+  ]
+
+  const liveActivityItems = [
+    { key: 'dispatchQueue', label: `Dispatch ${t('ems.dispatch.title')}`, value: '2 pending', color: '#f97316' },
+    { key: 'unitsResponding', label: t('ems.command.unitsInField'), value: activeUnits.length.toString(), color: '#3b82f6' },
+    { key: 'avgResponseTime', label: 'Avg Response Time', value: '4m 32s', color: '#60a5fa' },
+    { key: 'hospitalCapacity', label: t('ems.command.hospitalsOnline'), value: '72%', color: '#22c55e' },
+    { key: 'radioTraffic', label: 'Radio Traffic', value: 'Active', color: '#eab308' },
+  ]
 
   return (
     <div style={{ padding: 24, maxWidth: 1600, margin: '0 auto' }}>
@@ -124,7 +148,7 @@ export default function EmsCommandCenterDashboard() {
               <Satellite size={17} color="#fff" />
             </div>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9', margin: 0, letterSpacing: '-0.02em' }}>
-              Command Center
+              {t('ems.command.title')}
             </h1>
           </div>
           <div style={{ fontSize: 12, color: '#64748b', display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -172,17 +196,11 @@ export default function EmsCommandCenterDashboard() {
 
       {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12, marginBottom: 20 }}>
-        {[
-          { label: 'Active Incidents', value: metrics.activeIncidents, icon: AlertTriangle, color: '#ef4444', sub: `${metrics.todayIncidents} today` },
-          { label: 'Units Available', value: metrics.unitsAvailable, icon: Truck, color: '#22c55e', sub: `${onlineUnits.length} online` },
-          { label: 'Units in Field', value: activeUnits.length, icon: Radio, color: '#f97316', sub: `${fleet.length - activeUnits.length - metrics.unitsAvailable} reserve` },
-          { label: 'Hospitals Online', value: metrics.totalHospitals - metrics.hospitalsOnDivert, icon: Building2, color: '#3b82f6', sub: `${metrics.hospitalsOnDivert} on divert` },
-          { label: 'Response Readiness', value: readinessPct, icon: Gauge, color: readinessPct > 60 ? '#22c55e' : readinessPct > 30 ? '#eab308' : '#ef4444', suffix: '%', sub: `${fleet.length} total units` },
-        ].map((kpi) => {
+        {kpiItems.map((kpi) => {
           const Icon = kpi.icon
           return (
             <motion.div
-              key={kpi.label}
+              key={kpi.key}
               whileHover={{ y: -2 }}
               style={{
                 background: 'linear-gradient(135deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.01) 100%)',
@@ -190,7 +208,7 @@ export default function EmsCommandCenterDashboard() {
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{kpi.label}</div>
+                <div style={{ fontSize: 10, color: '#64748b', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{t(kpi.key as any)}</div>
                 <Icon size={15} color={kpi.color} style={{ opacity: 0.7 }} />
               </div>
               <motion.div
@@ -214,7 +232,7 @@ export default function EmsCommandCenterDashboard() {
           <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <AlertTriangle size={13} color="#ef4444" />
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>Active Incidents</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>{t('ems.command.activeIncidents')}</span>
             </div>
             <span style={{ fontSize: 10, color: '#64748b', background: 'rgba(255,255,255,0.05)', padding: '2px 7px', borderRadius: 3 }}>
               {incidents.length} total
@@ -259,20 +277,15 @@ export default function EmsCommandCenterDashboard() {
             <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                 <Truck size={13} color="#3b82f6" />
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>Fleet Status</span>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>{t('ems.command.fleetStatus')}</span>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                {[
-                  { label: 'Available', count: metrics.unitsAvailable, color: '#22c55e' },
-                  { label: 'In Field', count: activeUnits.length, color: '#f97316' },
-                  { label: 'Maintenance', count: fleet.filter((u) => u.status === 'MAINTENANCE').length, color: '#6b7280' },
-                  { label: 'Offline', count: fleet.filter((u) => u.status === 'OFFLINE').length, color: '#374151' },
-                ].map((s) => (
-                  <div key={s.label} style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 6, textAlign: 'center' }}>
+                {statusItems.map((s) => (
+                  <div key={s.key} style={{ padding: '8px 10px', background: 'rgba(255,255,255,0.03)', borderRadius: 6, textAlign: 'center' }}>
                     <motion.div key={s.count} initial={{ scale: 0.8 }} animate={{ scale: 1 }} style={{ fontSize: 18, fontWeight: 700, color: s.color, fontVariantNumeric: 'tabular-nums' }}>
                       {s.count}
                     </motion.div>
-                    <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{s.label}</div>
+                    <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t(s.key as any)}</div>
                   </div>
                 ))}
               </div>
@@ -303,14 +316,14 @@ export default function EmsCommandCenterDashboard() {
               <motion.div key={metrics.todayIncidents} initial={{ scale: 0.8 }} animate={{ scale: 1 }} style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9' }}>
                 {metrics.todayIncidents}
               </motion.div>
-              <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase' }}>Today's Incidents</div>
+              <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase' }}>{t('ems.command.todayIncidents')}</div>
             </div>
             <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 12, textAlign: 'center' }}>
               <TrendingUp size={14} color="#22c55e" style={{ marginBottom: 3 }} />
               <motion.div key={readinessPct} initial={{ scale: 0.8 }} animate={{ scale: 1 }} style={{ fontSize: 18, fontWeight: 700, color: '#f1f5f9' }}>
                 {readinessPct}%
               </motion.div>
-              <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase' }}>Fleet Availability</div>
+              <div style={{ fontSize: 9, color: '#64748b', textTransform: 'uppercase' }}>{t('ems.command.fleetAvailability')}</div>
             </div>
           </div>
         </div>
@@ -319,7 +332,7 @@ export default function EmsCommandCenterDashboard() {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
           <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 14 }}>
             <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 10, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Zap size={11} color="#f59e0b" /> Severity Distribution
+              <Zap size={11} color="#f59e0b" /> {t('ems.command.severityDistribution')}
             </div>
             {['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'OMEGA'].map((sev) => {
               const count = incidents.filter((i) => i.severity === sev).length
@@ -345,17 +358,11 @@ export default function EmsCommandCenterDashboard() {
 
           <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 14, flex: 1 }}>
             <div style={{ fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Activity size={11} color="#22c55e" /> Live Activity
+              <Activity size={11} color="#22c55e" /> {t('ems.command.liveActivity')}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {[
-                { label: 'Dispatch Queue', value: '2 pending', color: '#f97316' },
-                { label: 'Units Responding', value: activeUnits.length.toString(), color: '#3b82f6' },
-                { label: 'Avg Response Time', value: '4m 32s', color: '#60a5fa' },
-                { label: 'Hospital Capacity', value: '72%', color: '#22c55e' },
-                { label: 'Radio Traffic', value: 'Active', color: '#eab308' },
-              ].map((item) => (
-                <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 4 }}>
+              {liveActivityItems.map((item) => (
+                <div key={item.key} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 8px', background: 'rgba(255,255,255,0.03)', borderRadius: 4 }}>
                   <span style={{ fontSize: 10, color: '#94a3b8' }}>{item.label}</span>
                   <span style={{ fontSize: 10, color: item.color, fontWeight: 600 }}>{item.value}</span>
                 </div>
@@ -383,8 +390,8 @@ export default function EmsCommandCenterDashboard() {
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 11, fontWeight: 600, color: '#93c5fd', display: 'flex', alignItems: 'center', gap: 6 }}>
-            AI Operations Summary
-            <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 2, repeat: Infinity }} style={{ fontSize: 9, color: '#22c55e', fontWeight: 400 }}>● ANALYZING</motion.span>
+            {t('ems.command.aiSummary')}
+            <motion.span animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 2, repeat: Infinity }} style={{ fontSize: 9, color: '#22c55e', fontWeight: 400 }}>● {t('ems.command.analyzing')}</motion.span>
           </div>
           <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>
             {metrics.activeIncidents > 0

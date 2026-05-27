@@ -23,6 +23,7 @@ import {
 import { EMS_STATUS_COLORS, EMS_SEVERITY_COLORS } from '@/lib/ems-config'
 import { useGeolocation } from '@/hooks/useGeolocation'
 import { useRealtimeFleet } from '@/hooks/useRealtimeFleet'
+import { useLocale } from '@/components/i18n/LocaleProvider'
 
 type TimelineEvent = {
   id: string
@@ -39,7 +40,19 @@ type RadioMessage = {
   time: Date
 }
 
+const severityDescKey: Record<string, string> = {
+  ALPHA: 'severity.alpha.desc',
+  BRAVO: 'severity.bravo.desc',
+  CHARLIE: 'severity.charlie.desc',
+  DELTA: 'severity.delta.desc',
+  ECHO: 'severity.echo.desc',
+  OMEGA: 'severity.omega.desc',
+}
+
+const SEVERITY_LEVELS = ['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'OMEGA']
+
 export default function SmartDispatchConsole() {
+  const { t } = useLocale()
   const [incidentId, setIncidentId] = useState('')
   const [lat, setLat] = useState('')
   const [lng, setLng] = useState('')
@@ -70,7 +83,7 @@ export default function SmartDispatchConsole() {
   }, [])
 
   const findUnits = useCallback(async () => {
-    if (!lat || !lng) { setError('Enter incident coordinates'); return }
+    if (!lat || !lng) { setError(t('ems.dispatch.enterCoords')); return }
     const parsedLat = parseFloat(lat)
     const parsedLng = parseFloat(lng)
     if (isNaN(parsedLat) || isNaN(parsedLng)) { setError('Invalid coordinates'); return }
@@ -81,14 +94,14 @@ export default function SmartDispatchConsole() {
     setDispatchedUnitId(null)
     setDispatchResult(null)
     setCandidates([])
-    addTimelineEvent('received', 'Incident received', `Location: ${parsedLat.toFixed(4)}, ${parsedLng.toFixed(4)} · Severity: ${severity}`)
+    addTimelineEvent('received', t('timeline.received'), `Location: ${parsedLat.toFixed(4)}, ${parsedLng.toFixed(4)} · ${t('ems.dispatch.severity')}: ${severity}`)
 
     try {
       const result = await apiFindUnits(parsedLat, parsedLng, severity, { maxResults: 10 })
       setUnits(result.units || [])
       setCandidates(result.candidates || [])
       setLoading(false)
-      addTimelineEvent('ai_analysis', 'Unit search complete', `Found ${result.candidates?.length || 0} available units via real database query`)
+      addTimelineEvent('ai_analysis', t('timeline.aiAnalysis'), `Found ${result.candidates?.length || 0} available units via real database query`)
 
       if (!result.candidates?.length) {
         setError('No nearby available units found. Expand search or adjust parameters.')
@@ -97,15 +110,15 @@ export default function SmartDispatchConsole() {
       setLoading(false)
       setError(err.message || 'Failed to search for units. Database may need migration.')
     }
-  }, [lat, lng, severity, addTimelineEvent])
+  }, [lat, lng, severity, addTimelineEvent, t])
 
   const getAiRecommendation = useCallback(async () => {
-    if (!candidates.length) { setError('Search for units first'); return }
+    if (!candidates.length) { setError(t('ems.dispatch.enterCoords')); return }
     if (!incidentId) { setError('Enter an incident ID for AI analysis'); return }
 
     setAiScanning(true)
     setError(null)
-    addTimelineEvent('ai_analysis', 'AI neural analysis started', `${candidates.length} units evaluated across 6 dispatch factors`)
+    addTimelineEvent('ai_analysis', t('timeline.aiAnalysis'), `${candidates.length} units evaluated across 6 dispatch factors`)
 
     try {
       const rec = await apiGetRecommendation('', incidentId, parseFloat(lat), parseFloat(lng), severity)
@@ -114,16 +127,16 @@ export default function SmartDispatchConsole() {
 
       if (rec.candidates?.length) {
         const best = rec.candidates[0]
-        addTimelineEvent('ai_analysis', 'AI recommendation generated', `Best unit: ${best.unitNumber} · Score: ${best.score} · ETA: ${Math.round(best.etaSeconds / 60)} min`)
-        addTimelineEvent('eta_update', 'ETA calculated', `${Math.round(best.etaSeconds / 60)} min estimated arrival via Haversine`, false)
+        addTimelineEvent('ai_analysis', t('ems.dispatch.aiRecommended'), `Best unit: ${best.unitNumber} · Score: ${best.score} · ETA: ${Math.round(best.etaSeconds / 60)} min`)
+        addTimelineEvent('eta_update', t('timeline.etaUpdate'), `${Math.round(best.etaSeconds / 60)} min estimated arrival via Haversine`, false)
       } else {
-        addTimelineEvent('alert', 'AI analysis complete', 'No suitable unit found', true)
+        addTimelineEvent('alert', t('timeline.alert'), 'No suitable unit found', true)
       }
     } catch (err: any) {
       setAiScanning(false)
       setError(err.message || 'AI analysis failed')
     }
-  }, [candidates, incidentId, lat, lng, severity, addTimelineEvent])
+  }, [candidates, incidentId, lat, lng, severity, addTimelineEvent, t])
 
   const autoDispatch = useCallback(async () => {
     if (!aiResult?.candidates?.length) { setError('Generate AI recommendation first'); return }
@@ -133,33 +146,33 @@ export default function SmartDispatchConsole() {
     setDispatchedUnitId(best.unitId)
     setEtaSeconds(best.etaSeconds)
 
-    addTimelineEvent('unit_assigned', 'Unit assigned', `${best.unitNumber} selected by AI dispatch engine`, false)
+    addTimelineEvent('unit_assigned', t('timeline.unitAssigned'), `${best.unitNumber} selected by AI dispatch engine`, false)
 
     try {
       const result = await apiAutoDispatch(incidentId, severity)
       if (result.success) {
-        addTimelineEvent('crew_notified', 'Crew notified', `Real alert sent to ${best.unitNumber} crew via Firebase + DB`, true)
+        addTimelineEvent('crew_notified', t('timeline.crewNotified'), `Real alert sent to ${best.unitNumber} crew via Firebase + DB`, true)
         setDispatchResult({ success: true, message: `Auto-dispatched ${best.unitNumber} via AI (score: ${best.score})` })
-        addTimelineEvent('en_route', 'Vehicle dispatched', `${best.unitNumber} responding to ${incidentId}`, true)
-        addRadioMessage('Dispatch', `${best.unitNumber}, you are dispatched to ${incidentId} at ${lat}, ${lng}. Severity: ${severity}.`)
+        addTimelineEvent('en_route', t('timeline.enRoute'), `${best.unitNumber} responding to ${incidentId}`, true)
+        addRadioMessage('Dispatch', `${best.unitNumber}, you are dispatched to ${incidentId} at ${lat}, ${lng}. ${t('ems.dispatch.severity')}: ${severity}.`)
         addRadioMessage(best.unitNumber, 'Copy dispatch. En route. ETA ~' + Math.round(best.etaSeconds / 60) + ' minutes.')
         addRadioMessage('Dispatch', '10-4. Real-time tracking active.')
-        addTimelineEvent('radio', 'Radio communication', 'Dispatch-to-unit handshake complete', false)
+        addTimelineEvent('radio', t('timeline.radio'), 'Dispatch-to-unit handshake complete', false)
 
         setUnits((prev) =>
           prev.map((u) => u.id === best.unitId ? { ...u, status: 'DISPATCHED' } : u)
         )
       } else {
         setDispatchResult({ success: false, message: result.reasoning || 'Auto-dispatch threshold not met' })
-        addTimelineEvent('alert', 'Dispatch failed', result.reasoning || 'Threshold check failed', true)
+        addTimelineEvent('alert', t('timeline.alert'), result.reasoning || 'Threshold check failed', true)
         setDispatchedUnitId(null)
       }
     } catch (err: any) {
       setDispatchedUnitId(null)
-      addTimelineEvent('alert', 'Dispatch error', err.message || 'Failed to execute dispatch', true)
+      addTimelineEvent('alert', t('timeline.alert'), err.message || 'Failed to execute dispatch', true)
       setDispatchResult({ success: false, message: err.message || 'Dispatch failed' })
     }
-  }, [aiResult, incidentId, lat, lng, severity, addTimelineEvent, addRadioMessage])
+  }, [aiResult, incidentId, lat, lng, severity, addTimelineEvent, addRadioMessage, t])
 
   const sortedCandidates = [...candidates]
     .filter((c) => filterStatus === 'all' || units.find((u) => u.id === c.unitId)?.status === filterStatus)
@@ -195,14 +208,14 @@ export default function SmartDispatchConsole() {
               <Satellite size={16} color="#fff" />
             </div>
             <h1 style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9', margin: 0, letterSpacing: '-0.02em' }}>
-              Smart Dispatch Console
+              {t('ems.dispatch.title')}
             </h1>
           </div>
           <p style={{ fontSize: 12, color: '#64748b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>Real-time AI-powered emergency unit dispatch</span>
+            <span>{t('ems.dispatch.subtitle')}</span>
             <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#64748b', display: 'inline-block' }} />
             <span style={{ color: availableCount > 0 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
-              {availableCount} units available
+              {availableCount} {t('ems.dispatch.unitsAvailable')}
             </span>
           </p>
         </div>
@@ -220,13 +233,13 @@ export default function SmartDispatchConsole() {
             }}
           >
             <MapPin size={13} />
-            <span style={{ flex: 1 }}>Enable location access for live GPS tracking and auto-incident detection</span>
+            <span style={{ flex: 1 }}>{t('ems.dispatch.locationPrompt')}</span>
             <button onClick={geo.requestPermission}
               style={{
                 padding: '4px 10px', borderRadius: 4, border: 'none',
                 background: 'rgba(59,130,246,0.2)', color: '#60a5fa', fontSize: 10, fontWeight: 600, cursor: 'pointer',
               }}
-            >Enable GPS</button>
+            >{t('ems.dispatch.enableGps')}</button>
           </motion.div>
         )}
         {geo.permissionState === 'denied' && (
@@ -239,7 +252,7 @@ export default function SmartDispatchConsole() {
             }}
           >
             <CrosshairIcon size={13} />
-            <span style={{ flex: 1 }}>Location access denied. Enable GPS in your browser settings for live tracking.</span>
+            <span style={{ flex: 1 }}>{t('ems.dispatch.locationDenied')}</span>
           </motion.div>
         )}
         {geo.hasLocation && (
@@ -254,14 +267,14 @@ export default function SmartDispatchConsole() {
             <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#22c55e', display: 'inline-block',
               boxShadow: '0 0 8px #22c55e' }} />
             <span style={{ flex: 1 }}>
-              Live GPS active · {geo.latitude?.toFixed(4)}, {geo.longitude?.toFixed(4)}
+              {t('ems.dispatch.gpsActive')} · {geo.latitude?.toFixed(4)}, {geo.longitude?.toFixed(4)}
               {geo.heading ? ` · ${Math.round(geo.heading)}° heading` : ''}
               {geo.speed != null && geo.speed > 0 ? ` · ${Math.round(geo.speed * 3.6)} km/h` : ''}
             </span>
             <span style={{ fontSize: 9, color: '#22c55e', display: 'flex', alignItems: 'center', gap: 3 }}>
               <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#22c55e', display: 'inline-block',
                 animation: 'pulse 1.5s infinite' }} />
-              {connectionState === 'connected' ? 'FLEET LIVE' : 'LOCAL'}
+              {connectionState === 'connected' ? t('ems.dispatch.fleetLive') : t('ems.dispatch.local')}
             </span>
           </motion.div>
         )}
@@ -310,11 +323,11 @@ export default function SmartDispatchConsole() {
             borderRadius: 10, padding: 16,
           }}>
             <div style={{ fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.06em', fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 5 }}>
-              <Target size={12} color="#60a5fa" /> Dispatch Parameters
+              <Target size={12} color="#60a5fa" /> {t('ems.dispatch.parameters')}
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div>
-                <label style={{ fontSize: 10, color: '#64748b', marginBottom: 3, display: 'block' }}>Incident ID</label>
+                <label style={{ fontSize: 10, color: '#64748b', marginBottom: 3, display: 'block' }}>{t('ems.dispatch.incidentId')}</label>
                 <input value={incidentId} onChange={(e) => setIncidentId(e.target.value)}
                   placeholder="e.g. INC-20260527-001"
                   style={inputStyle}
@@ -322,18 +335,18 @@ export default function SmartDispatchConsole() {
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                 <div>
-                  <label style={{ fontSize: 10, color: '#64748b', marginBottom: 3, display: 'block' }}>Latitude</label>
+                  <label style={{ fontSize: 10, color: '#64748b', marginBottom: 3, display: 'block' }}>{t('ems.dispatch.latitude')}</label>
                   <input value={lat} onChange={(e) => setLat(e.target.value)} placeholder="36.1699" style={inputStyle} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 10, color: '#64748b', marginBottom: 3, display: 'block' }}>Longitude</label>
+                  <label style={{ fontSize: 10, color: '#64748b', marginBottom: 3, display: 'block' }}>{t('ems.dispatch.longitude')}</label>
                   <input value={lng} onChange={(e) => setLng(e.target.value)} placeholder="-115.1398" style={inputStyle} />
                 </div>
               </div>
               <div>
-                <label style={{ fontSize: 10, color: '#64748b', marginBottom: 3, display: 'block' }}>Severity</label>
+                <label style={{ fontSize: 10, color: '#64748b', marginBottom: 3, display: 'block' }}>{t('ems.dispatch.severity')}</label>
                 <select value={severity} onChange={(e) => setSeverity(e.target.value)} style={{ ...inputStyle, cursor: 'pointer' }}>
-                  {['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'OMEGA'].map((s) => (
+                  {SEVERITY_LEVELS.map((s) => (
                     <option key={s} value={s}>{s}</option>
                   ))}
                 </select>
@@ -349,7 +362,7 @@ export default function SmartDispatchConsole() {
                   }}
                 >
                   {loading ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Search size={13} />}
-                  {loading ? 'Searching...' : 'Find Units'}
+                  {loading ? t('ems.dispatch.searchingUnits') : t('ems.dispatch.findUnits')}
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
@@ -362,7 +375,7 @@ export default function SmartDispatchConsole() {
                   }}
                 >
                   {aiScanning ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Brain size={13} />}
-                  {aiScanning ? 'Analyzing...' : 'AI Recommend'}
+                  {aiScanning ? t('ems.dispatch.analyzing') : t('ems.dispatch.aiRecommend')}
                 </motion.button>
               </div>
               <motion.button
@@ -378,7 +391,7 @@ export default function SmartDispatchConsole() {
                 }}
               >
                 {dispatchedUnitId ? <CheckCircle2 size={13} /> : <Radio size={13} />}
-                {dispatchedUnitId ? 'Dispatched' : 'Auto Dispatch (AI)'}
+                {dispatchedUnitId ? t('ems.dispatch.dispatched') : t('ems.dispatch.autoDispatch')}
               </motion.button>
             </div>
           </div>
@@ -398,15 +411,11 @@ export default function SmartDispatchConsole() {
               <div>
                 <div style={{ fontSize: 12, fontWeight: 600, color: EMS_SEVERITY_COLORS[severity] }}>{severity}</div>
                 <div style={{ fontSize: 10, color: '#64748b' }}>
-                  {severity === 'ALPHA' ? 'Low priority' :
-                   severity === 'BRAVO' ? 'Moderate' :
-                   severity === 'CHARLIE' ? 'Urgent' :
-                   severity === 'DELTA' ? 'High risk' :
-                   severity === 'ECHO' ? 'Critical' : 'Mass casualty'}
+                  {t(severityDescKey[severity] as any)}
                 </div>
               </div>
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 2 }}>
-                {['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'OMEGA'].map((s) => (
+                {SEVERITY_LEVELS.map((s) => (
                   <div key={s} style={{
                     width: 14, height: 14, borderRadius: 3,
                     background: EMS_SEVERITY_COLORS[s],
@@ -429,7 +438,7 @@ export default function SmartDispatchConsole() {
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
                 <Shield size={12} color="#94a3b8" />
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#cbd5e1' }}>Available Units</span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#cbd5e1' }}>{t('ems.dispatch.availableUnits')}</span>
                 <span style={{
                   fontSize: 9, padding: '1px 5px', borderRadius: 3,
                   background: 'rgba(255,255,255,0.05)', color: '#64748b',
@@ -442,10 +451,10 @@ export default function SmartDispatchConsole() {
                     border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, color: '#94a3b8', outline: 'none',
                   }}
                 >
-                  <option value="all">All</option>
-                  <option value="AVAILABLE">Available</option>
-                  <option value="EN_ROUTE">En Route</option>
-                  <option value="TRANSPORTING">Transport</option>
+                  <option value="all">{t('common.all')}</option>
+                  <option value="AVAILABLE">{t('status.available')}</option>
+                  <option value="EN_ROUTE">{t('status.enRoute')}</option>
+                  <option value="TRANSPORTING">{t('status.transporting')}</option>
                 </select>
                 <select value={sortBy} onChange={(e) => setSortBy(e.target.value as any)}
                   style={{
@@ -453,9 +462,9 @@ export default function SmartDispatchConsole() {
                     border: '1px solid rgba(255,255,255,0.08)', borderRadius: 4, color: '#94a3b8', outline: 'none',
                   }}
                 >
-                  <option value="score">Score</option>
+                  <option value="score">{t('ems.dispatch.aiRecommended')}</option>
                   <option value="eta">ETA</option>
-                  <option value="distance">Distance</option>
+                  <option value="distance">{t('ems.dispatch.latitude')}</option>
                 </select>
               </div>
             </div>
@@ -463,13 +472,13 @@ export default function SmartDispatchConsole() {
               {loading ? (
                 <div style={{ padding: 24, textAlign: 'center' }}>
                   <Loader2 size={18} color="#64748b" style={{ animation: 'spin 1s linear infinite' }} />
-                  <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>Querying database for available units...</div>
+                  <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>{t('ems.dispatch.searchingUnits')}</div>
                 </div>
               ) : sortedCandidates.length === 0 ? (
                 <div style={{ padding: 24, textAlign: 'center' }}>
                   <Radio size={20} style={{ opacity: 0.2, color: '#64748b' }} />
                   <div style={{ fontSize: 11, color: '#475569', marginTop: 6 }}>
-                    {candidates.length === 0 ? 'Enter coordinates and click Find Units' : 'No units match filter'}
+                    {candidates.length === 0 ? t('ems.dispatch.enterCoords') : t('ems.dispatch.noUnitsMatch')}
                   </div>
                 </div>
               ) : (
@@ -528,7 +537,7 @@ export default function SmartDispatchConsole() {
                         </div>
                         {isRecommended && !isDispatched && (
                           <div style={{ marginTop: 3, fontSize: 9, color: '#22c55e' }}>
-                            ★ AI Recommended
+                            ★ {t('ems.dispatch.aiRecommended')}
                           </div>
                         )}
                       </motion.div>
@@ -563,7 +572,7 @@ export default function SmartDispatchConsole() {
               height: '100%', color: '#475569', fontSize: 12, flexDirection: 'column', gap: 8,
             }}>
               <MapPin size={24} style={{ opacity: 0.2 }} />
-              <div>Enter coordinates to activate map</div>
+              <div>{t('ems.dispatch.enterCoords')}</div>
             </div>
           )}
           <div style={{
@@ -575,7 +584,7 @@ export default function SmartDispatchConsole() {
             backdropFilter: 'blur(8px)',
           }}>
             <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-              <Crosshair size={10} /> EMS COMMAND MAP
+              <Crosshair size={10} /> {t('ems.dispatch.emsCommandMap')}
             </span>
           </div>
           {dispatchedUnitId && (
@@ -592,7 +601,7 @@ export default function SmartDispatchConsole() {
                 transition={{ duration: 1.5, repeat: Infinity }}
                 style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}
               />
-              LIVE TRACKING · Unit dispatched
+              {t('ems.dispatch.liveTracking')}
             </div>
           )}
         </div>
@@ -622,13 +631,13 @@ export default function SmartDispatchConsole() {
             }}>
               <Radio size={11} color="#eab308" />
               <span style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Radio Communications
+                {t('ems.dispatch.radioTitle')}
               </span>
             </div>
             <div style={{ padding: '6px 14px', maxHeight: 140, overflow: 'auto' }}>
               {radioMessages.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '12px 0', fontSize: 10, color: '#475569' }}>
-                  No radio traffic yet
+                  {t('ems.dispatch.noRadio')}
                 </div>
               ) : (
                 radioMessages.map((msg, i) => (

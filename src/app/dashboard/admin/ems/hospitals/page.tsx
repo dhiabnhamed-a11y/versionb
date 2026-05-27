@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react'
 import { Building2, Activity, Ambulance, AlertTriangle, Bed, Phone, Search, RefreshCw } from 'lucide-react'
+import { useLocale } from '@/components/i18n/LocaleProvider'
 
 type Hospital = {
   id: string
@@ -32,6 +33,7 @@ const statusConfig: Record<string, { label: string; color: string; pulse?: boole
 }
 
 export default function HospitalsPage() {
+  const { t } = useLocale()
   const [hospitals, setHospitals] = useState<Hospital[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -63,29 +65,28 @@ export default function HospitalsPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Building2 size={18} color="#3b82f6" /> Hospital Network
+            <Building2 size={18} color="#3b82f6" /> {t('ems.hospitals.title')}
           </h1>
-          <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>{hospitals.length} hospitals · {openCount} open · {divertCount} on divert</p>
+          <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>{hospitals.length} {t('ems.hospitals.title')} · {openCount} {t('status.available')} · {divertCount} {t('status.dispatched')}</p>
         </div>
         <button onClick={fetchHospitals} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#94a3b8', cursor: 'pointer', fontSize: 12 }}>
-          <RefreshCw size={14} /> Refresh
+          <RefreshCw size={14} /> {t('common.refresh')}
         </button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 10, marginBottom: 20 }}>
         {[
-          { label: 'Total Beds', value: totalBeds, icon: Bed, color: '#60a5fa' },
-          { label: 'Available', value: availableBeds, icon: Activity, color: '#22c55e' },
-          { label: 'Open', value: openCount, icon: Building2, color: '#22c55e' },
-          { label: 'On Divert', value: divertCount, icon: AlertTriangle, color: '#ef4444' },
-          { label: 'Avg Wait', value: hospitals.length > 0 ? `${Math.round(hospitals.reduce((s, h) => s + (h.waitTimeMinutes || 0), 0) / hospitals.length)}m` : '—', icon: Clock, color: '#f97316' },
+          { labelKey: 'ems.hospitals.generalBeds', value: totalBeds, icon: Bed, color: '#60a5fa' },
+          { labelKey: 'status.available', value: availableBeds, icon: Activity, color: '#22c55e' },
+          { labelKey: 'ems.hospitals.open', value: openCount, icon: Building2, color: '#22c55e' },
+          { labelKey: 'ems.hospitals.onDivert', value: divertCount, icon: AlertTriangle, color: '#ef4444' },
         ].map((kpi) => {
           const Icon = kpi.icon
           return (
-            <div key={kpi.label} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '12px 14px', textAlign: 'center' }}>
+            <div key={kpi.labelKey} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 8, padding: '12px 14px', textAlign: 'center' }}>
               <Icon size={16} color={kpi.color} style={{ marginBottom: 4, opacity: 0.7 }} />
               <div style={{ fontSize: 22, fontWeight: 700, color: '#f1f5f9' }}>{kpi.value}</div>
-              <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{kpi.label}</div>
+              <div style={{ fontSize: 10, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t(kpi.labelKey as any)}</div>
             </div>
           )
         })}
@@ -94,13 +95,13 @@ export default function HospitalsPage() {
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 6, padding: '6px 12px', border: '1px solid rgba(255,255,255,0.08)', flex: 1 }}>
           <Search size={14} color="#64748b" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search hospitals..." style={{ background: 'transparent', border: 'none', color: '#e2e8f0', fontSize: 13, outline: 'none', width: '100%' }} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('common.search') + '...'} style={{ background: 'transparent', border: 'none', color: '#e2e8f0', fontSize: 13, outline: 'none', width: '100%' }} />
         </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {filtered.length === 0 ? (
-          <EmptyState icon={Building2} message="No hospitals found" />
+          <EmptyState icon={Building2} message={t('common.noResults')} />
         ) : (
           filtered.map((h) => {
             const status = statusConfig[h.status] || statusConfig.OPEN
@@ -126,14 +127,14 @@ export default function HospitalsPage() {
                   </div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 12 }}>
-                  <StatBar label="General Beds" value={h.availableBeds} total={h.bedCount} pct={bedPct} color="#3b82f6" />
-                  <StatBar label="ICU Beds" value={h.availableIcu} total={h.icuBeds} pct={icuPct} color="#8b5cf6" />
+                  <StatBar label={t('ems.hospitals.generalBeds')} value={h.availableBeds} total={h.bedCount} pct={bedPct} color="#3b82f6" />
+                  <StatBar label={t('ems.hospitals.icuBeds')} value={h.availableIcu} total={h.icuBeds} pct={icuPct} color="#8b5cf6" />
                   <div style={{ fontSize: 12, color: '#64748b' }}>
-                    <div style={{ fontWeight: 500, color: '#94a3b8', marginBottom: 2 }}>Capabilities</div>
+                    <div style={{ fontWeight: 500, color: '#94a3b8', marginBottom: 2 }}>{t('ems.hospitals.capabilities')}</div>
                     <div style={{ fontSize: 11 }}>{(h.capabilities || []).slice(0, 3).join(', ') || 'Standard'}</div>
                   </div>
                   <div style={{ fontSize: 12, color: '#64748b', textAlign: 'right' }}>
-                    <div style={{ fontWeight: 500, color: '#94a3b8', marginBottom: 2 }}>Last Updated</div>
+                    <div style={{ fontWeight: 500, color: '#94a3b8', marginBottom: 2 }}>{t('ems.hospitals.lastUpdated')}</div>
                     <div style={{ fontSize: 11 }}>{new Date(h.lastUpdated).toLocaleTimeString()}</div>
                   </div>
                 </div>
@@ -182,4 +183,4 @@ function EmptyState({ icon: Icon, message }: { icon: any; message: string }) {
   )
 }
 
-function Clock(props: any) { return <svg {...props} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> }
+

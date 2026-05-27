@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react'
 import { Truck, ShieldCheck, MapPin, Users, Wrench, Search, RefreshCw, Battery, Signal } from 'lucide-react'
+import { useLocale } from '@/components/i18n/LocaleProvider'
 
 type Unit = {
   id: string
@@ -22,7 +23,19 @@ const statusColors: Record<string, string> = {
   DECONTAMINATION: '#06b6d4', MAINTENANCE: '#6b7280', OFFLINE: '#374151', RESERVE: '#9ca3af',
 }
 
+const statusFilterOptions = [
+  { value: 'all', labelKey: 'common.all' },
+  { value: 'AVAILABLE', labelKey: 'status.available' },
+  { value: 'DISPATCHED', labelKey: 'status.dispatched' },
+  { value: 'EN_ROUTE', labelKey: 'status.enRoute' },
+  { value: 'ON_SCENE', labelKey: 'status.onScene' },
+  { value: 'TRANSPORTING', labelKey: 'status.transporting' },
+  { value: 'MAINTENANCE', labelKey: 'status.maintenance' },
+  { value: 'OFFLINE', labelKey: 'status.offline' },
+]
+
 export default function UnitsPage() {
+  const { t } = useLocale()
   const [units, setUnits] = useState<Unit[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -52,35 +65,30 @@ export default function UnitsPage() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Truck size={18} color="#3b82f6" /> Fleet Units
+            <Truck size={18} color="#3b82f6" /> {t('ems.units.title')}
           </h1>
-          <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>{units.length} total · {units.filter((u) => u.status === 'AVAILABLE').length} available</p>
+          <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>{units.length} {t('common.total')} · {units.filter((u) => u.status === 'AVAILABLE').length} {t('status.available')}</p>
         </div>
         <button onClick={fetchUnits} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 14px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, color: '#94a3b8', cursor: 'pointer', fontSize: 12 }}>
-          <RefreshCw size={14} /> Refresh
+          <RefreshCw size={14} /> {t('common.refresh')}
         </button>
       </div>
 
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 6, padding: '6px 12px', border: '1px solid rgba(255,255,255,0.08)', flex: 1, minWidth: 200 }}>
           <Search size={14} color="#64748b" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search units..." style={{ background: 'transparent', border: 'none', color: '#e2e8f0', fontSize: 13, outline: 'none', width: '100%' }} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('common.search') + '...'} style={{ background: 'transparent', border: 'none', color: '#e2e8f0', fontSize: 13, outline: 'none', width: '100%' }} />
         </div>
         <select value={filter} onChange={(e) => setFilter(e.target.value)} style={{ padding: '6px 12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 6, color: '#e2e8f0', fontSize: 13, outline: 'none' }}>
-          <option value="all">All Status</option>
-          <option value="AVAILABLE">Available</option>
-          <option value="DISPATCHED">Dispatched</option>
-          <option value="EN_ROUTE">En Route</option>
-          <option value="ON_SCENE">On Scene</option>
-          <option value="TRANSPORTING">Transporting</option>
-          <option value="MAINTENANCE">Maintenance</option>
-          <option value="OFFLINE">Offline</option>
+          {statusFilterOptions.map((opt) => (
+            <option key={opt.value} value={opt.value}>{t(opt.labelKey as any)}</option>
+          ))}
         </select>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 10 }}>
         {filtered.length === 0 ? (
-          <div style={{ gridColumn: '1 / -1' }}><EmptyState icon={Truck} message="No units match your filters" /></div>
+          <div style={{ gridColumn: '1 / -1' }}><EmptyState icon={Truck} message={t('common.noResults')} /></div>
         ) : (
           filtered.map((u) => (
             <div key={u.id} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: '14px 16px' }}>

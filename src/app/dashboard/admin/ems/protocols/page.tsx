@@ -2,8 +2,10 @@
 
 import React, { useEffect, useState } from 'react'
 import { FileText, Search, Plus } from 'lucide-react'
+import { useLocale } from '@/components/i18n/LocaleProvider'
 
 export default function ProtocolsPage() {
+  const { t } = useLocale()
   const [protocols, setProtocols] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -24,19 +26,19 @@ export default function ProtocolsPage() {
       <div style={{ marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, color: '#f1f5f9', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <FileText size={18} color="#94a3b8" /> Protocols
+            <FileText size={18} color="#94a3b8" /> {t('ems.protocols.title')}
           </h1>
-          <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>Medical protocols, SOPs, and operational procedures</p>
+          <p style={{ fontSize: 13, color: '#64748b', margin: '4px 0 0' }}>{t('ems.dispatch.subtitle')}</p>
         </div>
       </div>
       <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 6, padding: '6px 12px', border: '1px solid rgba(255,255,255,0.08)', flex: 1 }}>
           <Search size={14} color="#64748b" />
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search protocols..." style={{ background: 'transparent', border: 'none', color: '#e2e8f0', fontSize: 13, outline: 'none', width: '100%' }} />
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={t('common.search') + '...'} style={{ background: 'transparent', border: 'none', color: '#e2e8f0', fontSize: 13, outline: 'none', width: '100%' }} />
         </div>
       </div>
       {loading ? (
-        <div style={{ padding: 40, textAlign: 'center', color: '#64748b', fontSize: 13 }}>Loading protocols...</div>
+        <div style={{ padding: 40, textAlign: 'center', color: '#64748b', fontSize: 13 }}>{t('common.loading')}</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 10 }}>
           {filtered.map((p) => (
@@ -51,7 +53,7 @@ export default function ProtocolsPage() {
               <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                 <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: 'rgba(59,130,246,0.15)', color: '#60a5fa' }}>{p.type}</span>
                 {p.severity && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: 'rgba(239,68,68,0.15)', color: '#fca5a5' }}>{p.severity}</span>}
-                {p.isActive && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: 'rgba(34,197,94,0.15)', color: '#86efac' }}>Active</span>}
+                {p.isActive && <span style={{ fontSize: 10, padding: '1px 6px', borderRadius: 3, background: 'rgba(34,197,94,0.15)', color: '#86efac' }}>{t('common.active')}</span>}
               </div>
             </div>
           ))}

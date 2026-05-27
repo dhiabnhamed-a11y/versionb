@@ -8,31 +8,21 @@ import {
   BarChart3, Workflow, FileText, Settings, Siren, LayoutDashboard, ChevronLeft,
   Activity,
 } from 'lucide-react'
+import { useLocale } from '@/components/i18n/LocaleProvider'
 
-const navItems = [
-  { id: 'command-center', label: 'Command Center', href: '/dashboard/admin/ems', icon: Satellite },
-  { id: 'dispatch', label: 'Dispatch', href: '/dashboard/admin/ems/dispatch', icon: Radio },
-  { id: 'incidents', label: 'Incidents', href: '/dashboard/admin/ems/incidents', icon: AlertTriangle },
-  { id: 'fleet', label: 'Fleet', href: '/dashboard/admin/ems/fleet', icon: Truck },
-  { id: 'units', label: 'Units', href: '/dashboard/admin/ems/units', icon: ShieldCheck },
-  { id: 'hospitals', label: 'Hospitals', href: '/dashboard/admin/ems/hospitals', icon: Building2 },
-  { id: 'crews', label: 'Crews', href: '/dashboard/admin/ems/crews', icon: Users },
-  { id: 'analytics', label: 'Analytics', href: '/dashboard/admin/ems/analytics', icon: BarChart3 },
-  { id: 'automation', label: 'Automation', href: '/dashboard/admin/ems/automation', icon: Workflow },
-  { id: 'protocols', label: 'Protocols', href: '/dashboard/admin/ems/protocols', icon: FileText },
-  { id: 'settings', label: 'Settings', href: '/dashboard/admin/ems/settings', icon: Settings },
-]
-
-const statusBarItems = [
-  { label: 'Units Available', value: '—', color: '#22c55e' },
-  { label: 'Active Incidents', value: '—', color: '#ef4444' },
-  { label: 'Hospitals', value: '—', color: '#3b82f6' },
+const statusBarConfig = [
+  { key: 'status.available', color: '#22c55e' },
+  { key: 'ems.command.activeIncidents', color: '#ef4444' },
+  { key: 'ems.nav.hospitals', color: '#3b82f6' },
 ]
 
 export default function EmsSidebar({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { t } = useLocale()
   const [collapsed, setCollapsed] = React.useState(false)
-  const [statusData, setStatusData] = React.useState(statusBarItems)
+  const [statusData, setStatusData] = React.useState<{ key: string; value: string; color: string }[]>(
+    statusBarConfig.map((c) => ({ ...c, value: '—' }))
+  )
 
   React.useEffect(() => {
     fetch('/api/ems/metrics', { credentials: 'same-origin' })
@@ -40,14 +30,28 @@ export default function EmsSidebar({ children }: { children: React.ReactNode }) 
       .then((data) => {
         if (data?.data) {
           setStatusData([
-            { label: 'Units Available', value: String(data.data.unitsAvailable ?? '—'), color: '#22c55e' },
-            { label: 'Active Incidents', value: String(data.data.activeIncidents ?? '—'), color: '#ef4444' },
-            { label: 'Hospitals', value: String(data.data.hospitalsOnline ?? '—'), color: '#3b82f6' },
+            { key: 'status.available', value: String(data.data.unitsAvailable ?? '—'), color: '#22c55e' },
+            { key: 'ems.command.activeIncidents', value: String(data.data.activeIncidents ?? '—'), color: '#ef4444' },
+            { key: 'ems.nav.hospitals', value: String(data.data.hospitalsOnline ?? '—'), color: '#3b82f6' },
           ])
         }
       })
       .catch(() => {})
   }, [])
+
+  const navItems = React.useMemo(() => [
+    { id: 'command-center', label: t('ems.nav.commandCenter'), href: '/dashboard/admin/ems', icon: Satellite },
+    { id: 'dispatch', label: t('ems.nav.dispatch'), href: '/dashboard/admin/ems/dispatch', icon: Radio },
+    { id: 'incidents', label: t('ems.nav.incidents'), href: '/dashboard/admin/ems/incidents', icon: AlertTriangle },
+    { id: 'fleet', label: t('ems.nav.fleet'), href: '/dashboard/admin/ems/fleet', icon: Truck },
+    { id: 'units', label: t('ems.nav.units'), href: '/dashboard/admin/ems/units', icon: ShieldCheck },
+    { id: 'hospitals', label: t('ems.nav.hospitals'), href: '/dashboard/admin/ems/hospitals', icon: Building2 },
+    { id: 'crews', label: t('ems.nav.crews'), href: '/dashboard/admin/ems/crews', icon: Users },
+    { id: 'analytics', label: t('ems.nav.analytics'), href: '/dashboard/admin/ems/analytics', icon: BarChart3 },
+    { id: 'automation', label: t('ems.nav.automation'), href: '/dashboard/admin/ems/automation', icon: Workflow },
+    { id: 'protocols', label: t('ems.nav.protocols'), href: '/dashboard/admin/ems/protocols', icon: FileText },
+    { id: 'settings', label: t('ems.nav.settings'), href: '/dashboard/admin/ems/settings', icon: Settings },
+  ], [t])
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: '#0a0a0f', color: '#e2e8f0' }}>
@@ -79,7 +83,7 @@ export default function EmsSidebar({ children }: { children: React.ReactNode }) 
               <div>
                 <div style={{ fontWeight: 700, fontSize: 13, letterSpacing: '0.02em' }}>EMS OS</div>
                 <div style={{ fontSize: 10, color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase' }}>
-                  Operations Center
+                  {t('ems.command.title')}
                 </div>
               </div>
             </>
@@ -135,8 +139,8 @@ export default function EmsSidebar({ children }: { children: React.ReactNode }) 
             <ChevronLeft size={14} style={{ transform: collapsed ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
           </button>
           {!collapsed && statusData.map((item) => (
-            <div key={item.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b' }}>
-              <span>{item.label}</span>
+            <div key={item.key} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b' }}>
+              <span>{t(item.key as any)}</span>
               <span style={{ color: item.color, fontWeight: 600 }}>{item.value}</span>
             </div>
           ))}
