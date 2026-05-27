@@ -1,11 +1,14 @@
-// @ts-nocheck — multiple return type branches incompatible with handleApiRoute generics
 import type { NextRequest } from 'next/server'
-import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
+import { apiData as _apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { EmsService } from '@/modules/ems/ems.service'
 import { DispatchEngine } from '@/modules/ems/dispatch-engine'
 import { EmsAiService } from '@/modules/ems/ai/ems-ai-agent'
 
 export const runtime = 'nodejs'
+
+function apiData(data: any, opts?: any) {
+  return _apiData(data, opts)
+}
 
 export async function POST(req: NextRequest) {
   return handleApiRoute(

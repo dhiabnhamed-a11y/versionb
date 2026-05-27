@@ -1,9 +1,12 @@
-// @ts-nocheck — depends on prisma generate for Ems* models; PATCH returns union type incompatible with handleApiRoute generics
 import type { NextRequest } from 'next/server'
-import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
+import { apiData as _apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { EmsService } from '@/modules/ems/ems.service'
 
 export const runtime = 'nodejs'
+
+function apiData(data: any, opts?: any) {
+  return _apiData(data, opts)
+}
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   return handleApiRoute(

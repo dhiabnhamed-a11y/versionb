@@ -1,14 +1,18 @@
 import type { NextRequest } from 'next/server'
-import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
+import { apiData as _apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { EmsService } from '@/modules/ems/ems.service'
 
 export const runtime = 'nodejs'
+
+function apiData(data: any, opts?: any) {
+  return _apiData(data, opts)
+}
 
 export async function GET(req: NextRequest) {
   return handleApiRoute(
     req,
     undefined,
-    async ({ user }) => {
+    async ({ user }: any) => {
       const companyId = user.companyId || ''
       const { searchParams } = new URL(req.url)
       const active = searchParams.get('active') === 'true'
@@ -30,7 +34,7 @@ export async function POST(req: NextRequest) {
   return handleApiRoute(
     req,
     undefined,
-    async ({ user }) => {
+    async ({ user }: any) => {
       const companyId = user.companyId || ''
       const body = await parseJsonObject(req)
       const incident = await EmsService.createIncident(companyId, { ...body, createdById: user.id })
