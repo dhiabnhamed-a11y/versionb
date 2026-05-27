@@ -3,7 +3,8 @@
 import { useEffect, useRef, useCallback } from 'react'
 import L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
-import { STATUS_COLORS, SEVERITY_COLORS, type SimUnit } from '@/modules/ems/dispatch-simulator'
+import { EMS_STATUS_COLORS, EMS_SEVERITY_COLORS } from '@/lib/ems-config'
+import type { FleetUnit } from '@/lib/api-client/ems-dispatch'
 
 const ICON_SIZE = 12
 const INCIDENT_SIZE = 18
@@ -27,7 +28,7 @@ function createUnitIcon(color: string, isDispatched: boolean) {
 }
 
 function createIncidentIcon(severity: string) {
-  const color = SEVERITY_COLORS[severity] || '#ef4444'
+  const color = EMS_SEVERITY_COLORS[severity] || '#ef4444'
   return L.divIcon({
     className: '',
     html: `<div style="
@@ -74,7 +75,7 @@ export default function EmsLiveMap({
   incidentLng: number
   incidentId: string
   severity: string
-  units: SimUnit[]
+  units: FleetUnit[]
   dispatchedUnitId: string | null
 }) {
   const mapRef = useRef<L.Map | null>(null)
@@ -131,7 +132,7 @@ export default function EmsLiveMap({
       .addTo(map)
       .bindPopup(`
         <div style="font-family:system-ui;background:#0f0f1a;color:#e2e8f0;border-radius:8px;padding:6px 10px;min-width:180px">
-          <div style="font-weight:700;font-size:13px;color:${SEVERITY_COLORS[severity] || '#ef4444'};margin-bottom:4px">
+          <div style="font-weight:700;font-size:13px;color:${EMS_SEVERITY_COLORS[severity] || '#ef4444'};margin-bottom:4px">
             🚨 ${severity} — ${incidentId || 'Incident'}
           </div>
           <div style="font-size:11px;color:#94a3b8">${incidentLat.toFixed(4)}, ${incidentLng.toFixed(4)}</div>
@@ -159,20 +160,14 @@ export default function EmsLiveMap({
     })
 
     units.forEach((unit) => {
-      const color = STATUS_COLORS[unit.status] || '#6b7280'
+      if (!unit.lat || !unit.lng) return
+      const color = EMS_STATUS_COLORS[unit.status] || '#6b7280'
       const existing = markersRef.current.get(unit.id)
       const isDispatched = unit.status === 'DISPATCHED' || unit.status === 'EN_ROUTE'
 
       if (existing) {
         existing.setLatLng([unit.lat, unit.lng])
         existing.setIcon(createUnitIcon(color, isDispatched))
-        existing.setTooltipContent(`
-          <div style="font-family:system-ui;background:#0f0f1a;color:#e2e8f0;border-radius:6px;padding:4px 8px;font-size:11px;min-width:140px">
-            <strong style="color:${color}">${unit.unitNumber}</strong>
-            <span style="color:#64748b;margin-left:6px">${unit.type}</span>
-            <div style="color:#94a3b8;margin-top:2px">${unit.status} · ${Math.round(unit.etaSeconds / 60)}m ETA</div>
-          </div>
-        `)
       } else {
         const marker = L.marker([unit.lat, unit.lng], {
           icon: createUnitIcon(color, isDispatched),
@@ -183,7 +178,7 @@ export default function EmsLiveMap({
           <div style="font-family:system-ui;background:#0f0f1a;color:#e2e8f0;border-radius:6px;padding:4px 8px;font-size:11px;min-width:140px">
             <strong style="color:${color}">${unit.unitNumber}</strong>
             <span style="color:#64748b;margin-left:6px">${unit.type}</span>
-            <div style="color:#94a3b8;margin-top:2px">${unit.status} · ${Math.round(unit.etaSeconds / 60)}m ETA</div>
+            <div style="color:#94a3b8;margin-top:2px">${unit.status.replace(/_/g, ' ')}</div>
           </div>
         `, { direction: 'top', offset: L.point(0, -8) })
 
@@ -203,10 +198,10 @@ export default function EmsLiveMap({
 
     if (dispatchedUnitId) {
       const dispatchedUnit = units.find((u) => u.id === dispatchedUnitId)
-      if (dispatchedUnit) {
+      if (dispatchedUnit && dispatchedUnit.lat && dispatchedUnit.lng) {
         const line = createRouteLine(
           [[dispatchedUnit.lat, dispatchedUnit.lng], [incidentLat, incidentLng]],
-          SEVERITY_COLORS[severity] || '#ef4444'
+          EMS_SEVERITY_COLORS[severity] || '#ef4444'
         )
         line.addTo(map)
         routeLineRef.current = line

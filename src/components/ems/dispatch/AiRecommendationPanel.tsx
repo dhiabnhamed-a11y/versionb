@@ -1,31 +1,25 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Brain, Cpu, TrendingUp, Activity, Zap, Shield, Target, Radio } from 'lucide-react'
-import type { AiRecommendation, SimUnit } from '@/modules/ems/dispatch-simulator'
+import type { AiRecommendationResult, DispatchCandidate } from '@/lib/api-client/ems-dispatch'
 
 export default function AiRecommendationPanel({
-  recommendation,
+  aiResult,
   allUnits,
   scanning,
 }: {
-  recommendation: AiRecommendation | null
-  allUnits: SimUnit[]
+  aiResult: AiRecommendationResult | null
+  allUnits: DispatchCandidate[]
   scanning: boolean
 }) {
   const [scanLines, setScanLines] = useState<number[]>([])
 
   useEffect(() => {
-    if (!scanning) {
-      setScanLines([])
-      return
-    }
+    if (!scanning) { setScanLines([]); return }
     const interval = setInterval(() => {
-      setScanLines((prev) => {
-        const next = [...prev, Date.now()]
-        return next.length > 8 ? next.slice(-8) : next
-      })
+      setScanLines((prev) => { const next = [...prev, Date.now()]; return next.length > 8 ? next.slice(-8) : next })
     }, 600)
     return () => clearInterval(interval)
   }, [scanning])
@@ -51,7 +45,6 @@ export default function AiRecommendationPanel({
             />
           ))}
         </div>
-
         <div style={{ textAlign: 'center', padding: '32px 16px', position: 'relative', zIndex: 1 }}>
           <motion.div
             animate={{ scale: [1, 1.05, 1], opacity: [0.6, 1, 0.6] }}
@@ -71,17 +64,20 @@ export default function AiRecommendationPanel({
             AI neural engine scanning dispatch parameters...
           </div>
           <div style={{ fontSize: 11, color: '#475569', marginTop: 4 }}>
-            Analyzing {allUnits.length} units across 6 factors
+            Analyzing {allUnits.length} units across 6 real-time factors
           </div>
         </div>
       </div>
     )
   }
 
-  if (!recommendation) return null
+  if (!aiResult?.candidates?.length) return null
 
-  const confidenceColor = recommendation.confidence > 85 ? '#22c55e' : recommendation.confidence > 65 ? '#eab308' : '#ef4444'
-  const survivalColor = recommendation.survivalOptimization === 'HIGH' ? '#22c55e' : recommendation.survivalOptimization === 'MEDIUM' ? '#eab308' : '#ef4444'
+  const best = aiResult.candidates[0]
+  const confidence = Math.round(best.score * 100)
+  const confidenceColor = confidence > 85 ? '#22c55e' : confidence > 65 ? '#eab308' : '#ef4444'
+  const survivalOpt = best.score > 0.8 ? 'HIGH' : best.score > 0.5 ? 'MEDIUM' : 'LOW'
+  const survivalColor = survivalOpt === 'HIGH' ? '#22c55e' : survivalOpt === 'MEDIUM' ? '#eab308' : '#ef4444'
 
   return (
     <motion.div
@@ -114,7 +110,7 @@ export default function AiRecommendationPanel({
             </div>
             <div>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#93c5fd', letterSpacing: '0.03em' }}>AI DISPATCH RECOMMENDATION</div>
-              <div style={{ fontSize: 10, color: '#475569' }}>Powered by Neural Dispatch Engine v2</div>
+              <div style={{ fontSize: 10, color: '#475569' }}>Real-time 6-factor engine · DB-backed</div>
             </div>
             <motion.div
               animate={{ opacity: [0.4, 1, 0.4] }}
@@ -132,17 +128,16 @@ export default function AiRecommendationPanel({
           }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
               <div>
-                <span style={{ fontSize: 18, fontWeight: 800, color: '#f1f5f9' }}>{recommendation.unitNumber}</span>
+                <span style={{ fontSize: 18, fontWeight: 800, color: '#f1f5f9' }}>{best.unitNumber}</span>
                 <span style={{
                   fontSize: 10, marginLeft: 8, padding: '2px 6px', borderRadius: 3,
-                  background: `rgba(${recommendation.type === 'ALS' || recommendation.type === 'MICU' ? '34,197,94' : '148,163,184'},0.15)`,
-                  color: recommendation.type === 'ALS' || recommendation.type === 'MICU' ? '#22c55e' : '#94a3b8',
-                  fontWeight: 600,
-                }}>{recommendation.type}</span>
+                  background: 'rgba(34,197,94,0.15)',
+                  color: '#22c55e', fontWeight: 600,
+                }}>AI SELECTED</span>
               </div>
               <div style={{ textAlign: 'right' }}>
                 <div style={{ fontSize: 22, fontWeight: 800, color: confidenceColor }}>
-                  {recommendation.confidence}%
+                  {confidence}%
                 </div>
                 <div style={{ fontSize: 9, color: '#64748b' }}>CONFIDENCE</div>
               </div>
@@ -150,7 +145,7 @@ export default function AiRecommendationPanel({
             <div style={{ width: '100%', height: 4, background: 'rgba(255,255,255,0.06)', borderRadius: 2, marginTop: 6 }}>
               <motion.div
                 initial={{ width: 0 }}
-                animate={{ width: `${recommendation.confidence}%` }}
+                animate={{ width: `${confidence}%` }}
                 transition={{ duration: 1, ease: 'easeOut', delay: 0.3 }}
                 style={{ height: '100%', background: `linear-gradient(90deg, ${confidenceColor}, ${confidenceColor}88)`, borderRadius: 2 }}
               />
@@ -162,7 +157,7 @@ export default function AiRecommendationPanel({
               <Cpu size={11} style={{ display: 'inline', marginRight: 4 }} /> Reasoning
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-              {recommendation.reasoning.map((reason, i) => (
+              {best.factors.map((factor, i) => (
                 <motion.div
                   key={i}
                   initial={{ opacity: 0, x: -8 }}
@@ -171,7 +166,7 @@ export default function AiRecommendationPanel({
                   style={{ display: 'flex', alignItems: 'flex-start', gap: 6, fontSize: 11, color: '#94a3b8', lineHeight: 1.4 }}
                 >
                   <Target size={10} style={{ flexShrink: 0, marginTop: 2, color: '#60a5fa' }} />
-                  <span>{reason}</span>
+                  <span><strong style={{ color: '#cbd5e1' }}>{factor.name}</strong> ({Math.round(factor.weight * 100)}%): {factor.description}</span>
                 </motion.div>
               ))}
             </div>
@@ -179,10 +174,10 @@ export default function AiRecommendationPanel({
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 12 }}>
             {[
-              { label: 'ETA', value: `${Math.round(recommendation.etaSeconds / 60)} min`, icon: Activity, color: '#60a5fa' },
-              { label: 'Distance', value: `${recommendation.distanceKm} km`, icon: Target, color: '#22c55e' },
-              { label: 'Survival Opt.', value: recommendation.survivalOptimization, icon: TrendingUp, color: survivalColor },
-              { label: 'AI Score', value: (recommendation.score * 100).toFixed(0), icon: Zap, color: '#8b5cf6' },
+              { label: 'ETA', value: `${Math.round(best.etaSeconds / 60)} min`, icon: Activity, color: '#60a5fa' },
+              { label: 'Distance', value: `${best.distanceKm} km`, icon: Target, color: '#22c55e' },
+              { label: 'Survival Opt.', value: survivalOpt, icon: TrendingUp, color: survivalColor },
+              { label: 'AI Score', value: (best.score * 100).toFixed(0), icon: Zap, color: '#8b5cf6' },
             ].map((stat) => {
               const Icon = stat.icon
               return (
@@ -200,10 +195,25 @@ export default function AiRecommendationPanel({
             })}
           </div>
 
+          {aiResult.nearestHospital && (
+            <div style={{
+              background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)',
+              borderRadius: 6, padding: '8px 10px', marginBottom: 10,
+            }}>
+              <div style={{ fontSize: 9, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>
+                Nearest Hospital
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0' }}>{aiResult.nearestHospital.name}</div>
+              <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 1 }}>
+                {aiResult.nearestHospital.distanceKm} km · {Math.round(aiResult.nearestHospital.etaSeconds / 60)} min ETA · {aiResult.nearestHospital.availableBeds} beds
+              </div>
+            </div>
+          )}
+
           <div style={{ fontSize: 10, color: '#475569', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8, display: 'flex', justifyContent: 'space-between' }}>
-            <span>Neural Dispatch Engine · 6-factor analysis</span>
+            <span>Dispatch Engine v2 · 6-factor Haversine analysis</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-              <Shield size={10} color="#60a5fa" /> HIPAA-compliant
+              <Shield size={10} color="#60a5fa" /> DB-backed
             </span>
           </div>
         </div>

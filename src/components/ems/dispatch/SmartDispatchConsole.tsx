@@ -11,15 +11,15 @@ import EmsLiveMap from './EmsLiveMap'
 import AiRecommendationPanel from './AiRecommendationPanel'
 import DispatchTimeline from './DispatchTimeline'
 import {
-  generateSimulatedUnits,
-  getAiRecommendation,
-  simulateMovement,
-  getAiRecommendation as getAiRecommendationFn,
-  STATUS_COLORS,
-  SEVERITY_COLORS,
-  type SimUnit,
-  type AiRecommendation,
-} from '@/modules/ems/dispatch-simulator'
+  findUnits as apiFindUnits,
+  getAiRecommendation as apiGetRecommendation,
+  autoDispatch as apiAutoDispatch,
+  type FleetUnit,
+  type DispatchCandidate,
+  type AiRecommendationResult,
+  type AutoDispatchResult,
+} from '@/lib/api-client/ems-dispatch'
+import { EMS_STATUS_COLORS, EMS_SEVERITY_COLORS } from '@/lib/ems-config'
 
 type TimelineEvent = {
   id: string
@@ -30,15 +30,22 @@ type TimelineEvent = {
   critical?: boolean
 }
 
+type RadioMessage = {
+  sender: string
+  message: string
+  time: Date
+}
+
 export default function SmartDispatchConsole() {
   const [incidentId, setIncidentId] = useState('')
   const [lat, setLat] = useState('')
   const [lng, setLng] = useState('')
   const [severity, setSeverity] = useState('ALPHA')
-  const [units, setUnits] = useState<SimUnit[]>([])
+  const [units, setUnits] = useState<FleetUnit[]>([])
+  const [candidates, setCandidates] = useState<DispatchCandidate[]>([])
   const [loading, setLoading] = useState(false)
   const [aiScanning, setAiScanning] = useState(false)
-  const [recommendation, setRecommendation] = useState<AiRecommendation | null>(null)
+  const [aiResult, setAiResult] = useState<AiRecommendationResult | null>(null)
   const [dispatchedUnitId, setDispatchedUnitId] = useState<string | null>(null)
   const [dispatchResult, setDispatchResult] = useState<{ success: boolean; message: string } | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -46,8 +53,7 @@ export default function SmartDispatchConsole() {
   const [etaSeconds, setEtaSeconds] = useState(0)
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [sortBy, setSortBy] = useState<'score' | 'eta' | 'distance'>('score')
-  const [radioMessages, setRadioMessages] = useState<Array<{ sender: string; message: string; time: Date }>>([])
-  const simulationRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [radioMessages, setRadioMessages] = useState<RadioMessage[]>([])
 
   const addTimelineEvent = useCallback((type: TimelineEvent['type'], title: string, description: string, critical = false) => {
     setTimelineEvents((prev) => [...prev, { id: crypto.randomUUID(), type, title, description, timestamp: new Date(), critical }])
@@ -57,140 +63,107 @@ export default function SmartDispatchConsole() {
     setRadioMessages((prev) => [...prev.slice(-19), { sender, message, time: new Date() }])
   }, [])
 
-  const clearSimulation = useCallback(() => {
-    if (simulationRef.current) {
-      clearInterval(simulationRef.current)
-      simulationRef.current = null
-    }
-  }, [])
-
-  useEffect(() => {
-    return () => clearSimulation()
-  }, [clearSimulation])
-
   const findUnits = useCallback(async () => {
-    if (!lat || !lng) {
-      setError('Enter incident coordinates')
-      return
-    }
+    if (!lat || !lng) { setError('Enter incident coordinates'); return }
     const parsedLat = parseFloat(lat)
     const parsedLng = parseFloat(lng)
-    if (isNaN(parsedLat) || isNaN(parsedLng)) {
-      setError('Invalid coordinates')
-      return
-    }
+    if (isNaN(parsedLat) || isNaN(parsedLng)) { setError('Invalid coordinates'); return }
 
     setLoading(true)
     setError(null)
-    setRecommendation(null)
+    setAiResult(null)
     setDispatchedUnitId(null)
     setDispatchResult(null)
-    clearSimulation()
+    setCandidates([])
     addTimelineEvent('received', 'Incident received', `Location: ${parsedLat.toFixed(4)}, ${parsedLng.toFixed(4)} · Severity: ${severity}`)
 
-    await new Promise((r) => setTimeout(r, 800))
+    try {
+      const result = await apiFindUnits(parsedLat, parsedLng, severity, { maxResults: 10 })
+      setUnits(result.units || [])
+      setCandidates(result.candidates || [])
+      setLoading(false)
+      addTimelineEvent('ai_analysis', 'Unit search complete', `Found ${result.candidates?.length || 0} available units via real database query`)
 
-    const simulated = generateSimulatedUnits(parsedLat, parsedLng, severity, 10)
-    setUnits(simulated)
-    setLoading(false)
-    addTimelineEvent('ai_analysis', 'Unit search complete', `Found ${simulated.filter((u) => u.status === 'READY').length} available units within 10 km radius`)
-
-    if (simulated.filter((u) => u.status === 'READY').length === 0) {
-      setError('No nearby available units found. Expanding search radius...')
+      if (!result.candidates?.length) {
+        setError('No nearby available units found. Expand search or adjust parameters.')
+      }
+    } catch (err: any) {
+      setLoading(false)
+      setError(err.message || 'Failed to search for units. Database may need migration.')
     }
-  }, [lat, lng, severity, clearSimulation, addTimelineEvent])
+  }, [lat, lng, severity, addTimelineEvent])
 
   const getAiRecommendation = useCallback(async () => {
-    if (units.length === 0) {
-      setError('Search for units first')
-      return
-    }
+    if (!candidates.length) { setError('Search for units first'); return }
+    if (!incidentId) { setError('Enter an incident ID for AI analysis'); return }
 
     setAiScanning(true)
     setError(null)
-    addTimelineEvent('ai_analysis', 'AI neural analysis started', `${units.length} units evaluated across 6 dispatch factors`)
+    addTimelineEvent('ai_analysis', 'AI neural analysis started', `${candidates.length} units evaluated across 6 dispatch factors`)
 
-    await new Promise((r) => setTimeout(r, 2500))
+    try {
+      const rec = await apiGetRecommendation('', incidentId, parseFloat(lat), parseFloat(lng), severity)
+      setAiResult(rec)
+      setAiScanning(false)
 
-    const rec = getAiRecommendationFn(units, severity)
-    setAiScanning(false)
-
-    if (!rec) {
-      setError('AI could not find a suitable unit for dispatch')
-      return
+      if (rec.candidates?.length) {
+        const best = rec.candidates[0]
+        addTimelineEvent('ai_analysis', 'AI recommendation generated', `Best unit: ${best.unitNumber} · Score: ${best.score} · ETA: ${Math.round(best.etaSeconds / 60)} min`)
+        addTimelineEvent('eta_update', 'ETA calculated', `${Math.round(best.etaSeconds / 60)} min estimated arrival via Haversine`, false)
+      } else {
+        addTimelineEvent('alert', 'AI analysis complete', 'No suitable unit found', true)
+      }
+    } catch (err: any) {
+      setAiScanning(false)
+      setError(err.message || 'AI analysis failed')
     }
-
-    setRecommendation(rec)
-    addTimelineEvent('ai_analysis', 'AI recommendation generated', `Best unit: ${rec.unitNumber} · Confidence: ${rec.confidence}% · ${rec.reasoning[0]}`)
-    addTimelineEvent('eta_update', 'ETA calculated', `${Math.round(rec.etaSeconds / 60)} min estimated arrival time`, false)
-  }, [units, severity, addTimelineEvent])
+  }, [candidates, incidentId, lat, lng, severity, addTimelineEvent])
 
   const autoDispatch = useCallback(async () => {
-    if (!recommendation) {
-      setError('Generate AI recommendation first')
-      return
-    }
+    if (!aiResult?.candidates?.length) { setError('Generate AI recommendation first'); return }
+    if (!incidentId) { setError('Enter incident ID for dispatch'); return }
 
-    const dispatched = recommendation
-    setDispatchedUnitId(dispatched.unitId)
-    setEtaSeconds(dispatched.etaSeconds)
+    const best = aiResult.candidates[0]
+    setDispatchedUnitId(best.unitId)
+    setEtaSeconds(best.etaSeconds)
 
-    addTimelineEvent('unit_assigned', 'Unit assigned', `${dispatched.unitNumber} (${dispatched.type}) selected by AI dispatch engine`, false)
-    addTimelineEvent('crew_notified', 'Crew notified', `Alert sent to ${dispatched.unitNumber} crew`, true)
+    addTimelineEvent('unit_assigned', 'Unit assigned', `${best.unitNumber} selected by AI dispatch engine`, false)
 
-    setUnits((prev) =>
-      prev.map((u) => (u.id === dispatched.unitId ? { ...u, status: 'DISPATCHED' as const } : u))
-    )
+    try {
+      const result = await apiAutoDispatch(incidentId, severity)
+      if (result.success) {
+        addTimelineEvent('crew_notified', 'Crew notified', `Real alert sent to ${best.unitNumber} crew via Firebase + DB`, true)
+        setDispatchResult({ success: true, message: `Auto-dispatched ${best.unitNumber} via AI (score: ${best.score})` })
+        addTimelineEvent('en_route', 'Vehicle dispatched', `${best.unitNumber} responding to ${incidentId}`, true)
+        addRadioMessage('Dispatch', `${best.unitNumber}, you are dispatched to ${incidentId} at ${lat}, ${lng}. Severity: ${severity}.`)
+        addRadioMessage(best.unitNumber, 'Copy dispatch. En route. ETA ~' + Math.round(best.etaSeconds / 60) + ' minutes.')
+        addRadioMessage('Dispatch', '10-4. Real-time tracking active.')
+        addTimelineEvent('radio', 'Radio communication', 'Dispatch-to-unit handshake complete', false)
 
-    setDispatchResult({ success: true, message: `Auto-dispatched ${dispatched.unitNumber}` })
-
-    await new Promise((r) => setTimeout(r, 1200))
-    setUnits((prev) =>
-      prev.map((u) => (u.id === dispatched.unitId ? { ...u, status: 'EN_ROUTE' as const } : u))
-    )
-    addTimelineEvent('en_route', 'Vehicle en route', `${dispatched.unitNumber} responding to incident`, true)
-    addRadioMessage('Dispatch', `${dispatched.unitNumber}, you are dispatched to ${incidentId || 'incident'} at ${lat}, ${lng}. Severity: ${severity}.`)
-    await new Promise((r) => setTimeout(r, 800))
-    addRadioMessage(dispatched.unitNumber, 'Copy dispatch. En route. ETA approximately ' + Math.round(dispatched.etaSeconds / 60) + ' minutes.')
-    addRadioMessage('Dispatch', '10-4. Other units stand by for backup if needed.')
-
-    addTimelineEvent('radio', 'Radio communication', 'Dispatch-to-unit handshake complete', false)
-
-    let elapsed = 0
-    const simInterval = setInterval(() => {
-      elapsed += 3
-      setUnits((prev) => {
-        const updated = simulateMovement(
-          prev,
-          parseFloat(lat),
-          parseFloat(lng),
-          elapsed
+        setUnits((prev) =>
+          prev.map((u) => u.id === best.unitId ? { ...u, status: 'DISPATCHED' } : u)
         )
-        const dispatchedUnit = updated.find((u) => u.id === dispatched.unitId)
-        if (dispatchedUnit) {
-          setEtaSeconds(dispatchedUnit.etaSeconds)
-          if (dispatchedUnit.status === 'ON_SCENE' && prev.find((u) => u.id === dispatched.unitId)?.status !== 'ON_SCENE') {
-            addTimelineEvent('arrived', 'Unit arrived on scene', `${dispatchedUnit.unitNumber} arrived at incident location`, true)
-            addRadioMessage(dispatchedUnit.unitNumber, 'Dispatch, we are on scene.')
-            addRadioMessage('Dispatch', '10-0. Medical command notified.')
-            clearInterval(simInterval)
-          }
-        }
-        return updated
-      })
-    }, 3000)
-    simulationRef.current = simInterval
-  }, [recommendation, incidentId, lat, lng, severity, addTimelineEvent, addRadioMessage])
+      } else {
+        setDispatchResult({ success: false, message: result.reasoning || 'Auto-dispatch threshold not met' })
+        addTimelineEvent('alert', 'Dispatch failed', result.reasoning || 'Threshold check failed', true)
+        setDispatchedUnitId(null)
+      }
+    } catch (err: any) {
+      setDispatchedUnitId(null)
+      addTimelineEvent('alert', 'Dispatch error', err.message || 'Failed to execute dispatch', true)
+      setDispatchResult({ success: false, message: err.message || 'Dispatch failed' })
+    }
+  }, [aiResult, incidentId, lat, lng, severity, addTimelineEvent, addRadioMessage])
 
-  const filteredUnits = units
-    .filter((u) => filterStatus === 'all' || u.status === filterStatus)
+  const sortedCandidates = [...candidates]
+    .filter((c) => filterStatus === 'all' || units.find((u) => u.id === c.unitId)?.status === filterStatus)
     .sort((a, b) => {
       if (sortBy === 'eta') return a.etaSeconds - b.etaSeconds
       if (sortBy === 'distance') return a.distanceKm - b.distanceKm
       return b.score - a.score
     })
 
-  const availableCount = units.filter((u) => u.status === 'READY').length
+  const availableCount = units.filter((u) => u.status === 'AVAILABLE' || u.status === 'DISPATCHED').length
 
   return (
     <div>
@@ -219,7 +192,7 @@ export default function SmartDispatchConsole() {
             </h1>
           </div>
           <p style={{ fontSize: 12, color: '#64748b', margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>AI-powered emergency unit dispatch</span>
+            <span>Real-time AI-powered emergency unit dispatch</span>
             <span style={{ width: 3, height: 3, borderRadius: '50%', background: '#64748b', display: 'inline-block' }} />
             <span style={{ color: availableCount > 0 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>
               {availableCount} units available
@@ -314,12 +287,12 @@ export default function SmartDispatchConsole() {
                 </motion.button>
                 <motion.button
                   whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                  onClick={getAiRecommendation} disabled={units.length === 0 || aiScanning}
+                  onClick={getAiRecommendation} disabled={!candidates.length || aiScanning}
                   style={{
                     flex: 1, padding: '9px 12px', border: 'none', borderRadius: 6,
-                    cursor: units.length === 0 || aiScanning ? 'not-allowed' : 'pointer',
+                    cursor: !candidates.length || aiScanning ? 'not-allowed' : 'pointer',
                     background: 'linear-gradient(135deg, #7c3aed, #6d28d9)', color: '#fff', fontSize: 12, fontWeight: 600,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, opacity: units.length === 0 || aiScanning ? 0.6 : 1,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5, opacity: !candidates.length || aiScanning ? 0.6 : 1,
                   }}
                 >
                   {aiScanning ? <Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> : <Brain size={13} />}
@@ -328,14 +301,14 @@ export default function SmartDispatchConsole() {
               </div>
               <motion.button
                 whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-                onClick={autoDispatch} disabled={!recommendation || !!dispatchedUnitId}
+                onClick={autoDispatch} disabled={!aiResult?.candidates?.length || !!dispatchedUnitId}
                 style={{
                   padding: '9px 12px', border: 'none', borderRadius: 6,
-                  cursor: !recommendation || !!dispatchedUnitId ? 'not-allowed' : 'pointer',
+                  cursor: !aiResult?.candidates?.length || !!dispatchedUnitId ? 'not-allowed' : 'pointer',
                   background: 'linear-gradient(135deg, #dc2626, #b91c1c)', color: '#fff', fontSize: 12, fontWeight: 600,
                   display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-                  opacity: !recommendation || !!dispatchedUnitId ? 0.6 : 1,
-                  boxShadow: recommendation && !dispatchedUnitId ? '0 0 20px rgba(220,38,38,0.3)' : 'none',
+                  opacity: !aiResult?.candidates?.length || !!dispatchedUnitId ? 0.6 : 1,
+                  boxShadow: aiResult?.candidates?.length && !dispatchedUnitId ? '0 0 20px rgba(220,38,38,0.3)' : 'none',
                 }}
               >
                 {dispatchedUnitId ? <CheckCircle2 size={13} /> : <Radio size={13} />}
@@ -346,18 +319,18 @@ export default function SmartDispatchConsole() {
 
           {/* Severity Indicator */}
           <div style={{
-            background: `linear-gradient(135deg, ${SEVERITY_COLORS[severity]}11, transparent)`,
-            border: `1px solid ${SEVERITY_COLORS[severity]}33`,
+            background: `linear-gradient(135deg, ${EMS_SEVERITY_COLORS[severity]}11, transparent)`,
+            border: `1px solid ${EMS_SEVERITY_COLORS[severity]}33`,
             borderRadius: 10, padding: '10px 14px',
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <div style={{
                 width: 10, height: 10, borderRadius: '50%',
-                background: SEVERITY_COLORS[severity],
-                boxShadow: `0 0 12px ${SEVERITY_COLORS[severity]}`,
+                background: EMS_SEVERITY_COLORS[severity],
+                boxShadow: `0 0 12px ${EMS_SEVERITY_COLORS[severity]}`,
               }} />
               <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: SEVERITY_COLORS[severity] }}>{severity}</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: EMS_SEVERITY_COLORS[severity] }}>{severity}</div>
                 <div style={{ fontSize: 10, color: '#64748b' }}>
                   {severity === 'ALPHA' ? 'Low priority' :
                    severity === 'BRAVO' ? 'Moderate' :
@@ -370,7 +343,7 @@ export default function SmartDispatchConsole() {
                 {['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'OMEGA'].map((s) => (
                   <div key={s} style={{
                     width: 14, height: 14, borderRadius: 3,
-                    background: SEVERITY_COLORS[s],
+                    background: EMS_SEVERITY_COLORS[s],
                     opacity: s === severity ? 1 : 0.15,
                     transition: 'opacity 0.3s',
                   }} />
@@ -394,7 +367,7 @@ export default function SmartDispatchConsole() {
                 <span style={{
                   fontSize: 9, padding: '1px 5px', borderRadius: 3,
                   background: 'rgba(255,255,255,0.05)', color: '#64748b',
-                }}>{units.length}</span>
+                }}>{candidates.length}</span>
               </div>
               <div style={{ display: 'flex', gap: 6 }}>
                 <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}
@@ -404,7 +377,7 @@ export default function SmartDispatchConsole() {
                   }}
                 >
                   <option value="all">All</option>
-                  <option value="READY">Ready</option>
+                  <option value="AVAILABLE">Available</option>
                   <option value="EN_ROUTE">En Route</option>
                   <option value="TRANSPORTING">Transport</option>
                 </select>
@@ -424,30 +397,32 @@ export default function SmartDispatchConsole() {
               {loading ? (
                 <div style={{ padding: 24, textAlign: 'center' }}>
                   <Loader2 size={18} color="#64748b" style={{ animation: 'spin 1s linear infinite' }} />
-                  <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>Searching for units...</div>
+                  <div style={{ fontSize: 11, color: '#475569', marginTop: 8 }}>Querying database for available units...</div>
                 </div>
-              ) : filteredUnits.length === 0 ? (
+              ) : sortedCandidates.length === 0 ? (
                 <div style={{ padding: 24, textAlign: 'center' }}>
                   <Radio size={20} style={{ opacity: 0.2, color: '#64748b' }} />
                   <div style={{ fontSize: 11, color: '#475569', marginTop: 6 }}>
-                    {units.length === 0 ? 'Enter coordinates and click Find Units' : 'No units match filter'}
+                    {candidates.length === 0 ? 'Enter coordinates and click Find Units' : 'No units match filter'}
                   </div>
                 </div>
               ) : (
                 <AnimatePresence>
-                  {filteredUnits.map((unit, i) => {
-                    const isDispatched = unit.id === dispatchedUnitId
-                    const color = STATUS_COLORS[unit.status] || '#6b7280'
+                  {sortedCandidates.map((unit, i) => {
+                    const fleetUnit = units.find((u) => u.id === unit.unitId)
+                    const status = fleetUnit?.status || 'AVAILABLE'
+                    const isDispatched = unit.unitId === dispatchedUnitId
+                    const color = EMS_STATUS_COLORS[status] || '#6b7280'
+                    const isRecommended = aiResult?.candidates?.[0]?.unitId === unit.unitId
                     return (
                       <motion.div
-                        key={unit.id}
+                        key={unit.unitId}
                         initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.04 }}
                         style={{
                           padding: '8px 14px', margin: '2px 6px', borderRadius: 6,
-                          background: isDispatched ? 'rgba(59,130,246,0.06)' : i === 0 && recommendation && unit.id === recommendation.unitId ? 'rgba(34,197,94,0.06)' : 'transparent',
-                          border: isDispatched ? '1px solid rgba(59,130,246,0.2)' : i === 0 && recommendation && unit.id === recommendation.unitId ? '1px solid rgba(34,197,94,0.2)' : '1px solid transparent',
-                          cursor: 'pointer',
+                          background: isDispatched ? 'rgba(59,130,246,0.06)' : isRecommended ? 'rgba(34,197,94,0.06)' : 'transparent',
+                          border: isDispatched ? '1px solid rgba(59,130,246,0.2)' : isRecommended ? '1px solid rgba(34,197,94,0.2)' : '1px solid transparent',
                         }}
                       >
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 3 }}>
@@ -459,11 +434,11 @@ export default function SmartDispatchConsole() {
                             <span style={{
                               fontSize: 9, padding: '1px 4px', borderRadius: 3,
                               background: color + '18', color, fontWeight: 600,
-                            }}>{unit.type}</span>
+                            }}>{fleetUnit?.type || 'UNIT'}</span>
                           </div>
                           <span style={{
                             fontSize: 10, fontWeight: 700,
-                            color: i === 0 && recommendation ? '#22c55e' : '#64748b',
+                            color: isRecommended ? '#22c55e' : '#64748b',
                           }}>
                             {(unit.score * 100).toFixed(0)}
                           </span>
@@ -476,16 +451,16 @@ export default function SmartDispatchConsole() {
                             <Navigation size={9} /> {unit.distanceKm} km
                           </span>
                           <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Users size={9} /> {unit.crewCount}
+                            <Users size={9} /> {fleetUnit?.crewCapacity || '?'}
                           </span>
                           <span style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                            <Fuel size={9} /> {unit.fuelLevel}%
+                            <Fuel size={9} /> {fleetUnit?.fuelLevel ?? '?'}%
                           </span>
-                          <span style={{ color: unit.status === 'READY' ? '#22c55e' : color, fontSize: 9 }}>
-                            {unit.status}
+                          <span style={{ color: EMS_STATUS_COLORS[status] || color, fontSize: 9 }}>
+                            {status}
                           </span>
                         </div>
-                        {i === 0 && recommendation && !isDispatched && (
+                        {isRecommended && !isDispatched && (
                           <div style={{ marginTop: 3, fontSize: 9, color: '#22c55e' }}>
                             ★ AI Recommended
                           </div>
@@ -522,7 +497,6 @@ export default function SmartDispatchConsole() {
               <div>Enter coordinates to activate map</div>
             </div>
           )}
-          {/* Map overlay badge */}
           <div style={{
             position: 'absolute', top: 10, left: 10, zIndex: 1000,
             padding: '4px 10px', borderRadius: 4, fontSize: 9, fontWeight: 700,
@@ -549,29 +523,26 @@ export default function SmartDispatchConsole() {
                 transition={{ duration: 1.5, repeat: Infinity }}
                 style={{ width: 5, height: 5, borderRadius: '50%', background: '#22c55e', display: 'inline-block' }}
               />
-              LIVE TRACKING · Unit en route
+              LIVE TRACKING · Unit dispatched
             </div>
           )}
         </div>
 
         {/* RIGHT: AI Panel + Timeline + Radio */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {/* AI Recommendation Panel */}
           <div style={{
             background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
             borderRadius: 10, overflow: 'hidden',
           }}>
             <AiRecommendationPanel
-              recommendation={recommendation}
-              allUnits={units}
+              aiResult={aiResult}
+              allUnits={candidates}
               scanning={aiScanning}
             />
           </div>
 
-          {/* Dispatch Timeline */}
           <DispatchTimeline events={timelineEvents} etaSeconds={etaSeconds} />
 
-          {/* Radio Communications */}
           <div style={{
             background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)',
             borderRadius: 10, overflow: 'hidden', flex: 1, maxHeight: 200,
