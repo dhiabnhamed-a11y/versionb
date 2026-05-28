@@ -3,20 +3,12 @@ import { prisma } from '@/lib/db'
 import { badRequest, notFound, conflict } from '@/modules/shared/errors'
 import { SEVERITY_WEIGHTS } from '@/lib/ems-config'
 import { emitEmsEvent } from './ems-realtime'
+import { ensureEmsWorkspaceInitialized } from './ems-provisioning'
 
 export class EmsService {
   static async getOrCreateEmsCompany(companyId: string) {
-    let config = await prisma.emsCompany.findUnique({ where: { companyId } })
-    if (!config) {
-      config = await prisma.emsCompany.create({
-        data: {
-          companyId,
-          timezone: 'UTC',
-          dispatchMode: 'semi_auto',
-        },
-      })
-    }
-    return config
+    await ensureEmsWorkspaceInitialized(prisma, companyId)
+    return prisma.emsCompany.findUniqueOrThrow({ where: { companyId } })
   }
 
   static async createIncident(
@@ -93,6 +85,7 @@ export class EmsService {
   }
 
   static async getIncident(companyId: string, id: string) {
+    await this.getOrCreateEmsCompany(companyId)
     const incident = await prisma.emsIncident.findFirst({
       where: { id, companyId },
       include: {
@@ -113,6 +106,7 @@ export class EmsService {
   }
 
   static async listActiveIncidents(companyId: string) {
+    await this.getOrCreateEmsCompany(companyId)
     return prisma.emsIncident.findMany({
       where: {
         companyId,
@@ -299,6 +293,7 @@ export class EmsService {
   }
 
   static async getFleetOverview(companyId: string) {
+    await this.getOrCreateEmsCompany(companyId)
     const units = await prisma.emsUnit.findMany({
       where: { companyId },
       include: {
@@ -393,6 +388,7 @@ export class EmsService {
   }
 
   static async getHospitalsWithCapacity(companyId: string) {
+    await this.getOrCreateEmsCompany(companyId)
     return prisma.emsHospital.findMany({
       where: { companyId },
       orderBy: [{ status: 'asc' }, { availableBeds: 'desc' }],
@@ -437,6 +433,7 @@ export class EmsService {
   }
 
   static async getDashboardMetrics(companyId: string) {
+    await this.getOrCreateEmsCompany(companyId)
     const [activeIncidents, unitSummary, hospitals, todayIncidents] = await Promise.all([
       prisma.emsIncident.count({ where: { companyId, status: { notIn: ['COMPLETED', 'CANCELLED'] } } }),
       prisma.emsUnit.groupBy({ by: ['status'], where: { companyId }, _count: true }),
@@ -450,7 +447,9 @@ export class EmsService {
     ])
 
     const unitsAvailable = unitSummary.find((u) => u.status === 'AVAILABLE')?._count ?? 0
-    const unitsInService = unitSummary.reduce((sum, u) => sum + u._count, 0) - unitsAvailable
+    const unitsInService = unitSummary
+      .filter((u) => ['DISPATCHED', 'EN_ROUTE', 'ON_SCENE', 'TRANSPORTING', 'AT_HOSPITAL'].includes(u.status))
+      .reduce((sum, u) => sum + u._count, 0)
     const hospitalsOnDivert = hospitals.filter((h) => h.status === 'DIVERT').length
 
     return {
@@ -460,6 +459,7 @@ export class EmsService {
       unitsInService,
       hospitalsOnDivert,
       totalHospitals: hospitals.length,
+      hospitalsOnline: hospitals.length - hospitalsOnDivert,
     }
   }
 }

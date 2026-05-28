@@ -16,6 +16,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return handleApiRoute(req, undefined, async ({ user }) => {
     const companyId = user.companyId || ''
+    await EmsService.getOrCreateEmsCompany(companyId)
     const body = await parseJsonObject(req)
     const hospital = await prisma.emsHospital.create({
       data: {

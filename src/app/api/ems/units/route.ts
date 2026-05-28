@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { apiData as _apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { FleetService } from '@/modules/ems/fleet.service'
+import { EmsService } from '@/modules/ems/ems.service'
 import { prisma } from '@/lib/db'
 
 export const runtime = 'nodejs'
@@ -12,6 +13,7 @@ function apiData(data: any, opts?: any) {
 export async function GET(req: NextRequest) {
   return handleApiRoute(req, undefined, async ({ user }: any) => {
     const companyId = user.companyId || ''
+    await EmsService.getOrCreateEmsCompany(companyId)
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
     if (id) {
@@ -33,6 +35,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return handleApiRoute(req, undefined, async ({ user }) => {
     const companyId = user.companyId || ''
+    await EmsService.getOrCreateEmsCompany(companyId)
     const body = await parseJsonObject(req)
     const unit = await FleetService.registerUnit(companyId, body)
     return apiData(unit, { status: 201 })

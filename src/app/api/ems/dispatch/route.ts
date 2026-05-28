@@ -24,6 +24,7 @@ export async function POST(req: NextRequest) {
     undefined,
     async ({ user }: any) => {
       const companyId = user.companyId || ''
+      await EmsService.getOrCreateEmsCompany(companyId)
       const body = await parseJsonObject(req)
 
       if (body.action === 'find_units') {
@@ -148,6 +149,7 @@ export async function GET(req: NextRequest) {
     undefined,
     async ({ user }: any) => {
       const companyId = user.companyId || ''
+      await EmsService.getOrCreateEmsCompany(companyId)
       const { searchParams } = new URL(req.url)
       const incidentId = searchParams.get('incidentId')
       const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200)

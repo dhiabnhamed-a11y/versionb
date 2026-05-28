@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { apiData as _apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { prisma } from '@/lib/db'
+import { EmsService } from '@/modules/ems/ems.service'
 
 export const runtime = 'nodejs'
 
@@ -11,6 +12,7 @@ function apiData(data: any, opts?: any) {
 export async function GET(req: NextRequest) {
   return handleApiRoute(req, undefined, async ({ user }: any) => {
     const companyId = user.companyId || ''
+    await EmsService.getOrCreateEmsCompany(companyId)
     const rules = await prisma.emsAutomationRule.findMany({
       where: { companyId },
       orderBy: [{ priority: 'desc' }, { createdAt: 'desc' }],
@@ -22,6 +24,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return handleApiRoute(req, undefined, async ({ user }: any) => {
     const companyId = user.companyId || ''
+    await EmsService.getOrCreateEmsCompany(companyId)
     const body = await parseJsonObject(req)
     const rule = await prisma.emsAutomationRule.create({
       data: {
@@ -45,6 +48,7 @@ export async function POST(req: NextRequest) {
 export async function PATCH(req: NextRequest) {
   return handleApiRoute(req, undefined, async ({ user }: any) => {
     const companyId = user.companyId || ''
+    await EmsService.getOrCreateEmsCompany(companyId)
     const body = await parseJsonObject(req)
     const { id, ...updates } = body
     if (!id) return apiData({ message: 'id is required' }, { status: 400 })
@@ -66,6 +70,7 @@ export async function PATCH(req: NextRequest) {
 export async function DELETE(req: NextRequest) {
   return handleApiRoute(req, undefined, async ({ user }: any) => {
     const companyId = user.companyId || ''
+    await EmsService.getOrCreateEmsCompany(companyId)
     const url = new URL(req.url)
     const id = url.searchParams.get('id')
     if (!id) return apiData({ error: 'id query param is required' }, { status: 400 })

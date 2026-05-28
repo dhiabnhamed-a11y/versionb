@@ -1,9 +1,10 @@
 import { Prisma } from '@prisma/client'
 
-import { isErpWorkspaceType, normalizeCompanyType, type CompanyType } from '@/lib/company-types'
+import { isEmsCompanyType, isErpWorkspaceType, normalizeCompanyType, type CompanyType } from '@/lib/company-types'
 import { getWorkspaceBlueprint } from '@/lib/workspace-routing'
 import { ensureErpWorkspaceInitialized } from '@/services/erp2/setup.service'
 import { provisionEnterpriseOperationsWorkspace } from '@/modules/enterprise/enterprise-onboarding'
+import { ensureEmsWorkspaceInitialized } from '@/modules/ems/ems-provisioning'
 
 type TransactionClient = Prisma.TransactionClient
 
@@ -26,6 +27,9 @@ export async function provisionWorkspaceForCompany(tx: TransactionClient, input:
   const erp = isErpWorkspaceType(companyType)
     ? await ensureErpWorkspaceInitialized(tx, input.companyId)
     : null
+  const ems = isEmsCompanyType(companyType)
+    ? await ensureEmsWorkspaceInitialized(tx, input.companyId, { ownerId: input.ownerId })
+    : null
 
   await tx.auditLog.create({
     data: {
@@ -43,6 +47,7 @@ export async function provisionWorkspaceForCompany(tx: TransactionClient, input:
         aiContext: blueprint.aiContext,
         enterprise,
         erp,
+        ems,
       },
       metadata: {
         source: 'signup_onboarding',
@@ -58,5 +63,6 @@ export async function provisionWorkspaceForCompany(tx: TransactionClient, input:
     modules: blueprint.modules,
     enterprise,
     erp,
+    ems,
   }
 }

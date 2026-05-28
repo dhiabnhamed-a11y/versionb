@@ -13,6 +13,7 @@ function apiData(data: any, opts?: any) {
 export async function GET(req: NextRequest) {
   return handleApiRoute(req, undefined, async ({ user }: any) => {
     const companyId = user.companyId || ''
+    await EmsService.getOrCreateEmsCompany(companyId)
     const { searchParams } = new URL(req.url)
     const section = searchParams.get('section') || 'overview'
 

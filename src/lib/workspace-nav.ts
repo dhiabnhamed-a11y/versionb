@@ -1,5 +1,6 @@
 import {
   AlertTriangle,
+  Activity,
   BarChart3,
   Bell,
   Building2,
@@ -11,9 +12,11 @@ import {
   HeartPulse,
   Landmark,
   LayoutDashboard,
+  Radio,
   ReceiptText,
   ShieldCheck,
   Stethoscope,
+  Workflow,
   Truck,
   Users,
   Wrench,
@@ -61,6 +64,14 @@ export function getWorkspaceNav(ctx: WorkspaceNavContext): WorkspaceNavItem[] {
   const tasks: WorkspaceNavItem = { href: '/dashboard/admin/tasks', labelKey: 'nav.tasks', icon: CheckSquare }
   const campaigns: WorkspaceNavItem = { href: '/dashboard/admin/projects', labelKey: 'nav.campaigns', icon: FolderKanban }
   const briefs: WorkspaceNavItem = { href: '/dashboard/admin/tasks', labelKey: 'nav.briefs', icon: CheckSquare }
+  const emsCommandCenter: WorkspaceNavItem = { href: '/dashboard/admin/ems', labelKey: 'ems.nav.commandCenter', icon: Activity }
+  const emsDispatch: WorkspaceNavItem = { href: '/dashboard/admin/ems/dispatch', labelKey: 'ems.nav.dispatch', icon: Radio }
+  const emsIncidents: WorkspaceNavItem = { href: '/dashboard/admin/ems/incidents', labelKey: 'ems.nav.incidents', icon: AlertTriangle }
+  const emsFleet: WorkspaceNavItem = { href: '/dashboard/admin/ems/fleet', labelKey: 'ems.nav.fleet', icon: Truck }
+  const emsHospitals: WorkspaceNavItem = { href: '/dashboard/admin/ems/hospitals', labelKey: 'ems.nav.hospitals', icon: Building2 }
+  const emsCrews: WorkspaceNavItem = { href: '/dashboard/admin/ems/crews', labelKey: 'ems.nav.crews', icon: Users }
+  const emsAnalytics: WorkspaceNavItem = { href: '/dashboard/admin/ems/analytics', labelKey: 'ems.nav.analytics', icon: BarChart3 }
+  const emsAutomation: WorkspaceNavItem = { href: '/dashboard/admin/ems/automation', labelKey: 'ems.nav.automation', icon: Workflow }
 
   // Healthcare-specific modules (pages exist under /dashboard/admin/...)
   const patients: WorkspaceNavItem = { href: '/dashboard/admin/patients', label: 'Patients', icon: Stethoscope }
@@ -157,6 +168,22 @@ export function getWorkspaceNav(ctx: WorkspaceNavContext): WorkspaceNavItem[] {
 
     case 'ERP_WORKSPACE':
       return [overview, invoices, finance, team, calendar, alerts, billing]
+
+    case 'EMS_AGENCY':
+      return [
+        emsCommandCenter,
+        emsDispatch,
+        emsIncidents,
+        emsFleet,
+        emsHospitals,
+        emsCrews,
+        emsAnalytics,
+        emsAutomation,
+        tasks,
+        calendar,
+        alerts,
+        billing,
+      ]
 
     case 'OTHER':
     default:

@@ -1,12 +1,14 @@
 import type { NextRequest } from 'next/server'
 import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { prisma } from '@/lib/db'
+import { EmsService } from '@/modules/ems/ems.service'
 
 export const runtime = 'nodejs'
 
 export async function GET(req: NextRequest) {
   return handleApiRoute(req, undefined, async ({ user }) => {
     const companyId = user.companyId || ''
+    await EmsService.getOrCreateEmsCompany(companyId)
     const crews = await prisma.emsCrew.findMany({
       where: { companyId },
       include: {
@@ -23,6 +25,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return handleApiRoute(req, undefined, async ({ user }) => {
     const companyId = user.companyId || ''
+    await EmsService.getOrCreateEmsCompany(companyId)
     const body = await parseJsonObject(req)
     const crew = await prisma.emsCrew.create({
       data: { companyId, name: body.name, code: body.code, type: body.type || 'ALS' },
