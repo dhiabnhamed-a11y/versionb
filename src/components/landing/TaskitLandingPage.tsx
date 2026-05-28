@@ -38,6 +38,10 @@ import {
   Infinity,
   Users,
   Ambulance,
+  Orbit,
+  Globe,
+  KanbanSquare,
+  CheckSquare,
   type LucideIcon,
 } from 'lucide-react'
 import styles from './TaskitLandingPage.module.css'
@@ -452,10 +456,18 @@ export default function TaskitLandingPage({ dashboardHref, isSignedIn, liveStats
       </section>
 
       <section className={styles.statsBar} aria-label="TASKIT platform facts">
-        {landingStats.map((stat) => (
-          <div key={stat.label} className={styles.statItem}>
-            <strong>{stat.value}</strong>
-            <span>{stat.label}</span>
+        {landingStats.map((stat, i) => (
+          <div key={stat.label} className={styles.statItem} style={{ animationDelay: `${i * 100}ms` }}>
+            <div className={styles.statAccent} />
+            <div className={styles.statIcon}>
+              {i === 0 && <Orbit size={16} />}
+              {i === 1 && <Globe size={16} />}
+              {i === 2 && <KanbanSquare size={16} />}
+              {i === 3 && <CheckSquare size={16} />}
+            </div>
+            <strong className={styles.statValue}>{stat.value}</strong>
+            <span className={styles.statLabel}>{stat.label}</span>
+            <div className={styles.statGlow} />
           </div>
         ))}
       </section>
