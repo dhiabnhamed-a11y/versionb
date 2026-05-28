@@ -121,8 +121,8 @@ export default function OnboardingRecommendation({
           <ul>
             <li>Your organization type determined the base template.</li>
             <li>Your team size adjusted the scale of the workspace.</li>
-            <li>Your challenges added relevant features and tools.</li>
-            <li>Your priorities shaped the default dashboard layout.</li>
+            <li>Your pressure points and day-one systems weighted ERP, EMS, and operations modules.</li>
+            <li>Your discipline level and priorities shaped controls, dashboards, and automation defaults.</li>
           </ul>
         </motion.div>
       )}

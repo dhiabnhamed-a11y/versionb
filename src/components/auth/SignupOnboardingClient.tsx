@@ -7,6 +7,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  Ambulance,
   ArrowLeft,
   ArrowRight,
   Bot,
@@ -24,6 +25,7 @@ import {
   Hospital,
   Infinity,
   Landmark,
+  Languages,
   Loader2,
   Lock,
   Mail,
@@ -88,6 +90,7 @@ const templateIcons = {
   graduationCap: GraduationCap,
   database: Database,
   sparkles: Sparkles,
+  ambulance: Ambulance,
 } as const
 
 type SignupRole = 'OWNER' | 'MANAGER' | 'EMPLOYEE'
@@ -136,6 +139,23 @@ type PersistedOnboarding = {
 const companySizes = ['1-10', '11-50', '51-200', '201-1000', '1000+']
 const languages = ['English', 'Arabic', 'French', 'Spanish', 'German']
 const countries = getCountryCurrencyOptions().map((option) => option.value)
+const translationTargets = [
+  { code: 'ar', label: 'Arabic' },
+  { code: 'fr', label: 'French' },
+  { code: 'es', label: 'Spanish' },
+  { code: 'de', label: 'German' },
+  { code: 'it', label: 'Italian' },
+  { code: 'pt', label: 'Portuguese' },
+  { code: 'tr', label: 'Turkish' },
+  { code: 'zh-CN', label: 'Chinese' },
+  { code: 'hi', label: 'Hindi' },
+  { code: 'ja', label: 'Japanese' },
+  { code: 'ko', label: 'Korean' },
+  { code: 'ru', label: 'Russian' },
+  { code: 'nl', label: 'Dutch' },
+  { code: 'sv', label: 'Swedish' },
+  { code: 'more', label: 'More languages' },
+] as const
 
 const blankForm: SetupForm = {
   name: '',
@@ -543,10 +563,56 @@ function Header({ step, inviteMode }: { step: OnboardingStepId; inviteMode: bool
         })}
       </nav>
 
-      <Link href="/login" className={styles.loginLink}>
-        Sign in
-      </Link>
+      <div className={styles.headerActions}>
+        <TranslationMenu />
+        <Link href="/login" className={styles.loginLink}>
+          Sign in
+        </Link>
+      </div>
     </header>
+  )
+}
+
+function TranslationMenu() {
+  const [targetLanguage, setTargetLanguage] = useState<(typeof translationTargets)[number]['code']>('fr')
+
+  function translateSignupFlow() {
+    if (typeof window === 'undefined') return
+
+    if (targetLanguage === 'more') {
+      window.open('https://translate.google.com/?op=websites', '_blank', 'noopener,noreferrer')
+      return
+    }
+
+    const translatedUrl = new URL('https://translate.google.com/translate')
+    translatedUrl.searchParams.set('sl', 'auto')
+    translatedUrl.searchParams.set('tl', targetLanguage)
+    translatedUrl.searchParams.set('u', window.location.href)
+    window.open(translatedUrl.toString(), '_blank', 'noopener,noreferrer')
+  }
+
+  return (
+    <div className={styles.translationMenu}>
+      <label className={styles.translationLabel}>
+        <Languages size={15} aria-hidden="true" />
+        <span>Translate</span>
+      </label>
+      <select
+        value={targetLanguage}
+        onChange={(event) => setTargetLanguage(event.target.value as (typeof translationTargets)[number]['code'])}
+        aria-label="Choose signup translation language"
+        title="Translate signup steps"
+      >
+        {translationTargets.map((language) => (
+          <option key={language.code} value={language.code}>
+            {language.label}
+          </option>
+        ))}
+      </select>
+      <button type="button" onClick={translateSignupFlow} aria-label="Translate signup steps">
+        <Globe2 size={15} aria-hidden="true" />
+      </button>
+    </div>
   )
 }
 
@@ -606,11 +672,12 @@ function CompanyTypeStep({
         </button>
         <p className={styles.stepKicker}>
           <Bot size={14} />
-          Organization fit
+          Workspace fit intelligence
         </p>
-        <h1>What best describes your organization?</h1>
+        <h1>Choose the operating model TASKIT should provision.</h1>
         <p>
-          Select the closest fit. The live preview updates instantly with the workspace TASKIT will generate.
+          Pick the closest workspace outcome. ERP is tuned for finance, procurement, inventory, HR, and payroll.
+          EMS is tuned for dispatch, fleet readiness, incidents, hospitals, protocols, and response analytics.
         </p>
 
         <div className={styles.templateGrid} role="radiogroup" aria-label="Company type">
@@ -642,7 +709,7 @@ function CompanyTypeStep({
         <div className={styles.selectionActionBar}>
           <div>
             <strong>{template.title} OS</strong>
-            <span>{template.suggestions[0]}</span>
+            <span>{template.whyItMatters}</span>
           </div>
           <button type="button" className={styles.primaryCta} onClick={onGenerate}>
             Generate workspace

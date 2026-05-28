@@ -22,15 +22,8 @@ interface OnboardingFlowProps {
   onBack: () => void
 }
 
-const TOTAL_QUESTIONS = 5
-
-const questions: Question[] = [
-  QUESTIONS[0],
-  QUESTIONS[1],
-  QUESTIONS[2],
-  QUESTIONS[3],
-  QUESTIONS[4],
-]
+const questions: Question[] = QUESTIONS
+const TOTAL_QUESTIONS = questions.length
 
 export default function OnboardingFlow({ onSelect, onSubmit, onBack }: OnboardingFlowProps) {
   const [step, setStep] = useState(0)
@@ -40,7 +33,9 @@ export default function OnboardingFlow({ onSelect, onSubmit, onBack }: Onboardin
     q2: null,
     q3: null,
     q4: [],
-    q5: [],
+    q5: null,
+    q6: [],
+    q7: [],
   })
 
   const currentQuestion = useMemo(() => {
@@ -83,7 +78,7 @@ export default function OnboardingFlow({ onSelect, onSubmit, onBack }: Onboardin
         goForward()
       } else if (questionId === 'q2') {
         goForward()
-      } else if (questionId === 'q3') {
+      } else if (questionId === 'q3' || questionId === 'q5') {
         goForward()
       }
     },
@@ -165,9 +160,9 @@ export default function OnboardingFlow({ onSelect, onSubmit, onBack }: Onboardin
                 question={currentQuestion}
                 stepIndex={step}
                 totalSteps={TOTAL_QUESTIONS}
-                currentAnswer={isSingle ? (currentQuestion.id === 'q1' ? answers.q1 : currentQuestion.id === 'q2' ? answers.q2 : answers.q3) : null}
-                multiSelected={currentQuestion.id === 'q4' || currentQuestion.id === 'q5' ? (answers[currentQuestion.id] as string[]) : undefined}
-                rankSelected={currentQuestion.id === 'q5' ? (answers.q5 as string[]) : undefined}
+                currentAnswer={isSingle ? (answers[currentQuestion.id] as string | null) : null}
+                multiSelected={currentQuestion.id === 'q4' || currentQuestion.id === 'q6' ? (answers[currentQuestion.id] as string[]) : undefined}
+                rankSelected={currentQuestion.id === 'q7' ? answers.q7 : undefined}
                 direction={direction}
                 onAnswer={handleAnswer}
                 onContinue={handleContinue}
@@ -183,7 +178,7 @@ export default function OnboardingFlow({ onSelect, onSubmit, onBack }: Onboardin
             <p>Your answers shape the departments, workflows, dashboards, and AI copilots TASKIT prepares next.</p>
             <div className={styles.sideStats}>
               <span><ShieldCheck size={13} aria-hidden="true" /> Secure setup</span>
-              <span>5 guided answers</span>
+              <span>{TOTAL_QUESTIONS} guided answers</span>
               <span>Ready defaults</span>
             </div>
           </div>

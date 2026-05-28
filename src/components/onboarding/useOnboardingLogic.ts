@@ -1,211 +1,274 @@
 import type { Answers, Recommendation, TemplateId, CompanyType } from './onboardingData'
-import { WORKSPACE_TYPES } from './onboardingData'
+import { Q1_OPTIONS, Q2_OPTIONS, WORKSPACE_TYPES } from './onboardingData'
 
-export function computeRecommendation(answers: Answers): Recommendation {
-  const q1 = answers.q1
-  const q2 = answers.q2
-  const q4 = answers.q4
-  const q5 = answers.q5
-
-  let companyType: CompanyType
-  let templateId: TemplateId
-  const alternativeLabel: string | undefined = undefined
-  const alternativeTemplateId: TemplateId | undefined = undefined
-  let note: string | undefined
-
-  const base = resolveBaseRecommendation(q1, q2)
-  companyType = base.companyType
-  templateId = base.templateId
-  const refined = refineRecommendation({ q1, q2, q4, q5, companyType, templateId })
-  companyType = refined.companyType
-  templateId = refined.templateId
-
-  const info = WORKSPACE_TYPES[companyType]
-  const label = info.label
-
-  if (q4.includes('assets') || q4.includes('compliance')) {
-    if (companyType === 'DIGITAL_AGENCY' || companyType === 'CONTENT_CREATION_AGENCY') {
-      note = "We've also enabled asset tracking for your workspace."
-    }
-  }
-
-  const q1Label = getQ1Label(q1)
-  const q2Label = getQ2Label(q1, q2)
-  const description = makeDescription(companyType, label, q1Label, q2Label)
-  const bullets = getBullets(companyType, q4)
-
-  return {
-    companyType,
-    templateId,
-    label,
-    description,
-    bullets,
-    alternativeLabel,
-    alternativeTemplateId,
-    note,
-  }
-}
-
-function resolveBaseRecommendation(q1: string | null, q2: string | null): { companyType: CompanyType; templateId: TemplateId } {
-  if (q1 === 'business') {
-    if (q2 === 'locations') return { companyType: 'INDUSTRY', templateId: 'CONSTRUCTION' }
-    if (q2 === 'clients') return { companyType: 'DIGITAL_AGENCY', templateId: 'AGENCY' }
-    if (q2 === 'departments') return { companyType: 'ENTERPRISE_OPERATIONS', templateId: 'ENTERPRISE' }
-    if (q2 === 'erp') return { companyType: 'ERP_WORKSPACE', templateId: 'ERP' }
-    if (q2 === 'it') return { companyType: 'CORPORATE_IT_OPERATIONS', templateId: 'IT_OPERATIONS' }
-  }
-
-  if (q1 === 'healthcare') {
-    if (q2 === 'hospital') return { companyType: 'HEALTHCARE', templateId: 'HEALTHCARE' }
-    if (q2 === 'clinic') return { companyType: 'CLINIC_HOSPITAL', templateId: 'CLINIC_HOSPITAL' }
-    if (q2 === 'lab' || q2 === 'community') return { companyType: 'HEALTHCARE', templateId: 'HEALTHCARE' }
-  }
-
-  if (q1 === 'agency') {
-    return { companyType: 'DIGITAL_AGENCY', templateId: 'AGENCY' }
-  }
-
-  if (q1 === 'content') {
-    return { companyType: 'CONTENT_CREATION_AGENCY', templateId: 'AGENCY' }
-  }
-
-  if (q1 === 'it') {
-    if (q2 === 'infrastructure' || q2 === 'servicedesk') return { companyType: 'CORPORATE_IT_OPERATIONS', templateId: 'IT_OPERATIONS' }
-    if (q2 === 'security' || q2 === 'cloud') return { companyType: 'CORPORATE_IT_OPERATIONS', templateId: 'IT_OPERATIONS' }
-  }
-
-  return { companyType: 'OTHER', templateId: 'OTHER' }
-}
-
-function refineRecommendation({
-  q1,
-  q2,
-  q4,
-  q5,
-  companyType,
-  templateId,
-}: {
-  q1: string | null
-  q2: string | null
-  q4: string[]
-  q5: string[]
+type ScoredTemplate = {
   companyType: CompanyType
   templateId: TemplateId
-}): { companyType: CompanyType; templateId: TemplateId } {
-  const challenges = new Set(q4)
-  const priorities = new Set(q5)
-  const wantsFinanceSystem =
-    challenges.has('budgets') ||
-    (challenges.has('reporting') && (priorities.has('control') || priorities.has('reporting'))) ||
-    (challenges.has('assets') && priorities.has('integration'))
-  const wantsGovernance = priorities.has('control') || challenges.has('approvals') || challenges.has('compliance')
-  const wantsOperations = challenges.has('assets') || challenges.has('tasks') || challenges.has('projects')
+  score: number
+  reasons: string[]
+}
 
-  if (q1 === 'business') {
-    if (q2 === 'erp' || ((q2 === 'departments' || q2 === 'locations') && wantsFinanceSystem)) {
-      return { companyType: 'ERP_WORKSPACE', templateId: 'ERP' }
+const INITIAL_SCORES: ScoredTemplate[] = [
+  { companyType: 'ERP_WORKSPACE', templateId: 'ERP', score: 0, reasons: [] },
+  { companyType: 'EMS_AGENCY', templateId: 'EMS', score: 0, reasons: [] },
+  { companyType: 'ENTERPRISE_OPERATIONS', templateId: 'ENTERPRISE', score: 0, reasons: [] },
+  { companyType: 'CORPORATE_IT_OPERATIONS', templateId: 'IT_OPERATIONS', score: 0, reasons: [] },
+  { companyType: 'CLINIC_HOSPITAL', templateId: 'CLINIC_HOSPITAL', score: 0, reasons: [] },
+  { companyType: 'HEALTHCARE', templateId: 'HEALTHCARE', score: 0, reasons: [] },
+  { companyType: 'DIGITAL_AGENCY', templateId: 'AGENCY', score: 0, reasons: [] },
+  { companyType: 'CONTENT_CREATION_AGENCY', templateId: 'AGENCY', score: 0, reasons: [] },
+  { companyType: 'INDUSTRY', templateId: 'CONSTRUCTION', score: 0, reasons: [] },
+  { companyType: 'OTHER', templateId: 'OTHER', score: 0, reasons: [] },
+]
+
+export function computeRecommendation(answers: Answers): Recommendation {
+  const scored = scoreTemplates(answers)
+  const primary = scored[0] ?? { companyType: 'OTHER' as CompanyType, templateId: 'OTHER' as TemplateId, score: 0, reasons: [] }
+  const alternative = scored.find((item) => item.templateId !== primary.templateId && item.score >= primary.score - 4)
+  const info = WORKSPACE_TYPES[primary.companyType] ?? WORKSPACE_TYPES.OTHER
+
+  return {
+    companyType: primary.companyType,
+    templateId: primary.templateId,
+    label: info.label,
+    description: makeDescription(answers, primary.companyType, info.label),
+    bullets: getBullets(primary.companyType, answers),
+    alternativeLabel: alternative ? WORKSPACE_TYPES[alternative.companyType]?.label : undefined,
+    alternativeTemplateId: alternative?.templateId,
+    note: makeNote(primary.companyType, answers),
+  }
+}
+
+function scoreTemplates(answers: Answers) {
+  const scores = INITIAL_SCORES.map((item) => ({ ...item, reasons: [...item.reasons] }))
+
+  function add(templateId: TemplateId, points: number, reason: string) {
+    const match = scores.find((item) => item.templateId === templateId)
+    if (!match) return
+    match.score += points
+    match.reasons.push(reason)
+  }
+
+  function addCompany(companyType: CompanyType, points: number, reason: string) {
+    const match = scores.find((item) => item.companyType === companyType)
+    if (!match) return
+    match.score += points
+    match.reasons.push(reason)
+  }
+
+  if (answers.q1 === 'erp') add('ERP', 12, 'ERP operating model')
+  if (answers.q1 === 'ems') add('EMS', 12, 'EMS operating model')
+  if (answers.q1 === 'business') add('ENTERPRISE', 5, 'General business operations')
+  if (answers.q1 === 'healthcare') {
+    add('HEALTHCARE', 6, 'Healthcare environment')
+    add('CLINIC_HOSPITAL', 4, 'Clinical operations')
+  }
+  if (answers.q1 === 'agency') addCompany('DIGITAL_AGENCY', 9, 'Agency operating model')
+  if (answers.q1 === 'content') addCompany('CONTENT_CREATION_AGENCY', 9, 'Content operating model')
+  if (answers.q1 === 'it') add('IT_OPERATIONS', 10, 'IT operating model')
+
+  const q2TemplateMap: Record<string, TemplateId> = {
+    'financial-close': 'ERP',
+    'procurement-inventory': 'ERP',
+    'hr-payroll': 'ERP',
+    'full-erp': 'ERP',
+    'emergency-dispatch': 'EMS',
+    'ambulance-fleet': 'EMS',
+    'patient-transport': 'EMS',
+    'ems-command': 'EMS',
+    locations: 'CONSTRUCTION',
+    clients: 'AGENCY',
+    departments: 'ENTERPRISE',
+    erp: 'ERP',
+    it: 'IT_OPERATIONS',
+    hospital: 'CLINIC_HOSPITAL',
+    clinic: 'CLINIC_HOSPITAL',
+    lab: 'HEALTHCARE',
+    community: 'HEALTHCARE',
+    creative: 'AGENCY',
+    social: 'AGENCY',
+    brand: 'AGENCY',
+    dev: 'AGENCY',
+    video: 'AGENCY',
+    audio: 'AGENCY',
+    publishing: 'AGENCY',
+    infrastructure: 'IT_OPERATIONS',
+    servicedesk: 'IT_OPERATIONS',
+    security: 'IT_OPERATIONS',
+    cloud: 'IT_OPERATIONS',
+  }
+  const q2Template = answers.q2 ? q2TemplateMap[answers.q2] : undefined
+  if (q2Template) add(q2Template, 8, 'Daily operating work')
+
+  for (const challenge of answers.q4) {
+    if (challenge === 'financial-control') add('ERP', 6, 'Financial control need')
+    if (challenge === 'dispatch-speed') add('EMS', 7, 'Dispatch speed need')
+    if (challenge === 'fleet-readiness') {
+      add('EMS', 5, 'Fleet readiness need')
+      add('CONSTRUCTION', 3, 'Asset-heavy operations')
+      add('IT_OPERATIONS', 2, 'Asset-heavy operations')
     }
-
-    if (q2 === 'locations') {
-      return wantsOperations || wantsGovernance
-        ? { companyType: 'INDUSTRY', templateId: 'CONSTRUCTION' }
-        : { companyType: 'ENTERPRISE_OPERATIONS', templateId: 'ENTERPRISE' }
+    if (challenge === 'project-delivery') add('AGENCY', 5, 'Project delivery need')
+    if (challenge === 'approval-governance') {
+      add('ENTERPRISE', 4, 'Governance need')
+      add('ERP', 3, 'Approval control need')
+    }
+    if (challenge === 'reporting-analytics') {
+      add('ENTERPRISE', 3, 'Reporting need')
+      add('ERP', 3, 'Financial reporting need')
+      add('EMS', 2, 'Response analytics need')
+    }
+    if (challenge === 'compliance-risk') {
+      add('HEALTHCARE', 4, 'Compliance need')
+      add('CLINIC_HOSPITAL', 4, 'Clinical risk need')
+      add('EMS', 3, 'Protocol risk need')
+      add('ERP', 2, 'Audit risk need')
+    }
+    if (challenge === 'team-coordination') {
+      add('ENTERPRISE', 3, 'Team coordination need')
+      add('EMS', 2, 'Crew coordination need')
     }
   }
 
-  if (q1 === 'healthcare' && (q2 === 'hospital' || q2 === 'clinic')) {
-    return { companyType: 'CLINIC_HOSPITAL', templateId: 'CLINIC_HOSPITAL' }
+  if (answers.q5 === 'regulated') {
+    add('HEALTHCARE', 3, 'Regulated environment')
+    add('CLINIC_HOSPITAL', 3, 'Regulated environment')
+    add('ERP', 3, 'Audit-sensitive environment')
+    add('EMS', 2, 'Protocol-sensitive environment')
+  }
+  if (answers.q5 === 'financial') add('ERP', 7, 'Financially controlled environment')
+  if (answers.q5 === 'field') {
+    add('EMS', 4, 'Field operations')
+    add('CONSTRUCTION', 5, 'Field operations')
+  }
+  if (answers.q5 === 'emergency') add('EMS', 8, 'Time-critical emergency environment')
+  if (answers.q5 === 'standard') add('ENTERPRISE', 2, 'Standard operations')
+
+  for (const system of answers.q6) {
+    if (system === 'general-ledger') add('ERP', 6, 'Finance system required')
+    if (system === 'procurement-inventory') add('ERP', 5, 'Procurement and inventory required')
+    if (system === 'hr-payroll') add('ERP', 5, 'HR and payroll required')
+    if (system === 'dispatch-incidents') add('EMS', 7, 'Dispatch and incidents required')
+    if (system === 'fleet-crews') add('EMS', 6, 'Fleet and crews required')
+    if (system === 'hospital-protocols') {
+      add('EMS', 5, 'Hospital coordination required')
+      add('CLINIC_HOSPITAL', 3, 'Clinical coordination required')
+    }
+    if (system === 'projects-clients') add('AGENCY', 5, 'Project and client system required')
+    if (system === 'service-assets') {
+      add('IT_OPERATIONS', 4, 'Service and asset system required')
+      add('ENTERPRISE', 3, 'Shared service system required')
+    }
   }
 
-  if (q1 === 'it') {
-    return { companyType: 'CORPORATE_IT_OPERATIONS', templateId: 'IT_OPERATIONS' }
+  for (const [index, priority] of answers.q7.entries()) {
+    const weight = index === 0 ? 3 : 2
+    if (priority === 'speed') {
+      add('EMS', weight + 1, 'Speed priority')
+      add('AGENCY', weight, 'Speed priority')
+    }
+    if (priority === 'clarity') add('ENTERPRISE', weight, 'Clarity priority')
+    if (priority === 'control') {
+      add('ERP', weight + 1, 'Control priority')
+      add('ENTERPRISE', weight, 'Control priority')
+    }
+    if (priority === 'reporting') {
+      add('ERP', weight, 'Reporting priority')
+      add('ENTERPRISE', weight, 'Reporting priority')
+    }
+    if (priority === 'integration') add('ERP', weight + 1, 'Integration priority')
+    if (priority === 'reliability') {
+      add('EMS', weight + 1, 'Reliability priority')
+      add('IT_OPERATIONS', weight, 'Reliability priority')
+    }
   }
 
-  return { companyType, templateId }
+  if (answers.q3 === '51-200' || answers.q3 === '200+') {
+    add('ENTERPRISE', 2, 'Larger team')
+    add('ERP', 2, 'Larger team')
+    add('EMS', answers.q1 === 'ems' ? 2 : 0, 'Larger EMS operation')
+  }
+
+  return scores.sort((a, b) => b.score - a.score)
+}
+
+function makeDescription(answers: Answers, companyType: CompanyType, label: string): string {
+  const q1Label = getQ1Label(answers.q1)
+  const q2Label = getQ2Label(answers.q1, answers.q2)
+  const core = q2Label ? `${q1Label} focused on ${q2Label}` : q1Label
+
+  const descriptions: Record<CompanyType, string> = {
+    INDUSTRY: 'It prioritizes sites, assets, teams, service workflows, and operational visibility.',
+    DIGITAL_AGENCY: 'It prioritizes clients, campaigns, creative workflows, approvals, files, and delivery health.',
+    CONTENT_CREATION_AGENCY: 'It prioritizes content calendars, production pipelines, publishing workflows, and audience reporting.',
+    HEALTHCARE: 'It prioritizes clinical operations, compliance, biomedical assets, service requests, and audit-ready evidence.',
+    ENTERPRISE_OPERATIONS: 'It prioritizes departments, shared services, approvals, permissions, executive dashboards, and governance.',
+    CLINIC_HOSPITAL: 'It prioritizes clinical departments, biomedical inventory, shifts, facilities, and hospital-ready operating controls.',
+    CORPORATE_IT_OPERATIONS: 'It prioritizes service queues, IT assets, incidents, changes, SLAs, and reliability dashboards.',
+    ERP_WORKSPACE: 'It prioritizes general ledger, AR/AP, procurement, inventory, HR, payroll, approvals, and financial control.',
+    EMS_AGENCY: 'It prioritizes dispatch, incidents, unit assignment, fleet readiness, crews, hospital coordination, protocols, and response analytics.',
+    OTHER: 'It prioritizes flexible projects, tasks, collaboration, and reporting that can be tailored as your operations mature.',
+  }
+
+  return `Because you described ${core}, TASKIT recommends ${label}. ${descriptions[companyType] ?? descriptions.OTHER}`
 }
 
 function getQ1Label(q1: string | null): string {
-  const labels: Record<string, string> = {
-    business: 'a business and operations team',
-    healthcare: 'a healthcare organization',
-    agency: 'a creative and marketing agency',
-    content: 'a content studio and creator team',
-    it: 'an IT and technology team',
-  }
-  return labels[q1 ?? ''] ?? 'a team'
+  const option = Q1_OPTIONS.find((item) => item.value === q1)
+  return option?.label.toLowerCase() ?? 'a team'
 }
 
 function getQ2Label(q1: string | null, q2: string | null): string {
   if (!q1 || !q2) return ''
-
-  const labels: Record<string, string> = {
-    locations: 'managing physical locations and sites',
-    clients: 'serving clients through projects',
-    departments: 'running departments and shared services',
-    erp: 'managing finance, inventory, HR, or procurement',
-    it: 'managing IT and service operations',
-    hospital: 'operating in a hospital or medical center',
-    clinic: 'running a clinic or outpatient facility',
-    lab: 'working in lab diagnostics and research',
-    community: 'providing home care and community health',
-    creative: 'producing creative work and video',
-    social: 'managing social media and digital marketing',
-    brand: 'running brand strategy and campaigns',
-    dev: 'building digital products and software',
-    video: 'creating video content and media',
-    audio: 'producing music and audio content',
-    social_c: 'creating social media content',
-    publishing: 'running publishing and editorial',
-    infrastructure: 'managing servers and infrastructure',
-    servicedesk: 'running service desk operations',
-    security: 'handling security and compliance',
-    cloud: 'managing cloud and DevOps',
-  }
-  return labels[q2] ?? ''
+  const option = Q2_OPTIONS[q1]?.find((item) => item.value === q2)
+  return option?.label.toLowerCase() ?? ''
 }
 
-function makeDescription(companyType: CompanyType, label: string, q1Label: string, q2Label: string): string {
-  const detail = q2Label ? `, where you're ${q2Label}` : ''
-
-  const base = `Since you're ${q1Label}${detail}, we've set you up with a **${label}**. `
-
-  const descriptions: Record<CompanyType, string> = {
-    INDUSTRY: 'It\'s built for managing physical locations, equipment, and field crews — everything you need to keep operations running smoothly.',
-    DIGITAL_AGENCY: 'It includes client portals, campaign management, creative review tools, and project tracking so you can focus on delivering great work.',
-    CONTENT_CREATION_AGENCY: 'It comes with a content calendar, platform publishing tools, and audience analytics to help you grow and engage your audience.',
-    HEALTHCARE: 'It includes clinical department management, staff credentialing, and compliance tracking designed for healthcare environments.',
-    ENTERPRISE_OPERATIONS: 'It provides department-level budgeting, cross-team automation, and governance controls to manage at scale.',
-    CLINIC_HOSPITAL: 'It offers real-time clinical oversight, biomedical inventory tracking, and shift scheduling for hospital command center operations.',
-    CORPORATE_IT_OPERATIONS: 'It includes service desk ticketing, asset management, and incident response — purpose-built for IT teams.',
-    ERP_WORKSPACE: 'It includes finance, procurement, inventory, HR, and control workflows so business resources are planned from day one.',
-    OTHER: 'It includes customizable modules, project management, and collaboration tools that you can tailor as you grow.',
-  }
-
-  return base + (descriptions[companyType] ?? descriptions.OTHER)
-}
-
-function getBullets(companyType: CompanyType, q4: string[]): string[] {
+function getBullets(companyType: CompanyType, answers: Answers): string[] {
   const info = WORKSPACE_TYPES[companyType]
   const baseFeatures = info?.features ?? ['Project and task management', 'Team collaboration', 'Reporting dashboards']
 
   const challengeMap: Record<string, string> = {
-    projects: 'Smart project tracking with milestones and deadlines',
-    communication: 'Client communication portal with threaded updates',
-    budgets: 'Budget and invoice tracking with real-time financial views',
-    tasks: 'Team task coordination with drag-and-drop boards',
-    approvals: 'Custom approval workflows for reviews and sign-offs',
-    assets: 'Asset and resource tracking with usage history',
-    reporting: 'Executive dashboards with customizable reports',
-    compliance: 'Onboarding checklists and compliance audit trails',
+    'financial-control': 'Approval-ready finance controls with audit evidence',
+    'dispatch-speed': 'Live dispatch workflows with incident timelines and unit status',
+    'fleet-readiness': 'Fleet, asset, inventory, and readiness visibility',
+    'project-delivery': 'Project tracking with owners, milestones, blockers, and client handoffs',
+    'approval-governance': 'Role-based permissions, approvals, and policy gates',
+    'reporting-analytics': 'Executive dashboards with operating health and trend reporting',
+    'compliance-risk': 'Compliance, protocol, and risk workflows with traceable evidence',
+    'team-coordination': 'Team queues, assignments, workload balance, and collaboration',
   }
 
-  const matched: string[] = []
-  for (const challenge of q4) {
-    if (challengeMap[challenge]) {
-      matched.push(challengeMap[challenge])
-    }
+  const systemMap: Record<string, string> = {
+    'general-ledger': 'General ledger, AR/AP, budgets, and close workflows',
+    'procurement-inventory': 'Procurement, vendors, inventory, receiving, and cost control',
+    'hr-payroll': 'HR, payroll, leave, and employee record workflows',
+    'dispatch-incidents': 'Dispatch board, incidents, severity, and response status',
+    'fleet-crews': 'Fleet, crews, stations, readiness, and coverage management',
+    'hospital-protocols': 'Hospital coordination, handoffs, protocols, and EMS evidence',
+    'projects-clients': 'Client projects, approvals, files, and delivery reporting',
+    'service-assets': 'Service queues, assets, maintenance, and SLA tracking',
   }
 
-  const combined = [...new Set([...matched, ...baseFeatures])]
-  return combined.slice(0, 3)
+  const matched = [...answers.q4, ...answers.q6]
+    .map((key) => challengeMap[key] ?? systemMap[key])
+    .filter(Boolean)
+
+  return [...new Set([...matched, ...baseFeatures])].slice(0, 4)
+}
+
+function makeNote(companyType: CompanyType, answers: Answers) {
+  if (companyType === 'ERP_WORKSPACE') {
+    return 'ERP was selected because your answers emphasized finance, procurement, HR, inventory, control, or audit-ready reporting.'
+  }
+
+  if (companyType === 'EMS_AGENCY') {
+    return 'EMS was selected because your answers emphasized dispatch, incidents, fleet readiness, crews, hospitals, protocols, or time-critical response.'
+  }
+
+  if (answers.q6.includes('general-ledger') || answers.q6.includes('dispatch-incidents')) {
+    return 'Your selected day-one systems also remain available if you adjust the workspace later.'
+  }
+
+  return undefined
 }
