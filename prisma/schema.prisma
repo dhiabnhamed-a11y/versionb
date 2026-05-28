@@ -4714,6 +4714,11 @@ model EmsCompany {
   notifications  EmsNotification[]
   analytics      EmsAnalytics[]
   predictiveZones EmsPredictiveZone[]
+  integrations   EmsIntegration[]
+  webhookConfigs EmsWebhookConfig[]
+  fieldMappings  EmsFieldMapping[]
+  auditLogs      EmsAuditLog[]
+  integrationEvents EmsIntegrationEvent[]
 }
 
 model EmsStation {
@@ -5223,4 +5228,275 @@ model EmsPredictiveZone {
   company     EmsCompany @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
 
   @@index([companyId, active])
+}
+
+// ─── Enterprise Integration Models ──────────────────────────────────────────
+
+enum EmsIntegrationType {
+  CAD_MOTOROLA
+  CAD_HEXAGON
+  CAD_TYLER
+  CAD_CENTRAL_SQUARE
+  CAD_ZOLL
+  CAD_RAPID_SOS
+  CAD_CUSTOM
+  EHR_EPIC
+  EHR_CERNER
+  EHR_ALLSCRIPTS
+  EHR_MEDITECH
+  EHR_CUSTOM
+  FHIR
+  HL7
+  AVL_GPS
+  CUSTOM_API
+  CUSTOM_WEBHOOK
+}
+
+enum EmsIntegrationStatus {
+  CONNECTED
+  DISCONNECTED
+  ERROR
+  PENDING
+  CONFIGURING
+}
+
+enum EmsWebhookEventType {
+  INCIDENT_CREATED
+  INCIDENT_UPDATED
+  DISPATCH_CREATED
+  UNIT_STATUS_CHANGED
+  PATIENT_UPDATED
+  HOSPITAL_STATUS_CHANGED
+  CUSTOM
+}
+
+enum EmsAuditAction {
+  EMS_INTEGRATION_CONFIGURED
+  EMS_INTEGRATION_ENABLED
+  EMS_INTEGRATION_DISABLED
+  EMS_INTEGRATION_ERROR
+  EMS_WEBHOOK_RECEIVED
+  EMS_WEBHOOK_FORWARDED
+  EMS_WEBHOOK_FAILED
+  EMS_DATA_IMPORTED
+  EMS_DATA_EXPORTED
+  EMS_FIELD_MAPPING_CREATED
+  EMS_FIELD_MAPPING_UPDATED
+  EMS_FIELD_MAPPING_DELETED
+  EMS_PATIENT_ACCESSED
+  EMS_PATIENT_EXPORTED
+  EMS_PATIENT_LINKED
+  EMS_INCIDENT_ACCESSED
+  EMS_API_KEY_ROTATED
+  EMS_SYNC_STARTED
+  EMS_SYNC_COMPLETED
+  EMS_SYNC_FAILED
+  EMS_SYNC_REPLAYED
+}
+
+model EmsIntegration {
+  id             String               @id @default(cuid())
+  companyId      String
+  name           String               // Human-readable label
+  type           EmsIntegrationType
+  status         EmsIntegrationStatus @default(PENDING)
+  version        Int                  @default(1)
+
+  // Connection config (encrypted at rest)
+  endpointUrl    String?
+  authType       String?              // oauth2, api_key, basic, certificate, none
+  authConfig     Json?                // Encrypted credentials blob
+  apiKey         String?              // Encrypted API key
+  oauthConfig    Json?                // OAuth2 client config
+  webhookSecret  String?              // For verifying webhook signatures
+
+  // Connector behavior
+  pollingEnabled  Boolean             @default(false)
+  pollingInterval Int?                // seconds
+  retryCount      Int                 @default(3)
+  retryDelayMs    Int                 @default(5000)
+  rateLimit       Int?                // max requests per minute
+  timeoutMs       Int                 @default(30000)
+
+  // Health
+  lastConnectedAt DateTime?
+  lastErrorAt     DateTime?
+  lastErrorMessage String?
+  errorCount      Int                 @default(0)
+  isEnabled       Boolean             @default(true)
+
+  // Metadata
+  metadata        Json?
+  config          Json?               // Type-specific configuration
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  company         EmsCompany          @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  webhookConfigs  EmsWebhookConfig[]
+  fieldMappings   EmsFieldMapping[]
+  auditLogs       EmsAuditLog[]
+  integrationEvents EmsIntegrationEvent[]
+
+  @@unique([companyId, type])
+  @@index([companyId, status])
+  @@index([type, status])
+}
+
+model EmsWebhookConfig {
+  id             String               @id @default(cuid())
+  companyId      String
+  integrationId  String
+  name           String
+  isEnabled      Boolean              @default(true)
+
+  // Receiver endpoint config
+  path           String?              // Relative path for webhook receiver (e.g. /motorola/cad)
+  method         String               @default("POST")
+  contentType    String?              // Expected content type
+
+  // Source system
+  sourceSystem   String?              // Human-readable name
+  sourceType     String?              // motorola_cad, rapid_sos, epic, etc.
+
+  // Event filtering
+  eventTypes     EmsWebhookEventType[]
+
+  // Request validation
+  secretToken    String?              // For HMAC signature verification
+  allowedIps     String?              // Comma-separated CIDR ranges
+  requireAuth    Boolean              @default(true)
+
+  // Response handling
+  ackMode        String               @default("200_OK") // 200_OK, 202_ACCEPTED, CUSTOM
+  ackBody        String?              // Custom acknowledgement body
+
+  // Error handling
+  maxRetries     Int                  @default(3)
+  deadLetterQueue Boolean             @default(true)
+
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  integration    EmsIntegration       @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  company        EmsCompany           @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+  events         EmsIntegrationEvent[]
+
+  @@index([integrationId])
+  @@index([companyId, isEnabled])
+}
+
+model EmsFieldMapping {
+  id             String   @id @default(cuid())
+  companyId      String
+  integrationId  String
+  name           String   // Mapping profile name
+  isActive       Boolean  @default(true)
+  version        Int      @default(1)
+
+  // Entity type being mapped
+  entityType     String   // incident, unit, patient, hospital, dispatch
+
+  // Source → Target field mappings stored as JSON
+  // [{ sourceField: "unit_status", targetField: "status", transform: "uppercase|lowercase|enum_map|custom", transformConfig: {}, defaultValue: "UNKNOWN" }]
+  mappings       Json
+
+  // Enum value mappings for fields that need value translation
+  // { "fieldName": { "sourceValue": "targetValue", ... }, ... }
+  enumMappings   Json?
+
+  // Validation rules
+  validationRules Json?
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  integration    EmsIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  company        EmsCompany     @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+
+  @@index([integrationId])
+  @@index([companyId, entityType, isActive])
+}
+
+model EmsAuditLog {
+  id             String          @id @default(cuid())
+  companyId      String
+  integrationId  String?
+
+  timestamp      DateTime        @default(now())
+  action         EmsAuditAction
+  actorId        String?         // User who performed the action
+  actorType      String?         // user, system, integration, webhook
+  resourceType   String?         // incident, patient, unit, integration, mapping, etc.
+  resourceId     String?
+
+  // PHI tracking
+  containsPhi    Boolean         @default(false)
+  phiFields      String?         // Comma-separated list of PHI fields accessed
+
+  // Details
+  description    String
+  metadata       Json?           // Additional context
+  ipAddress      String?
+  userAgent      String?
+
+  // Immutability
+  checksum       String?         // SHA-256 hash for tamper detection
+  previousLogId  String?         // Linked list for chain-of-custody
+
+  // Status
+  success        Boolean         @default(true)
+  errorMessage   String?
+
+  integration    EmsIntegration? @relation(fields: [integrationId], references: [id], onDelete: SetNull)
+  company        EmsCompany      @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+
+  @@index([companyId, timestamp(sort: Desc)])
+  @@index([companyId, action])
+  @@index([companyId, resourceType, resourceId])
+  @@index([timestamp(sort: Desc)])
+  @@index([containsPhi])
+}
+
+model EmsIntegrationEvent {
+  id             String        @id @default(cuid())
+  companyId      String
+  integrationId  String
+  webhookConfigId String?
+
+  // Event metadata
+  eventType      String        // incident.created, unit.position, etc.
+  source         String        // motorola_cad, rapid_sos, epic_fhir, etc.
+  direction      String        // inbound, outbound
+
+  // Payload
+  rawPayload     Json?
+  transformedPayload Json?
+  headers        Json?
+  signature      String?
+
+  // Processing
+  status         String        // received, processing, completed, failed, rejected
+  statusCode     Int?          // HTTP status code if applicable
+  errorMessage   String?
+  processingTimeMs Int?
+
+  // Idempotency
+  idempotencyKey String?
+  isDuplicate    Boolean       @default(false)
+
+  // Retry
+  retryCount     Int           @default(0)
+  lastRetryAt    DateTime?
+
+  receivedAt     DateTime      @default(now())
+  processedAt    DateTime?
+
+  integration    EmsIntegration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  webhookConfig  EmsWebhookConfig? @relation(fields: [webhookConfigId], references: [id], onDelete: SetNull)
+  company        EmsCompany       @relation(fields: [companyId], references: [companyId], onDelete: Cascade)
+
+  @@index([integrationId, receivedAt(sort: Desc)])
+  @@index([companyId, status])
+  @@index([idempotencyKey])
+  @@index([receivedAt(sort: Desc)])
 }

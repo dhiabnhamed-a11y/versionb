@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import {
   Satellite, Radio, AlertTriangle, Truck, ShieldCheck, Building2, Users,
   BarChart3, Workflow, FileText, Settings, Siren, LayoutDashboard, ChevronLeft,
-  Activity,
+  Activity, Plug,
 } from 'lucide-react'
 import { useLocale } from '@/components/i18n/LocaleProvider'
 
@@ -50,6 +50,7 @@ export default function EmsSidebar({ children }: { children: React.ReactNode }) 
     { id: 'analytics', label: t('ems.nav.analytics'), href: '/dashboard/admin/ems/analytics', icon: BarChart3 },
     { id: 'automation', label: t('ems.nav.automation'), href: '/dashboard/admin/ems/automation', icon: Workflow },
     { id: 'protocols', label: t('ems.nav.protocols'), href: '/dashboard/admin/ems/protocols', icon: FileText },
+    { id: 'integrations', label: 'Integrations', href: '/dashboard/admin/ems/integrations', icon: Plug },
     { id: 'settings', label: t('ems.nav.settings'), href: '/dashboard/admin/ems/settings', icon: Settings },
   ], [t])
 
