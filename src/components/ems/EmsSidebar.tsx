@@ -3,12 +3,14 @@
 import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import { signOut, useSession } from 'next-auth/react'
 import {
   Satellite, Radio, AlertTriangle, Truck, ShieldCheck, Building2, Users,
   BarChart3, Workflow, FileText, Settings, Siren, LayoutDashboard, ChevronLeft,
-  Activity, Plug,
+  Activity, Plug, LogOut,
 } from 'lucide-react'
 import { useLocale } from '@/components/i18n/LocaleProvider'
+import UserAvatar from '@/components/user/UserAvatar'
 
 const statusBarConfig = [
   { key: 'status.available', color: '#22c55e' },
@@ -19,6 +21,8 @@ const statusBarConfig = [
 export default function EmsSidebar({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
   const { t } = useLocale()
+  const { data: session } = useSession()
+  const user = session?.user as { name?: string; email?: string; avatar?: string } | undefined
   const [collapsed, setCollapsed] = React.useState(false)
   const [statusData, setStatusData] = React.useState<{ key: string; value: string; color: string }[]>(
     statusBarConfig.map((c) => ({ ...c, value: '—' }))
@@ -129,6 +133,49 @@ export default function EmsSidebar({ children }: { children: React.ReactNode }) 
           borderTop: '1px solid rgba(255,255,255,0.06)',
           display: 'flex', flexDirection: 'column', gap: 6,
         }}>
+          {/* Profile badge */}
+          {user && !collapsed && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '8px 4px', marginBottom: 2,
+              borderRadius: 6,
+            }}>
+              <UserAvatar name={user.name} avatar={user.avatar} size={32} radius={8} />
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: '#e2e8f0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  {user.name || 'User'}
+                </div>
+                {user.email && (
+                  <div style={{ fontSize: 10, color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {user.email}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {user && collapsed && (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '4px 0' }}>
+              <UserAvatar name={user.name} avatar={user.avatar} size={28} radius={7} />
+            </div>
+          )}
+
+          {/* Logout */}
+          <button
+            onClick={() => signOut({ callbackUrl: '/login' })}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: collapsed ? '10px 0' : '10px 4px',
+              margin: '1px 0', borderRadius: 6,
+              background: 'transparent', border: 'none',
+              color: '#ef4444', cursor: 'pointer', fontSize: 13, fontWeight: 400,
+              justifyContent: collapsed ? 'center' : 'flex-start',
+              transition: 'all 0.15s',
+            }}
+          >
+            <LogOut size={16} style={{ flexShrink: 0 }} />
+            {!collapsed && <span style={{ whiteSpace: 'nowrap' }}>{t('action.signOut')}</span>}
+          </button>
+
           <button
             onClick={() => setCollapsed(!collapsed)}
             style={{
