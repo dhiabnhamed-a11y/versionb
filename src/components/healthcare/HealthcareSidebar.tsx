@@ -158,8 +158,8 @@ export default function HealthcareSidebar({ children }: HealthcareSidebarProps) 
               <HeartPulse size={22} />
             </div>
             <div className="hc-brand-copy">
-              <div className="hc-brand-name">Healthcare</div>
-              <div className="hc-brand-sub">Hospital Operations</div>
+              <div className="hc-brand-name">{t('hc.brand')}</div>
+              <div className="hc-brand-sub">{t('hc.hospitalOps')}</div>
             </div>
           </div>
           <button
@@ -181,7 +181,7 @@ export default function HealthcareSidebar({ children }: HealthcareSidebarProps) 
             aria-label={t('nav.commandPalette')}
           >
             <Search size={16} />
-            <span className="hc-search-label">Search patients, assets…</span>
+            <span className="hc-search-label">{t('hc.searchPlaceholder')}</span>
             <kbd className="hc-kbd">⌘K</kbd>
           </button>
         </div>
@@ -211,7 +211,7 @@ export default function HealthcareSidebar({ children }: HealthcareSidebarProps) 
                     {isEmergency && (
                       <span className="hc-live-badge">
                         <span className="hc-live-dot" />
-                        LIVE
+                        {t('nav.live')}
                       </span>
                     )}
                   </Link>
@@ -258,8 +258,8 @@ export default function HealthcareSidebar({ children }: HealthcareSidebarProps) 
               <Menu size={20} />
             </button>
             <div className="hc-header-title">
-              <div className="hc-header-sup">Hospital Operations</div>
-              <div className="hc-header-main">Clinical Command Center</div>
+              <div className="hc-header-sup">{t('hc.hospitalOps')}</div>
+              <div className="hc-header-main">{t('hc.commandCenter')}</div>
             </div>
           </div>
 
@@ -271,14 +271,14 @@ export default function HealthcareSidebar({ children }: HealthcareSidebarProps) 
           >
             <Search size={16} />
             <span className="hc-header-search-text">{t('nav.searchPlaceholder')}</span>
-            <kbd className="command-kbd">Cmd K</kbd>
+            <kbd className="command-kbd">{t('nav.cmdK')}</kbd>
           </button>
 
           <div className="hc-header-right">
             {!isSuperAdmin && !isEmployee && (
               <Link href="/dashboard/admin/requests" className="hc-new-btn">
                 <Plus size={15} />
-                New Request
+                {t('hc.newRequest')}
               </Link>
             )}
             {!isSuperAdmin && <LanguageSwitcher compact />}
@@ -298,7 +298,7 @@ export default function HealthcareSidebar({ children }: HealthcareSidebarProps) 
             <div className="hc-status-pill">
               <span className="hc-status-dot hc-status-operational" />
               <Radio size={13} className="hc-status-icon" />
-              <span>Systems Operational</span>
+              <span>{t('hc.systemsOperational')}</span>
             </div>
             <div className="hc-date-pill" suppressHydrationWarning>
               {new Date().toLocaleDateString(

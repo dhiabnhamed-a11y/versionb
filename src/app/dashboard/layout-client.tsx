@@ -104,7 +104,7 @@ function DashboardLayoutChrome({
   const links = isSuperAdmin
     ? [
         { href: '/dashboard/super-admin', label: t('nav.companyApprovals'), icon: ShieldCheck },
-        { href: '/dashboard/super-admin/legal', label: 'Legal controls', icon: FileCheck2 },
+        { href: '/dashboard/super-admin/legal', label: t('nav.legalControls'), icon: FileCheck2 },
       ]
     : isEmployee
     ? [
@@ -115,7 +115,7 @@ function DashboardLayoutChrome({
         },
         { href: '/dashboard/employee/alerts', label: t('nav.alerts'), icon: Bell },
         { href: '/dashboard/employee/progress', label: t('nav.progress'), icon: BarChart3 },
-        { href: '/billing', label: 'Subscription', icon: CreditCard },
+        { href: '/billing', label: t('nav.subscription'), icon: CreditCard },
       ]
     : getWorkspaceNav({ companyType, industryProjectsLabel }).map((item) => ({
         href: item.href,
@@ -295,7 +295,7 @@ function DashboardLayoutChrome({
           >
             <Search size={16} />
             <span className="min-w-0 flex-1 truncate font-medium">{t('nav.searchPlaceholder')}</span>
-            <kbd className="command-kbd">Cmd K</kbd>
+            <kbd className="command-kbd">{t('nav.cmdK')}</kbd>
           </button>
 
           <div className="dashboard-shell-actions flex items-center gap-2.5 sm:gap-3">
@@ -310,10 +310,10 @@ function DashboardLayoutChrome({
               <Link
                 href="/dashboard/profile"
                 className="inline-flex h-10 items-center gap-2 rounded-2xl border border-[var(--border)] bg-[var(--bg-card)] px-3 text-[13px] font-semibold text-[var(--text-primary)] shadow-sm transition hover:border-[var(--accent)] hover:text-[var(--accent)] active:scale-[.98] md:px-3.5"
-                aria-label="Profile"
+                aria-label={t('nav.profile')}
               >
                 <UserCircle size={15} />
-                <span className="hidden md:inline">Profile</span>
+                <span className="hidden md:inline">{t('nav.profile')}</span>
               </Link>
             )}
             {canOpenSettings && (

@@ -25,52 +25,52 @@ import {
   CreditCard,
 } from 'lucide-react'
 
-type NavSection = { title: string; items: { label: string; href: string; icon: React.ReactNode }[] }
+type NavSection = { titleKey: string; items: { labelKey: string; href: string; icon: React.ReactNode }[] }
 
 const NAV_SECTIONS: NavSection[] = [
   {
-    title: 'OVERVIEW',
+    titleKey: 'erp.nav.headerOverview',
     items: [
-      { label: 'Command Center', href: '/erp', icon: <LayoutDashboard size={16} /> },
-      { label: 'Alerts', href: '/erp/alerts', icon: <Bell size={16} /> },
-      { label: 'Reports', href: '/erp/reports', icon: <BarChart3 size={16} /> },
+      { labelKey: 'erp.nav.commandCenter', href: '/erp', icon: <LayoutDashboard size={16} /> },
+      { labelKey: 'erp.nav.alerts', href: '/erp/alerts', icon: <Bell size={16} /> },
+      { labelKey: 'erp.nav.reports', href: '/erp/reports', icon: <BarChart3 size={16} /> },
     ],
   },
   {
-    title: 'FINANCE',
+    titleKey: 'erp.nav.headerFinance',
     items: [
-      { label: 'General Ledger', href: '/erp/general-ledger', icon: <BookOpen size={16} /> },
-      { label: 'Accounts Receivable', href: '/erp/accounts-receivable', icon: <TrendingUp size={16} /> },
-      { label: 'Accounts Payable', href: '/erp/accounts-payable', icon: <TrendingDown size={16} /> },
-      { label: 'Budgets & Forecasting', href: '/erp/budgets', icon: <PieChart size={16} /> },
+      { labelKey: 'erp.nav.generalLedger', href: '/erp/general-ledger', icon: <BookOpen size={16} /> },
+      { labelKey: 'erp.nav.accountsReceivable', href: '/erp/accounts-receivable', icon: <TrendingUp size={16} /> },
+      { labelKey: 'erp.nav.accountsPayable', href: '/erp/accounts-payable', icon: <TrendingDown size={16} /> },
+      { labelKey: 'erp.nav.budgets', href: '/erp/budgets', icon: <PieChart size={16} /> },
     ],
   },
   {
-    title: 'OPERATIONS',
+    titleKey: 'erp.nav.headerOperations',
     items: [
-      { label: 'Procurement', href: '/erp/procurement', icon: <ShoppingCart size={16} /> },
-      { label: 'Inventory & Assets', href: '/erp/inventory', icon: <Package size={16} /> },
+      { labelKey: 'erp.nav.procurement', href: '/erp/procurement', icon: <ShoppingCart size={16} /> },
+      { labelKey: 'erp.nav.inventory', href: '/erp/inventory', icon: <Package size={16} /> },
     ],
   },
   {
-    title: 'PEOPLE',
+    titleKey: 'erp.nav.headerPeople',
     items: [
-      { label: 'HR & Payroll', href: '/erp/hr', icon: <Users size={16} /> },
-      { label: 'Leave Management', href: '/erp/hr/leave', icon: <CalendarDays size={16} /> },
+      { labelKey: 'erp.nav.hr', href: '/erp/hr', icon: <Users size={16} /> },
+      { labelKey: 'erp.nav.leaveManagement', href: '/erp/hr/leave', icon: <CalendarDays size={16} /> },
     ],
   },
   {
-    title: 'SETTINGS',
+    titleKey: 'erp.nav.headerSettings',
     items: [
-      { label: 'ERP Settings', href: '/erp/settings', icon: <Settings size={16} /> },
-      { label: 'Roles & Permissions', href: '/erp/settings/roles', icon: <ShieldCheck size={16} /> },
+      { labelKey: 'erp.nav.erpSettings', href: '/erp/settings', icon: <Settings size={16} /> },
+      { labelKey: 'erp.nav.rolesPermissions', href: '/erp/settings/roles', icon: <ShieldCheck size={16} /> },
     ],
   },
 ]
 
 function Sidebar() {
   const pathname = usePathname()
-  const { direction } = useLocale()
+  const { direction, t } = useLocale()
 
   return (
     <nav
@@ -92,9 +92,9 @@ function Sidebar() {
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Building2 size={20} color="#3b82f6" />
           <div>
-            <div style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.01em' }}>TASKIT ERP</div>
+            <div style={{ fontSize: '14px', fontWeight: 700, color: '#f1f5f9', letterSpacing: '-0.01em' }}>{t('erp.nav.erpTitle')}</div>
             <span style={{ fontSize: '9px', fontWeight: 600, color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.08em', background: 'rgba(59,130,246,0.12)', padding: '1px 6px', borderRadius: '3px' }}>
-              Enterprise
+              {t('erp.nav.enterprise')}
             </span>
           </div>
         </div>
@@ -103,9 +103,9 @@ function Sidebar() {
       {/* Navigation */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '12px 0' }}>
         {NAV_SECTIONS.map((section) => (
-          <div key={section.title} style={{ marginBottom: '8px' }}>
+          <div key={section.titleKey} style={{ marginBottom: '8px' }}>
             <div style={{ padding: '8px 16px 4px', fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-              {section.title}
+{t(section.titleKey as any)}
             </div>
             {section.items.map((item) => {
               const isActive = pathname === item.href || (item.href !== '/erp' && pathname.startsWith(item.href))
@@ -131,7 +131,7 @@ function Sidebar() {
                   onMouseOut={(e) => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b' } }}
                 >
                   <span style={{ width: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{item.icon}</span>
-                  {item.label}
+                  {t(item.labelKey as any)}
                 </Link>
               )
             })}
@@ -158,7 +158,7 @@ function Sidebar() {
           onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b' }}
         >
           <UserCircle size={14} />
-          Profile
+          {t('nav.profile')}
         </Link>
         <Link
           href="/billing"
@@ -178,7 +178,7 @@ function Sidebar() {
           onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b' }}
         >
           <CreditCard size={14} />
-          Subscription
+          {t('nav.subscription')}
         </Link>
         <button
           type="button"
@@ -202,7 +202,7 @@ function Sidebar() {
           onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b' }}
         >
           <LogOut size={14} />
-          Sign out
+          {t('action.signOut')}
         </button>
       </div>
     </nav>
@@ -211,7 +211,7 @@ function Sidebar() {
 
 function TopBar() {
   const { data: session } = useSession()
-  const { direction } = useLocale()
+  const { direction, t } = useLocale()
   const user = session?.user as { name?: string; email?: string } | undefined
 
   return (
@@ -231,7 +231,7 @@ function TopBar() {
       }}
     >
       <div style={{ fontSize: '13px', color: '#64748b' }}>
-        <span style={{ color: '#0f172a', fontWeight: 600 }}>ERP</span> / <span id="erp-page-title">Command Center</span>
+        <span style={{ color: '#0f172a', fontWeight: 600 }}>{t('erp.nav.erpTitle')}</span> / <span id="erp-page-title">{t('erp.nav.commandCenter')}</span>
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
         <LanguageSwitcher compact />
@@ -242,7 +242,7 @@ function TopBar() {
           <div style={{ width: '28px', height: '28px', borderRadius: '50%', background: '#3b82f6', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: '12px', fontWeight: 700 }}>
             {user?.name?.charAt(0)?.toUpperCase() ?? 'U'}
           </div>
-          <span style={{ fontSize: '13px', fontWeight: 500, color: '#1e293b' }}>{user?.name ?? 'User'}</span>
+          <span style={{ fontSize: '13px', fontWeight: 500, color: '#1e293b' }}>{user?.name ?? t('common.search')}</span>
         </div>
       </div>
     </header>

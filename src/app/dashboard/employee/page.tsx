@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { useSession } from 'next-auth/react'
+import { useLocale } from '@/components/i18n/LocaleProvider'
 import { formatDate, formatTimeAgo } from '@/lib/utils'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import { getCompanyTypeCopy, getDeliverableTypeLabel, isAgencyCompanyType, normalizeCompanyType } from '@/lib/company-types'
@@ -41,7 +42,6 @@ interface Task {
 
 const EMPLOYEE_FLOW = ['TODO', 'IN_PROGRESS', 'REVIEW']
 const TASK_REALTIME_EVENTS = ['task_created', 'task_updated', 'task_deleted', 'task_submission_created'] as const
-const STAGE_LABELS: Record<string, string> = { TODO: 'To Do', IN_PROGRESS: 'In Progress', REVIEW: 'Review', DONE: 'Done' }
 const STAGE_BADGE_CLASSES: Record<string, string> = {
   TODO: 'stage-badge stage-todo',
   IN_PROGRESS: 'stage-badge stage-in-progress',
@@ -54,6 +54,13 @@ export default function EmployeeDashboard() {
   const companyType = normalizeCompanyType((session?.user as { companyType?: string | null } | undefined)?.companyType)
   const companyCopy = getCompanyTypeCopy(companyType)
   const isAgency = isAgencyCompanyType(companyType)
+  const { t } = useLocale()
+  const stageLabels: Record<string, string> = {
+    TODO: t('pipeline.work'),
+    IN_PROGRESS: t('common.inProgress'),
+    REVIEW: t('pipeline.review'),
+    DONE: t('overview.completed'),
+  }
 
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
@@ -109,7 +116,7 @@ export default function EmployeeDashboard() {
   async function handleUpload(e: React.FormEvent) {
     e.preventDefault()
     if (!uploadTask || !uploadFile) {
-      setUploadError('Choose a file before uploading.')
+      setUploadError(t('common.error'))
       return
     }
 
@@ -129,7 +136,7 @@ export default function EmployeeDashboard() {
     setUploading(false)
 
     if (!response.ok) {
-      setUploadError(data.error || 'Upload failed.')
+      setUploadError(data.error || t('common.error'))
       return
     }
 
@@ -146,22 +153,20 @@ export default function EmployeeDashboard() {
   const overdue = tasks.filter((task) => task.stage !== 'DONE' && task.deadline && new Date(task.deadline) < new Date())
 
   const statCards = [
-    { label: 'To Do', count: todo.length, color: '#64748b' },
-    { label: 'In Progress', count: inProgress.length, color: '#0f766e' },
-    { label: 'Review', count: review.length, color: '#d97706' },
-    { label: 'Done', count: done.length, color: '#059669' },
+    { label: t('pipeline.work'), count: todo.length, color: '#64748b' },
+    { label: t('common.inProgress'), count: inProgress.length, color: '#0f766e' },
+    { label: t('pipeline.review'), count: review.length, color: '#d97706' },
+    { label: t('overview.completed'), count: done.length, color: '#059669' },
   ]
 
   return (
     <div className="dashboard-page" style={{ maxWidth: '860px' }}>
       <div style={{ marginBottom: '24px' }}>
         <h1 className="page-heading flex items-center gap-2.5">
-          <ListTodo size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> {isAgency ? 'My briefs' : 'My tasks'}
+          <ListTodo size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> {t('employee.title')}
         </h1>
         <p className="page-sub">
-          {isAgency
-            ? `${tasks.length} assigned briefs - upload finished work directly for review`
-            : `${tasks.length} assigned - ${done.length} completed${overdue.length > 0 ? ` - ${overdue.length} overdue` : ''}`}
+          {isAgency ? t('employee.subtitle.agency').replace('{count}', tasks.length.toString()) : t('employee.subtitle.tasks').replace('{count}', tasks.length.toString()).replace('{done}', done.length.toString()).replace('{overdue}', overdue.length.toString())}
         </p>
       </div>
 
@@ -178,8 +183,7 @@ export default function EmployeeDashboard() {
         <div className="alert-banner alert-danger" style={{ marginBottom: '16px' }}>
           <AlertTriangle size={16} />
           <div>
-            <strong>{overdue.length} overdue {companyCopy.taskPluralLabel.toLowerCase()}</strong>
-            <span style={{ marginLeft: '6px', fontWeight: 500, opacity: 0.85 }}>— update as soon as possible</span>
+            <strong>{t('employee.overdue').replace('{count}', overdue.length.toString()).replace('{tasks}', companyCopy.taskPluralLabel.toLowerCase())}</strong>
           </div>
         </div>
       )}
@@ -191,7 +195,7 @@ export default function EmployeeDashboard() {
       ) : tasks.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '48px' }}>
           <ListTodo size={32} style={{ color: 'var(--text-muted)', opacity: 0.3, margin: '0 auto 10px', display: 'block' }} />
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No {companyCopy.taskPluralLabel.toLowerCase()} assigned yet</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('employee.noTasks').replace('{tasks}', companyCopy.taskPluralLabel.toLowerCase())}</p>
         </div>
       ) : (
         <div className="dashboard-card-stack">
@@ -219,7 +223,7 @@ export default function EmployeeDashboard() {
                       <h3 style={{ minWidth: 0, overflowWrap: 'anywhere', fontSize: '14px', fontWeight: '600' }}>{task.title}</h3>
                       {isOverdue && (
                         <span className="overdue-tag">
-                          OVERDUE
+                          {t('employee.overdueBadge')}
                         </span>
                       )}
                     </div>
@@ -239,22 +243,22 @@ export default function EmployeeDashboard() {
 
                   <div className="dashboard-item-side">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span className={STAGE_BADGE_CLASSES[task.stage]}>{STAGE_LABELS[task.stage]}</span>
+                      <span className={STAGE_BADGE_CLASSES[task.stage]}>{stageLabels[task.stage]}</span>
                     </div>
                     {canAdvance && (
                       <button onClick={() => advanceStage(task)} disabled={updating === task.id} className="btn-primary" style={{ fontSize: '11px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         {updating === task.id ? <Loader2 size={12} style={{ animation: 'spin 0.7s linear infinite' }} /> : <ArrowRight size={13} />}
-                        {task.stage === 'TODO' ? 'Start progress' : 'Send to review'}
+                        {task.stage === 'TODO' ? t('employee.startProgress') : t('employee.sendReview')}
                       </button>
                     )}
                     {task.stage === 'REVIEW' && (
                       <span style={{ fontSize: '11px', color: '#d97706', fontWeight: '600' }}>
-                        Waiting admin review
+                        {t('employee.waitingReview')}
                       </span>
                     )}
                     {task.stage === 'DONE' && (
                       <span style={{ fontSize: '11px', color: '#10b981', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <CheckCircle2 size={13} /> Complete
+                        <CheckCircle2 size={13} /> {t('employee.complete')}
                       </span>
                     )}
                     {isAgency && (
@@ -270,7 +274,7 @@ export default function EmployeeDashboard() {
                         style={{ fontSize: '11px', padding: '6px 12px', display: 'flex', alignItems: 'center', gap: '4px' }}
                       >
                         <Upload size={13} />
-                        Upload work
+                        {t('common.uploadWork')}
                       </button>
                     )}
                   </div>
@@ -278,7 +282,7 @@ export default function EmployeeDashboard() {
 
                 <div style={{ marginTop: '12px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '11px', color: 'var(--text-muted)', marginBottom: '3px' }}>
-                    <span>Progress</span>
+                    <span>{t('employee.progress')}</span>
                     <span>{task.progress}%</span>
                   </div>
                   <div className="progress-bar">
@@ -316,7 +320,7 @@ export default function EmployeeDashboard() {
                               {submission.fileName}
                             </div>
                             <div style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>
-                              Uploaded {formatTimeAgo(submission.createdAt)}
+                              {t('common.uploaded')} {formatTimeAgo(submission.createdAt)}
                             </div>
                             {submission.note && (
                               <RichTextContent html={submission.note} style={{ overflowWrap: 'anywhere', fontSize: '11px', color: 'var(--text-secondary)', marginTop: '4px' }} />
@@ -330,7 +334,7 @@ export default function EmployeeDashboard() {
                             style={{ textDecoration: 'none', fontSize: '11px', padding: '6px 10px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}
                           >
                             <Link2 size={13} />
-                            Open file
+                            {t('common.openFile')}
                           </a>
                         </div>
                       </div>
@@ -363,14 +367,14 @@ export default function EmployeeDashboard() {
       {uploadTask && (
         <div className="modal-backdrop" onClick={(event) => event.target === event.currentTarget && setUploadTask(null)}>
           <div className="modal">
-            <h2 className="font-display mb-2 text-lg font-semibold tracking-tight">Upload finished work</h2>
+            <h2 className="font-display mb-2 text-lg font-semibold tracking-tight">{t('common.uploadFinished')}</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '12px', marginBottom: '18px' }}>
               {uploadTask.title} - {getDeliverableTypeLabel(uploadTask.deliverableType)}
             </p>
             <form onSubmit={handleUpload} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
-                  File *
+                  {t('common.fileRequired')}
                 </label>
                 <input
                   className="input"
@@ -383,9 +387,9 @@ export default function EmployeeDashboard() {
 
               <div>
                 <label style={{ display: 'block', fontSize: '12px', fontWeight: '500', color: 'var(--text-secondary)', marginBottom: '5px' }}>
-                  Note
+                  {t('common.note')}
                 </label>
-                <RichTextEditor value={uploadNote} onChange={setUploadNote} placeholder="What should your manager know about this upload?" minHeight={80} maxHeight={250} />
+                <RichTextEditor value={uploadNote} onChange={setUploadNote} placeholder={t('common.placeholder.note')} minHeight={80} maxHeight={250} />
               </div>
 
               {uploadError && (
@@ -397,11 +401,11 @@ export default function EmployeeDashboard() {
 
               <div className="modal-actions">
                 <button type="button" onClick={() => setUploadTask(null)} className="btn-secondary" style={{ fontSize: '12px', padding: '8px 16px' }}>
-                  Cancel
+                  {t('common.cancel')}
                 </button>
                 <button type="submit" className="btn-primary" disabled={uploading} style={{ fontSize: '12px', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '6px' }}>
                   {uploading ? <Loader2 size={14} className="animate-spin" /> : <Upload size={14} />}
-                  Send to boss
+                  {t('common.sendToBoss')}
                 </button>
               </div>
             </form>

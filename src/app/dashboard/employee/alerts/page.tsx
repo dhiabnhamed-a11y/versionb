@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { formatTimeAgo } from '@/lib/utils'
+import { useLocale } from '@/components/i18n/LocaleProvider'
 import { useRealtimeSubscription } from '@/hooks/useRealtimeSubscription'
 import type { RealtimeEventName } from '@/lib/realtime-events'
 import { Bell, Clock, Phone, AlertTriangle, CheckCircle2 } from 'lucide-react'
@@ -9,10 +10,10 @@ import { alertsApi, type AlertRecord } from '@/lib/api-client/alerts'
 
 type Alert = AlertRecord
 
-const typeConfig: Record<string, { icon: typeof Bell; color: string; bg: string; border: string; label: string }> = {
-  URGENT_TASK: { icon: AlertTriangle, color: '#dc2626', bg: 'rgba(220,38,38,0.08)', border: 'rgba(220,38,38,0.18)', label: 'Urgent Task' },
-  DEADLINE_WARNING: { icon: Clock, color: '#d97706', bg: 'rgba(217,119,6,0.1)', border: 'rgba(217,119,6,0.2)', label: 'Deadline' },
-  MANAGER_CALL: { icon: Phone, color: '#0e7490', bg: 'rgba(14,116,144,0.09)', border: 'rgba(14,116,144,0.22)', label: 'Manager Call' },
+const typeConfig: Record<string, { icon: typeof Bell; color: string; bg: string; border: string }> = {
+  URGENT_TASK: { icon: AlertTriangle, color: '#dc2626', bg: 'rgba(220,38,38,0.08)', border: 'rgba(220,38,38,0.18)' },
+  DEADLINE_WARNING: { icon: Clock, color: '#d97706', bg: 'rgba(217,119,6,0.1)', border: 'rgba(217,119,6,0.2)' },
+  MANAGER_CALL: { icon: Phone, color: '#0e7490', bg: 'rgba(14,116,144,0.09)', border: 'rgba(14,116,144,0.22)' },
 }
 
 const ALERT_REALTIME_EVENTS = ['alert', 'alert_read'] as const
@@ -20,6 +21,12 @@ const ALERT_REALTIME_EVENTS = ['alert', 'alert_read'] as const
 export default function EmployeeAlertsPage() {
   const [alerts, setAlerts] = useState<Alert[]>([])
   const [loading, setLoading] = useState(true)
+  const { t } = useLocale()
+  const typeLabel: Record<string, string> = {
+    URGENT_TASK: t('employee.alerts.urgentTask'),
+    DEADLINE_WARNING: t('employee.alerts.deadline'),
+    MANAGER_CALL: t('employee.alerts.managerCall'),
+  }
 
   async function fetchAlerts() {
     return alertsApi.list()
@@ -81,10 +88,10 @@ export default function EmployeeAlertsPage() {
     <div className="dashboard-page" style={{ maxWidth: '640px' }}>
       <div style={{ marginBottom: '24px' }}>
         <h1 className="page-heading flex flex-wrap items-center gap-2">
-          <Bell size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> Alerts
-          {unread > 0 && <span className="alert-banner alert-danger" style={{ fontSize: '12px', padding: '2px 10px', borderRadius: '6px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}><span className="status-dot status-dot-danger" style={{ width: '6px', height: '6px' }} />{unread} new</span>}
+          <Bell size={24} strokeWidth={1.85} style={{ color: 'var(--accent)' }} /> {t('employee.alerts.title')}
+          {unread > 0 && <span className="alert-banner alert-danger" style={{ fontSize: '12px', padding: '2px 10px', borderRadius: '6px', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '5px' }}><span className="status-dot status-dot-danger" style={{ width: '6px', height: '6px' }} />{t('employee.alerts.new').replace('{unread}', unread.toString())}</span>}
         </h1>
-        <p className="page-sub">Notifications from your leads</p>
+        <p className="page-sub">{t('employee.alerts.subtitle')}</p>
       </div>
 
       {loading ? (
@@ -92,7 +99,7 @@ export default function EmployeeAlertsPage() {
       ) : alerts.length === 0 ? (
         <div className="card" style={{ textAlign: 'center', padding: '48px' }}>
           <Bell size={32} style={{ color: 'var(--text-muted)', opacity: 0.3, margin: '0 auto 10px', display: 'block' }} />
-          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>No alerts yet - you&apos;re all clear</p>
+          <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>{t('employee.alerts.empty')}</p>
         </div>
       ) : (
         <div className="dashboard-card-stack">
@@ -108,7 +115,7 @@ export default function EmployeeAlertsPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '8px', marginBottom: '4px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: cfg.color }}><span className="status-dot" style={{ width: '6px', height: '6px', background: cfg.color, boxShadow: `0 0 0 3px ${cfg.border}` }} />{cfg.label}</span>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', fontSize: '10px', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', color: cfg.color }}><span className="status-dot" style={{ width: '6px', height: '6px', background: cfg.color, boxShadow: `0 0 0 3px ${cfg.border}` }} />{typeLabel[alert.type]}</span>
                         {!alert.read && <span style={{ width: '6px', height: '6px', background: '#ef4444', borderRadius: '50%', animation: 'pulse 2s infinite' }} />}
                       </div>
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)', flexShrink: 0 }}>{formatTimeAgo(alert.createdAt)}</span>
@@ -119,7 +126,7 @@ export default function EmployeeAlertsPage() {
                       <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>From <strong style={{ color: 'var(--text-secondary)' }}>{alert.sender?.name}</strong></span>
                       {!alert.read && (
                         <button onClick={() => markRead(alert.id)} className="btn-sm" style={{ fontSize: '11px', color: 'var(--success)', background: 'rgba(5,150,105,0.06)', border: '1px solid var(--success-border)', borderRadius: '6px', cursor: 'pointer', fontWeight: '650', display: 'flex', alignItems: 'center', gap: '4px', padding: '4px 10px' }}>
-                          <CheckCircle2 size={12} /> Mark read
+                          <CheckCircle2 size={12} /> {t('employee.alerts.markRead')}
                         </button>
                       )}
                     </div>

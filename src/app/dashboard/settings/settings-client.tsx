@@ -15,6 +15,7 @@ import {
 
 import LanguageSwitcher from '@/components/i18n/LanguageSwitcher'
 import { useLocale } from '@/components/i18n/LocaleProvider'
+import type { TranslationKey } from '@/lib/i18n'
 import PremiumDashboardDesignStudio from '@/components/dashboard/PremiumDashboardDesignStudio'
 import UserAvatar from '@/components/user/UserAvatar'
 import { downloadBlobResponse, getResponseErrorMessage } from '@/lib/download-response'
@@ -42,17 +43,17 @@ type CurrentUser = {
 type TabId = 'design' | 'language' | 'appearance' | 'team' | 'export'
 
 const TABS: { id: TabId; label: string; icon: typeof Palette }[] = [
-  { id: 'design', label: 'My Design', icon: SlidersHorizontal },
-  { id: 'language', label: 'Language', icon: Languages },
-  { id: 'appearance', label: 'Workspace Appearance', icon: Palette },
-  { id: 'team', label: 'Team Management', icon: Users },
-  { id: 'export', label: 'Data & Export', icon: Database },
+  { id: 'design', label: 'settings.tab.design', icon: SlidersHorizontal },
+  { id: 'language', label: 'language.label', icon: Languages },
+  { id: 'appearance', label: 'settings.tab.appearance', icon: Palette },
+  { id: 'team', label: 'settings.tab.team', icon: Users },
+  { id: 'export', label: 'settings.tab.export', icon: Database },
 ]
 
 const ROLE_OPTIONS: { value: PublicWorkspaceRole; label: string }[] = [
-  { value: 'OWNER', label: 'Owner' },
-  { value: 'MANAGER', label: 'Manager' },
-  { value: 'WORKER', label: 'Worker' },
+  { value: 'OWNER', label: 'settings.role.owner' },
+  { value: 'MANAGER', label: 'settings.role.manager' },
+  { value: 'WORKER', label: 'settings.role.worker' },
 ]
 
 function getRoleBadgeClass(role: PublicWorkspaceRole) {
@@ -92,7 +93,7 @@ function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
-async function fetchStatsExportWithRetry(format: 'json' | 'csv' | 'pdf') {
+async function fetchStatsExportWithRetry(format: 'json' | 'csv' | 'pdf', tr: (key: TranslationKey) => string) {
   const maxAttempts = 2
   let lastError: unknown
 
@@ -129,10 +130,10 @@ async function fetchStatsExportWithRetry(format: 'json' | 'csv' | 'pdf') {
   }
 
   if (lastError instanceof DOMException && lastError.name === 'AbortError') {
-    throw new Error('Statistics export timed out. Please try again.')
+    throw new Error(tr('settings.export.timedOut'))
   }
 
-  throw lastError instanceof Error ? lastError : new Error('Failed to export statistics.')
+  throw lastError instanceof Error ? lastError : new Error(tr('settings.export.failed'))
 }
 
 export default function SettingsClient({
@@ -165,8 +166,7 @@ export default function SettingsClient({
   )
 
   function tabLabel(tab: { id: TabId; label: string }) {
-    if (tab.id === 'language') return t('language.label')
-    return tab.label
+    return t(tab.label as TranslationKey)
   }
 
   const counts = useMemo(
@@ -199,23 +199,24 @@ export default function SettingsClient({
     setSavingAppearance(false)
 
     if (!response.ok || !data.appearance) {
-      showFeedback('error', getErrorMessage(data, 'Failed to update appearance.'))
+      showFeedback('error', getErrorMessage(data, t('settings.appearance.saveFailed')))
       return
     }
 
     setAppearance(data.appearance)
     applyWorkspaceTheme(data.appearance)
-    showFeedback('success', 'Appearance settings saved.')
+    showFeedback('success', t('settings.appearance.saved'))
   }
 
   async function changeRole(target: TeamUser, nextRole: PublicWorkspaceRole) {
     if (!currentUser) return
     if (!canChangeRole(currentUser, target, nextRole)) {
-      showFeedback('error', target.isCurrentUser ? 'No one can change their own role.' : 'That role change is not allowed.')
+      showFeedback('error', target.isCurrentUser ? t('settings.team.noSelfRoleChange') : t('settings.team.roleChangeNotAllowed'))
       return
     }
 
-    const confirmed = window.confirm(`Change ${target.name}'s role from ${target.roleLabel} to ${nextRole === 'WORKER' ? 'Worker' : nextRole}?`)
+    const targetRoleName = nextRole === 'WORKER' ? t('settings.role.worker') : (nextRole.charAt(0) + nextRole.slice(1).toLowerCase())
+    const confirmed = window.confirm(t('settings.roleUpdate.confirm').replace('{name}', target.name).replace('{from}', target.roleLabel).replace('{to}', targetRoleName))
     if (!confirmed) return
 
     setChangingUserId(target.id)
@@ -230,7 +231,7 @@ export default function SettingsClient({
     setChangingUserId(null)
 
     if (!response.ok || !data.user) {
-      showFeedback('error', getErrorMessage(data, 'Failed to update role.'))
+      showFeedback('error', getErrorMessage(data, t('settings.roleUpdate.failed')))
       return
     }
 
@@ -241,39 +242,39 @@ export default function SettingsClient({
               ...user,
               role: data.user!.role,
               storedRole: data.user!.storedRole,
-              roleLabel: data.user!.role === 'WORKER' ? 'Worker' : data.user!.role.charAt(0) + data.user!.role.slice(1).toLowerCase(),
+              roleLabel: t(`settings.role.${data.user!.role.toLowerCase()}` as TranslationKey),
             }
           : user
       )
     )
-    showFeedback('success', `${target.name}'s role was updated.`)
+    showFeedback('success', t('settings.roleUpdate.updated').replace('{name}', target.name))
   }
 
   async function exportStats() {
-    const confirmed = window.confirm(`Download full workspace statistics as ${exportFormat.toUpperCase()}?`)
+    const confirmed = window.confirm(t('settings.export.confirm').replace('{format}', exportFormat.toUpperCase()))
     if (!confirmed) return
 
     setExporting(true)
     setFeedback(null)
 
     try {
-      const response = await fetchStatsExportWithRetry(exportFormat)
+      const response = await fetchStatsExportWithRetry(exportFormat, t)
       const contentType = response.headers.get('content-type') ?? ''
 
       if (!response.ok) {
-        showFeedback('error', await getResponseErrorMessage(response, 'Failed to export statistics.'))
+showFeedback('error', await getResponseErrorMessage(response, t('settings.export.failed')))
         return
       }
 
       if (exportFormat === 'pdf' && !contentType.includes('application/pdf')) {
-        showFeedback('error', await getResponseErrorMessage(response, 'Statistics PDF could not be downloaded.'))
+        showFeedback('error', await getResponseErrorMessage(response, t('settings.export.pdfFailed')))
         return
       }
 
       await downloadBlobResponse(response, 'taskit-stats', exportFormat)
-      showFeedback('success', 'Statistics export started.')
+      showFeedback('success', t('settings.export.started'))
     } catch (error) {
-      showFeedback('error', error instanceof Error ? error.message : 'Failed to export statistics.')
+      showFeedback('error', error instanceof Error ? error.message : t('settings.export.failed'))
     } finally {
       setExporting(false)
     }
@@ -353,22 +354,22 @@ export default function SettingsClient({
         <section className="card">
           <div className="panel-header">
             <div>
-              <h2 className="panel-title">Appearance</h2>
-              <p className="panel-meta">Theme choices are stored for the workspace and loaded with the dashboard.</p>
+<h2 className="panel-title">{t('settings.appearance.title')}</h2>
+                <p className="panel-meta">{t('settings.appearance.meta')}</p>
             </div>
           </div>
 
           <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_280px]">
             <div className="grid gap-4 sm:grid-cols-2">
-              {[
-                { key: 'primaryColor', label: 'Primary color' },
-                { key: 'backgroundColor', label: 'Background color' },
-                { key: 'sidebarColor', label: 'Sidebar color' },
-              ].map((field) => {
-                const key = field.key as 'primaryColor' | 'backgroundColor' | 'sidebarColor'
+              {([
+                { key: 'primaryColor', labelKey: 'settings.appearance.primaryColor' },
+                { key: 'backgroundColor', labelKey: 'settings.appearance.backgroundColor' },
+                { key: 'sidebarColor', labelKey: 'settings.appearance.sidebarColor' },
+              ] as const).map((field) => {
+                const key = field.key
                 return (
                   <label key={field.key} className="block">
-                    <span className="mb-2 block text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-muted)]">{field.label}</span>
+                    <span className="mb-2 block text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-muted)]">{t(field.labelKey as TranslationKey)}</span>
                     <div className="flex items-center gap-3">
                       <input
                         type="color"
@@ -389,7 +390,7 @@ export default function SettingsClient({
               })}
 
               <div>
-                <span className="mb-2 block text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-muted)]">Mode</span>
+                <span className="mb-2 block text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-muted)]">{t('settings.appearance.mode')}</span>
                 <div className="grid grid-cols-2 gap-2 rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--bg-elevated)] p-1">
                   {(['light', 'dark'] as const).map((mode) => (
                     <button
@@ -403,7 +404,7 @@ export default function SettingsClient({
                         boxShadow: appearance.themeMode === mode ? 'var(--shadow-sm)' : 'none',
                       }}
                     >
-                      {mode}
+                      {mode === 'light' ? t('settings.appearance.light') : t('settings.appearance.dark')}
                     </button>
                   ))}
                 </div>
@@ -425,7 +426,7 @@ export default function SettingsClient({
 
           <div className="mt-5 flex justify-end">
             <button type="button" className="btn-primary" onClick={saveAppearance} disabled={savingAppearance}>
-              {savingAppearance ? 'Saving...' : 'Save appearance'}
+              {savingAppearance ? t('settings.appearance.saving') : t('settings.appearance.save')}
             </button>
           </div>
         </section>
@@ -435,15 +436,15 @@ export default function SettingsClient({
         <section className="grid gap-4">
           <div className="dashboard-stat-grid !mb-0">
             <div className="stat-card">
-              <span className="stat-card-label">Owners</span>
+              <span className="stat-card-label">{t('settings.role.owner')}</span>
               <div className="stat-card-value">{counts.owners}</div>
             </div>
             <div className="stat-card">
-              <span className="stat-card-label">Managers</span>
+              <span className="stat-card-label">{t('settings.role.manager')}</span>
               <div className="stat-card-value">{counts.managers}</div>
             </div>
             <div className="stat-card">
-              <span className="stat-card-label">Workers</span>
+              <span className="stat-card-label">{t('settings.role.worker')}</span>
               <div className="stat-card-value">{counts.workers}</div>
             </div>
           </div>
@@ -451,8 +452,8 @@ export default function SettingsClient({
           <div className="card">
             <div className="panel-header">
               <div>
-                <h2 className="panel-title">Team Management</h2>
-                <p className="panel-meta">Role changes are confirmed, checked on the server, and written to the admin action log.</p>
+<h2 className="panel-title">{t('settings.team.title')}</h2>
+                <p className="panel-meta">{t('settings.team.meta')}</p>
               </div>
             </div>
 
@@ -461,9 +462,9 @@ export default function SettingsClient({
                 <table>
                   <thead>
                     <tr>
-                      <th>Member</th>
-                      <th>Current role</th>
-                      <th>Change role</th>
+                      <th>{t('settings.team.member')}</th>
+                      <th>{t('settings.team.currentRole')}</th>
+                      <th>{t('settings.team.changeRole')}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -481,7 +482,7 @@ export default function SettingsClient({
                         <td>
                           <span className={`badge ${getRoleBadgeClass(user.role)}`}>
                             {user.roleLabel}
-                            {user.isCurrentUser ? ' (you)' : ''}
+                            {user.isCurrentUser ? t('common.you') : ''}
                           </span>
                         </td>
                         <td>
@@ -493,7 +494,7 @@ export default function SettingsClient({
                           >
                             {ROLE_OPTIONS.filter((option) => currentUser.role === 'OWNER' || option.value !== 'OWNER').map((option) => (
                               <option key={option.value} value={option.value} disabled={!canChangeRole(currentUser, user, option.value) && option.value !== user.role}>
-                                {option.label}
+                                {t(option.label as TranslationKey)}
                               </option>
                             ))}
                           </select>
@@ -518,7 +519,7 @@ export default function SettingsClient({
                     </div>
                     <span className={`badge ${getRoleBadgeClass(user.role)}`}>
                       {user.roleLabel}
-                      {user.isCurrentUser ? ' (you)' : ''}
+                      {user.isCurrentUser ? t('common.you') : ''}
                     </span>
                   </div>
                   <select
@@ -529,7 +530,7 @@ export default function SettingsClient({
                   >
                     {ROLE_OPTIONS.filter((option) => currentUser.role === 'OWNER' || option.value !== 'OWNER').map((option) => (
                       <option key={option.value} value={option.value} disabled={!canChangeRole(currentUser, user, option.value) && option.value !== user.role}>
-                        {option.label}
+                        {t(option.label as TranslationKey)}
                       </option>
                     ))}
                   </select>
@@ -544,35 +545,35 @@ export default function SettingsClient({
         <section className="card">
           <div className="panel-header">
             <div>
-              <h2 className="panel-title">Data & Export</h2>
-              <p className="panel-meta">Exports include projects, tasks, completion rates, team performance, and activity logs.</p>
+<h2 className="panel-title">{t('settings.tab.export')}</h2>
+                <p className="panel-meta">{t('settings.export.meta')}</p>
             </div>
           </div>
 
           <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_240px]">
             <div className="rounded-[var(--radius-md)] border border-[var(--border)] bg-[var(--bg-elevated)] p-4">
-              <div className="text-sm font-bold text-[var(--text-primary)]">Full dashboard statistics</div>
+              <div className="text-sm font-bold text-[var(--text-primary)]">{t('settings.export.fullStats')}</div>
               <div className="mt-2 grid gap-2 text-sm text-[var(--text-muted)] sm:grid-cols-2">
-                <span>Projects and task totals</span>
-                <span>Completion rates</span>
-                <span>Team performance</span>
-                <span>Task and admin activity logs</span>
-                <span>PDF charts, project counts, and money totals</span>
+<span>{t('settings.export.includesProjects')}</span>
+                <span>{t('settings.export.includesCompletion')}</span>
+                <span>{t('settings.export.includesPerformance')}</span>
+                <span>{t('settings.export.includesLogs')}</span>
+                <span>{t('settings.export.includesPdf')}</span>
               </div>
             </div>
 
             <div className="grid gap-3">
               <label>
-                <span className="mb-2 block text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-muted)]">Format</span>
+                <span className="mb-2 block text-xs font-bold uppercase tracking-[0.08em] text-[var(--text-muted)]">{t('settings.export.format')}</span>
                 <select className="input" value={exportFormat} onChange={(event) => setExportFormat(event.target.value as 'json' | 'csv' | 'pdf')}>
-                  <option value="pdf">PDF report</option>
-                  <option value="json">JSON</option>
-                  <option value="csv">CSV</option>
+<option value="pdf">{t('settings.export.pdf')}</option>
+                  <option value="json">{t('settings.export.json')}</option>
+                  <option value="csv">{t('settings.export.csv')}</option>
                 </select>
               </label>
               <button type="button" className="btn-primary" onClick={exportStats} disabled={exporting}>
                 <Download size={16} />
-                {exporting ? 'Preparing...' : 'Download'}
+                {exporting ? t('settings.export.preparing') : t('settings.export.download')}
               </button>
             </div>
           </div>

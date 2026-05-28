@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { Camera, Save, Upload } from 'lucide-react'
 import UserAvatar from '@/components/user/UserAvatar'
 import { readJsonResponse } from '@/lib/read-json'
+import { useLocale } from '@/components/i18n/LocaleProvider'
 
 type Profile = {
   id: string
@@ -20,6 +21,7 @@ type ProfileClientProps = {
 
 export default function ProfileClient({ initialProfile }: ProfileClientProps) {
   const { update } = useSession()
+  const { t } = useLocale()
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [profile, setProfile] = useState(initialProfile)
   const [name, setName] = useState(initialProfile.name)
@@ -55,11 +57,11 @@ export default function ProfileClient({ initialProfile }: ProfileClientProps) {
       method: 'PATCH',
       body: formData,
     })
-    const data = await readJsonResponse<(Profile & { error?: string }) | { error: string }>(response, { error: 'Failed to update profile.' })
+    const data = await readJsonResponse<(Profile & { error?: string }) | { error: string }>(response, { error: t('profile.failed') })
     setSaving(false)
 
     if (!response.ok || data.error || !('id' in data)) {
-      setError(data.error || 'Failed to update profile.')
+      setError(data.error || t('profile.failed'))
       return
     }
 
@@ -68,7 +70,7 @@ export default function ProfileClient({ initialProfile }: ProfileClientProps) {
     setFile(null)
     if (previewUrl) URL.revokeObjectURL(previewUrl)
     setPreviewUrl(null)
-    setMessage('Profile updated.')
+    setMessage(t('profile.updated'))
     window.dispatchEvent(new CustomEvent('taskit:profile-updated', { detail: data }))
     await update({ name: data.name, avatar: data.avatar })
   }
@@ -77,8 +79,8 @@ export default function ProfileClient({ initialProfile }: ProfileClientProps) {
     <div className="dashboard-page" style={{ maxWidth: '920px' }}>
       <div className="dashboard-header-row">
         <div>
-          <h1 className="page-heading">Profile</h1>
-          <p className="page-sub">Update the identity teammates and admins see across TASKIT.</p>
+          <h1 className="page-heading">{t('profile.title')}</h1>
+          <p className="page-sub">{t('profile.subtitle')}</p>
         </div>
       </div>
 
@@ -93,7 +95,7 @@ export default function ProfileClient({ initialProfile }: ProfileClientProps) {
               style={{ fontSize: '13px', padding: '9px 14px' }}
             >
               <Camera size={15} />
-              Change picture
+              {t('profile.changePicture')}
             </button>
             <input
               ref={inputRef}
@@ -103,7 +105,7 @@ export default function ProfileClient({ initialProfile }: ProfileClientProps) {
               onChange={(event) => chooseFile(event.currentTarget.files?.[0] ?? null)}
             />
             <div className="mt-4 text-xs leading-5 text-[var(--text-muted)]">
-              PNG, JPG, or WebP. The image file is uploaded to Cloudinary; TASKIT stores only the delivery URL for display.
+              {t('profile.pictureHint')}
             </div>
           </div>
         </section>
@@ -111,14 +113,14 @@ export default function ProfileClient({ initialProfile }: ProfileClientProps) {
         <section className="card">
           <div className="panel-header">
             <div>
-              <h2 className="panel-title">Personal details</h2>
-              <p className="panel-meta">This name and picture appear in team lists, task activity, alerts, and admin views.</p>
+              <h2 className="panel-title">{t('profile.personalDetails')}</h2>
+              <p className="panel-meta">{t('profile.personalDetailsMeta')}</p>
             </div>
           </div>
 
           <div className="grid gap-4">
             <label className="grid gap-1.5">
-              <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Display name</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">{t('profile.displayName')}</span>
               <input
                 className="input"
                 value={name}
@@ -130,13 +132,13 @@ export default function ProfileClient({ initialProfile }: ProfileClientProps) {
             </label>
 
             <label className="grid gap-1.5">
-              <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Email</span>
-              <input className="input" value={profile.email} disabled />
+<span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">{t('profile.email')}</span>
+               <input className="input" value={profile.email} disabled />
             </label>
 
             <label className="grid gap-1.5">
-              <span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">Role</span>
-              <input className="input" value={profile.role} disabled />
+<span className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--text-muted)]">{t('profile.role')}</span>
+               <input className="input" value={profile.role} disabled />
             </label>
           </div>
 
@@ -159,7 +161,7 @@ export default function ProfileClient({ initialProfile }: ProfileClientProps) {
               style={{ fontSize: '13px', padding: '10px 16px', opacity: saving || !changed ? 0.55 : undefined }}
             >
               {saving ? <Upload size={15} className="animate-spin" /> : <Save size={15} />}
-              {saving ? 'Saving...' : 'Save profile'}
+              {saving ? t('profile.saving') : t('profile.save')}
             </button>
             {file && (
               <button
@@ -168,7 +170,7 @@ export default function ProfileClient({ initialProfile }: ProfileClientProps) {
                 onClick={() => chooseFile(null)}
                 style={{ fontSize: '13px', padding: '10px 16px' }}
               >
-                Remove selected file
+                {t('profile.removeFile')}
               </button>
             )}
           </div>
