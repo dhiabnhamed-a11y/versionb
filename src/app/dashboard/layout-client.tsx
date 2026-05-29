@@ -13,6 +13,7 @@ import WorkspaceTour from '@/components/dashboard/WorkspaceTour'
 import WorkspaceThemeProvider from '@/components/dashboard/WorkspaceThemeProvider'
 import LanguageSwitcher from '@/components/i18n/LanguageSwitcher'
 import { LocaleProvider, useLocale } from '@/components/i18n/LocaleProvider'
+import { OfflineProvider } from '@/lib/offline/OfflineContext'
 import PushNotificationBootstrap from '@/components/pwa/PushNotificationBootstrap'
 import UserAvatar from '@/components/user/UserAvatar'
 import { getLocalizedCompanyCopy } from '@/lib/company-copy-i18n'
@@ -54,7 +55,9 @@ type DashboardLayoutClientProps = {
 export default function DashboardLayoutClient(props: DashboardLayoutClientProps) {
   return (
     <LocaleProvider initialLocale={props.initialLocale}>
-      <DashboardLayoutChrome {...props} />
+      <OfflineProvider>
+        <DashboardLayoutChrome {...props} />
+      </OfflineProvider>
     </LocaleProvider>
   )
 }
@@ -135,6 +138,7 @@ function DashboardLayoutChrome({
       className={`dashboard-app-shell ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}
       data-user-design={userDesign.enabled && userDesign.compiledCss ? 'active' : undefined}
       dir={direction}
+      style={{ paddingTop: 'var(--offline-banner-h, 0px)' }}
     >
       {userDesign.enabled && userDesign.compiledCss && (
         <style id="taskit-user-dashboard-design" dangerouslySetInnerHTML={{ __html: userDesign.compiledCss }} />
