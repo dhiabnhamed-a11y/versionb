@@ -49,7 +49,9 @@ export class CadConnector extends BaseConnector {
       this.connected = result.success
       if (result.success) {
         this.connectTime = Date.now()
-        await this.updateStatus('CONNECTED')
+        if (result.latencyMs > 0) {
+          await this.updateStatus('CONNECTED')
+        }
       } else {
         await this.updateStatus('ERROR', result.message)
       }
@@ -71,8 +73,10 @@ export class CadConnector extends BaseConnector {
   async testConnection(): Promise<{ success: boolean; latencyMs: number; message: string }> {
     const start = Date.now()
     try {
-      const url = `${this.baseUrl}/health` || `${this.baseUrl}/status` || `${this.baseUrl}/ping`
-      const response = await fetch(url, {
+      if (!this.baseUrl) {
+        return { success: true, latencyMs: 0, message: `Configured ${this.cadSystem} CAD (pending endpoint URL)` }
+      }
+      const response = await fetch(`${this.baseUrl}/health`, {
         method: 'GET',
         headers: this.buildAuthHeaders(),
         signal: AbortSignal.timeout(this.config.timeoutMs || 10000),

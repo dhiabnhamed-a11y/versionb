@@ -23,6 +23,13 @@ export async function POST(req: NextRequest) {
 
     if (!name || !type) throw new Error('name and type are required')
 
+    // Ensure EmsCompany record exists (required by FK constraint)
+    await prisma.emsCompany.upsert({
+      where: { companyId },
+      create: { companyId },
+      update: {},
+    })
+
     const integration = await prisma.emsIntegration.create({
       data: {
         companyId, name, type: type as EmsIntegrationType,
