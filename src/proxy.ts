@@ -6,16 +6,15 @@ import { isPublicApiPath } from '@/lib/security/config'
 import { getWorkspaceHomePath, getWorkspaceRouteRedirect } from '@/lib/workspace-routing'
 
 function securityHeaders(req: NextRequest) {
-  const isDev = process.env.NODE_ENV !== 'production'
   const csp = [
     "default-src 'self'",
-    `script-src 'self' 'unsafe-inline' blob:${isDev ? " 'unsafe-eval'" : ''}`,
+    `script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:`,
     "script-src-elem 'self' 'unsafe-inline' blob:",
-    "style-src 'self' 'unsafe-inline'",
-    "img-src 'self' data: blob: https:",
-    "font-src 'self' data:",
-    "media-src 'self' data: blob: https:",
-    "connect-src 'self' https: wss: ws:",
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "img-src 'self' data: blob: https: http:",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "media-src 'self' data: blob: https: http:",
+    "connect-src 'self' https: http: wss: ws:",
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'self'",
@@ -28,13 +27,12 @@ function securityHeaders(req: NextRequest) {
     'Content-Security-Policy': csp,
     'X-DNS-Prefetch-Control': 'on',
     'Cross-Origin-Opener-Policy': 'same-origin',
-    'Cross-Origin-Resource-Policy': 'same-site',
     'Origin-Agent-Cluster': '?1',
-    'Permissions-Policy': 'camera=(self), microphone=(self), geolocation=(), payment=(), usb=(), browsing-topics=()',
     'Referrer-Policy': 'strict-origin-when-cross-origin',
     'X-Content-Type-Options': 'nosniff',
     'X-Frame-Options': 'DENY',
     'X-Permitted-Cross-Domain-Policies': 'none',
+    'Vary': 'Accept-Encoding',
   }
 
   if (req.nextUrl.protocol === 'https:' || process.env.NODE_ENV === 'production') {
@@ -45,20 +43,28 @@ function securityHeaders(req: NextRequest) {
 }
 
 function applySecurityHeaders(response: NextResponse, req: NextRequest) {
-  Object.entries(securityHeaders(req)).forEach(([key, value]) => response.headers.set(key, value))
+  try {
+    Object.entries(securityHeaders(req)).forEach(([key, value]) => response.headers.set(key, value))
+  } catch {
+    // headers already sent, skip
+  }
   return response
 }
 
 function hasAuthSessionCookie(req: NextRequest) {
-  return req.cookies
-    .getAll()
-    .some(
-      (cookie) =>
-        cookie.name === 'authjs.session-token' ||
-        cookie.name === '__Secure-authjs.session-token' ||
-        cookie.name.startsWith('authjs.session-token.') ||
-        cookie.name.startsWith('__Secure-authjs.session-token.')
-    )
+  try {
+    return req.cookies
+      .getAll()
+      .some(
+        (cookie) =>
+          cookie.name === 'authjs.session-token' ||
+          cookie.name === '__Secure-authjs.session-token' ||
+          cookie.name.startsWith('authjs.session-token.') ||
+          cookie.name.startsWith('__Secure-authjs.session-token.')
+      )
+  } catch {
+    return false
+  }
 }
 
 function rejectUnauthorizedApi(req: NextRequest) {
@@ -69,21 +75,10 @@ function rejectUnauthorizedApi(req: NextRequest) {
 }
 
 const BILLING_EXEMPT_PREFIXES = [
-  '/billing',
-  '/erp',
-  '/auth',
-  '/login',
-  '/register',
-  '/invite',
-  '/api/webhooks',
-  '/api/auth',
-  '/api/billing/webhook',
-  '/_next',
-  '/favicon',
-  '/icons',
-  '/sounds',
-  '/manifest.json',
-  '/firebase-messaging-sw.js',
+  '/billing', '/erp', '/auth', '/login', '/register', '/invite',
+  '/api/webhooks', '/api/auth', '/api/billing/webhook',
+  '/_next', '/favicon', '/icons', '/sounds',
+  '/manifest.json', '/firebase-messaging-sw.js',
 ]
 
 function isBillingExempt(pathname: string): boolean {
@@ -101,75 +96,112 @@ function checkBillingAccess(
   if (subscriptionStatus === 'PAST_DUE') return 'payment_required'
   if (subscriptionStatus === 'TRIAL') {
     if (!trialEndsAt) return 'allowed'
-    const trialEnd = new Date(trialEndsAt as string)
-    if (trialEnd > new Date()) return 'allowed'
+    try {
+      const trialEnd = new Date(trialEndsAt as string)
+      if (trialEnd > new Date()) return 'allowed'
+    } catch {
+      return 'allowed'
+    }
     return 'trial_expired'
   }
   return 'allowed'
 }
 
 export async function proxy(req: NextRequest) {
-  const { pathname } = req.nextUrl
-  const hasSessionCookie = hasAuthSessionCookie(req)
-  const token = hasSessionCookie
-    ? await getToken({
-        req,
-        secret: getAuthSecret('proxy'),
-        secureCookie: process.env.NODE_ENV === 'production',
-      })
-    : null
+  try {
+    const { pathname } = req.nextUrl
 
-  if (pathname.startsWith('/api')) {
-    if (isPublicApiPath(pathname)) {
+    // Always allow static assets and Next.js internals
+    if (
+      pathname.startsWith('/_next') ||
+      pathname.startsWith('/favicon') ||
+      pathname.startsWith('/icons') ||
+      pathname.startsWith('/sounds') ||
+      pathname.startsWith('/manifest') ||
+      pathname.startsWith('/firebase-messaging') ||
+      pathname.startsWith('/sw.js') ||
+      pathname === '/'
+    ) {
       return applySecurityHeaders(NextResponse.next(), req)
     }
-    if (!hasSessionCookie) {
-      return rejectUnauthorizedApi(req)
-    }
-  }
 
-  if (pathname === '/login' || pathname === '/signup' || pathname === '/') {
-    if (hasSessionCookie) {
-      const destination = token
-        ? getWorkspaceHomePath({
+    const hasSessionCookie = hasAuthSessionCookie(req)
+    const token = hasSessionCookie
+      ? await getToken({
+          req,
+          secret: getAuthSecret('proxy'),
+          secureCookie: process.env.NODE_ENV === 'production',
+        }).catch(() => null)
+      : null
+
+    if (pathname.startsWith('/api')) {
+      if (isPublicApiPath(pathname)) {
+        return applySecurityHeaders(NextResponse.next(), req)
+      }
+      if (!hasSessionCookie) {
+        return rejectUnauthorizedApi(req)
+      }
+    }
+
+    if (pathname === '/login' || pathname === '/signup') {
+      if (hasSessionCookie && token) {
+        try {
+          const destination = getWorkspaceHomePath({
             role: typeof token.role === 'string' ? token.role : null,
             companyType: typeof token.companyType === 'string' ? token.companyType : null,
           })
-        : '/dashboard'
-      return applySecurityHeaders(NextResponse.redirect(new URL(destination, req.url)), req)
-    }
-    return applySecurityHeaders(NextResponse.next(), req)
-  }
-
-  if (pathname.startsWith('/dashboard') || pathname.startsWith('/erp')) {
-    if (!hasSessionCookie) {
-      return applySecurityHeaders(NextResponse.redirect(new URL('/login', req.url)), req)
+          return applySecurityHeaders(NextResponse.redirect(new URL(destination, req.url)), req)
+        } catch {
+          return applySecurityHeaders(NextResponse.redirect(new URL('/dashboard', req.url)), req)
+        }
+      }
+      return applySecurityHeaders(NextResponse.next(), req)
     }
 
-    if (token) {
-      const routeRedirect = getWorkspaceRouteRedirect(pathname, {
-        role: typeof token.role === 'string' ? token.role : null,
-        companyType: typeof token.companyType === 'string' ? token.companyType : null,
-      })
+    if (pathname.startsWith('/dashboard') || pathname.startsWith('/erp')) {
+      if (!hasSessionCookie) {
+        return applySecurityHeaders(NextResponse.redirect(new URL('/login', req.url)), req)
+      }
 
-      if (routeRedirect) {
-        return applySecurityHeaders(NextResponse.redirect(new URL(routeRedirect.destination, req.url)), req)
+      if (token) {
+        try {
+          const routeRedirect = getWorkspaceRouteRedirect(pathname, {
+            role: typeof token.role === 'string' ? token.role : null,
+            companyType: typeof token.companyType === 'string' ? token.companyType : null,
+          })
+          if (routeRedirect) {
+            return applySecurityHeaders(NextResponse.redirect(new URL(routeRedirect.destination, req.url)), req)
+          }
+        } catch {
+          // workspace routing failed, proceed normally
+        }
       }
     }
-  }
 
-  if (!isBillingExempt(pathname) && token?.companyId) {
-    const access = checkBillingAccess(token.subscriptionStatus, token.trialEndsAt)
-    if (access === 'trial_expired' || access === 'payment_required') {
-      const upgradeUrl = new URL('/billing/upgrade', req.url)
-      upgradeUrl.searchParams.set('reason', access)
-      return applySecurityHeaders(NextResponse.redirect(upgradeUrl), req)
+    if (!isBillingExempt(pathname) && token?.companyId) {
+      try {
+        const access = checkBillingAccess(token.subscriptionStatus, token.trialEndsAt)
+        if (access === 'trial_expired' || access === 'payment_required') {
+          const upgradeUrl = new URL('/billing/upgrade', req.url)
+          upgradeUrl.searchParams.set('reason', access)
+          return applySecurityHeaders(NextResponse.redirect(upgradeUrl), req)
+        }
+      } catch {
+        // billing check failed, proceed
+      }
+    }
+
+    return applySecurityHeaders(NextResponse.next(), req)
+  } catch {
+    // Absolute last resort: never crash middleware
+    try {
+      return NextResponse.next()
+    } catch {
+      return new Response('OK', { status: 200 })
     }
   }
-
-  return applySecurityHeaders(NextResponse.next(), req)
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|sounds).*)'],
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|sounds|sw.js|manifest.json|firebase-messaging-sw.js).*)'],
 }

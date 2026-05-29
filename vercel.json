@@ -1,0 +1,104 @@
+{
+  "functions": {
+    "src/app/**/*.ts": {
+      "runtime": "nodejs@22.x",
+      "maxDuration": 30
+    },
+    "src/app/api/**/*.ts": {
+      "runtime": "nodejs@22.x",
+      "maxDuration": 60
+    }
+  },
+  "regions": [
+    "arn1",
+    "bom1",
+    "cdg1",
+    "cle1",
+    "cpt1",
+    "dub1",
+    "fra1",
+    "gru1",
+    "hkg1",
+    "hnd1",
+    "iad1",
+    "icn1",
+    "kix1",
+    "lhr1",
+    "pdx1",
+    "sfo1",
+    "sin1",
+    "syd1"
+  ],
+  "headers": [
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "index, follow"
+        },
+        {
+          "key": "X-Content-Type-Options",
+          "value": "nosniff"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "DENY"
+        },
+        {
+          "key": "Referrer-Policy",
+          "value": "strict-origin-when-cross-origin"
+        }
+      ]
+    },
+    {
+      "source": "/api/health",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/api/ready",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, max-age=0"
+        }
+      ]
+    },
+    {
+      "source": "/(.*\\.[a-zA-Z0-9]+)$",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    },
+    {
+      "source": "/api/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-store, private"
+        }
+      ]
+    },
+    {
+      "source": "/_next/static/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
+  "trailingSlash": false,
+  "github": {
+    "silent": true
+  }
+}
