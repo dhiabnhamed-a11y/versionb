@@ -235,6 +235,47 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
     Promise.resolve().then(() => { refreshQueueLength() })
   }, [refreshQueueLength])
 
+  useEffect(() => {
+    const isNetworkError = (reason: unknown): boolean => {
+      if (reason instanceof TypeError) {
+        const msg = reason.message.toLowerCase()
+        return msg.includes('fetch') || msg.includes('network') || msg.includes('load failed')
+      }
+      if (reason instanceof DOMException && reason.name === 'AbortError') return true
+      return false
+    }
+
+    const handleRejection = (e: PromiseRejectionEvent) => {
+      if (isNetworkError(e.reason)) {
+        e.preventDefault()
+        e.stopPropagation()
+        const currentStatus = statusRef.current
+        if (currentStatus === 'online' && !navigator.onLine) {
+          const startTime = Date.now()
+          localStorage.setItem(STORAGE_KEY_SESSION, String(startTime))
+          timerService.start(startTime)
+          setStatus('offline')
+          redShownRef.current = false
+          expiredShownRef.current = false
+        }
+      }
+    }
+
+    const handleError = (e: ErrorEvent) => {
+      const currentStatus = statusRef.current
+      if (currentStatus !== 'online' && isNetworkError(e.error || e.message)) {
+        e.preventDefault()
+      }
+    }
+
+    window.addEventListener('unhandledrejection', handleRejection)
+    window.addEventListener('error', handleError)
+    return () => {
+      window.removeEventListener('unhandledrejection', handleRejection)
+      window.removeEventListener('error', handleError)
+    }
+  }, [])
+
   const isOffline = status !== 'online'
 
   return (
