@@ -4,6 +4,10 @@ import { toJsonValue } from '@/modules/shared/json'
 import { isQueueConfigured } from '@/modules/jobs/job-queue'
 import { SOCIAL_INTEGRATIONS_QUEUE } from '@/modules/integrations/jobs/social-job-queue'
 import { processSocialIntegrationJob } from '@/modules/integrations/jobs/social-job-handlers'
+import { checkActiveSlaCompliance } from '@/modules/enterprise/enterprise-sla-monitor'
+import { autoAssignUnassignedIncidents, autoAssignIncident } from '@/modules/enterprise/enterprise-auto-assigner'
+import { checkApprovalEscalations } from '@/modules/enterprise/enterprise-escalation'
+import { registerEnterpriseCronJobs } from '@/modules/enterprise/enterprise-cron'
 
 type RedisConnectionOptions = {
   host: string
@@ -93,6 +97,26 @@ async function processOperationsJob(name: string, data: Record<string, unknown>)
     return ingestAnalyticsEvent(data)
   }
 
+  if (name === 'enterprise.sla-monitor') {
+    return checkActiveSlaCompliance()
+  }
+
+  if (name === 'enterprise.auto-assign') {
+    const companyId = typeof data.companyId === 'string' ? data.companyId : undefined
+    return autoAssignUnassignedIncidents(companyId)
+  }
+
+  if (name === 'enterprise.auto-assign-single') {
+    const incidentId = typeof data.incidentId === 'string' ? data.incidentId : ''
+    const companyId = typeof data.companyId === 'string' ? data.companyId : ''
+    if (!incidentId || !companyId) return { error: 'missing incidentId or companyId' }
+    return autoAssignIncident(incidentId, companyId)
+  }
+
+  if (name === 'enterprise.approval-escalation') {
+    return checkApprovalEscalations()
+  }
+
   return { ignored: true, name }
 }
 
@@ -139,5 +163,8 @@ export async function startBackgroundJobWorkers() {
 
   startWorker('operations', processOperationsJob)
   startWorker(SOCIAL_INTEGRATIONS_QUEUE, processSocialIntegrationJob)
+
+  registerEnterpriseCronJobs().catch((error) => logger.error('enterprise.cron_registration_failed', error))
+
   return true
 }

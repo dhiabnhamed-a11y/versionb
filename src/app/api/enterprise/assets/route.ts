@@ -1,12 +1,18 @@
 import type { NextRequest } from 'next/server'
 import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { createAsset, listAssets } from '@/modules/enterprise/enterprise.service'
+import { parseEnterpriseListOptions } from '@/modules/enterprise/enterprise.repository'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
-  return handleApiRoute(req, undefined, async ({ user }) => apiData(await listAssets(user)), {
+  return handleApiRoute(req, undefined, async ({ user }) => {
+    const url = new URL(req.url)
+    const { pagination, filters } = parseEnterpriseListOptions(url.searchParams)
+    const result = await listAssets(user, { ...filters, skip: pagination.skip, take: pagination.pageSize })
+    return apiData(result.data, { pagination: result.pagination })
+  }, {
     auth: 'required',
     responseMode: 'canonical',
   })

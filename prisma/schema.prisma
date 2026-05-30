@@ -108,6 +108,13 @@ model User {
   enterpriseRoleAssignments    EnterpriseRoleAssignment[]       @relation("EnterpriseRoleAssignmentUser")
   enterpriseApprovalWorkflows  EnterpriseApprovalWorkflow[]     @relation("EnterpriseApprovalWorkflowCreatedBy")
   enterpriseAuditEvents        EnterpriseAuditEvent[]           @relation("EnterpriseAuditActor")
+  enterpriseApprovalSteps      EnterpriseApprovalStep[]         @relation("ApprovalStepAssignedTo")
+  enterpriseEscalatedSteps     EnterpriseApprovalStep[]         @relation("ApprovalStepEscalatedTo")
+  enterpriseProblems           EnterpriseProblem[]              @relation("EnterpriseProblemAssignee")
+  enterpriseChanges            EnterpriseChange[]               @relation("EnterpriseChangeCreatedBy")
+  enterpriseIncidentNotes      EnterpriseIncidentNote[]         @relation("EnterpriseNoteAuthor")
+  enterpriseTimeEntries        EnterpriseIncidentTimeEntry[]    @relation("EnterpriseTimeEntryUser")
+  enterpriseRecurringTickets   EnterpriseRecurringTicket[]      @relation("RecurringTicketAssignee")
 }
 
 model Company {
@@ -243,6 +250,16 @@ model Company {
   enterpriseRoleAssignments    EnterpriseRoleAssignment[]
   enterpriseAuditEvents        EnterpriseAuditEvent[]
   enterpriseShifts             EnterpriseShift[]
+  enterpriseApprovalSteps      EnterpriseApprovalStep[]
+  enterpriseProblems           EnterpriseProblem[]
+  enterpriseChanges            EnterpriseChange[]
+  enterpriseIncidentNotes      EnterpriseIncidentNote[]
+  enterpriseIncidentTimeEntries EnterpriseIncidentTimeEntry[]
+  enterpriseVendors            EnterpriseVendor[]
+  enterpriseContracts          EnterpriseContract[]
+  enterpriseAssetLeases        EnterpriseAssetLease[]
+  enterpriseServiceHealth      EnterpriseServiceHealth[]
+  enterpriseRecurringTickets   EnterpriseRecurringTicket[]
   subscriptionEvents           SubscriptionEvent[]
   emsCompany                   EmsCompany?
 
@@ -2216,6 +2233,7 @@ model EnterpriseTeam {
   assignedIncidents EnterpriseIncident[]
   maintenanceOrders EnterpriseMaintenanceWorkOrder[]
   roleAssignments   EnterpriseRoleAssignment[]
+  recurringTickets  EnterpriseRecurringTicket[]
 
   @@unique([companyId, code])
   @@unique([companyId, queueKey])
@@ -2330,6 +2348,8 @@ model EnterpriseAsset {
   departmentId          String?
   assignedTeamId        String?
   assignedUserId        String?
+  vendorId              String?
+  contractId            String?
   name                  String
   assetTag              String
   qrCode                String?
@@ -2340,6 +2360,8 @@ model EnterpriseAsset {
   warrantyExpiresAt     DateTime?
   purchaseDate          DateTime?
   purchaseCost          Decimal?  @db.Decimal(14, 2)
+  currentBookValue      Decimal?  @db.Decimal(14, 2)
+  replacementCost       Decimal?  @db.Decimal(14, 2)
   depreciationMethod    String    @default("STRAIGHT_LINE")
   depreciationStartDate DateTime?
   depreciationMonths    Int?
@@ -2349,6 +2371,8 @@ model EnterpriseAsset {
   operationalStatus     String    @default("OPERATIONAL")
   lastMaintenanceAt     DateTime?
   nextMaintenanceAt     DateTime?
+  retiredAt             DateTime?
+  retiredReason         String?
   metadata              Json?
   deletedAt             DateTime?
   createdAt             DateTime  @default(now())
@@ -2359,6 +2383,9 @@ model EnterpriseAsset {
   department        EnterpriseDepartment?            @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   assignedTeam      EnterpriseTeam?                  @relation(fields: [assignedTeamId], references: [id], onDelete: SetNull)
   assignedUser      User?                            @relation("EnterpriseAssetAssignedUser", fields: [assignedUserId], references: [id], onDelete: SetNull)
+  vendorRel         EnterpriseVendor?                @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  contract          EnterpriseContract?              @relation(fields: [contractId], references: [id], onDelete: SetNull)
+  leases            EnterpriseAssetLease[]
   incidents         EnterpriseIncident[]
   maintenancePlans  EnterpriseMaintenancePlan[]
   maintenanceOrders EnterpriseMaintenanceWorkOrder[]
@@ -2370,6 +2397,8 @@ model EnterpriseAsset {
   @@index([companyId, nextMaintenanceAt])
   @@index([departmentId, operationalStatus])
   @@index([assignedUserId, lifecycleState])
+  @@index([vendorId])
+  @@index([contractId])
 }
 
 model EnterpriseIncident {
@@ -2402,6 +2431,12 @@ model EnterpriseIncident {
   approvalState    String    @default("NOT_REQUIRED")
   auditTrail       Json?
   metadata         Json?
+  parentIncidentId String?
+  mergedIntoId     String?
+  problemId        String?
+  changeId         String?
+  customFields     Json?
+  autoCloseAt      DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
 
@@ -2412,14 +2447,27 @@ model EnterpriseIncident {
   assignedTo        User?                            @relation("EnterpriseIncidentAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
   asset             EnterpriseAsset?                 @relation(fields: [assetId], references: [id], onDelete: SetNull)
   slaPolicy         EnterpriseSlaPolicy?             @relation(fields: [slaPolicyId], references: [id], onDelete: SetNull)
+  parentIncident    EnterpriseIncident?              @relation("IncidentMerge", fields: [parentIncidentId], references: [id], onDelete: SetNull)
+  mergedInto        EnterpriseIncident?              @relation("IncidentMergeTarget", fields: [mergedIntoId], references: [id], onDelete: SetNull)
+  childIncidents    EnterpriseIncident[]             @relation("IncidentMerge")
+  mergedIncidents   EnterpriseIncident[]             @relation("IncidentMergeTarget")
+  problem           EnterpriseProblem?               @relation("IncidentProblem", fields: [problemId], references: [id], onDelete: SetNull)
+  change            EnterpriseChange?                @relation("IncidentChange", fields: [changeId], references: [id], onDelete: SetNull)
   maintenanceOrders EnterpriseMaintenanceWorkOrder[]
+  notes             EnterpriseIncidentNote[]
+  timeEntries       EnterpriseIncidentTimeEntry[]
 
   @@unique([companyId, incidentNumber])
   @@index([companyId, status, priority, createdAt])
   @@index([companyId, severity, resolutionDueAt])
+  @@index([companyId, assignedToId, status])
+  @@index([companyId, assignedTeamId, status])
   @@index([departmentId, status, createdAt])
   @@index([assignedTeamId, status, priority])
   @@index([assetId, createdAt])
+  @@index([mergedIntoId])
+  @@index([problemId])
+  @@index([changeId])
 }
 
 model EnterpriseMaintenancePlan {
@@ -2524,7 +2572,6 @@ model EnterpriseApprovalWorkflow {
   scope        String
   trigger      String
   status       String   @default("ACTIVE")
-  steps        Json
   escalation   Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -2532,10 +2579,38 @@ model EnterpriseApprovalWorkflow {
   company    Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
   department EnterpriseDepartment? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   createdBy  User?                 @relation("EnterpriseApprovalWorkflowCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  steps      EnterpriseApprovalStep[]
 
   @@unique([companyId, name])
   @@index([companyId, scope, status])
   @@index([departmentId, status])
+}
+
+model EnterpriseApprovalStep {
+  id              String    @id @default(cuid())
+  companyId       String
+  workflowId      String
+  sequence        Int
+  name            String
+  assignedToId    String?
+  type            String    @default("SINGLE") // SINGLE, ANY, ALL, ESCALATION
+  status          String    @default("PENDING") // PENDING, APPROVED, REJECTED, SKIPPED, ESCALATED
+  decidedAt       DateTime?
+  decisionNote    String?
+  escalatedAt     DateTime?
+  escalatedToId   String?
+  timeoutHours    Int       @default(24)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  company    Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  workflow   EnterpriseApprovalWorkflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  assignedTo User?                      @relation("ApprovalStepAssignedTo", fields: [assignedToId], references: [id], onDelete: SetNull)
+  escalatedTo User?                     @relation("ApprovalStepEscalatedTo", fields: [escalatedToId], references: [id], onDelete: SetNull)
+
+  @@unique([workflowId, sequence])
+  @@index([companyId, status, escalatedAt])
+  @@index([assignedToId, status])
 }
 
 model EnterpriseRoleAssignment {
@@ -3030,6 +3105,223 @@ model EnterpriseShift {
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId, startsAt])
+}
+
+model EnterpriseProblem {
+  id              String    @id @default(cuid())
+  companyId       String
+  assignedToId    String?
+  title           String
+  description     String?
+  rootCause       String?
+  workaround      String?
+  permanentFix    String?
+  category        String    // SOFTWARE, HARDWARE, PROCESS, SECURITY, VENDOR
+  priority        String    @default("P3")
+  status          String    @default("IDENTIFIED") // IDENTIFIED, ANALYZING, RESOLVED, MONITORING, CLOSED
+  knownError      Boolean   @default(false)
+  resolutionDate  DateTime?
+  firstOccurrence DateTime?
+  occurrences     Int       @default(1)
+  auditTrail      Json?
+  metadata        Json?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  company    Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedTo User?                @relation("EnterpriseProblemAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  incidents  EnterpriseIncident[] @relation("IncidentProblem")
+
+  @@unique([companyId, title])
+  @@index([companyId, status, priority])
+}
+
+model EnterpriseChange {
+  id                 String    @id @default(cuid())
+  companyId          String
+  changeNumber       String
+  title              String
+  description        String?
+  type               String    // STANDARD, NORMAL, EMERGENCY, MINOR
+  priority           String    @default("P3")
+  status             String    @default("DRAFT") // DRAFT, PENDING_CAB, SCHEDULED, IMPLEMENTING, COMPLETED, ROLLED_BACK, CANCELLED
+  riskScore          Int       @default(0)
+  impact             String    @default("LOW") // LOW, MEDIUM, HIGH, CRITICAL
+  justification      String?
+  rollbackPlan       Json?
+  implementationPlan Json?
+  scheduledStart     DateTime?
+  scheduledEnd       DateTime?
+  actualStart        DateTime?
+  actualEnd          DateTime?
+  cabMeetingId       String?
+  approvalState      String    @default("NOT_REQUIRED")
+  auditTrail         Json?
+  metadata           Json?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  createdById String?
+  company    Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  createdBy  User?                @relation("EnterpriseChangeCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  incidents  EnterpriseIncident[] @relation("IncidentChange")
+
+  @@unique([companyId, changeNumber])
+  @@index([companyId, status, priority, scheduledStart])
+}
+
+model EnterpriseIncidentNote {
+  id         String   @id @default(cuid())
+  companyId  String
+  incidentId String
+  authorId   String
+  content    String
+  isPrivate  Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  company  Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  incident EnterpriseIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  author   User               @relation("EnterpriseNoteAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId, createdAt])
+  @@index([companyId, authorId])
+}
+
+model EnterpriseIncidentTimeEntry {
+  id          String    @id @default(cuid())
+  companyId   String
+  incidentId  String
+  userId      String
+  minutes     Int
+  billable    Boolean   @default(true)
+  description String?
+  entryDate   DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+
+  company  Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  incident EnterpriseIncident @relation(fields: [incidentId], references: [id], onDelete: Cascade)
+  user     User               @relation("EnterpriseTimeEntryUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([incidentId, entryDate])
+  @@index([userId, entryDate])
+}
+
+model EnterpriseVendor {
+  id           String   @id @default(cuid())
+  companyId    String
+  name         String
+  code         String
+  category     String   // HARDWARE, SOFTWARE, SERVICES, CONTRACTOR, CONSULTING
+  contactName  String?
+  contactEmail String?
+  contactPhone String?
+  status       String   @default("ACTIVE")
+  rating       Int?
+  notes        String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  company   Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assets    EnterpriseAsset[]
+  contracts EnterpriseContract[]
+
+  @@unique([companyId, code])
+  @@unique([companyId, name])
+  @@index([companyId, category, status])
+}
+
+model EnterpriseContract {
+  id             String    @id @default(cuid())
+  companyId      String
+  vendorId       String?
+  contractNumber String
+  title          String
+  type           String    // SERVICE, SUPPORT, LEASE, LICENSE, MAINTENANCE
+  status         String    @default("ACTIVE") // DRAFT, ACTIVE, EXPIRED, TERMINATED
+  startDate      DateTime
+  endDate        DateTime?
+  value          Decimal?  @db.Decimal(14, 2)
+  renewalDate    DateTime?
+  autoRenew      Boolean   @default(false)
+  terms          Json?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  company Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  vendor  EnterpriseVendor? @relation(fields: [vendorId], references: [id], onDelete: SetNull)
+  assets  EnterpriseAsset[]
+
+  @@unique([companyId, contractNumber])
+  @@index([companyId, type, status, endDate])
+}
+
+model EnterpriseAssetLease {
+  id            String    @id @default(cuid())
+  companyId     String
+  assetId       String
+  lessor        String
+  startDate     DateTime
+  endDate       DateTime
+  monthlyCost   Decimal   @db.Decimal(12, 2)
+  purchaseOption Decimal? @db.Decimal(12, 2)
+  status        String    @default("ACTIVE")
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  company Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  asset   EnterpriseAsset @relation(fields: [assetId], references: [id], onDelete: Cascade)
+
+  @@index([assetId, status])
+  @@index([companyId, endDate])
+}
+
+model EnterpriseServiceHealth {
+  id             String   @id @default(cuid())
+  companyId      String
+  name           String
+  status         String   @default("OPERATIONAL") // OPERATIONAL, DEGRADED, DOWN, MAINTENANCE
+  description    String?
+  isPublic       Boolean  @default(false)
+  lastIncidentId String?
+  updatedAt      DateTime @updatedAt
+  createdAt      DateTime @default(now())
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, name])
+  @@index([companyId, status])
+}
+
+model EnterpriseRecurringTicket {
+  id             String    @id @default(cuid())
+  companyId      String
+  title          String
+  description    String?
+  type           String
+  priority       String    @default("P3")
+  assignedTeamId String?
+  assignedToId   String?
+  frequency      String    // DAILY, WEEKLY, MONTHLY, QUARTERLY, YEARLY
+  intervalValue  Int       @default(1)
+  nextRunAt      DateTime
+  lastRunAt      DateTime?
+  dayOfWeek      Int?
+  dayOfMonth     Int?
+  isActive       Boolean   @default(true)
+  maxRuns        Int?
+  runCount       Int       @default(0)
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  company      Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  assignedTeam EnterpriseTeam? @relation(fields: [assignedTeamId], references: [id], onDelete: SetNull)
+  assignedTo   User?           @relation("RecurringTicketAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+
+  @@index([companyId, isActive, nextRunAt])
 }
 
 model PushToken {

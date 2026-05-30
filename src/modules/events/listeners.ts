@@ -82,6 +82,22 @@ export function registerEnterpriseEventListeners() {
   if (listenerState.__taskitEnterpriseListenersRegistered) return
   listenerState.__taskitEnterpriseListenersRegistered = true
 
+  subscribeDomainEvent('enterprise.incident.created', async (event) => {
+    const payload = event.payload as { incident?: { id: string; assignedToId?: string | null } } | undefined
+    const incidentId = payload?.incident?.id ?? event.entityId
+    if (payload?.incident?.assignedToId) return
+
+    await enqueueOperationalJob({
+      queue: 'operations',
+      name: 'enterprise.auto-assign-single',
+      companyId: event.companyId,
+      entityType: 'enterprise_incident',
+      entityId: incidentId,
+      payload: { incidentId, companyId: event.companyId },
+      maxAttempts: 2,
+    })
+  })
+
   subscribeDomainEvent('*', async (event) => {
     await Promise.all([
       recordActivityForEvent(event),

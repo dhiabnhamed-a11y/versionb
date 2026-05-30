@@ -1,7 +1,7 @@
-import { createHash } from 'crypto'
 import { Prisma } from '@prisma/client'
 import { isEnterpriseOperationsCompanyType } from '@/lib/company-types'
 import { assertCan, canManageWorkspace } from '@/modules/permissions/permissions'
+import { recordEnterpriseAuditTx } from '@/modules/enterprise/enterprise-audit'
 import { badRequest, forbidden, notFound } from '@/modules/shared/errors'
 import type { SessionUser } from '@/modules/shared/session'
 import { publishDomainEvent } from '@/modules/events/event-bus'
@@ -9,9 +9,19 @@ import { registerEnterpriseEventListeners } from '@/modules/events/listeners'
 import {
   createEnterpriseAssetSchema,
   createEnterpriseIncidentSchema,
+  createEnterpriseProblemSchema,
+  updateEnterpriseProblemSchema,
+  createEnterpriseChangeSchema,
+  updateEnterpriseChangeSchema,
   createMaintenanceWorkOrderSchema,
   updateEnterpriseIncidentSchema,
   updateMaintenanceWorkOrderSchema,
+  createTimeEntrySchema,
+  incidentStatusTransitionSchema,
+  isValidIncidentTransition,
+  isValidChangeTransition,
+  INCIDENT_STATUS_TRANSITIONS,
+  CHANGE_STATUS_TRANSITIONS,
 } from '@/modules/enterprise/enterprise.validation'
 import {
   enterpriseRepositoryPrisma as prisma,
@@ -22,6 +32,13 @@ import {
   listEnterpriseIncidents,
   listEnterpriseTeams,
   listMaintenanceWorkOrders,
+  countEnterpriseIncidents,
+  countEnterpriseAssets,
+  countMaintenanceWorkOrders,
+  parseEnterpriseListOptions,
+  paginationMeta,
+  type ListOptions,
+  type PaginatedResult,
 } from '@/modules/enterprise/enterprise.repository'
 
 registerEnterpriseEventListeners()
@@ -45,41 +62,6 @@ function addMinutes(date: Date, minutes: number) {
   return new Date(date.getTime() + minutes * 60 * 1000)
 }
 
-function auditHash(input: unknown) {
-  return createHash('sha256').update(JSON.stringify(input)).digest('hex')
-}
-
-async function recordEnterpriseAudit(
-  tx: Prisma.TransactionClient,
-  input: {
-    companyId: string
-    actorId?: string | null
-    action: string
-    entityType: string
-    entityId: string
-    before?: unknown
-    after?: unknown
-    metadata?: unknown
-    requestId?: string | null
-  }
-) {
-  const hash = auditHash(input)
-  await tx.enterpriseAuditEvent.create({
-    data: {
-      companyId: input.companyId,
-      actorId: input.actorId ?? null,
-      action: input.action,
-      entityType: input.entityType,
-      entityId: input.entityId,
-      before: input.before as Prisma.InputJsonValue,
-      after: input.after as Prisma.InputJsonValue,
-      metadata: input.metadata as Prisma.InputJsonValue,
-      requestId: input.requestId ?? null,
-      hash,
-    },
-  })
-}
-
 async function assertCompanyRecord<T extends { id: string }>(
   loader: Promise<T | null>,
   message = 'Selected enterprise record was not found in this workspace.'
@@ -89,7 +71,7 @@ async function assertCompanyRecord<T extends { id: string }>(
   return record
 }
 
-async function nextSequenceNumber(tx: Prisma.TransactionClient, companyId: string, prefix: 'INC' | 'MWO') {
+async function nextSequenceNumber(tx: Prisma.TransactionClient, companyId: string, prefix: 'INC' | 'MWO' | 'CHG') {
   const [count] =
     prefix === 'INC'
       ? await Promise.all([tx.enterpriseIncident.count({ where: { companyId } })])
@@ -225,10 +207,16 @@ export async function getEnterpriseOperationsDashboard(user: SessionUser) {
   }
 }
 
-export async function listAssets(user: SessionUser) {
+export async function listAssets(user: SessionUser, options?: ListOptions): Promise<PaginatedResult<unknown>> {
   const companyId = requireEnterpriseCompany(user)
   assertCan(user, 'read', 'asset', { companyId })
-  return listEnterpriseAssets(companyId)
+  const filters = options ?? {}
+  const [data, total] = await Promise.all([
+    listEnterpriseAssets(companyId, filters),
+    countEnterpriseAssets(companyId, filters),
+  ])
+  const page = (filters.skip ?? 0) / Math.max(filters.take ?? 50, 1) + 1
+  return { data, pagination: paginationMeta({ page, pageSize: filters.take ?? 50, total }) }
 }
 
 export async function createAsset(user: SessionUser, rawInput: unknown, requestId?: string) {
@@ -277,7 +265,7 @@ export async function createAsset(user: SessionUser, rawInput: unknown, requestI
       include: { category: true, department: true, assignedTeam: true, assignedUser: true },
     })
 
-    await recordEnterpriseAudit(tx, {
+    await recordEnterpriseAuditTx(tx, {
       companyId,
       actorId: user.id,
       action: 'enterprise.asset.created',
@@ -303,10 +291,17 @@ export async function createAsset(user: SessionUser, rawInput: unknown, requestI
   return asset
 }
 
-export async function listIncidents(user: SessionUser) {
+export async function listIncidents(user: SessionUser, searchParams?: URLSearchParams): Promise<PaginatedResult<unknown>> {
   const companyId = requireEnterpriseCompany(user)
   assertCan(user, 'read', 'incident', { companyId })
-  return listEnterpriseIncidents(companyId)
+  const { pagination, filters } = searchParams
+    ? parseEnterpriseListOptions(searchParams)
+    : { pagination: { skip: 0, page: 1, pageSize: 50, total: 0, pageCount: 0 }, filters: {} }
+  const [data, total] = await Promise.all([
+    listEnterpriseIncidents(companyId, { ...filters, skip: pagination.skip, take: pagination.pageSize }),
+    countEnterpriseIncidents(companyId, filters),
+  ])
+  return { data, pagination: paginationMeta({ ...pagination, total }) }
 }
 
 export async function createIncident(user: SessionUser, rawInput: unknown, requestId?: string) {
@@ -369,7 +364,7 @@ export async function createIncident(user: SessionUser, rawInput: unknown, reque
       })
     }
 
-    await recordEnterpriseAudit(tx, {
+    await recordEnterpriseAuditTx(tx, {
       companyId,
       actorId: user.id,
       action: 'enterprise.incident.created',
@@ -431,7 +426,7 @@ export async function updateIncident(user: SessionUser, id: string, rawInput: un
       },
       include: { asset: true, assignedTeam: true, department: true, assignedTo: true },
     })
-    await recordEnterpriseAudit(tx, {
+    await recordEnterpriseAuditTx(tx, {
       companyId,
       actorId: user.id,
       action: 'enterprise.incident.updated',
@@ -459,10 +454,17 @@ export async function updateIncident(user: SessionUser, id: string, rawInput: un
   return updated
 }
 
-export async function listMaintenance(user: SessionUser) {
+export async function listMaintenance(user: SessionUser, searchParams?: URLSearchParams): Promise<PaginatedResult<unknown>> {
   const companyId = requireEnterpriseCompany(user)
   assertCan(user, 'read', 'maintenance', { companyId })
-  return listMaintenanceWorkOrders(companyId)
+  const { pagination, filters } = searchParams
+    ? parseEnterpriseListOptions(searchParams)
+    : { pagination: { skip: 0, page: 1, pageSize: 50, total: 0, pageCount: 0 }, filters: {} }
+  const [data, total] = await Promise.all([
+    listMaintenanceWorkOrders(companyId, { ...filters, skip: pagination.skip, take: pagination.pageSize }),
+    countMaintenanceWorkOrders(companyId, filters),
+  ])
+  return { data, pagination: paginationMeta({ ...pagination, total }) }
 }
 
 export async function createMaintenanceWorkOrder(user: SessionUser, rawInput: unknown, requestId?: string) {
@@ -508,7 +510,7 @@ export async function createMaintenanceWorkOrder(user: SessionUser, rawInput: un
       },
       include: { asset: true, incident: true, assignedTeam: true, assignedTechnician: true },
     })
-    await recordEnterpriseAudit(tx, {
+    await recordEnterpriseAuditTx(tx, {
       companyId,
       actorId: user.id,
       action: 'enterprise.maintenance.created',
@@ -578,7 +580,7 @@ export async function updateMaintenanceWorkOrder(user: SessionUser, id: string, 
       })
     }
 
-    await recordEnterpriseAudit(tx, {
+    await recordEnterpriseAuditTx(tx, {
       companyId,
       actorId: user.id,
       action: 'enterprise.maintenance.updated',
@@ -604,4 +606,582 @@ export async function updateMaintenanceWorkOrder(user: SessionUser, id: string, 
   })
 
   return updated
+}
+
+// ── Problem Management ──────────────────────────────────────────
+
+export async function listProblems(user: SessionUser) {
+  const companyId = requireEnterpriseCompany(user)
+  assertCan(user, 'read', 'incident', { companyId })
+  return prisma.enterpriseProblem.findMany({
+    where: { companyId },
+    orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],
+    include: {
+      assignedTo: { select: { id: true, name: true, email: true } },
+      incidents: { select: { id: true, incidentNumber: true, title: true, status: true }, take: 20 },
+    },
+  })
+}
+
+export async function getProblem(user: SessionUser, id: string) {
+  const companyId = requireEnterpriseCompany(user)
+  assertCan(user, 'read', 'incident', { companyId })
+  const problem = await prisma.enterpriseProblem.findFirst({
+    where: { id, companyId },
+    include: {
+      assignedTo: { select: { id: true, name: true, email: true } },
+      incidents: { select: { id: true, incidentNumber: true, title: true, status: true, createdAt: true, priority: true } },
+    },
+  })
+  if (!problem) throw notFound('Problem record not found.')
+  return problem
+}
+
+export async function createProblem(user: SessionUser, rawInput: unknown, requestId?: string) {
+  const companyId = requireEnterpriseCompany(user)
+  assertCan(user, 'create', 'incident', { companyId })
+  const input = createEnterpriseProblemSchema.parse(rawInput)
+
+  if (input.assignedToId) {
+    await assertCompanyRecord(prisma.user.findFirst({ where: { id: input.assignedToId, companyId } }), 'Assignee not found.')
+  }
+
+  const problem = await enterpriseRepositoryTransaction(async (tx) => {
+    const created = await tx.enterpriseProblem.create({
+      data: {
+        companyId,
+        title: input.title,
+        description: input.description || null,
+        category: input.category,
+        priority: input.priority.toUpperCase(),
+        assignedToId: input.assignedToId || null,
+        rootCause: input.rootCause || null,
+        workaround: input.workaround || null,
+        firstOccurrence: new Date(),
+      },
+      include: { assignedTo: { select: { id: true, name: true, email: true } } },
+    })
+
+    if (input.incidentId) {
+      await tx.enterpriseIncident.update({
+        where: { id: input.incidentId, companyId },
+        data: { problemId: created.id },
+      })
+    }
+
+    await recordEnterpriseAuditTx(tx, {
+      companyId,
+      actorId: user.id,
+      action: 'enterprise.problem.created',
+      entityType: 'enterprise_problem',
+      entityId: created.id,
+      after: created,
+      requestId,
+    })
+    return created
+  })
+
+  await publishDomainEvent({
+    type: 'enterprise.incident.updated',
+    companyId,
+    actorId: user.id,
+    entityType: 'enterprise_problem',
+    entityId: problem.id,
+    action: 'Enterprise problem created',
+    payload: { problem },
+    after: problem,
+  })
+
+  return problem
+}
+
+export async function updateProblem(user: SessionUser, id: string, rawInput: unknown, requestId?: string) {
+  const companyId = requireEnterpriseCompany(user)
+  const input = updateEnterpriseProblemSchema.parse(rawInput)
+  const existing = await prisma.enterpriseProblem.findFirst({ where: { id, companyId } })
+  if (!existing) throw notFound('Problem record not found.')
+  assertCan(user, 'update', 'incident', { companyId })
+
+  const updated = await enterpriseRepositoryTransaction(async (tx) => {
+    const next = await tx.enterpriseProblem.update({
+      where: { id },
+      data: {
+        status: input.status?.toUpperCase(),
+        rootCause: input.rootCause === undefined ? undefined : input.rootCause,
+        workaround: input.workaround === undefined ? undefined : input.workaround,
+        permanentFix: input.permanentFix === undefined ? undefined : input.permanentFix,
+        resolutionDate: input.resolutionDate ? new Date(input.resolutionDate) : undefined,
+        knownError: input.knownError === undefined ? undefined : input.knownError,
+        assignedToId: input.assignedToId === undefined ? undefined : input.assignedToId,
+        ...(input.status?.toUpperCase() === 'RESOLVED' ? { resolutionDate: new Date() } : {}),
+      },
+      include: { assignedTo: { select: { id: true, name: true, email: true } } },
+    })
+    await recordEnterpriseAuditTx(tx, {
+      companyId,
+      actorId: user.id,
+      action: 'enterprise.problem.updated',
+      entityType: 'enterprise_problem',
+      entityId: id,
+      before: existing,
+      after: next,
+      requestId,
+    })
+    return next
+  })
+
+  await publishDomainEvent({
+    type: 'enterprise.incident.updated',
+    companyId,
+    actorId: user.id,
+    entityType: 'enterprise_problem',
+    entityId: id,
+    action: 'Enterprise problem updated',
+    payload: { problem: updated },
+    before: existing,
+    after: updated,
+  })
+
+  return updated
+}
+
+// ── Change Management ────────────────────────────────────────────
+
+export async function listChanges(user: SessionUser) {
+  const companyId = requireEnterpriseCompany(user)
+  assertCan(user, 'read', 'incident', { companyId })
+  return prisma.enterpriseChange.findMany({
+    where: { companyId },
+    orderBy: [{ scheduledStart: 'asc' }, { priority: 'asc' }],
+    include: {
+      createdBy: { select: { id: true, name: true, email: true } },
+      incidents: { select: { id: true, incidentNumber: true, title: true, status: true }, take: 20 },
+    },
+  })
+}
+
+export async function getChange(user: SessionUser, id: string) {
+  const companyId = requireEnterpriseCompany(user)
+  assertCan(user, 'read', 'incident', { companyId })
+  const change = await prisma.enterpriseChange.findFirst({
+    where: { id, companyId },
+    include: {
+      createdBy: { select: { id: true, name: true, email: true } },
+      incidents: { select: { id: true, incidentNumber: true, title: true, status: true } },
+    },
+  })
+  if (!change) throw notFound('Change record not found.')
+  return change
+}
+
+export async function createChange(user: SessionUser, rawInput: unknown, requestId?: string) {
+  const companyId = requireEnterpriseCompany(user)
+  assertCan(user, 'create', 'incident', { companyId })
+  const input = createEnterpriseChangeSchema.parse(rawInput)
+
+  const change = await enterpriseRepositoryTransaction(async (tx) => {
+    const changeNumber = await nextSequenceNumber(tx, companyId, 'INC')
+    const created = await tx.enterpriseChange.create({
+      data: {
+        companyId,
+        changeNumber,
+        title: input.title,
+        description: input.description || null,
+        type: input.type.toUpperCase(),
+        priority: input.priority.toUpperCase(),
+        riskScore: input.riskScore,
+        impact: input.impact.toUpperCase(),
+        justification: input.justification || null,
+        rollbackPlan: input.rollbackPlan as any || undefined,
+        implementationPlan: input.implementationPlan as any || undefined,
+        scheduledStart: input.scheduledStart ? new Date(input.scheduledStart) : null,
+        scheduledEnd: input.scheduledEnd ? new Date(input.scheduledEnd) : null,
+        createdById: user.id,
+        auditTrail: [{ at: new Date().toISOString(), actorId: user.id, action: 'created' }],
+      },
+      include: { createdBy: { select: { id: true, name: true, email: true } } },
+    })
+    await recordEnterpriseAuditTx(tx, {
+      companyId,
+      actorId: user.id,
+      action: 'enterprise.change.created',
+      entityType: 'enterprise_change',
+      entityId: created.id,
+      after: created,
+      requestId,
+    })
+    return created
+  })
+
+  await publishDomainEvent({
+    type: 'enterprise.incident.updated',
+    companyId,
+    actorId: user.id,
+    entityType: 'enterprise_change',
+    entityId: change.id,
+    action: 'Enterprise change created',
+    payload: { change },
+    after: change,
+  })
+
+  return change
+}
+
+export async function updateChange(user: SessionUser, id: string, rawInput: unknown, requestId?: string) {
+  const companyId = requireEnterpriseCompany(user)
+  const input = updateEnterpriseChangeSchema.parse(rawInput)
+  const existing = await prisma.enterpriseChange.findFirst({ where: { id, companyId } })
+  if (!existing) throw notFound('Change record not found.')
+  assertCan(user, 'update', 'incident', { companyId })
+
+  if (input.status && !isValidChangeTransition(existing.status, input.status.toUpperCase())) {
+    throw badRequest(`Invalid status transition: ${existing.status} → ${input.status}. Allowed: ${CHANGE_STATUS_TRANSITIONS[existing.status]?.join(', ') || 'none'}`)
+  }
+
+  const updated = await enterpriseRepositoryTransaction(async (tx) => {
+    const next = await tx.enterpriseChange.update({
+      where: { id },
+      data: {
+        status: input.status?.toUpperCase(),
+        riskScore: input.riskScore,
+        justification: input.justification === undefined ? undefined : input.justification,
+        rollbackPlan: input.rollbackPlan as any || undefined,
+        implementationPlan: input.implementationPlan as any || undefined,
+        scheduledStart: input.scheduledStart ? new Date(input.scheduledStart) : undefined,
+        scheduledEnd: input.scheduledEnd ? new Date(input.scheduledEnd) : undefined,
+        actualStart: input.actualStart ? new Date(input.actualStart) : undefined,
+        actualEnd: input.actualEnd ? new Date(input.actualEnd) : undefined,
+        cabMeetingId: input.cabMeetingId === undefined ? undefined : input.cabMeetingId,
+        approvalState: input.approvalState?.toUpperCase(),
+        auditTrail: [
+          ...(Array.isArray(existing.auditTrail) ? existing.auditTrail : []),
+          { at: new Date().toISOString(), actorId: user.id, action: 'updated', status: input.status },
+        ] as Prisma.InputJsonValue,
+      },
+      include: { createdBy: { select: { id: true, name: true, email: true } } },
+    })
+    await recordEnterpriseAuditTx(tx, {
+      companyId,
+      actorId: user.id,
+      action: 'enterprise.change.updated',
+      entityType: 'enterprise_change',
+      entityId: id,
+      before: existing,
+      after: next,
+      requestId,
+    })
+    return next
+  })
+
+  await publishDomainEvent({
+    type: 'enterprise.incident.updated',
+    companyId,
+    actorId: user.id,
+    entityType: 'enterprise_change',
+    entityId: id,
+    action: 'Enterprise change updated',
+    payload: { change: updated },
+    before: existing,
+    after: updated,
+  })
+
+  return updated
+}
+
+// ── Change Management Actions ──────────────────────────────────────
+
+export async function submitChangeForCAB(user: SessionUser, id: string, requestId?: string) {
+  const companyId = requireEnterpriseCompany(user)
+  const existing = await prisma.enterpriseChange.findFirst({ where: { id, companyId } })
+  if (!existing) throw notFound('Change record not found.')
+
+  const updated = await updateChange(user, id, { status: 'PENDING_CAB' }, requestId)
+
+  const { startApprovalWorkflow } = await import('@/modules/enterprise/enterprise-approval-engine')
+  await enterpriseRepositoryTransaction(async (tx) => {
+    await startApprovalWorkflow(tx, {
+      companyId,
+      entityType: 'enterprise_change',
+      entityId: id,
+      requestedById: user.id,
+      steps: [
+        {
+          stepIndex: 0,
+          stepType: 'SINGLE',
+          label: 'CAB Approval',
+          assigneeId: null,
+          teamId: null,
+          order: 0,
+          timeoutHours: 48,
+        },
+      ],
+    })
+  })
+
+  return updated
+}
+
+export async function cabApproveChange(user: SessionUser, id: string, rawInput: { meetingId?: string; comments?: string; stepId?: string }, requestId?: string) {
+  const companyId = requireEnterpriseCompany(user)
+  const existing = await prisma.enterpriseChange.findFirst({ where: { id, companyId } })
+  if (!existing) throw notFound('Change record not found.')
+  assertCan(user, 'update', 'incident', { companyId })
+
+  if (existing.status !== 'PENDING_CAB') throw badRequest('Change is not pending CAB approval.')
+
+  const { approveStep } = await import('@/modules/enterprise/enterprise-approval-engine')
+
+  const updated = await enterpriseRepositoryTransaction(async (tx) => {
+    if (rawInput.stepId) {
+      const result = await approveStep(tx, {
+        companyId,
+        stepId: rawInput.stepId,
+        decidedById: user.id,
+        comments: rawInput.comments,
+      })
+      if (!result.approved) throw badRequest('Workflow not approved.')
+    }
+
+    const next = await tx.enterpriseChange.update({
+      where: { id },
+      data: {
+        approvalState: 'APPROVED',
+        cabMeetingId: rawInput.meetingId || existing.cabMeetingId,
+        status: 'SCHEDULED',
+        auditTrail: [
+          ...(Array.isArray(existing.auditTrail) ? existing.auditTrail : []),
+          { at: new Date().toISOString(), actorId: user.id, action: 'cab_approved', comments: rawInput.comments },
+        ] as Prisma.InputJsonValue,
+      },
+      include: { createdBy: { select: { id: true, name: true, email: true } } },
+    })
+    await recordEnterpriseAuditTx(tx, {
+      companyId, actorId: user.id, action: 'enterprise.change.cab_approved',
+      entityType: 'enterprise_change', entityId: id, before: { status: existing.status, approvalState: existing.approvalState }, after: { status: next.status, approvalState: next.approvalState }, requestId,
+    })
+    return next
+  })
+
+  await publishDomainEvent({
+    type: 'enterprise.incident.updated', companyId, actorId: user.id,
+    entityType: 'enterprise_change', entityId: id,
+    action: 'Enterprise change CAB approved', payload: { change: updated },
+    before: existing, after: updated,
+  })
+
+  return updated
+}
+
+export async function cabRejectChange(user: SessionUser, id: string, rawInput: { reason?: string; stepId?: string }, requestId?: string) {
+  const companyId = requireEnterpriseCompany(user)
+  const existing = await prisma.enterpriseChange.findFirst({ where: { id, companyId } })
+  if (!existing) throw notFound('Change record not found.')
+  assertCan(user, 'update', 'incident', { companyId })
+
+  if (existing.status !== 'PENDING_CAB') throw badRequest('Change is not pending CAB approval.')
+
+  const { rejectStep } = await import('@/modules/enterprise/enterprise-approval-engine')
+
+  const updated = await enterpriseRepositoryTransaction(async (tx) => {
+    if (rawInput.stepId) {
+      await rejectStep(tx, {
+        companyId,
+        stepId: rawInput.stepId,
+        decidedById: user.id,
+        comments: rawInput.reason,
+      })
+    }
+
+    const next = await tx.enterpriseChange.update({
+      where: { id },
+      data: {
+        approvalState: 'REJECTED',
+        status: 'DRAFT',
+        auditTrail: [
+          ...(Array.isArray(existing.auditTrail) ? existing.auditTrail : []),
+          { at: new Date().toISOString(), actorId: user.id, action: 'cab_rejected', reason: rawInput.reason },
+        ] as Prisma.InputJsonValue,
+      },
+      include: { createdBy: { select: { id: true, name: true, email: true } } },
+    })
+    await recordEnterpriseAuditTx(tx, {
+      companyId, actorId: user.id, action: 'enterprise.change.cab_rejected',
+      entityType: 'enterprise_change', entityId: id, before: { status: existing.status, approvalState: existing.approvalState }, after: { status: next.status, approvalState: next.approvalState }, requestId,
+    })
+    return next
+  })
+
+  await publishDomainEvent({
+    type: 'enterprise.incident.updated', companyId, actorId: user.id,
+    entityType: 'enterprise_change', entityId: id,
+    action: 'Enterprise change CAB rejected', payload: { change: updated },
+    before: existing, after: updated,
+  })
+
+  return updated
+}
+
+export async function implementChange(user: SessionUser, id: string, requestId?: string) {
+  return updateChange(user, id, { status: 'IMPLEMENTING' }, requestId)
+}
+
+export async function rollbackChange(user: SessionUser, id: string, rawInput: { reason?: string }, requestId?: string) {
+  const companyId = requireEnterpriseCompany(user)
+  const existing = await prisma.enterpriseChange.findFirst({ where: { id, companyId } })
+  if (!existing) throw notFound('Change record not found.')
+  assertCan(user, 'update', 'incident', { companyId })
+
+  if (existing.status !== 'IMPLEMENTING') throw badRequest('Only implementing changes can be rolled back.')
+
+  const updated = await enterpriseRepositoryTransaction(async (tx) => {
+    const next = await tx.enterpriseChange.update({
+      where: { id },
+      data: {
+        status: 'ROLLED_BACK',
+        actualEnd: new Date(),
+        auditTrail: [
+          ...(Array.isArray(existing.auditTrail) ? existing.auditTrail : []),
+          { at: new Date().toISOString(), actorId: user.id, action: 'rolled_back', reason: rawInput.reason },
+        ] as Prisma.InputJsonValue,
+      },
+      include: { createdBy: { select: { id: true, name: true, email: true } } },
+    })
+    await recordEnterpriseAuditTx(tx, {
+      companyId, actorId: user.id, action: 'enterprise.change.rolled_back',
+      entityType: 'enterprise_change', entityId: id, before: { status: existing.status }, after: { status: next.status }, requestId,
+    })
+    return next
+  })
+
+  await publishDomainEvent({
+    type: 'enterprise.incident.updated', companyId, actorId: user.id,
+    entityType: 'enterprise_change', entityId: id,
+    action: 'Enterprise change rolled back', payload: { change: updated },
+    before: existing, after: updated,
+  })
+
+  return updated
+}
+
+// ── Incident Status State Machine ──────────────────────────────────
+
+export async function updateIncidentStatus(user: SessionUser, id: string, rawInput: unknown, requestId?: string) {
+  const companyId = requireEnterpriseCompany(user)
+  const input = incidentStatusTransitionSchema.parse(rawInput)
+  const existing = await prisma.enterpriseIncident.findFirst({ where: { id, companyId } })
+  if (!existing) throw notFound('Incident not found.')
+  assertCan(user, 'update', 'incident', { companyId, assigneeId: existing.assignedToId })
+
+  if (!isValidIncidentTransition(existing.status, input.status)) {
+    throw badRequest(`Invalid status transition: ${existing.status} → ${input.status}. Allowed: ${INCIDENT_STATUS_TRANSITIONS[existing.status]?.join(', ') || 'none'}`)
+  }
+
+  const resolved = input.status === 'RESOLVED'
+  const closed = input.status === 'CLOSED'
+
+  const updated = await enterpriseRepositoryTransaction(async (tx) => {
+    if (closed && !existing.resolvedAt && !input.resolution) {
+      throw badRequest('Incident must have a resolution before closing.')
+    }
+
+    const next = await tx.enterpriseIncident.update({
+      where: { id },
+      data: {
+        status: input.status,
+        firstRespondedAt: existing.firstRespondedAt ?? (resolved || closed ? new Date() : undefined),
+        resolvedAt: resolved ? new Date() : (input.status === 'IN_PROGRESS' ? null : undefined),
+        closedAt: closed ? new Date() : undefined,
+        resolution: input.resolution === undefined ? undefined : input.resolution,
+        rootCause: input.rootCause === undefined ? undefined : input.rootCause,
+        escalationState: resolved || closed ? 'NONE' : undefined,
+        auditTrail: [
+          ...(Array.isArray(existing.auditTrail) ? existing.auditTrail : []),
+          { at: new Date().toISOString(), actorId: user.id, action: 'status_change', from: existing.status, to: input.status },
+        ] as Prisma.InputJsonValue,
+      },
+      include: { assignedTo: { select: { id: true, name: true, email: true } }, slaPolicy: true },
+    })
+    await recordEnterpriseAuditTx(tx, {
+      companyId,
+      actorId: user.id,
+      action: 'enterprise.incident.status_changed',
+      entityType: 'enterprise_incident',
+      entityId: id,
+      before: { status: existing.status },
+      after: { status: input.status },
+      requestId,
+    })
+    return next
+  })
+
+  await publishDomainEvent({
+    type: 'enterprise.incident.updated',
+    companyId,
+    actorId: user.id,
+    entityType: 'enterprise_incident',
+    entityId: id,
+    action: `Incident status changed: ${existing.status} → ${input.status}`,
+    payload: { incident: updated, previousStatus: existing.status, newStatus: input.status },
+    before: existing,
+    after: updated,
+  })
+
+  return updated
+}
+
+// ── Time Entry ────────────────────────────────────────────────────
+
+export async function listTimeEntries(user: SessionUser, incidentId: string) {
+  const companyId = requireEnterpriseCompany(user)
+  await assertCompanyRecord(prisma.enterpriseIncident.findFirst({ where: { id: incidentId, companyId } }), 'Incident not found.')
+  return prisma.enterpriseIncidentTimeEntry.findMany({
+    where: { incidentId, companyId },
+    orderBy: { entryDate: 'desc' },
+    include: { user: { select: { id: true, name: true, email: true } } },
+  })
+}
+
+export async function createTimeEntry(user: SessionUser, incidentId: string, rawInput: unknown, requestId?: string) {
+  const companyId = requireEnterpriseCompany(user)
+  const input = createTimeEntrySchema.parse(rawInput)
+  await assertCompanyRecord(prisma.enterpriseIncident.findFirst({ where: { id: incidentId, companyId } }), 'Incident not found.')
+
+  const entry = await enterpriseRepositoryTransaction(async (tx) => {
+    const created = await tx.enterpriseIncidentTimeEntry.create({
+      data: {
+        companyId,
+        incidentId,
+        userId: user.id,
+        minutes: input.minutes,
+        billable: input.billable,
+        description: input.description || null,
+        entryDate: input.entryDate ? new Date(input.entryDate) : new Date(),
+      },
+      include: { user: { select: { id: true, name: true, email: true } } },
+    })
+    await recordEnterpriseAuditTx(tx, {
+      companyId,
+      actorId: user.id,
+      action: 'enterprise.time_entry.created',
+      entityType: 'enterprise_incident_time_entry',
+      entityId: created.id,
+      after: created,
+      requestId,
+    })
+    return created
+  })
+
+  return entry
+}
+
+export async function deleteTimeEntry(user: SessionUser, incidentId: string, entryId: string) {
+  const companyId = requireEnterpriseCompany(user)
+  const entry = await prisma.enterpriseIncidentTimeEntry.findFirst({
+    where: { id: entryId, incidentId, companyId },
+  })
+  if (!entry) throw notFound('Time entry not found.')
+  if (entry.userId !== user.id && !canManageWorkspace(user)) throw forbidden('You can only delete your own time entries.')
+
+  await prisma.enterpriseIncidentTimeEntry.delete({ where: { id: entryId } })
+  return { deleted: true }
 }
