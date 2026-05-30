@@ -36,10 +36,10 @@ import {
   countEnterpriseAssets,
   countMaintenanceWorkOrders,
   parseEnterpriseListOptions,
-  paginationMeta,
   type ListOptions,
   type PaginatedResult,
 } from '@/modules/enterprise/enterprise.repository'
+import { paginationMeta } from '@/lib/api/pagination'
 
 registerEnterpriseEventListeners()
 
