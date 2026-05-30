@@ -14,7 +14,7 @@ type OpenAiResponsePayload = {
   }
 }
 
-const DEFAULT_MODEL = 'gpt-5.5'
+const DEFAULT_MODEL = 'gpt-4o-mini'
 
 function languageName(locale: AppLocale) {
   if (locale === 'fr') return 'French'

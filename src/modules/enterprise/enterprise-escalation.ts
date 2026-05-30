@@ -10,7 +10,7 @@ export async function checkApprovalEscalations(): Promise<{ processed: number; a
     where: { decision: 'PENDING', timeoutHours: { gt: 0 } },
     include: {
       assignee: { select: { id: true, name: true, email: true } },
-      team: { select: { id: true, name: true, managerId: true } },
+      team: { select: { id: true, name: true, leader: { select: { id: true, name: true, email: true } } } },
     },
   })
 
@@ -27,7 +27,7 @@ export async function checkApprovalEscalations(): Promise<{ processed: number; a
 
     alerts++
 
-    const escalationContact = step.team?.managerId || step.assigneeId
+    const escalationContact = step.team?.leader?.id || step.assigneeId
     await publishDomainEvent({
       type: 'enterprise.approval.escalated',
       companyId: step.companyId,
