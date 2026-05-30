@@ -45,7 +45,31 @@ export async function registerEnterpriseCronJobs() {
     opts: { attempts: 2, removeOnComplete: 10, removeOnFail: false },
   })
 
-  logger.info('enterprise.cron_registered', { queue: CORE_QUEUE, jobs: ['enterprise-sla-monitor (every 60s)', 'enterprise-auto-assign (every 120s)', 'enterprise-approval-escalation (every 120s)'] })
+  await queue.upsertJobScheduler('enterprise-depreciation', {
+    every: 86_400_000,
+  }, {
+    name: 'enterprise.depreciation',
+    data: {},
+    opts: { attempts: 2, removeOnComplete: 10, removeOnFail: false },
+  })
+
+  await queue.upsertJobScheduler('enterprise-auto-close', {
+    every: 300_000,
+  }, {
+    name: 'enterprise.auto-close',
+    data: {},
+    opts: { attempts: 2, removeOnComplete: 10, removeOnFail: false },
+  })
+
+  await queue.upsertJobScheduler('enterprise-recurring-tickets', {
+    every: 600_000,
+  }, {
+    name: 'enterprise.recurring-tickets',
+    data: {},
+    opts: { attempts: 2, removeOnComplete: 10, removeOnFail: false },
+  })
+
+  logger.info('enterprise.cron_registered', { queue: CORE_QUEUE, jobs: ['enterprise-sla-monitor (every 60s)', 'enterprise-auto-assign (every 120s)', 'enterprise-approval-escalation (every 120s)', 'enterprise-depreciation (every 24h)', 'enterprise-auto-close (every 5m)', 'enterprise-recurring-tickets (every 10m)'] })
 
   await queue.close()
 }

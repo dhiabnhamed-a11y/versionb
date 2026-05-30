@@ -7,6 +7,9 @@ import { processSocialIntegrationJob } from '@/modules/integrations/jobs/social-
 import { checkActiveSlaCompliance } from '@/modules/enterprise/enterprise-sla-monitor'
 import { autoAssignUnassignedIncidents, autoAssignIncident } from '@/modules/enterprise/enterprise-auto-assigner'
 import { checkApprovalEscalations } from '@/modules/enterprise/enterprise-escalation'
+import { runDepreciationEngine } from '@/modules/enterprise/enterprise-depreciation'
+import { autoCloseResolvedIncidents } from '@/modules/enterprise/enterprise-auto-close'
+import { generateRecurringTickets } from '@/modules/enterprise/enterprise-recurring'
 import { registerEnterpriseCronJobs } from '@/modules/enterprise/enterprise-cron'
 
 type RedisConnectionOptions = {
@@ -115,6 +118,18 @@ async function processOperationsJob(name: string, data: Record<string, unknown>)
 
   if (name === 'enterprise.approval-escalation') {
     return checkApprovalEscalations()
+  }
+
+  if (name === 'enterprise.depreciation') {
+    return runDepreciationEngine()
+  }
+
+  if (name === 'enterprise.auto-close') {
+    return autoCloseResolvedIncidents()
+  }
+
+  if (name === 'enterprise.recurring-tickets') {
+    return generateRecurringTickets()
   }
 
   return { ignored: true, name }
