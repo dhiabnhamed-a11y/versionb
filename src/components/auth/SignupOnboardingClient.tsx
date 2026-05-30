@@ -635,7 +635,7 @@ function WelcomeStep({ onStart }: { onStart: () => void }) {
           <Zap size={15} />
           AI-native ERP provisioning
         </p>
-        <h1 id="welcome-title">Provision your enterprise operating system in under 60 seconds.</h1>
+        <h1 id="welcome-title">Provision your enterprise operating system in under <span>60 seconds.</span></h1>
         <p>
           TASKIT generates a tenant-isolated workspace graph with modules, dashboards, RBAC, audit trails, workflows,
           copilots, realtime collaboration, and event-driven automations before your team configures anything.
@@ -674,7 +674,7 @@ function CompanyTypeStep({
           <Bot size={14} />
           Workspace fit intelligence
         </p>
-        <h1>Choose the operating model TASKIT should provision.</h1>
+        <h1>Choose the operating model TASKIT should <span>provision.</span></h1>
         <p>
           Pick the closest workspace outcome. ERP is tuned for finance, procurement, inventory, HR, and payroll.
           EMS is tuned for dispatch, fleet readiness, incidents, hospitals, protocols, and response analytics.
@@ -772,7 +772,11 @@ function SetupStep({
           <ShieldCheck size={14} />
           Enterprise workspace identity
         </p>
-        <h1>{inviteMode ? 'Secure your invited account.' : 'Add the control-plane essentials. TASKIT handles the structure.'}</h1>
+        {inviteMode ? (
+          <h1>Secure your invited <span>account.</span></h1>
+        ) : (
+          <h1>Add the control-plane essentials. TASKIT handles the <span>structure.</span></h1>
+        )}
         <p className={styles.setupLead}>
           {inviteMode && invitePreview
             ? `You are joining ${invitePreview.companyName}. Finish your account and TASKIT will connect you to the workspace.`
@@ -955,7 +959,7 @@ function TeamStep({
           <User size={14} />
           Optional team setup
         </p>
-        <h1>Invite the first people into the operating system.</h1>
+        <h1>Invite the first people into the <span>operating system.</span></h1>
         <p className={styles.setupLead}>Skip this for now or queue teammates with roles and departments.</p>
 
         <div className={styles.inviteComposer}>
@@ -1081,7 +1085,7 @@ function PlanStep({
           <CreditCard size={14} />
           Choose your plan
         </p>
-        <h1>Pick the right plan for your team.</h1>
+        <h1>Pick the right plan for your <span>team.</span></h1>
         <p className={styles.setupLead}>
           Start with a free trial - no credit card required. Or pick a plan now to skip the trial.
         </p>
@@ -1187,7 +1191,7 @@ function SuccessStep({
           <Zap size={14} />
           Workspace generated
         </p>
-        <h1>{inviteMode ? 'Your account is ready.' : `${companyName || 'Your company'} OS is ready for approval.`}</h1>
+        <h1>{inviteMode ? 'Your account is ready.' : <>{companyName || 'Your company'} OS is ready for <span>approval.</span></>}</h1>
         <p>
           {selectedPlan
             ? `You selected the ${planLabel}. After signing in, head to Billing in the sidebar to complete payment and activate your subscription.`

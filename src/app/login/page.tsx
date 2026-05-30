@@ -111,7 +111,7 @@ function LoginContent() {
             <Bot size={14} />
             Workspace command center
           </p>
-          <h1>Calm control for every operating signal.</h1>
+          <h1>Calm control for every <span>operating signal.</span></h1>
           <p>
             Sign in to the same structured TASKIT operating system built during onboarding, with projects, alerts,
             approvals, finance, and realtime work in one focused surface.
