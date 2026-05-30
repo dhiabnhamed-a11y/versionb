@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/modules/auth/session'
 import { getTeamDashboard } from '@/modules/enterprise/enterprise-dashboards'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(_request: NextResponse, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
     const user = await getSessionUser()
