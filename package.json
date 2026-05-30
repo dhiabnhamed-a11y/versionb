@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "tsx server.ts",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && node --max-old-space-size=4096 ./node_modules/next/dist/bin/next build",
     "build:cloudflare": "npm run build && tsx scripts/materialize-standalone-symlinks.ts && opennextjs-cloudflare build --skipNextBuild",
     "deploy": "npm run build:cloudflare && opennextjs-cloudflare deploy -- --keep-vars",
     "start": "NODE_ENV=production tsx server.ts",
