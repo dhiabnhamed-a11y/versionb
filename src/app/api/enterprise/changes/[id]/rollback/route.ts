@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/modules/auth/session'
 import { rollbackChange } from '@/modules/enterprise/enterprise.service'
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const user = await getSessionUser()
     const body = await request.json()
-    const result = await rollbackChange(user, params.id, body)
+    const result = await rollbackChange(user, id, body)
     return NextResponse.json(result)
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: e.status || e.code || 500 })

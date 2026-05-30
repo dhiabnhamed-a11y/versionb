@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/modules/auth/session'
 import { generateAssetQr } from '@/modules/enterprise/enterprise-qr'
 
-export async function POST(_request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     await getSessionUser()
-    const svg = await generateAssetQr(params.id)
+    const svg = await generateAssetQr(id)
     if (!svg) return NextResponse.json({ error: 'Asset not found.' }, { status: 404 })
     return new NextResponse(svg, { headers: { 'Content-Type': 'image/svg+xml' } })
   } catch (e: any) {

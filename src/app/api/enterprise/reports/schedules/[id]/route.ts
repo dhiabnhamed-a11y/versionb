@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/modules/auth/session'
 import { deleteReportSchedule } from '@/modules/enterprise/enterprise-reports'
 
-export async function DELETE(_request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const user = await getSessionUser()
-    const result = await deleteReportSchedule(user, params.id)
+    const result = await deleteReportSchedule(user, id)
     return NextResponse.json(result)
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: e.status || e.code || 500 })

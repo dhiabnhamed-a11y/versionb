@@ -4,10 +4,11 @@ import { getTeamDashboard } from '@/modules/enterprise/enterprise-dashboards'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(_request: NextResponse, { params }: { params: { id: string } }) {
+export async function GET(_request: NextResponse, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const user = await getSessionUser()
-    const result = await getTeamDashboard(user, params.id)
+    const result = await getTeamDashboard(user, id)
     return NextResponse.json(result)
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: e.status || e.code || 500 })
