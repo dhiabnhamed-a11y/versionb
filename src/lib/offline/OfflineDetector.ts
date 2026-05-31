@@ -8,8 +8,9 @@ class OfflineDetector {
   private _isManualOffline: boolean
 
   constructor() {
-    this._isManualOffline = localStorage.getItem(STORAGE_KEY_MANUAL_OFFLINE) === 'true'
-    this._isOnline = this._isManualOffline ? false : navigator.onLine
+    const canUseBrowserStorage = typeof window !== 'undefined' && typeof window.localStorage !== 'undefined'
+    this._isManualOffline = canUseBrowserStorage ? window.localStorage.getItem(STORAGE_KEY_MANUAL_OFFLINE) === 'true' : false
+    this._isOnline = this._isManualOffline ? false : typeof navigator !== 'undefined' ? navigator.onLine : true
 
     if (typeof window !== 'undefined') {
       window.addEventListener('online', this.handleOnline)
@@ -44,14 +45,18 @@ class OfflineDetector {
   enableOffline() {
     this._isManualOffline = true
     this._isOnline = false
-    localStorage.setItem(STORAGE_KEY_MANUAL_OFFLINE, 'true')
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEY_MANUAL_OFFLINE, 'true')
+    }
     this.notifyAll()
   }
 
   disableOffline() {
     this._isManualOffline = false
-    this._isOnline = navigator.onLine
-    localStorage.removeItem(STORAGE_KEY_MANUAL_OFFLINE)
+    this._isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
+    if (typeof window !== 'undefined') {
+      window.localStorage.removeItem(STORAGE_KEY_MANUAL_OFFLINE)
+    }
     this.notifyAll()
   }
 
@@ -61,8 +66,10 @@ class OfflineDetector {
   }
 
   destroy() {
-    window.removeEventListener('online', this.handleOnline)
-    window.removeEventListener('offline', this.handleOffline)
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('online', this.handleOnline)
+      window.removeEventListener('offline', this.handleOffline)
+    }
     this.listeners.clear()
   }
 }
