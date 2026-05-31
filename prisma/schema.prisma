@@ -142,6 +142,7 @@ model Company {
   seatCount            Int                @default(1)
   billingInterval      BillingInterval?
   selfServeSignup      Boolean            @default(false)
+  metadata             Json?
 
   owner                        User                             @relation("CompanyOwner", fields: [ownerId], references: [id])
   reviewedBy                   User?                            @relation("CompanyReviewedBy", fields: [reviewedById], references: [id], onDelete: SetNull)
@@ -2573,6 +2574,7 @@ model EnterpriseApprovalWorkflow {
   scope        String
   trigger      String
   status       String   @default("ACTIVE")
+  steps        Json?
   escalation   Json?
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt

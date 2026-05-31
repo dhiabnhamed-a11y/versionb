@@ -51,9 +51,9 @@ export function maskObject<T extends Record<string, unknown>>(
     const value = masked[key]
     if (isSensitiveField(key) && value !== undefined && value !== null) {
       if (typeof value === 'string') {
-        masked[key] = maskValue(value, level) as any
+        (masked as Record<string, unknown>)[key] = maskValue(value, level)
       } else if (typeof value === 'object' && !Array.isArray(value)) {
-        masked[key] = maskObject(value as Record<string, unknown>, level) as any
+        (masked as Record<string, unknown>)[key] = maskObject(value as Record<string, unknown>, level)
       }
     }
   }

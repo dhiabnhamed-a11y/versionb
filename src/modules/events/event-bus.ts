@@ -43,6 +43,14 @@ export type DomainEventName =
   | 'enterprise.maintenance.updated'
   | 'enterprise.csat.survey_sent'
   | 'enterprise.csat.response_received'
+  | 'enterprise.approval.escalated'
+  | 'enterprise.service_health.updated'
+  | 'enterprise.vendor.created'
+  | 'enterprise.vendor.updated'
+  | 'enterprise.contract.created'
+  | 'enterprise.contract.updated'
+  | 'enterprise.lease.created'
+  | 'enterprise.lease.updated'
 
 export type DomainEvent = {
   id: string

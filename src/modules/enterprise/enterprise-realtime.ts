@@ -14,7 +14,7 @@ async function getEmitter() {
       await client.connect()
       socketEmitter = new Emitter(client)
     } catch (err) {
-      logger.warn('enterprise.realtime_unavailable', err)
+      logger.warn('enterprise.realtime_unavailable', { error: String(err) })
       return null
     }
   }
