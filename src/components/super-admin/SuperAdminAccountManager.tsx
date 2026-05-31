@@ -1,7 +1,7 @@
 'use client'
 
 import { useDeferredValue, useEffect, useState } from 'react'
-import { Loader2, Search, Trash2, ShieldCheck, AlertTriangle, XCircle, CheckCircle2 } from 'lucide-react'
+import { Activity, Clock3, FolderKanban, Loader2, LogIn, Search, Trash2, ShieldCheck, AlertTriangle, XCircle, CheckCircle2 } from 'lucide-react'
 
 type UserRecord = {
   id: string
@@ -12,6 +12,20 @@ type UserRecord = {
   createdAt: string
   companyId: string | null
   company: { name: string; status: string } | null
+  traction: {
+    loginCount: number
+    lastLoginAt: string | null
+    lastSeenAt: string | null
+    isConnected: boolean
+    activeSessionCount: number
+    workspaceOpensToday: number
+    lastWorkspaceOpenAt: string | null
+    campaignCount: number
+    lastCampaignCreatedAt: string | null
+    timeEntryCount: number
+    timeEntriesToday: number
+    trackedHours: number
+  }
 }
 
 type UserResponse = {
@@ -102,6 +116,21 @@ export default function SuperAdminAccountManager() {
     return { bg: '#fffbeb', color: '#92400e', border: '#fde68a' }
   }
 
+  function formatDateTime(value: string | null) {
+    if (!value) return 'Never'
+    return new Date(value).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    })
+  }
+
+  function formatHours(value: number) {
+    if (!Number.isFinite(value) || value <= 0) return '0h'
+    return `${value.toFixed(value % 1 === 0 ? 0 : 1)}h`
+  }
+
   const containerStyle: React.CSSProperties = {
     padding: '24px',
     maxWidth: '1200px',
@@ -156,6 +185,16 @@ export default function SuperAdminAccountManager() {
     padding: '12px 16px',
     borderBottom: '1px solid #f1f5f9',
     color: '#334155',
+    verticalAlign: 'top',
+  }
+
+  const metricLineStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    fontSize: '12px',
+    color: '#475569',
+    whiteSpace: 'nowrap',
   }
 
   const dangerBtnStyle: React.CSSProperties = {
@@ -231,7 +270,11 @@ export default function SuperAdminAccountManager() {
               <tr>
                 <th style={thStyle}>User</th>
                 <th style={thStyle}>Role</th>
-                <th style={thStyle}>Status</th>
+                <th style={thStyle}>Connection</th>
+                <th style={thStyle}>Logins</th>
+                <th style={thStyle}>Today opens</th>
+                <th style={thStyle}>Workspace</th>
+                <th style={thStyle}>Time entries</th>
                 <th style={thStyle}>Company</th>
                 <th style={thStyle}>Joined</th>
                 <th style={thStyle}></th>
@@ -240,14 +283,14 @@ export default function SuperAdminAccountManager() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={6} style={{ ...tdStyle, textAlign: 'center', padding: '40px 16px' }}>
+                  <td colSpan={10} style={{ ...tdStyle, textAlign: 'center', padding: '40px 16px' }}>
                     <Loader2 size={18} className="animate-spin" style={{ display: 'inline', marginRight: '8px', verticalAlign: 'middle' }} />
                     <span>Loading accounts...</span>
                   </td>
                 </tr>
               ) : users.length === 0 ? (
                 <tr>
-                  <td colSpan={6} style={{ ...tdStyle, textAlign: 'center', padding: '40px 16px', color: '#94a3b8' }}>
+                  <td colSpan={10} style={{ ...tdStyle, textAlign: 'center', padding: '40px 16px', color: '#94a3b8' }}>
                     No accounts matched this search.
                   </td>
                 </tr>
@@ -275,9 +318,53 @@ export default function SuperAdminAccountManager() {
                         </span>
                       </td>
                       <td style={tdStyle}>
-                        <span style={{ display: 'inline-flex', padding: '2px 8px', borderRadius: '999px', border: `1px solid ${statusBadge.border}`, background: statusBadge.bg, color: statusBadge.color, fontSize: '11px', fontWeight: 700 }}>
-                          {user.accountStatus}
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '2px 8px', borderRadius: '999px', border: `1px solid ${user.traction.isConnected ? '#bbf7d0' : statusBadge.border}`, background: user.traction.isConnected ? '#f0fdf4' : statusBadge.bg, color: user.traction.isConnected ? '#166534' : statusBadge.color, fontSize: '11px', fontWeight: 700 }}>
+                          <span style={{ width: '6px', height: '6px', borderRadius: '999px', background: user.traction.isConnected ? '#22c55e' : '#94a3b8' }} />
+                          {user.traction.isConnected ? 'Connected' : user.accountStatus}
                         </span>
+                        <div style={{ marginTop: '6px', fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                          Last seen {formatDateTime(user.traction.lastSeenAt)}
+                        </div>
+                      </td>
+                      <td style={tdStyle}>
+                        <div style={metricLineStyle}>
+                          <LogIn size={14} color="#0f766e" />
+                          <strong style={{ color: '#0f172a' }}>{user.traction.loginCount}</strong>
+                          <span>total</span>
+                        </div>
+                        <div style={{ marginTop: '6px', fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                          Last {formatDateTime(user.traction.lastLoginAt)}
+                        </div>
+                      </td>
+                      <td style={tdStyle}>
+                        <div style={metricLineStyle}>
+                          <Activity size={14} color="#2563eb" />
+                          <strong style={{ color: '#0f172a' }}>{user.traction.workspaceOpensToday}</strong>
+                          <span>opens</span>
+                        </div>
+                        <div style={{ marginTop: '6px', fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                          Last {formatDateTime(user.traction.lastWorkspaceOpenAt)}
+                        </div>
+                      </td>
+                      <td style={tdStyle}>
+                        <div style={metricLineStyle}>
+                          <FolderKanban size={14} color="#7c3aed" />
+                          <strong style={{ color: '#0f172a' }}>{user.traction.campaignCount}</strong>
+                          <span>campaigns</span>
+                        </div>
+                        <div style={{ marginTop: '6px', fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                          Latest {formatDateTime(user.traction.lastCampaignCreatedAt)}
+                        </div>
+                      </td>
+                      <td style={tdStyle}>
+                        <div style={metricLineStyle}>
+                          <Clock3 size={14} color="#d97706" />
+                          <strong style={{ color: '#0f172a' }}>{user.traction.timeEntryCount}</strong>
+                          <span>inputs</span>
+                        </div>
+                        <div style={{ marginTop: '6px', fontSize: '11px', color: '#64748b', whiteSpace: 'nowrap' }}>
+                          {user.traction.timeEntriesToday} today . {formatHours(user.traction.trackedHours)}
+                        </div>
                       </td>
                       <td style={tdStyle}>
                         <div style={{ fontSize: '13px', color: '#334155' }}>{user.company?.name ?? '-'}</div>

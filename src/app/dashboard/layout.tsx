@@ -10,6 +10,7 @@ import WorkspaceThemeProvider from '@/components/dashboard/WorkspaceThemeProvide
 import AlertReceiver from '@/components/alerts/AlertReceiver'
 import AiOperationsAssistant from '@/components/dashboard/AiOperationsAssistant'
 import PushNotificationBootstrap from '@/components/pwa/PushNotificationBootstrap'
+import WorkspacePresenceTracker from '@/components/analytics/WorkspacePresenceTracker'
 
 export default async function DashboardRootLayout({ children }: { children: React.ReactNode }) {
   const session = await auth()
@@ -36,6 +37,7 @@ export default async function DashboardRootLayout({ children }: { children: Reac
         <LocaleProvider initialLocale={initialLanguage.locale}>
           <WorkspaceThemeProvider settings={initialThemeSettings} userDesign={initialUserDesign} />
           <PushNotificationBootstrap userId={session.user.id} />
+          <WorkspacePresenceTracker />
           <HealthcareSidebar initialLocale={initialLanguage.locale}>
             {children}
           </HealthcareSidebar>
@@ -53,6 +55,7 @@ export default async function DashboardRootLayout({ children }: { children: Reac
         <LocaleProvider initialLocale={initialLanguage.locale}>
           <WorkspaceThemeProvider settings={initialThemeSettings} userDesign={initialUserDesign} />
           <PushNotificationBootstrap userId={session.user.id} />
+          <WorkspacePresenceTracker />
           {children}
           <AlertReceiver userId={session.user.id} />
           <AiOperationsAssistant disabled={false} />
@@ -64,6 +67,7 @@ export default async function DashboardRootLayout({ children }: { children: Reac
   // Standard layout for all other workspace types
   return (
     <SessionProvider>
+      {!isSuperAdmin && <WorkspacePresenceTracker />}
       <DashboardLayout
         initialThemeSettings={initialThemeSettings}
         initialUserDesign={initialUserDesign}
