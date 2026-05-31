@@ -1,6 +1,32 @@
 {
   "headers": [
     {
+      "source": "/firebase-messaging-sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/javascript; charset=utf-8"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "no-cache, no-store, must-revalidate"
+        },
+        {
+          "key": "Content-Type",
+          "value": "application/javascript; charset=utf-8"
+        }
+      ]
+    },
+    {
       "source": "/(.*)",
       "headers": [
         {
@@ -40,7 +66,7 @@
       ]
     },
     {
-      "source": "/(.*\\.[a-zA-Z0-9]+)$",
+      "source": "/(.*\\.(?:css|png|jpg|jpeg|svg|webp|ico|woff2?|json|txt|xml))$",
       "headers": [
         {
           "key": "Cache-Control",

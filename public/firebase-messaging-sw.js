@@ -1,10 +1,9 @@
-const TASKIT_CACHE = 'taskit-v5'
-const TASKIT_OFFLINE_CACHE = 'taskit-offline-v5'
+const TASKIT_CACHE = 'taskit-runtime-v6'
+const TASKIT_OFFLINE_CACHE = 'taskit-offline-v6'
 const TASKIT_DEFAULT_ICON = '/icons/taskit-192.png'
 const TASKIT_DEFAULT_BADGE = '/favicon.ico'
 
 const PRE_CACHE_URLS = [
-  '/',
   '/manifest.json',
   '/favicon.ico',
   '/icons/taskit-192.png',
@@ -44,6 +43,10 @@ function shouldBypassWorker(request, url) {
   return (
     request.method !== 'GET' ||
     url.origin !== self.location.origin ||
+    url.pathname === '/firebase-messaging-sw.js' ||
+    url.pathname === '/sw.js' ||
+    url.pathname.startsWith('/_next/static/') ||
+    url.pathname.startsWith('/_next/image') ||
     url.pathname.startsWith('/api/') ||
     url.pathname.endsWith('.pdf') ||
     (request.headers.get('accept') || '').includes('application/pdf') ||
@@ -54,8 +57,8 @@ function shouldBypassWorker(request, url) {
 
 function isStaticAsset(url) {
   return (
-    url.pathname.startsWith('/_next/static/') ||
-    /\.(css|js|png|jpg|jpeg|svg|webp|ico|woff2?)$/i.test(url.pathname)
+    !url.pathname.startsWith('/_next/') &&
+    /\.(png|jpg|jpeg|svg|webp|ico|woff2?)$/i.test(url.pathname)
   )
 }
 
@@ -65,12 +68,7 @@ function isNavigationalHtml(url) {
 
 async function networkFirstThenCache(request) {
   try {
-    const response = await fetch(request)
-    if (response && response.ok) {
-      const copy = response.clone()
-      void caches.open(TASKIT_CACHE).then((cache) => cache.put(request, copy))
-    }
-    return response
+    return await fetch(request)
   } catch {
     return null
   }
@@ -102,8 +100,6 @@ self.addEventListener('fetch', (event) => {
       (async () => {
         const networkResponse = await networkFirstThenCache(request)
         if (networkResponse) return networkResponse
-        const cachedRoot = await caches.match('/')
-        if (cachedRoot) return cachedRoot
         const offlinePage = await caches.match('/__offline')
         if (offlinePage) return offlinePage
         return new Response(OFFLINE_PAGE_HTML, {
