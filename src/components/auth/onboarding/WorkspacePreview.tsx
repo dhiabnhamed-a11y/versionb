@@ -1,32 +1,27 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties } from 'react'
 import {
-  Activity,
-  BadgeDollarSign,
   BriefcaseBusiness,
   Building2,
   CheckCircle2,
+  CreditCard,
   GraduationCap,
-  GitBranch,
   HardHat,
   HeartPulse,
   Hospital,
   Landmark,
   Layers3,
+  Lock,
   Scale,
   ServerCog,
   ShieldCheck,
+  UserCheck,
   Zap,
 } from 'lucide-react'
 import {
-  createArchitecturePillars,
-  createOperationalAutomations,
-  createRoleExperiencePlan,
-  createWorkspaceModules,
   getTemplate,
-  type OnboardingTemplate,
   type OnboardingTemplateId,
 } from '@/lib/onboarding-engine'
 import styles from '../SignupOnboardingClient.module.css'
@@ -44,12 +39,44 @@ const iconMap = {
   sparkles: Zap,
 } as const
 
+const trustItems = [
+  {
+    icon: ShieldCheck,
+    title: 'Tenant-isolated by default',
+    detail: 'Your company data is scoped to its own workspace before teammates are invited.',
+  },
+  {
+    icon: UserCheck,
+    title: 'Role-based access',
+    detail: 'Owners stay in control of permissions, approvals, and team visibility.',
+  },
+  {
+    icon: Lock,
+    title: 'Audit-ready activity',
+    detail: 'Important setup and access events are prepared for traceability.',
+  },
+  {
+    icon: CreditCard,
+    title: 'Billing stays transparent',
+    detail: 'Start setup first, then choose or activate a plan when you are ready.',
+  },
+] as const
+
+const readinessItems = [
+  'Secure owner account',
+  'Workspace identity',
+  'Team access controls',
+  'Compliance consent',
+] as const
+
+const commitmentItems = [
+  'Verify company details before launch',
+  'Invite teammates with clear roles',
+  'Adjust modules and workflows anytime',
+] as const
+
 export default function WorkspacePreview({ templateId, compact = false }: { templateId: OnboardingTemplateId; compact?: boolean }) {
   const template = getTemplate(templateId)
-  const modules = createWorkspaceModules(template)
-  const automations = createOperationalAutomations(template)
-  const roleExperiences = createRoleExperiencePlan(template)
-  const architecturePillars = createArchitecturePillars()
   const Icon = iconMap[template.icon as keyof typeof iconMap] ?? Zap
 
   return (
@@ -69,8 +96,8 @@ export default function WorkspacePreview({ templateId, compact = false }: { temp
             <Icon size={22} aria-hidden="true" />
           </div>
           <div>
-            <p className={styles.previewKicker}><span className={styles.previewPulseDot} />Live AI workspace preview</p>
-            <h2>{template.title} operating system</h2>
+            <p className={styles.previewKicker}>Trusted workspace setup</p>
+            <h2>Secure setup for {template.title} teams</h2>
           </div>
         </div>
 
@@ -79,119 +106,96 @@ export default function WorkspacePreview({ templateId, compact = false }: { temp
             <span />
             <span />
             <span />
-            <strong>TASKIT AI</strong>
+            <strong>TASKIT</strong>
           </div>
 
           <div className={styles.previewDashboard}>
             <div className={styles.previewPrimaryPanel}>
               <div className={styles.previewPanelHead}>
-                <span>Tenant workspace graph</span>
+                <span>Launch readiness</span>
                 <CheckCircle2 size={14} />
               </div>
-              <div className={styles.previewDepartmentGrid}>
-                {template.departments.map((department, index) => (
+              <div className={styles.previewReadinessList}>
+                {readinessItems.map((item, index) => (
                   <motion.div
-                    key={department}
-                    className={styles.previewDepartment}
+                    key={item}
+                    className={styles.previewReadinessItem}
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.04 }}
                   >
-                    <span />
-                    {department}
+                    <CheckCircle2 size={15} aria-hidden="true" />
+                    <span>{item}</span>
                   </motion.div>
                 ))}
               </div>
             </div>
 
             <div className={styles.previewSidePanel}>
-              {modules.map((module, index) => (
-                <motion.div
-                  key={module.label}
-                  className={styles.previewMetric}
-                  initial={{ opacity: 0, x: 10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.08 + index * 0.045 }}
-                >
-                  <div>
-                    <span>{module.label}</span>
-                    <strong>{module.value}</strong>
+              {trustItems.slice(0, 2).map((item, index) => {
+                const TrustIcon = item.icon
+
+                return (
+                  <motion.div
+                    key={item.title}
+                    className={styles.previewMetric}
+                    initial={{ opacity: 0, x: 10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.08 + index * 0.045 }}
+                  >
+                    <div>
+                      <span>{item.title}</span>
+                      <TrustIcon size={16} aria-hidden="true" />
+                    </div>
+                    <p>{item.detail}</p>
+                  </motion.div>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className={styles.previewTrustPanel}>
+            <div className={styles.previewPanelHead}>
+              <span>Trust controls</span>
+              <ShieldCheck size={14} />
+            </div>
+            <div className={styles.previewTrustList}>
+              {trustItems.map((item) => {
+                const TrustIcon = item.icon
+
+                return (
+                  <div key={item.title} className={styles.previewTrustItem}>
+                    <TrustIcon size={16} aria-hidden="true" />
+                    <div>
+                      <strong>{item.title}</strong>
+                      <span>{item.detail}</span>
+                    </div>
                   </div>
-                  <p>{module.detail}</p>
-                </motion.div>
-              ))}
+                )
+              })}
             </div>
           </div>
 
-          <PreviewRail title="Workflows" items={template.workflows} template={template} />
-          <PreviewRail title="AI copilots" items={template.copilots} template={template} icon={<Zap size={13} />} />
-
-          <div className={styles.previewAutomationPanel}>
-            <div className={styles.previewPanelHead}>
-              <span>Event-driven automations</span>
-              <GitBranch size={14} />
-            </div>
-            <div className={styles.previewAutomationGrid}>
-              {automations.map((automation) => (
-                <div key={automation.trigger} className={styles.previewAutomation}>
-                  <strong>{automation.trigger}</strong>
-                  <span>{automation.actions.slice(0, 3).join(' -> ')}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className={styles.previewRolePanel}>
-            <div className={styles.previewPanelHead}>
-              <span>Role command centers</span>
-              <Activity size={14} />
-            </div>
-            <div className={styles.previewRoleGrid}>
-              {roleExperiences.map((experience) => (
-                <div key={experience.role} className={styles.previewRole}>
-                  <strong>{experience.role}</strong>
-                  <span>{experience.focus}</span>
-                </div>
-              ))}
-            </div>
+          <div className={styles.previewCommitmentGrid}>
+            {commitmentItems.map((item) => (
+              <div key={item} className={styles.previewCommitment}>
+                <CheckCircle2 size={15} aria-hidden="true" />
+                <span>{item}</span>
+              </div>
+            ))}
           </div>
         </div>
 
         <div className={styles.previewInsight}>
           <ShieldCheck size={16} aria-hidden="true" />
-          <span>{architecturePillars.slice(0, 4).join(' / ')}</span>
+          <span>Your workspace is prepared with tenant isolation, controlled roles, explicit consent, and audit visibility.</span>
         </div>
         <div className={styles.previewInsight}>
           <Layers3 size={16} aria-hidden="true" />
-          <span>{template.whyItMatters}</span>
+          <span>{template.title} settings can be adjusted after signup as your team, departments, and workflow needs become clearer.</span>
         </div>
-        <p className={styles.previewTagline}>Your workspace is being prepared as a connected, permission-aware operating system.</p>
+        <p className={styles.previewTagline}>Professional setup first. Customization stays in your control.</p>
       </motion.aside>
     </AnimatePresence>
-  )
-}
-
-function PreviewRail({
-  title,
-  items,
-  icon,
-}: {
-  title: string
-  items: OnboardingTemplate['workflows']
-  template: OnboardingTemplate
-  icon?: ReactNode
-}) {
-  return (
-    <div className={styles.previewRail}>
-      <div className={styles.previewRailLabel}>{title}</div>
-      <div className={styles.previewRailItems}>
-        {items.slice(0, 4).map((item) => (
-          <span key={item}>
-            {icon ?? <BadgeDollarSign size={13} aria-hidden="true" />}
-            {item}
-          </span>
-        ))}
-      </div>
-    </div>
   )
 }

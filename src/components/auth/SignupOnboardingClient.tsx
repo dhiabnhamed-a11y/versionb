@@ -770,17 +770,17 @@ function SetupStep({
 
         <p className={styles.stepKicker}>
           <ShieldCheck size={14} />
-          Enterprise workspace identity
+          Secure workspace identity
         </p>
         {inviteMode ? (
           <h1>Secure your invited <span>account.</span></h1>
         ) : (
-          <h1>Add the control-plane essentials. TASKIT handles the <span>structure.</span></h1>
+          <h1>Create your owner account and workspace <span>identity.</span></h1>
         )}
         <p className={styles.setupLead}>
           {inviteMode && invitePreview
-            ? `You are joining ${invitePreview.companyName}. Finish your account and TASKIT will connect you to the workspace.`
-            : 'No long configuration. Just enough context to name the tenant, localize the workspace, and prepare approval-ready defaults.'}
+            ? `You are joining ${invitePreview.companyName}. Finish your account to access the approved workspace.`
+            : 'We only ask for the details needed to create the tenant, localize the workspace, and keep ownership clear from day one.'}
         </p>
 
         <div className={styles.formGrid}>

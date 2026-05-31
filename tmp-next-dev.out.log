@@ -1,0 +1,25 @@
+
+> tasked@0.1.0 dev
+> tsx server.ts
+
+{"level":"info","message":"realtime.redis_adapter_attached","at":"2026-05-31T23:42:09.461Z"}
+{"level":"info","message":"realtime.socket_server_ready","at":"2026-05-31T23:42:09.463Z","instanceId":"taskit-16824"}
+{"level":"info","message":"server.ready","at":"2026-05-31T23:42:09.466Z","url":"http://localhost:3000"}
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:42:10.493Z","name":"socket-pub"}
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:42:14.088Z","name":"socket-pub"}
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:42:15.293Z","name":"socket-pub"}
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:42:17.809Z","name":"socket-pub"}
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:42:22.283Z","name":"socket-pub"}
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:42:35.051Z","name":"socket-pub"}
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:42:40.311Z","name":"socket-pub"}
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:42:46.601Z","name":"socket-pub"}
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:42:51.994Z","name":"socket-pub"}
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:42:59.651Z","name":"socket-pub"}
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:43:06.900Z","name":"socket-pub"}
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:43:12.590Z","name":"socket-pub"}
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:43:18.017Z","name":"socket-pub"}
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:43:24.027Z","name":"socket-pub"}
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:43:29.376Z","name":"socket-pub"}
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:43:35.586Z","name":"socket-pub"}
+○ Compiling /signup ...
+{"level":"info","message":"realtime.redis_connected","at":"2026-05-31T23:43:42.178Z","name":"socket-pub"}

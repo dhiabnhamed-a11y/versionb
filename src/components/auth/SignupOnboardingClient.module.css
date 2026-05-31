@@ -625,8 +625,11 @@
 .previewRail,
 .previewAutomationPanel,
 .previewRolePanel,
+.previewTrustPanel,
 .previewAutomation,
 .previewRole,
+.previewTrustItem,
+.previewCommitment,
 .previewInsight,
 .generationLog,
 .legalBox,
@@ -658,13 +661,38 @@
   margin-top: 0.7rem;
 }
 
+.previewReadinessList {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.7rem;
+}
+
 .previewDepartment,
+.previewReadinessItem,
 .previewRailItems span,
 .generatedGrid span {
   display: inline-flex;
   min-width: 0;
   align-items: center;
   gap: 0.42rem;
+}
+
+.previewReadinessItem {
+  min-height: 2.4rem;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.045);
+  color: #eef6ff;
+  padding: 0 0.65rem;
+  font-size: 0.76rem;
+  font-weight: 850;
+}
+
+.previewReadinessItem svg,
+.previewTrustItem svg,
+.previewCommitment svg {
+  flex: 0 0 auto;
+  color: var(--template-accent);
 }
 
 .previewDepartment {
@@ -714,14 +742,17 @@
   font-size: 0.95rem;
 }
 
+.previewMetric svg {
+  flex: 0 0 auto;
+  color: var(--template-accent);
+}
+
 .previewMetric p {
   margin-top: 0.22rem;
-  overflow: hidden;
   color: #dce8f6;
   font-size: 0.72rem;
   font-weight: 650;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.45;
 }
 
 .previewRail {
@@ -759,7 +790,8 @@
 }
 
 .previewAutomationPanel,
-.previewRolePanel {
+.previewRolePanel,
+.previewTrustPanel {
   display: grid;
   gap: 0.65rem;
   padding: 0.75rem;
@@ -796,6 +828,62 @@
   font-weight: 700;
   line-height: 1.45;
   overflow-wrap: break-word;
+}
+
+.previewTrustList {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.previewTrustItem,
+.previewCommitment {
+  min-width: 0;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.075);
+}
+
+.previewTrustItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.65rem;
+  padding: 0.7rem;
+}
+
+.previewTrustItem strong {
+  display: block;
+  color: #ffffff;
+  font-size: 0.78rem;
+  font-weight: 950;
+  line-height: 1.25;
+}
+
+.previewTrustItem span {
+  display: block;
+  margin-top: 0.22rem;
+  color: #9fb0c4;
+  font-size: 0.7rem;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: break-word;
+}
+
+.previewCommitmentGrid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.55rem;
+}
+
+.previewCommitment {
+  display: flex;
+  min-height: 3.6rem;
+  align-items: flex-start;
+  gap: 0.45rem;
+  padding: 0.65rem;
+  color: #dce8f6;
+  font-size: 0.7rem;
+  font-weight: 750;
+  line-height: 1.35;
 }
 
 .previewInsight {
@@ -1491,6 +1579,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .previewCommitmentGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
   .formGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -1681,6 +1773,8 @@
   .previewHeader h2,
   .previewAutomation strong,
   .previewRole strong,
+  .previewTrustItem strong,
+  .previewReadinessItem,
   .generationLog strong,
   .inviteRow strong {
     color: #0b1628;
@@ -1718,8 +1812,12 @@
   .previewRail,
   .previewAutomationPanel,
   .previewRolePanel,
+  .previewTrustPanel,
   .previewAutomation,
   .previewRole,
+  .previewReadinessItem,
+  .previewTrustItem,
+  .previewCommitment,
   .previewInsight,
   .generationLog,
   .inviteRow,
@@ -1727,6 +1825,12 @@
   .generatedGrid span {
     border-color: rgba(11, 22, 40, 0.09);
     background: rgba(255, 255, 255, 0.88);
+  }
+
+  .previewMetric p,
+  .previewTrustItem span,
+  .previewCommitment {
+    color: #40536b;
   }
 }
 
