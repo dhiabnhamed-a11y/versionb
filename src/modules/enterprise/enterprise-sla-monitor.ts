@@ -67,7 +67,10 @@ export async function checkActiveSlaCompliance(): Promise<{ checked: number; ale
 
 function calcSlaStatus(
   incident: {
+    id: string
+    companyId: string
     createdAt: Date
+    incidentNumber: string
     responseDueAt: Date | null
     resolutionDueAt: Date | null
     firstRespondedAt: Date | null

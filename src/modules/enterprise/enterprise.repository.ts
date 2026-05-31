@@ -15,6 +15,7 @@ export type ListOptions = {
   to?: string | null
   sort?: string
   order?: 'asc' | 'desc'
+  deletedAt?: Date | null
 }
 
 export type PaginatedResult<T> = {

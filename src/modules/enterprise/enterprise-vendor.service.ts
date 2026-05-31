@@ -204,7 +204,7 @@ export async function updateContract(user: SessionUser, id: string, input: {
       endDate: input.endDate === undefined ? undefined : (input.endDate ? new Date(input.endDate) : null),
       renewalDate: input.renewalDate === undefined ? undefined : (input.renewalDate ? new Date(input.renewalDate) : null),
       autoRenew: input.autoRenew,
-      value: input.value === undefined ? undefined : new Prisma.Decimal(input.value),
+      value: input.value === undefined ? undefined : input.value === null ? null : new Prisma.Decimal(input.value),
       terms: input.terms as Prisma.InputJsonValue ?? undefined,
     },
     include: { vendor: { select: { id: true, name: true } } },
