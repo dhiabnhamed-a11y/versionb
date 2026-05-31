@@ -1,12 +1,9 @@
 'use client'
 
-import { useState, useCallback } from 'react'
+import Link from 'next/link'
 import { motion } from 'framer-motion'
-import ParticleBackground from './ParticleBackground'
-import AiRobot from './AiRobot'
-import DiagnosticsPanel from './DiagnosticsPanel'
-import RecoveryEngine from './RecoveryEngine'
-import type { ConnectionState } from './AiRobot'
+import { ArrowLeft, Home, LifeBuoy, RefreshCw, ShieldCheck } from 'lucide-react'
+import { BrandMark } from '@/components/brand/BrandMark'
 
 interface ErrorLayoutProps {
   title?: string
@@ -18,169 +15,151 @@ interface ErrorLayoutProps {
   showRecovery?: boolean
 }
 
+const statusItems = [
+  'Your workspace data remains protected.',
+  'Our team can use the reference code to trace this event.',
+  'You can retry safely or return to your dashboard.',
+]
+
 export default function ErrorLayout({
-  title = 'SYSTEM INTERRUPTION',
-  subtitle = 'The system encountered an unexpected state.',
+  title = 'Something went wrong',
+  subtitle = 'We could not load this page, but your workspace is still secure. Please try again or return to your dashboard.',
   code = 'ERR_500',
   children,
-  showRobot = true,
   showDiagnostics = true,
-  showRecovery = false,
 }: ErrorLayoutProps) {
-  const [aiState, setAiState] = useState<ConnectionState>('critical')
-  const [showConsole, setShowConsole] = useState(false)
-
-  const handleRetry = useCallback(() => {
-    setAiState('reconnecting')
-    setTimeout(() => {
-      window.location.reload()
-    }, 3000)
-  }, [])
-
-  const handleRunDiagnostics = useCallback(() => {
-    setShowConsole(!showConsole)
-  }, [showConsole])
-
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-[#07090e]">
-      <ParticleBackground />
+    <main className="min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
+      <div className="relative isolate flex min-h-screen items-center justify-center overflow-hidden px-4 py-10 sm:px-6 lg:px-8">
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 -z-10"
+          style={{
+            background:
+              'linear-gradient(180deg, rgba(255,255,255,0.9) 0%, rgba(247,248,250,0.95) 48%, rgba(238,241,245,1) 100%)',
+          }}
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-x-0 top-0 -z-10 h-72 border-b border-[var(--border)]"
+          style={{
+            background:
+              'radial-gradient(circle at 24% 20%, rgba(8,145,178,0.12), transparent 32rem), radial-gradient(circle at 78% 10%, rgba(217,119,6,0.1), transparent 26rem)',
+          }}
+        />
 
-      <div
-        className="absolute inset-0 pointer-events-none"
-        style={{
-          background: `
-            radial-gradient(ellipse 80% 60% at 50% 40%, rgba(99,102,241,0.03) 0%, transparent 70%),
-            radial-gradient(ellipse 60% 40% at 30% 60%, rgba(34,211,238,0.02) 0%, transparent 60%),
-            radial-gradient(ellipse 60% 40% at 70% 30%, rgba(99,102,241,0.02) 0%, transparent 60%)
-          `,
-        }}
-      />
-
-      <div
-        className="absolute inset-0 pointer-events-none opacity-[0.015]"
-        style={{
-          backgroundImage: `
-            linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
-          `,
-          backgroundSize: '60px 60px',
-        }}
-      />
-
-      <div className="relative z-10 flex flex-col items-center justify-center min-h-screen px-4 py-12">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
+        <motion.section
+          initial={{ opacity: 0, y: 12 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: 'easeOut' }}
-          className="text-center mb-8"
+          transition={{ duration: 0.35, ease: 'easeOut' }}
+          className="w-full max-w-5xl"
+          aria-labelledby="error-title"
         >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
+          <div
+            className={`grid overflow-hidden rounded-lg border border-[var(--border)] bg-white shadow-[var(--shadow-premium)] ${
+              showDiagnostics ? 'lg:grid-cols-[1.08fr_0.92fr]' : ''
+            }`}
           >
-            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/[0.03] border border-white/[0.06] mb-6">
-              <motion.div
-                className="w-1.5 h-1.5 rounded-full bg-[var(--accent)]"
-                animate={{ opacity: [1, 0.3, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-              <span className="font-mono text-[10px] tracking-[0.2em] text-[var(--text-secondary)]/40">
-                TASKIT OS v3.0 — EMERGENCY PROTOCOL
-              </span>
+            <div className="flex min-h-[560px] flex-col justify-between p-6 sm:p-8 lg:p-10">
+              <div>
+                <Link
+                  href="/"
+                  className="inline-flex items-center gap-3 text-sm font-semibold text-[var(--text-secondary)] transition-colors hover:text-[var(--accent)]"
+                >
+                  <BrandMark className="h-9 w-9" />
+                  <span>TASKIT OS</span>
+                </Link>
+
+                <div className="mt-14 max-w-2xl">
+                  <div className="inline-flex items-center gap-2 rounded-full border border-[var(--success-border)] bg-[var(--success-light)] px-3 py-1 text-xs font-semibold text-[var(--success-text)]">
+                    <ShieldCheck className="h-4 w-4" aria-hidden="true" />
+                    Secure recovery screen
+                  </div>
+
+                  <p className="mt-6 text-sm font-semibold uppercase tracking-[0.14em] text-[var(--text-muted)]">
+                    Reference {code}
+                  </p>
+                  <h1 id="error-title" className="mt-3 text-3xl font-bold tracking-normal text-[var(--text-primary)] sm:text-5xl">
+                    {title}
+                  </h1>
+                  <p className="mt-5 max-w-xl text-base leading-7 text-[var(--text-secondary)]">
+                    {subtitle}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-10">
+                {children ? (
+                  <div className="flex flex-col gap-3 sm:flex-row">{children}</div>
+                ) : (
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <button
+                      type="button"
+                      onClick={() => window.location.reload()}
+                      className="btn-primary"
+                    >
+                      <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                      Try again
+                    </button>
+                    <Link href="/dashboard" className="btn-secondary">
+                      <Home className="h-4 w-4" aria-hidden="true" />
+                      Go to dashboard
+                    </Link>
+                  </div>
+                )}
+
+                <Link
+                  href="/"
+                  className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-[var(--text-muted)] transition-colors hover:text-[var(--accent)]"
+                >
+                  <ArrowLeft className="h-4 w-4" aria-hidden="true" />
+                  Back to homepage
+                </Link>
+              </div>
             </div>
-          </motion.div>
 
-          <h1
-            className="text-4xl md:text-6xl lg:text-7xl font-bold tracking-tight mb-4"
-            style={{
-              background: 'linear-gradient(135deg, #f1f5f9 0%, #6366f1 50%, #22d3ee 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}
-          >
-            {code}
-          </h1>
+            {showDiagnostics && (
+              <aside className="border-t border-[var(--border)] bg-[var(--bg-elevated)] p-6 sm:p-8 lg:border-l lg:border-t-0 lg:p-10">
+                <div className="flex h-full flex-col justify-between gap-8">
+                  <div>
+                    <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-[var(--info-border)] bg-[var(--info-light)] text-[var(--info-text)]">
+                      <LifeBuoy className="h-6 w-6" aria-hidden="true" />
+                    </div>
+                    <h2 className="mt-6 text-lg font-bold text-[var(--text-primary)]">
+                      What happens next
+                    </h2>
+                    <p className="mt-3 text-sm leading-6 text-[var(--text-secondary)]">
+                      This is a temporary application error page. It does not mean your account,
+                      files, billing, or workspace permissions were exposed.
+                    </p>
+                  </div>
 
-          <h2 className="text-lg md:text-xl font-semibold text-[var(--text-secondary)]/80 mb-2 tracking-wide">
-            {title}
-          </h2>
+                  <div className="space-y-3">
+                    {statusItems.map((item) => (
+                      <div
+                        key={item}
+                        className="flex gap-3 rounded-lg border border-[var(--border)] bg-white p-4 text-sm text-[var(--text-secondary)]"
+                      >
+                        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--success)]" aria-hidden="true" />
+                        <span>{item}</span>
+                      </div>
+                    ))}
+                  </div>
 
-          <p className="text-sm text-[var(--text-secondary)]/50 max-w-md mx-auto">
-            {subtitle}
-          </p>
-        </motion.div>
-
-        {showRobot && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.4, ease: 'easeOut' }}
-            className="mb-8 w-48 h-48 md:w-64 md:h-64 lg:w-80 lg:h-80"
-          >
-            <AiRobot state={aiState} />
-          </motion.div>
-        )}
-
-        {showRecovery && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.6 }}
-            className="w-full max-w-lg mb-8"
-          >
-            <RecoveryEngine state={aiState} onStateChange={setAiState} onRetry={handleRetry} />
-          </motion.div>
-        )}
-
-        {showDiagnostics && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ duration: 0.6, delay: 1 }}
-            className="mb-8"
-          >
-            <DiagnosticsPanel state={aiState} />
-          </motion.div>
-        )}
-
-        {children}
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 1.4 }}
-          className="flex gap-3"
-        >
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleRetry}
-            className="px-6 py-2.5 rounded-lg font-mono text-xs tracking-wider font-semibold transition-colors border border-[var(--accent)]/30 text-[var(--accent)] hover:bg-[var(--accent)]/10"
-          >
-            ⟳ RETRY CONNECTION
-          </motion.button>
-
-          <motion.button
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleRunDiagnostics}
-            className="px-6 py-2.5 rounded-lg font-mono text-xs tracking-wider font-semibold transition-colors border border-white/10 text-[var(--text-secondary)]/60 hover:bg-white/5"
-          >
-            {showConsole ? 'HIDE CONSOLE' : 'RUN DIAGNOSTICS'}
-          </motion.button>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 2 }}
-          className="mt-12 text-[10px] font-mono tracking-[0.3em] text-[var(--text-secondary)]/20"
-        >
-          TASKIT OS v3.0.1 · RECOVERY INTERFACE
-        </motion.div>
+                  <div className="rounded-lg border border-[var(--border)] bg-white p-4">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--text-muted)]">
+                      Support reference
+                    </p>
+                    <p className="mt-2 font-mono text-sm font-semibold text-[var(--text-primary)]">
+                      {code}
+                    </p>
+                  </div>
+                </div>
+              </aside>
+            )}
+          </div>
+        </motion.section>
       </div>
-    </div>
+    </main>
   )
 }

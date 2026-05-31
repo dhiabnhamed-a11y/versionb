@@ -1,323 +1,220 @@
 'use client'
 
-import { useEffect, useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
+import Link from 'next/link'
+
+const pageStyles = `
+  :root {
+    color-scheme: light;
+    --bg: #f7f8fa;
+    --card: #ffffff;
+    --line: #e2e7ee;
+    --text: #0b1628;
+    --muted: #64748b;
+    --secondary: #2e4060;
+    --accent: #0369a1;
+    --accent-hover: #0284c7;
+    --success-bg: #d1fae5;
+    --success-text: #065f46;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      radial-gradient(circle at 20% 12%, rgba(8, 145, 178, 0.12), transparent 28rem),
+      radial-gradient(circle at 82% 0%, rgba(217, 119, 6, 0.1), transparent 24rem),
+      linear-gradient(180deg, #ffffff 0%, var(--bg) 52%, #eef1f5 100%);
+    color: var(--text);
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  }
+
+  .page {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+  }
+
+  .panel {
+    width: min(920px, 100%);
+    display: grid;
+    grid-template-columns: minmax(0, 1.08fr) minmax(280px, 0.92fr);
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--card);
+    box-shadow: 0 20px 48px rgba(11, 22, 40, 0.13);
+  }
+
+  .main, .side { padding: 40px; }
+  .main { min-height: 520px; display: flex; flex-direction: column; justify-content: space-between; }
+  .side { border-left: 1px solid var(--line); background: #f3f5f8; }
+  .brand { display: inline-flex; align-items: center; gap: 12px; color: var(--secondary); font-weight: 700; text-decoration: none; }
+  .mark {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #2142ff 0%, #24c8f8 55%, #c8fb6d 100%);
+    color: #08172b;
+    font-weight: 900;
+  }
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    width: fit-content;
+    border-radius: 999px;
+    background: var(--success-bg);
+    color: var(--success-text);
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 700;
+  }
+  .dot { width: 8px; height: 8px; border-radius: 999px; background: #059669; }
+  .eyebrow {
+    margin-top: 32px;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+  }
+  h1 { margin: 12px 0 0; font-size: clamp(32px, 5vw, 56px); line-height: 1.05; letter-spacing: 0; }
+  p { color: var(--secondary); line-height: 1.7; }
+  .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+  button, .link {
+    min-height: 46px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+  button {
+    border: 0;
+    background: linear-gradient(135deg, var(--accent) 0%, #0891b2 100%);
+    color: white;
+  }
+  button:hover { background: var(--accent-hover); }
+  button:disabled { opacity: 0.65; cursor: wait; }
+  .link { border: 1px solid var(--line); color: var(--text); background: white; }
+  .support-card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: white;
+    padding: 18px;
+  }
+  .support-card + .support-card { margin-top: 12px; }
+  .label {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .code { margin-top: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-weight: 700; }
+
+  @media (max-width: 760px) {
+    .panel { grid-template-columns: 1fr; }
+    .main { min-height: auto; }
+    .main, .side { padding: 28px; }
+    .side { border-left: 0; border-top: 1px solid var(--line); }
+  }
+`
 
 export default function GlobalError({
   error,
   reset,
+  unstable_retry,
 }: {
   error: Error & { digest?: string }
-  reset: () => void
+  reset?: () => void
+  unstable_retry?: () => void
 }) {
-  const [state, setState] = useState<'critical' | 'reconnecting'>('critical')
-  const [logLines, setLogLines] = useState<string[]>([])
-  const [mousePos, setMousePos] = useState({ x: 0.5, y: 0.5 })
+  const [isRetrying, setIsRetrying] = useState(false)
 
   useEffect(() => {
-    console.error('[FATAL] Root error:', error)
+    console.error('[global-error-boundary] Root error:', {
+      message: error.message,
+      digest: error.digest,
+    })
   }, [error])
-
-  useEffect(() => {
-    const lines = [
-      '[SYS] CRITICAL SYSTEM FAILURE.',
-      '[AI] Fatal error at application root.',
-      '[ERR] ' + (error.message || 'Unknown error'),
-      '[DBG] Digest: ' + (error.digest || 'N/A'),
-      '[AI] Initializing emergency recovery protocol...',
-      '[SYS] Recovery interface active.',
-    ]
-    let i = 0
-    const interval = setInterval(() => {
-      if (i < lines.length) {
-        setLogLines((prev) => [...prev, lines[i]])
-        i++
-      } else {
-        clearInterval(interval)
-      }
-    }, 600)
-    return () => clearInterval(interval)
-  }, [error])
-
-  useEffect(() => {
-    const onMouse = (e: MouseEvent) => {
-      setMousePos({
-        x: e.clientX / window.innerWidth,
-        y: e.clientY / window.innerHeight,
-      })
-    }
-    window.addEventListener('mousemove', onMouse)
-    return () => window.removeEventListener('mousemove', onMouse)
-  }, [])
 
   const handleRetry = useCallback(() => {
-    setState('reconnecting')
-    setTimeout(() => {
-      reset()
-    }, 2500)
-  }, [reset])
+    setIsRetrying(true)
+    const retry = unstable_retry ?? reset
 
-  const scanHeadX = (mousePos.x - 0.5) * 6
-  const scanHeadY = (mousePos.y - 0.5) * 6
+    if (retry) {
+      retry()
+      return
+    }
+
+    window.location.reload()
+  }, [reset, unstable_retry])
 
   return (
-    <html>
-      <body style={{ margin: 0, background: '#07090e', color: '#e2e8f0', fontFamily: 'system-ui, sans-serif' }}>
-        <div style={{
-          position: 'relative',
-          minHeight: '100vh',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '2rem',
-        }}>
-          {/* Animated grid background */}
-          <div style={{
-            position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.015,
-            backgroundImage: `
-              linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-              linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)
-            `,
-            backgroundSize: '60px 60px',
-          }} />
+    <html lang="en">
+      <head>
+        <title>TASKIT OS - Temporary issue</title>
+        <style>{pageStyles}</style>
+      </head>
+      <body>
+        <main className="page" aria-labelledby="global-error-title">
+          <section className="panel">
+            <div className="main">
+              <div>
+                <Link className="brand" href="/">
+                  <span className="mark" aria-hidden="true">T</span>
+                  <span>TASKIT OS</span>
+                </Link>
 
-          {/* Ambient glow */}
-          <div style={{
-            position: 'absolute', inset: 0, pointerEvents: 'none',
-            background: `
-              radial-gradient(ellipse 80% 60% at 50% 40%, rgba(244,63,94,0.04) 0%, transparent 70%),
-              radial-gradient(ellipse 60% 40% at 30% 60%, rgba(99,102,241,0.03) 0%, transparent 60%)
-            `,
-          }} />
+                <div style={{ marginTop: 56 }}>
+                  <div className="badge">
+                    <span className="dot" aria-hidden="true" />
+                    Secure recovery screen
+                  </div>
+                  <p className="eyebrow">Reference ERR_500</p>
+                  <h1 id="global-error-title">We could not load the application</h1>
+                  <p>
+                    A temporary issue interrupted TASKIT OS. Your account and workspace data remain protected.
+                    Please retry the application or return to the homepage.
+                  </p>
+                </div>
+              </div>
 
-          {/* Fog layer */}
-          <div style={{
-            position: 'absolute', inset: 0, pointerEvents: 'none', opacity: 0.03,
-            background: `linear-gradient(180deg, transparent 0%, rgba(244,63,94,0.2) 50%, transparent 100%)`,
-            animation: 'globalDrift 8s ease-in-out infinite',
-          }} />
-
-          <style>{`
-            @keyframes globalDrift {
-              0%, 100% { transform: translateY(0) scale(1); opacity: 0.03; }
-              50% { transform: translateY(-20px) scale(1.05); opacity: 0.06; }
-            }
-            @keyframes globalPulse {
-              0%, 100% { opacity: 0.3; }
-              50% { opacity: 1; }
-            }
-            @keyframes globalScan {
-              0% { transform: translateY(-100%); }
-              100% { transform: translateY(100%); }
-            }
-          `}</style>
-
-          {/* Content */}
-          <div style={{
-            position: 'relative',
-            zIndex: 10,
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            maxWidth: '600px',
-            width: '100%',
-          }}>
-            {/* Status badge */}
-            <div style={{
-              display: 'inline-flex', alignItems: 'center', gap: '8px',
-              padding: '6px 16px', borderRadius: '9999px',
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.06)',
-              marginBottom: '24px',
-            }}>
-              <div style={{
-                width: '8px', height: '8px', borderRadius: '50%',
-                background: '#f43f5e',
-                animation: 'globalPulse 1.5s ease-in-out infinite',
-              }} />
-              <span style={{
-                fontSize: '10px', letterSpacing: '0.3em',
-                color: 'rgba(255,255,255,0.3)',
-                fontFamily: 'monospace',
-              }}>
-                TASKIT OS v3.0 — FATAL ERROR
-              </span>
-            </div>
-
-            {/* Code */}
-            <h1 style={{
-              fontSize: 'clamp(3rem, 10vw, 6rem)',
-              fontWeight: 700, lineHeight: 1, marginBottom: '16px',
-              letterSpacing: '-0.02em',
-              background: 'linear-gradient(135deg, #f1f5f9 0%, #f43f5e 50%, #6366f1 100%)',
-              WebkitBackgroundClip: 'text',
-              WebkitTextFillColor: 'transparent',
-              backgroundClip: 'text',
-            }}>
-              FTL_500
-            </h1>
-
-            <h2 style={{
-              fontSize: '1.25rem', fontWeight: 600,
-              color: 'rgba(255,255,255,0.7)',
-              marginBottom: '8px', letterSpacing: '0.05em',
-            }}>
-              FATAL SYSTEM ERROR
-            </h2>
-
-            <p style={{
-              fontSize: '0.875rem', color: 'rgba(255,255,255,0.35)',
-              textAlign: 'center', maxWidth: '400px', lineHeight: 1.6,
-              marginBottom: '32px',
-            }}>
-              A critical error occurred at the application root level.
-              Emergency protocol has been activated. System diagnostics are being collected.
-            </p>
-
-            {/* Robot SVG */}
-            <div style={{
-              width: '160px', height: '160px', marginBottom: '32px',
-              perspective: '800px',
-            }}>
-              <div style={{
-                width: '100%', height: '100%',
-                animation: 'floatBreath 4s ease-in-out infinite',
-                transform: `rotateX(${scanHeadY}deg) rotateY(${scanHeadX}deg)`,
-                transition: 'transform 0.3s ease-out',
-              }}>
-                <svg viewBox="-80 -80 160 160" style={{ width: '100%', height: '100%' }}>
-                  <radialGradient id="gHead" cx="50%" cy="40%" r="60%">
-                    <stop offset="0%" stopColor="#f43f5e" stopOpacity="0.08" />
-                    <stop offset="100%" stopColor="#f43f5e" stopOpacity="0.02" />
-                  </radialGradient>
-                  <polygon points="0,-60 52,-30 52,30 0,60 -52,30 -52,-30" fill="url(#gHead)" stroke="#f43f5e" strokeWidth="1" opacity="0.6" />
-                  <polygon points="0,-55 48,-27 48,27 0,55 -48,27 -48,-27" fill="none" stroke="#f43f5e" strokeWidth="0.3" opacity="0.15" />
-                  {/* Critical X marks */}
-                  <line x1="-24" y1="-24" x2="24" y2="24" stroke="#f43f5e" strokeWidth="1.5" opacity="0.8" />
-                  <line x1="-24" y1="24" x2="24" y2="-24" stroke="#f43f5e" strokeWidth="1.5" opacity="0.8" />
-                  {/* Eyes */}
-                  <ellipse cx="-28" cy="0" rx="14" ry="12" fill="none" stroke="#f43f5e" strokeWidth="1" opacity="0.8" />
-                  <ellipse cx="28" cy="0" rx="14" ry="12" fill="none" stroke="#f43f5e" strokeWidth="1" opacity="0.8" />
-                  <circle cx="-28" cy="0" r="4" fill="#f43f5e" opacity="0.4" />
-                  <circle cx="28" cy="0" r="4" fill="#f43f5e" opacity="0.4" />
-                  {/* Critical pulse ring */}
-                  <circle cx="0" cy="0" r="52" fill="none" stroke="#f43f5e" strokeWidth="0.5" opacity="0.3">
-                    <animate attributeName="r" values="52;58;52" dur="2s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="0.3;0;0.3" dur="2s" repeatCount="indefinite" />
-                  </circle>
-                </svg>
+              <div className="actions">
+                <button type="button" onClick={handleRetry} disabled={isRetrying}>
+                  {isRetrying ? 'Retrying...' : 'Try again'}
+                </button>
+                <Link className="link" href="/">
+                  Back to homepage
+                </Link>
               </div>
             </div>
 
-            {/* Status bar */}
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '12px',
-              width: '100%', maxWidth: '500px',
-              padding: '12px 16px',
-              borderRadius: '8px',
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid rgba(255,255,255,0.06)',
-              marginBottom: '16px',
-            }}>
-              <div style={{
-                width: '8px', height: '8px', borderRadius: '50%',
-                background: '#f43f5e', flexShrink: 0,
-                animation: 'globalPulse 1.5s ease-in-out infinite',
-              }} />
-              <span style={{
-                fontSize: '11px', fontFamily: 'monospace',
-                letterSpacing: '0.15em', fontWeight: 600,
-                color: '#f43f5e',
-              }}>
-                CRITICAL FAILURE — RECOVERY PROTOCOL
-              </span>
-            </div>
-
-            {/* Console */}
-            <div style={{
-              width: '100%', maxWidth: '500px',
-              padding: '12px 16px',
-              borderRadius: '8px',
-              background: 'rgba(0,0,0,0.4)',
-              border: '1px solid rgba(255,255,255,0.06)',
-              fontFamily: 'monospace',
-              fontSize: '11px',
-              lineHeight: 1.8,
-              minHeight: '140px',
-              maxHeight: '200px',
-              overflowY: 'auto',
-              marginBottom: '24px',
-            }}>
-              {logLines.map((line, i) => (
-                <div key={i} style={{ padding: '1px 0' }}>
-                  <span style={{ color: line.startsWith('[ERR]') ? '#f43f5e' : 'rgba(255,255,255,0.4)' }}>
-                    {line}
-                  </span>
-                </div>
-              ))}
-              {logLines.length < 6 && (
-                <span style={{ color: '#f43f5e', opacity: 0.7 }}>
-                  <span style={{ animation: 'globalPulse 0.8s step-end infinite' }}>▌</span>
-                </span>
-              )}
-            </div>
-
-            {/* Buttons */}
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button
-                onClick={handleRetry}
-                disabled={state === 'reconnecting'}
-                style={{
-                  padding: '12px 28px',
-                  borderRadius: '8px',
-                  fontFamily: 'monospace',
-                  fontSize: '11px',
-                  letterSpacing: '0.1em',
-                  fontWeight: 600,
-                  border: '2px solid rgba(244,63,94,0.3)',
-                  background: state === 'reconnecting'
-                    ? 'rgba(244,63,94,0.05)'
-                    : 'rgba(244,63,94,0.1)',
-                  color: '#f43f5e',
-                  cursor: state === 'reconnecting' ? 'not-allowed' : 'pointer',
-                  opacity: state === 'reconnecting' ? 0.5 : 1,
-                  transition: 'all 0.3s ease',
-                }}
-                onMouseEnter={(e) => {
-                  if (state !== 'reconnecting') {
-                    e.currentTarget.style.borderColor = 'rgba(244,63,94,0.6)'
-                    e.currentTarget.style.boxShadow = '0 0 20px rgba(244,63,94,0.15)'
-                  }
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.borderColor = 'rgba(244,63,94,0.3)'
-                  e.currentTarget.style.boxShadow = 'none'
-                }}
-              >
-                {state === 'reconnecting' ? '⟳ RECOVERING...' : '⟳ RETRY APPLICATION'}
-              </button>
-            </div>
-
-            {/* Footer */}
-            <div style={{
-              marginTop: '48px',
-              fontSize: '10px',
-              fontFamily: 'monospace',
-              letterSpacing: '0.3em',
-              color: 'rgba(255,255,255,0.12)',
-            }}>
-              TASKIT OS v3.0.1 · FATAL RECOVERY INTERFACE
-            </div>
-          </div>
-        </div>
-
-        <style>{`
-          @keyframes floatBreath {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-6px); }
-          }
-        `}</style>
+            <aside className="side">
+              <div className="support-card">
+                <p className="label">What this means</p>
+                <p>
+                  The interface stopped before it could finish loading. This screen avoids exposing technical
+                  details while giving support a reference to investigate.
+                </p>
+              </div>
+              <div className="support-card">
+                <p className="label">Support reference</p>
+                <p className="code">{error.digest || 'ERR_500'}</p>
+              </div>
+            </aside>
+          </section>
+        </main>
       </body>
     </html>
   )
