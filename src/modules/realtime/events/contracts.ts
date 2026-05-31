@@ -61,7 +61,7 @@ export function buildRealtimeEnvelope(input: {
 }
 
 export function workspaceRoom(workspaceId: string) {
-  return `company:${workspaceId}`
+  return `workspace:${workspaceId}`
 }
 
 export function userRoom(userId: string) {
@@ -69,5 +69,5 @@ export function userRoom(userId: string) {
 }
 
 export function channelRoom(workspaceId: string, channelId: string) {
-  return `company:${workspaceId}:channel:${channelId}`
+  return `workspace:${workspaceId}:channel:${channelId}`
 }

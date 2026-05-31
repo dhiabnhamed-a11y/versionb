@@ -64,7 +64,7 @@ export async function getSocket(): Promise<Socket | null> {
         path: process.env.NEXT_PUBLIC_SOCKET_IO_PATH || '/api/socketio',
         addTrailingSlash: false,
         withCredentials: true,
-        transports: ['websocket', 'polling'],
+        transports: ['websocket'],
         reconnectionAttempts: Infinity,
         reconnectionDelay: 500,
         reconnectionDelayMax: 5000,

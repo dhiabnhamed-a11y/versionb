@@ -62,9 +62,9 @@ export function startRealtimeDeliveryWorker() {
       ...parseRedisConnection(redisUrl),
       maxRetriesPerRequest: null,
     },
-    concurrency: Math.max(Number(process.env.REALTIME_WORKER_CONCURRENCY ?? 25), 1),
+    concurrency: Math.min(Math.max(Number(process.env.REALTIME_WORKER_CONCURRENCY ?? 10), 5), 10),
     limiter: {
-      max: Math.max(Number(process.env.REALTIME_WORKER_RATE_LIMIT_MAX ?? 1_000), 1),
+      max: Math.max(Number(process.env.REALTIME_WORKER_RATE_LIMIT_MAX ?? 100), 1),
       duration: Math.max(Number(process.env.REALTIME_WORKER_RATE_LIMIT_DURATION_MS ?? 1_000), 100),
     },
   })

@@ -119,12 +119,14 @@ async function authenticateSocket(socket: Socket) {
 
 export async function createSocketServer(httpServer: HttpServer) {
   const instanceId = makeInstanceId()
-  const port = Number(process.env.PORT || 3000)
   const io = new SocketIOServer(httpServer, {
     path: process.env.SOCKET_IO_PATH || '/api/socketio',
     addTrailingSlash: false,
+    transports: ['websocket'],
+    perMessageDeflate: false,
+    httpCompression: false,
     cors: {
-      origin: process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL || `http://localhost:${port}`,
+      origin: process.env.APP_URL || false,
       credentials: true,
       methods: ['GET', 'POST'],
     },
@@ -132,7 +134,7 @@ export async function createSocketServer(httpServer: HttpServer) {
       maxDisconnectionDuration: Math.max(Number(process.env.SOCKET_IO_RECOVERY_MS ?? 120_000), 10_000),
       skipMiddlewares: false,
     },
-    pingInterval: Math.max(Number(process.env.SOCKET_IO_PING_INTERVAL_MS ?? 20_000), 5_000),
+    pingInterval: Math.max(Number(process.env.SOCKET_IO_PING_INTERVAL_MS ?? 25_000), 5_000),
     pingTimeout: Math.max(Number(process.env.SOCKET_IO_PING_TIMEOUT_MS ?? 20_000), 5_000),
     maxHttpBufferSize: Math.max(Number(process.env.SOCKET_IO_MAX_HTTP_BUFFER_BYTES ?? 1_000_000), 64_000),
   })
@@ -198,7 +200,7 @@ export async function createSocketServer(httpServer: HttpServer) {
       }
     })
 
-    socket.on('workspace:subscribe', async (workspaceId: string) => {
+    const subscribeToWorkspace = async (workspaceId: string) => {
       if (!(await checkSocketRateLimit(socket, 'workspace:subscribe', 30, 10_000))) return
       if (!workspaceId || workspaceId !== companyId) {
         socket.emit('realtime:error', { code: 'FORBIDDEN', message: 'Unauthorized workspace subscription.' })
@@ -208,6 +210,13 @@ export async function createSocketServer(httpServer: HttpServer) {
       await cleanupStalePresence(workspaceId)
       recordRealtimeMetric('room.joined', { socketId: socket.id, userId: user.id, workspaceId, room: 'workspace' })
       socket.emit('presence_snapshot', await getPresenceSnapshot(workspaceId))
+    }
+
+    socket.on('workspace:subscribe', subscribeToWorkspace)
+
+    socket.on('subscribe', async (payload: { workspaceId?: string } | string) => {
+      const workspaceId = typeof payload === 'string' ? payload : payload?.workspaceId
+      await subscribeToWorkspace(workspaceId ?? '')
     })
 
     socket.on('channel:subscribe', async (channelId: string) => {
@@ -252,6 +261,9 @@ export async function createSocketServer(httpServer: HttpServer) {
 
     socket.on('disconnect', (reason) => {
       clearInterval(heartbeat)
+      void markActiveChannel(socket.id, null).catch((error) =>
+        logger.warn('realtime.room_cleanup_failed', { socketId: socket.id, error: error instanceof Error ? error.message : String(error) })
+      )
       recordRealtimeMetric('socket.disconnected', {
         socketId: socket.id,
         userId: user.id,

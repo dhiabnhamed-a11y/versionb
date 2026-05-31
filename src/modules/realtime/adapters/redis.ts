@@ -18,9 +18,14 @@ export type RedisConnectionOptions = {
 
 const realtimeRedisState = globalThis as typeof globalThis & {
   __taskitRealtimeRedis?: Redis | null
+  __taskitRealtimeRedisPool?: Redis[]
+  __taskitRealtimeRedisPoolIndex?: number
   __taskitRealtimeEmitterRedis?: Redis | null
   __taskitRealtimeEmitter?: Emitter | null
 }
+
+const REDIS_POOL_MIN = Math.min(Math.max(Number(process.env.REALTIME_REDIS_POOL_MIN ?? 5), 1), 20)
+const REDIS_POOL_MAX = Math.min(Math.max(Number(process.env.REALTIME_REDIS_POOL_MAX ?? 20), REDIS_POOL_MIN), 20)
 
 export function getRealtimeRedisUrl() {
   return process.env.REALTIME_REDIS_URL || process.env.REDIS_URL || process.env.QUEUE_REDIS_URL || ''
@@ -57,7 +62,7 @@ export function createRealtimeRedisClient(name: string, options: Partial<RedisOp
     ...(parseRedisConnection(url) as RedisOptions),
     connectionName: `taskit:${name}`,
     retryStrategy(times) {
-      return Math.min(times * 250, 5_000)
+      return Math.min(250 * 2 ** Math.min(times - 1, 5), 5_000)
     },
     reconnectOnError(error) {
       return /READONLY|ETIMEDOUT|ECONNRESET/i.test(error.message)
@@ -76,9 +81,21 @@ export function createRealtimeRedisClient(name: string, options: Partial<RedisOp
 
 export function getRealtimeRedis() {
   if (!isRealtimeRedisConfigured()) return null
-  if (realtimeRedisState.__taskitRealtimeRedis !== undefined) return realtimeRedisState.__taskitRealtimeRedis
+  if (realtimeRedisState.__taskitRealtimeRedisPool === undefined) {
+    const poolSize = Math.min(REDIS_POOL_MIN, REDIS_POOL_MAX)
+    realtimeRedisState.__taskitRealtimeRedisPool = Array.from({ length: poolSize }, (_value, index) => createRealtimeRedisClient(`state-${index + 1}`)).filter(
+      (client): client is Redis => Boolean(client)
+    )
+    realtimeRedisState.__taskitRealtimeRedisPoolIndex = 0
+    realtimeRedisState.__taskitRealtimeRedis = realtimeRedisState.__taskitRealtimeRedisPool[0] ?? null
+  }
 
-  realtimeRedisState.__taskitRealtimeRedis = createRealtimeRedisClient('state')
+  const pool = realtimeRedisState.__taskitRealtimeRedisPool
+  if (!pool?.length) return realtimeRedisState.__taskitRealtimeRedis ?? null
+
+  const index = realtimeRedisState.__taskitRealtimeRedisPoolIndex ?? 0
+  realtimeRedisState.__taskitRealtimeRedisPoolIndex = (index + 1) % pool.length
+  realtimeRedisState.__taskitRealtimeRedis = pool[index]
   return realtimeRedisState.__taskitRealtimeRedis
 }
 
