@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client'
 
 import { prisma } from '@/lib/db'
+import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'
 import { normalizeCompanyStatus, type CompanyStatus } from '@/lib/security'
 
 export type SuperAdminCompanyStatusFilter = CompanyStatus | 'ALL'
@@ -59,6 +60,12 @@ type SuperAdminCompanyRecord = {
   } | null
 }
 
+type LegacySuperAdminCompanyRecord = Omit<SuperAdminCompanyRecord, 'reviewNote' | 'reviewedAt' | 'reviewedBy'> & {
+  reviewNote?: null
+  reviewedAt?: null
+  reviewedBy?: null
+}
+
 function serializeCompany(company: SuperAdminCompanyRecord): SerializedSuperAdminCompany {
   return {
     id: company.id,
@@ -88,6 +95,15 @@ function serializeCompany(company: SuperAdminCompanyRecord): SerializedSuperAdmi
         }
       : null,
   }
+}
+
+function serializeLegacyCompany(company: LegacySuperAdminCompanyRecord): SerializedSuperAdminCompany {
+  return serializeCompany({
+    ...company,
+    reviewNote: null,
+    reviewedAt: null,
+    reviewedBy: null,
+  })
 }
 
 function buildCompanyFilter(status: SuperAdminCompanyStatusFilter, query: string): Prisma.CompanyWhereInput {
@@ -126,46 +142,95 @@ export async function listSuperAdminCompanies(input: { status?: string; query?: 
   const query = input.query?.trim() ?? ''
   const where = buildCompanyFilter(status, query)
 
-  const [companies, pendingCount, approvedCount, rejectedCount, disabledCount] = await Promise.all([
-    prisma.company.findMany({
-      where,
-      include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            accountStatus: true,
-            createdAt: true,
+  try {
+    const [companies, pendingCount, approvedCount, rejectedCount, disabledCount] = await Promise.all([
+      prisma.company.findMany({
+        where,
+        include: {
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              accountStatus: true,
+              createdAt: true,
+            },
+          },
+          reviewedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-        reviewedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-      },
-      orderBy: [{ createdAt: 'desc' }],
-      take: 100,
-    }),
-    prisma.company.count({ where: { status: 'PENDING' } }),
-    prisma.company.count({ where: { status: 'ACTIVE' } }),
-    prisma.company.count({ where: { status: 'REJECTED' } }),
-    prisma.company.count({ where: { status: 'DISABLED' } }),
-  ])
+        orderBy: [{ createdAt: 'desc' }],
+        take: 100,
+      }),
+      prisma.company.count({ where: { status: 'PENDING' } }),
+      prisma.company.count({ where: { status: 'ACTIVE' } }),
+      prisma.company.count({ where: { status: 'REJECTED' } }),
+      prisma.company.count({ where: { status: 'DISABLED' } }),
+    ])
 
-  return {
-    status,
-    query,
-    counts: {
-      PENDING: pendingCount,
-      ACTIVE: approvedCount,
-      REJECTED: rejectedCount,
-      DISABLED: disabledCount,
-    },
-    companies: companies.map((company) => serializeCompany(company)),
+    return {
+      status,
+      query,
+      counts: {
+        PENDING: pendingCount,
+        ACTIVE: approvedCount,
+        REJECTED: rejectedCount,
+        DISABLED: disabledCount,
+      },
+      companies: companies.map((company) => serializeCompany(company)),
+    }
+  } catch (error) {
+    if (!isMissingDatabaseObjectError(error)) throw error
+
+    const [companies, pendingCount, approvedCount, rejectedCount, disabledCount] = await Promise.all([
+      prisma.company.findMany({
+        where,
+        select: {
+          id: true,
+          name: true,
+          emailDomain: true,
+          companyType: true,
+          country: true,
+          industry: true,
+          registrationNumber: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              accountStatus: true,
+              createdAt: true,
+            },
+          },
+        },
+        orderBy: [{ createdAt: 'desc' }],
+        take: 100,
+      }),
+      prisma.company.count({ where: { status: 'PENDING' } }),
+      prisma.company.count({ where: { status: 'ACTIVE' } }),
+      prisma.company.count({ where: { status: 'REJECTED' } }),
+      prisma.company.count({ where: { status: 'DISABLED' } }),
+    ])
+
+    return {
+      status,
+      query,
+      counts: {
+        PENDING: pendingCount,
+        ACTIVE: approvedCount,
+        REJECTED: rejectedCount,
+        DISABLED: disabledCount,
+      },
+      companies: companies.map((company) => serializeLegacyCompany(company)),
+    }
   }
 }
 
@@ -219,33 +284,70 @@ export async function reviewCompanyRegistration(input: {
       },
     })
 
-    return tx.company.update({
-      where: { id: company.id },
-      data: {
-        status: nextStatus,
-        reviewNote: note,
-        reviewedAt: new Date(),
-        reviewedById: input.reviewerId,
-      },
-      include: {
-        owner: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            accountStatus: true,
-            createdAt: true,
+    try {
+      return await tx.company.update({
+        where: { id: company.id },
+        data: {
+          status: nextStatus,
+          reviewNote: note,
+          reviewedAt: new Date(),
+          reviewedById: input.reviewerId,
+        },
+        include: {
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              accountStatus: true,
+              createdAt: true,
+            },
+          },
+          reviewedBy: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
           },
         },
-        reviewedBy: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+      })
+    } catch (error) {
+      if (!isMissingDatabaseObjectError(error)) throw error
+
+      const legacyCompany = await tx.company.update({
+        where: { id: company.id },
+        data: { status: nextStatus },
+        select: {
+          id: true,
+          name: true,
+          emailDomain: true,
+          companyType: true,
+          country: true,
+          industry: true,
+          registrationNumber: true,
+          status: true,
+          createdAt: true,
+          updatedAt: true,
+          owner: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              accountStatus: true,
+              createdAt: true,
+            },
           },
         },
-      },
-    })
+      })
+
+      return {
+        ...legacyCompany,
+        reviewNote: null,
+        reviewedAt: null,
+        reviewedBy: null,
+      }
+    }
   })
 
   return serializeCompany(updatedCompany)
