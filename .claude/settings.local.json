@@ -12,7 +12,9 @@
       "Bash(node -e \"const p=require\\('./package.json'\\); const d={...p.dependencies,...p.devDependencies}; Object.entries\\(d\\).filter\\(\\([k]\\)=>['sentry','opentelemetry','bullmq','zod','prisma','ioredis'].some\\(x=>k.includes\\(x\\)\\)\\).forEach\\(\\([k,v]\\)=>console.log\\(k,v\\)\\)\")",
       "Bash(node --max-old-space-size=4096 node_modules/typescript/bin/tsc --noEmit --pretty false)",
       "Bash(node --max-old-space-size=4096 node_modules/typescript/bin/tsc --noEmit --pretty false prisma/seed-demo.ts --module commonjs --target es2020 --esModuleInterop true --moduleResolution node --skipLibCheck true)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\({scripts:p.scripts,prisma:p.prisma},null,2\\)\\)\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(Object.keys\\(p.dependencies\\).includes\\('tsconfig-paths'\\) || Object.keys\\(p.devDependencies||{}\\).includes\\('tsconfig-paths'\\) ? 'tsconfig-paths present' : 'MISSING'\\)\")"
     ]
   }
 }
