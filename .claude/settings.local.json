@@ -14,7 +14,12 @@
       "Bash(node --max-old-space-size=4096 node_modules/typescript/bin/tsc --noEmit --pretty false prisma/seed-demo.ts --module commonjs --target es2020 --esModuleInterop true --moduleResolution node --skipLibCheck true)",
       "Bash(node -e ' *)",
       "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(JSON.stringify\\({scripts:p.scripts,prisma:p.prisma},null,2\\)\\)\")",
-      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(Object.keys\\(p.dependencies\\).includes\\('tsconfig-paths'\\) || Object.keys\\(p.devDependencies||{}\\).includes\\('tsconfig-paths'\\) ? 'tsconfig-paths present' : 'MISSING'\\)\")"
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(Object.keys\\(p.dependencies\\).includes\\('tsconfig-paths'\\) || Object.keys\\(p.devDependencies||{}\\).includes\\('tsconfig-paths'\\) ? 'tsconfig-paths present' : 'MISSING'\\)\")",
+      "Bash(node -e \"const ts=require\\('./tsconfig.json'\\); console.log\\(JSON.stringify\\(ts.compilerOptions?.paths,null,2\\)\\)\")",
+      "Bash(npx tsx *)",
+      "Bash(npx prisma *)",
+      "Bash(node -e \"const {execSync}=require\\('child_process'\\);console.log\\(execSync\\('npx tsx scripts/check-tables.ts',{timeout:30000,encoding:'utf8',env:process.env,stdio:['pipe','pipe','pipe']}\\)\\);\")",
+      "Bash(node -e \"const {execSync}=require\\('child_process'\\);console.log\\(execSync\\('npx tsx scripts/check-tables.ts',{timeout:30000,encoding:'utf8',env:process.env,stdio:['pipe','pipe','pipe']}\\)\\)\")"
     ]
   }
 }

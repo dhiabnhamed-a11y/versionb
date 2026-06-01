@@ -285,7 +285,7 @@ async function seedLuminaryStudio(hashedPw: string) {
       id: cid, name: 'Luminary Studio', ownerId: owner.id, emailDomain: 'luminarystudio.io',
       companyType: 'DIGITAL_AGENCY', country: 'United States', industry: 'Creative Agency',
       registrationNumber: 'LS-2024-0881', status: 'ACTIVE', subscriptionStatus: 'ACTIVE',
-      planType: 'STARTER', seatCount: 8, metadata: { _demo: DEMO_TAG },
+      planType: 'STARTER', seatCount: 8,
     },
   })
 
@@ -440,7 +440,7 @@ async function seedNorthbridgeGroup(hashedPw: string) {
       id: cid, name: 'Northbridge Group', ownerId: owner.id, emailDomain: 'northbridgegroup.com',
       companyType: 'ENTERPRISE_OPERATIONS', country: 'United Kingdom', industry: 'Business Consulting',
       registrationNumber: 'NB-2023-0042', status: 'ACTIVE', subscriptionStatus: 'ACTIVE',
-      planType: 'STARTER', seatCount: 16, metadata: { _demo: DEMO_TAG },
+      planType: 'STARTER', seatCount: 16,
     },
   })
 
@@ -577,7 +577,7 @@ async function seedMeridianPulse(hashedPw: string) {
       id: cid, name: 'Meridian Pulse', ownerId: owner.id, emailDomain: 'meridianpulse.co',
       companyType: 'CONTENT_CREATION_AGENCY', country: 'France', industry: 'Media and Entertainment',
       registrationNumber: 'MP-FR-2024-1127', status: 'ACTIVE', subscriptionStatus: 'ACTIVE',
-      planType: 'STARTER', seatCount: 12, metadata: { _demo: DEMO_TAG },
+      planType: 'STARTER', seatCount: 12,
     },
   })
 
@@ -701,7 +701,7 @@ export type SeedDemoResult = {
 export async function runDemoSeed(reset = false): Promise<SeedDemoResult> {
   if (reset) {
     const existing = await prisma.company.findMany({
-      where: { metadata: { path: ['_demo'], equals: DEMO_TAG } },
+      where: { id: { startsWith: 'demo-co-' } },
       select: { id: true },
     })
     for (const c of existing) {
