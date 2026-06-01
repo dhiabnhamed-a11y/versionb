@@ -1,5 +1,8 @@
 import { PrismaClient } from '@prisma/client'
 import { createTenantAuditExtension } from '@/lib/prisma-tenant'
+import { validateEnv } from '@/lib/env'
+
+validateEnv()
 
 // Prisma Client always uses DATABASE_URL. If it points at db.*.supabase.co:5432, sign-up/API
 // calls often fail from Vercel or IPv4-only networks; use the Transaction pooler (6543) there.

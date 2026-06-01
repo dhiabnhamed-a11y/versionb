@@ -23,7 +23,6 @@ import {
   HardHat,
   HeartPulse,
   Hospital,
-  Infinity,
   Landmark,
   Languages,
   Loader2,
@@ -59,6 +58,16 @@ import styles from './SignupOnboardingClient.module.css'
 import type { OnboardingSelection } from '@/components/onboarding/OnboardingFlow'
 import { isBlockedOwnerEmailDomain } from '@/lib/signup-hints'
 import { getCountryCurrencyOptions } from '@/lib/currencies'
+import {
+  calculateWorkspacePlanTotal,
+  clampSeatCount,
+  getDefaultIsolation,
+  getDefaultPlanForWorkspace,
+  getWorkspacePlan,
+  getWorkspacePricing,
+  isFreePlan,
+  type BillingCycle,
+} from '@/lib/workspace-pricing'
 import {
   evaluatePasswordPolicy,
   PASSWORD_MIN_LENGTH,
@@ -200,6 +209,9 @@ export default function SignupOnboardingClient({
   const inviteCode = initialInviteCode.trim()
   const inviteMode = Boolean(inviteCode)
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
+  const [seatCount, setSeatCount] = useState(1)
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly')
+  const [isolationEnabled, setIsolationEnabled] = useState(false)
   const template = getTemplate(templateId)
   const hasRequiredLegalConsent = legalConsent.termsAccepted && legalConsent.privacyAccepted
   const passwordPolicy = evaluatePasswordPolicy(form.password, {
@@ -237,6 +249,14 @@ export default function SignupOnboardingClient({
     if (inviteMode) return
     persistOnboardingProgress({ step, templateId, companyType: selectedCompanyType, form, invites } satisfies PersistedOnboarding)
   }, [form, invites, inviteMode, selectedCompanyType, step, templateId])
+
+  useEffect(() => {
+    if (inviteMode) return
+    const defaultPlan = getDefaultPlanForWorkspace(selectedCompanyType)
+    setSelectedPlan(defaultPlan.id)
+    setSeatCount(defaultPlan.seats ?? 1)
+    setIsolationEnabled(getDefaultIsolation(defaultPlan))
+  }, [inviteMode, selectedCompanyType])
 
   useEffect(() => {
     trackOnboardingEvent('step_viewed', { step, templateId })
@@ -360,6 +380,12 @@ export default function SignupOnboardingClient({
             templateId,
             queuedInvites: invites,
           },
+          billingSelection: {
+            planId: selectedPlan ?? getDefaultPlanForWorkspace(selectedCompanyType).id,
+            seatCount,
+            isolationEnabled,
+            billingCycle,
+          },
         }
 
     const response = await fetch('/api/auth/register', {
@@ -371,6 +397,7 @@ export default function SignupOnboardingClient({
     const data = (await response.json().catch(() => ({}))) as {
       error?: string
       details?: { password?: string[] }
+      checkoutUrl?: string | null
       workspaceHomePath?: string
     }
     setLoading(false)
@@ -401,6 +428,20 @@ export default function SignupOnboardingClient({
       )
     }
     window.localStorage.removeItem('taskit:onboarding:v2')
+    window.localStorage.setItem(
+      'taskit:onboarding:selected-plan',
+      JSON.stringify({
+        billingCycle,
+        isolationEnabled,
+        planId: selectedPlan,
+        seatCount,
+        workspaceType: selectedCompanyType,
+      })
+    )
+    if (!inviteMode && data.checkoutUrl) {
+      window.location.assign(data.checkoutUrl)
+      return
+    }
     setStep(nextStep)
   }
 
@@ -481,17 +522,26 @@ export default function SignupOnboardingClient({
             onAddInvite={addInvite}
             onRemoveInvite={(id) => setInvites((current) => current.filter((invite) => invite.id !== id))}
             onBack={() => goTo('setup')}
-            onSkip={() => submitRegistration('plan')}
-            onFinish={() => submitRegistration('plan')}
+            onSkip={() => goTo('plan')}
+            onFinish={() => goTo('plan')}
           />
         )
         break
       case 'plan':
         content = (
           <PlanStep
+            companyType={selectedCompanyType}
             selectedPlan={selectedPlan}
+            seatCount={seatCount}
+            billingCycle={billingCycle}
+            isolationEnabled={isolationEnabled}
+            loading={loading}
             onSelect={setSelectedPlan}
-            onNext={() => goTo('success')}
+            onSeatCountChange={setSeatCount}
+            onBillingCycleChange={setBillingCycle}
+            onIsolationChange={setIsolationEnabled}
+            onBack={() => goTo('team')}
+            onNext={() => submitRegistration('success')}
           />
         )
         break
@@ -1040,103 +1090,171 @@ function TeamStep({
 }
 
 function PlanStep({
+  companyType,
   selectedPlan,
+  seatCount,
+  billingCycle,
+  isolationEnabled,
+  loading,
   onSelect,
+  onSeatCountChange,
+  onBillingCycleChange,
+  onIsolationChange,
+  onBack,
   onNext,
 }: {
+  companyType: CompanyType
   selectedPlan: string | null
   onSelect: (plan: string | null) => void
+  seatCount: number
+  billingCycle: BillingCycle
+  isolationEnabled: boolean
+  loading: boolean
+  onSeatCountChange: (seats: number) => void
+  onBillingCycleChange: (cycle: BillingCycle) => void
+  onIsolationChange: (enabled: boolean) => void
+  onBack: () => void
   onNext: () => void
 }) {
-  const PLAN_DETAILS: Record<string, { name: string; price: string; period: string; icon: ReactNode; accent: string; features: string[]; note: string }> = {
-    STARTER_MONTHLY: {
-      name: 'Starter',
-      price: '$3',
-      period: '/seat/mo',
-      icon: <Zap size={22} />,
-      accent: '#3b82f6',
-      features: ['All core modules', 'Up to 49 seats', 'AI assistant', 'Client portal'],
-      note: 'Best for focused teams',
-    },
-    TEAM_MONTHLY: {
-      name: 'Team',
-      price: '$2.50',
-      period: '/seat/mo',
-      icon: <Users size={22} />,
-      accent: '#7c3aed',
-      features: ['Everything in Starter', '50+ seats', 'Volume discount', 'SLA support'],
-      note: 'Best for growing teams',
-    },
-    LIFETIME: {
-      name: 'Lifetime',
-      price: '$99',
-      period: '/seat',
-      icon: <Infinity size={22} />,
-      accent: '#f59e0b',
-      features: ['Pay once, use forever', 'All future updates', 'Lifetime support', 'No recurring fees'],
-      note: 'One-time access',
-    },
+  const { key, pricing } = getWorkspacePricing(companyType)
+  const activePlan = getWorkspacePlan(companyType, selectedPlan) ?? getDefaultPlanForWorkspace(companyType)
+  const activeSeatCount = clampSeatCount(pricing, seatCount)
+  const total = calculateWorkspacePlanTotal({
+    billingCycle,
+    isolationEnabled,
+    plan: activePlan,
+    pricing,
+    seatCount: activeSeatCount,
+  })
+
+  function selectPlan(planId: string) {
+    const plan = getWorkspacePlan(companyType, planId)
+    if (!plan) return
+    onSelect(plan.id)
+    onSeatCountChange(plan.seats ?? activeSeatCount)
+    onIsolationChange(getDefaultIsolation(plan))
   }
 
   return (
     <main className={`${styles.setupStage} ${styles.planStage}`} id="main-content">
       <section className={`${styles.setupPanel} ${styles.planPanel}`}>
+        <button type="button" className={styles.ghostButton} onClick={onBack}>
+          <ArrowLeft size={16} />
+          Back
+        </button>
         <p className={styles.stepKicker}>
           <CreditCard size={14} />
-          Choose your plan
+          {key} pricing
         </p>
-        <h1>Pick the right plan for your <span>team.</span></h1>
+        <h1>Pick the right plan for this <span>workspace.</span></h1>
         <p className={styles.setupLead}>
-          Start with a free trial - no credit card required. Or pick a plan now to skip the trial.
+          Only plans for the selected workspace type are shown. Paid plans include a 14 day trial before billing starts.
         </p>
 
-        <div className={styles.planList}>
-          {Object.entries(PLAN_DETAILS).map(([key, plan]) => {
-            const isSelected = selectedPlan === key
+        <div className={styles.billingControls}>
+          <div className={styles.segmentedControl}>
+            <button type="button" className={billingCycle === 'monthly' ? styles.segmentedActive : ''} onClick={() => onBillingCycleChange('monthly')}>
+              Monthly
+            </button>
+            <button type="button" className={billingCycle === 'annual' ? styles.segmentedActive : ''} onClick={() => onBillingCycleChange('annual')}>
+              Annual - 20% off
+            </button>
+          </div>
+          {pricing.billing === 'per-seat' && (
+            <Field label="Seats" icon={<Users size={15} />}>
+              <input
+                className={styles.input}
+                type="number"
+                min={1}
+                value={activeSeatCount}
+                onChange={(event) => onSeatCountChange(Math.max(1, Number(event.target.value || 1)))}
+              />
+            </Field>
+          )}
+        </div>
+
+        <div className={styles.pricingGrid}>
+          {pricing.plans.map((plan) => {
+            const isSelected = activePlan.id === plan.id
+            const planIsolation = plan.id === activePlan.id ? isolationEnabled : getDefaultIsolation(plan)
+            const planTotal = calculateWorkspacePlanTotal({
+              billingCycle,
+              isolationEnabled: planIsolation,
+              plan,
+              pricing,
+              seatCount: plan.seats ?? activeSeatCount,
+            })
             return (
-              <button
-                key={key}
-                type="button"
-                onClick={() => onSelect(isSelected ? null : key)}
-                aria-pressed={isSelected}
-                className={`${styles.planOption} ${isSelected ? styles.planOptionSelected : ''}`}
-                style={{ '--plan-accent': plan.accent } as CSSProperties}
+              <article
+                key={plan.id}
+                className={`${styles.pricingCard} ${isSelected ? styles.pricingCardSelected : ''} ${plan.featured ? styles.pricingCardFeatured : ''}`}
               >
-                <span className={styles.planIcon}>
-                  {plan.icon}
-                </span>
-                <div className={styles.planMeta}>
-                  <strong>{plan.name}</strong>
-                  <span>
-                    {plan.price}
-                    {plan.period}
+                {plan.featured && <span className={styles.featuredBadge}>Popular</span>}
+                <button
+                  type="button"
+                  onClick={() => selectPlan(plan.id)}
+                  aria-pressed={isSelected}
+                  className={styles.pricingCardButton}
+                >
+                  <span className={styles.planMeta}>
+                    <strong>{plan.name}</strong>
+                    <span>{isFreePlan(plan) ? 'Free plan' : `$${plan.price}/${plan.unit}`}</span>
                   </span>
+                  <span className={styles.planRadio} aria-hidden="true" />
+                </button>
+                <ul className={styles.pricingFeatures}>
+                  {plan.features.map((feature) => (
+                    <li key={feature}>
+                      <Check size={14} />
+                      <span>{feature}</span>
+                    </li>
+                  ))}
+                </ul>
+                <label className={`${styles.isolationToggle} ${plan.isolationLocked ? styles.isolationToggleLocked : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={plan.id === activePlan.id ? isolationEnabled : planIsolation}
+                    disabled={plan.isolationLocked || plan.id !== activePlan.id}
+                    onChange={(event) => onIsolationChange(event.target.checked)}
+                  />
+                  <span>Isolation {plan.isolationIncluded ? 'included' : plan.isolationCost ? `+$${plan.isolationCost}/${plan.isolationUnit}` : 'off'}</span>
+                </label>
+                <div className={styles.planTotal}>
+                  <strong>{isFreePlan(plan) ? '$0' : `$${planTotal.checkoutTotal.toFixed(0)}`}</strong>
+                  <span>{billingCycle === 'annual' && !isFreePlan(plan) ? 'first year after discount' : isFreePlan(plan) ? 'no checkout' : 'estimated checkout total'}</span>
                 </div>
-                <div className={styles.planSummary}>
-                  <strong>{plan.note}</strong>
-                  <span>{plan.features.slice(0, 2).join(' / ')}</span>
-                </div>
-                <span className={styles.planRadio} aria-hidden="true" />
-              </button>
+              </article>
             )
           })}
         </div>
 
         <p className={styles.planFootnote}>
-          Free trial: 7 days, up to 5 team members, no payment needed.
+          {pricing.billing === 'per-seat'
+            ? 'Per-seat workspaces multiply both plan price and isolation cost by the selected seat count.'
+            : 'Flat-rate workspaces charge once per workspace, with isolation priced monthly when not included.'}
         </p>
 
+        <div className={styles.checkoutSummary}>
+          <strong>{activePlan.name}</strong>
+          <span>
+            {isFreePlan(activePlan)
+              ? 'Free plan skips Dodo checkout and opens the workspace after signup.'
+              : `Estimated ${billingCycle === 'annual' ? 'annual' : 'monthly'} total: $${total.checkoutTotal.toFixed(0)}.`}
+          </span>
+        </div>
+
         <div className={styles.splitActions}>
-          <button type="button" className={styles.secondaryCta} onClick={onNext}>
-            Start free trial instead
+          <button type="button" className={styles.secondaryCta} onClick={onBack} disabled={loading}>
+            Back
           </button>
           <button
-            type="button"
+                type="button"
             className={styles.primaryCta}
             onClick={onNext}
-            disabled={!selectedPlan}
-          >
-            {selectedPlan ? `Continue with ${PLAN_DETAILS[selectedPlan].name}` : 'Select a plan'}
+            disabled={!activePlan || loading}
+              >
+            {loading ? <Loader2 size={18} className={styles.spin} /> : isFreePlan(activePlan) ? <CheckCircle2 size={18} /> : <CreditCard size={18} />}
+            {loading ? 'Creating workspace...' : isFreePlan(activePlan) ? 'Create free workspace' : 'Create workspace and checkout'}
             <ChevronRight size={18} />
           </button>
         </div>

@@ -18,6 +18,7 @@ export type RealtimeMetricName =
   | 'queue.latency'
   | 'room.joined'
   | 'event.replay_requested'
+  | 'socket.connection_rejected_limit'
 
 const METRIC_TTL_SECONDS = Math.max(Number(process.env.REALTIME_METRIC_TTL_SECONDS ?? 60 * 60 * 24), 60)
 const queueEventState = globalThis as typeof globalThis & {

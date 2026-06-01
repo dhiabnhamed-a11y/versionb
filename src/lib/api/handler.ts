@@ -12,6 +12,7 @@ import { recordSecurityAudit } from '@/modules/security/audit'
 import type { UserRole } from '@/lib/security'
 import type { PermissionAction, PermissionResource, PermissionSubject } from '@/modules/permissions/permissions'
 import { logger } from '@/modules/shared/logger'
+import { captureException } from '@/lib/observability'
 import { runWithPrismaTenantContext } from '@/lib/tenant/prisma-context'
 import { getWorkspaceApiAccessError } from '@/lib/workspace-routing'
 import type { RateLimitOptions, RateLimitResult } from '@/modules/shared/rate-limit'
@@ -266,6 +267,7 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
   const route = getRoute(req, options.route)
   const responseMode = options.responseMode ?? 'legacy'
   let rateLimit: RateLimitResult | undefined
+  let resolvedUser: SessionUser | undefined
 
   try {
     assertSafeApiOrigin(req)
@@ -301,6 +303,7 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
     const baseContext: ApiHandlerContext<TParams> = { params, req, requestId, route, startedAt }
     const shouldRequireAuth = options.auth === 'required' || Boolean(options.permission) || Boolean(options.requiredRole || options.requiredPermission)
     const user = shouldRequireAuth ? await requireSessionUser() : undefined
+    resolvedUser = user
     const nextContext = user
       ? { ...baseContext, actorId: user.id, companyId: user.companyId ?? undefined, user }
       : baseContext
@@ -392,6 +395,12 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
     const normalized = normalizeError(error)
     if (normalized.status >= 500) {
       logger.error('api.unhandled_error', error, { code: normalized.code, requestId, route })
+      captureException(error, {
+        requestId,
+        route,
+        userId: resolvedUser?.id,
+        companyId: resolvedUser?.companyId ?? undefined,
+      })
     }
     if (normalized.status === 401 || normalized.status === 403) {
       await recordSecurityAudit({

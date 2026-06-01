@@ -80,12 +80,13 @@ function DashboardLayoutChrome({
     () => false
   )
 
-  const user = session?.user as { id?: string; name?: string; role?: string; avatar?: string | null; companyType?: string | null }
+  const user = session?.user as { id?: string; name?: string; role?: string; avatar?: string | null; companyId?: string | null; companyType?: string | null }
   const isSuperAdmin = user?.role === 'SUPER_ADMIN'
   const isEmployee = user?.role === 'EMPLOYEE'
   const canManageWorkspace = user?.role === 'OWNER' || user?.role === 'MANAGER'
   const canOpenSettings = !isSuperAdmin
   const companyType = normalizeCompanyType(user?.companyType)
+  const billingHref = user?.companyId ? `/workspace/${encodeURIComponent(user.companyId)}/settings/billing` : '/billing'
   const companyCopy = getLocalizedCompanyCopy(companyType, t)
   const isAgencyWorkspace = isAgencyCompanyType(companyType)
   const isContentCreationWorkspace = isContentCreationCompanyType(companyType)
@@ -118,10 +119,10 @@ function DashboardLayoutChrome({
         },
         { href: '/dashboard/employee/alerts', label: t('nav.alerts'), icon: Bell },
         { href: '/dashboard/employee/progress', label: t('nav.progress'), icon: BarChart3 },
-        { href: '/billing', label: t('nav.subscription'), icon: CreditCard },
+        { href: billingHref, label: t('nav.subscription'), icon: CreditCard },
       ]
     : getWorkspaceNav({ companyType, industryProjectsLabel }).map((item) => ({
-        href: item.href,
+        href: item.href === '/billing' ? billingHref : item.href,
         label: item.labelKey ? t(item.labelKey) : (item.label ?? ''),
         icon: item.icon,
       }))

@@ -146,7 +146,15 @@ export async function createSocketServer(httpServer: HttpServer) {
   }
   global.io = io
 
+  const MAX_CONNECTIONS = Number(process.env.SOCKET_IO_MAX_CONNECTIONS ?? 10_000)
+
   io.use(async (socket, nextHandler) => {
+    const currentCount = io.engine.clientsCount
+    if (currentCount >= MAX_CONNECTIONS) {
+      recordRealtimeMetric('socket.connection_rejected_limit')
+      return nextHandler(new Error('Server at capacity. Try again shortly.'))
+    }
+
     try {
       const user = await authenticateSocket(socket)
       socket.data = {

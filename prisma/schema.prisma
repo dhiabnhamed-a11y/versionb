@@ -139,7 +139,13 @@ model Company {
   stripeSubscriptionId String?            @unique
   currentPeriodEnd     DateTime?
   planType             PlanType           @default(FREE_TRIAL)
+  planId               String?
+  billingType          String?
   seatCount            Int                @default(1)
+  isolationEnabled     Boolean            @default(false)
+  isolationType        String?
+  subscriptionId       String?            @unique
+  nextBillingDate      DateTime?
   billingInterval      BillingInterval?
   selfServeSignup      Boolean            @default(false)
   metadata             Json?

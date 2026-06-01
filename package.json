@@ -31,7 +31,9 @@
     "db:migrate": "prisma migrate dev --name init",
     "db:generate": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
-    "db:seed:ems": "tsx prisma/seed-ems.ts"
+    "db:seed:ems": "tsx prisma/seed-ems.ts",
+    "seed:demo": "npx ts-node --compiler-options '{\"module\":\"commonjs\"}' prisma/seed-demo.ts",
+    "seed:demo:reset": "cross-env DEMO_RESET=true npx ts-node --compiler-options '{\"module\":\"commonjs\"}' prisma/seed-demo.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.2",

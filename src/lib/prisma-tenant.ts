@@ -12,6 +12,31 @@ const TENANT_SCOPED_MODELS = new Set([
   'Invite',
   'Alert',
   'Company',
+  // Contract family
+  'Contract',
+  'ContractVersion',
+  'ContractTemplate',
+  'ContractClause',
+  'ContractSignature',
+  'ContractAuditLog',
+  'ContractGenerationJob',
+  // Finance
+  'Invoice',
+  'JournalEntry',
+  'JournalLine',
+  'Ledger',
+  'FinancialPeriod',
+  'Account',
+  'AccountCategory',
+  'CostCenter',
+  'ChartOfAccount',
+  'Reconciliation',
+  'FinancialAuditLog',
+  // Operations (Task has no direct companyId — scoped via Project, excluded intentionally)
+  'AccessRequest',
+  'ClientActivity',
+  'ClientPortalComment',
+  'AdminActionLog',
 ])
 
 export function tenantWhere(user: Pick<SessionUser, 'companyId' | 'role'>) {

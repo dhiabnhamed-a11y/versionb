@@ -6,6 +6,8 @@ import { assertSignupLegalAcceptance, getLegalRequestContext } from '@/lib/legal
 import { redeemInviteSignup } from '@/lib/invites'
 import { withApiError } from '@/modules/shared/api'
 import { assertPasswordPolicy } from '@/modules/security/password-policy'
+import { createDodoWorkspaceCheckout } from '@/lib/dodo-workspace-billing'
+import { getDefaultPlanForWorkspace, getWorkspacePlan, isFreePlan, type BillingCycle } from '@/lib/workspace-pricing'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -26,6 +28,12 @@ export async function POST(req: NextRequest) {
         industry?: string
         registrationNumber?: string
         locale?: string
+        billingSelection?: {
+          planId?: string
+          seatCount?: number
+          isolationEnabled?: boolean
+          billingCycle?: string
+        }
       }
       const { name, email, password, role, companyName, inviteCode, companyType, country, industry, registrationNumber } = body
       const legalAcceptance = assertSignupLegalAcceptance(body)
@@ -48,6 +56,18 @@ export async function POST(req: NextRequest) {
         if (!companyName?.trim()) {
           return NextResponse.json({ error: 'Company name is required for Owner signup.' }, { status: 400 })
         }
+        const normalizedCompanyType = (companyType ?? 'OTHER').trim().toUpperCase() as CompanyType
+        const selectedPlan =
+          body.billingSelection?.planId
+            ? getWorkspacePlan(normalizedCompanyType, body.billingSelection.planId)
+            : getDefaultPlanForWorkspace(normalizedCompanyType)
+        if (!selectedPlan) {
+          return NextResponse.json({ error: 'Choose a valid plan for this workspace type.' }, { status: 400 })
+        }
+        const billingCycle: BillingCycle = body.billingSelection?.billingCycle === 'annual' ? 'annual' : 'monthly'
+        if (!isFreePlan(selectedPlan) && !process.env.DODO_PAYMENTS_API_KEY) {
+          return NextResponse.json({ error: 'Dodo Payments is not configured for paid plan checkout.' }, { status: 500 })
+        }
         try {
           const owner = await createOwnerSignup({
             name,
@@ -57,18 +77,39 @@ export async function POST(req: NextRequest) {
             country: country ?? '',
             industry: industry ?? '',
             registrationNumber: registrationNumber ?? '',
-            companyType: (companyType ?? 'OTHER').trim().toUpperCase() as CompanyType,
+            companyType: normalizedCompanyType,
+            billingSelection: {
+              billingCycle,
+              isolationEnabled: Boolean(body.billingSelection?.isolationEnabled),
+              planId: selectedPlan.id,
+              seatCount: Number(body.billingSelection?.seatCount ?? 1),
+            },
             legalAcceptance,
             legalContext,
           })
+          const checkout = isFreePlan(selectedPlan)
+            ? null
+            : await createDodoWorkspaceCheckout({
+                billingCycle,
+                companyId: owner.companyId,
+                companyType: normalizedCompanyType,
+                customerEmail: email,
+                customerName: name,
+                isolationEnabled: Boolean(body.billingSelection?.isolationEnabled),
+                planId: selectedPlan.id,
+                seatCount: Number(body.billingSelection?.seatCount ?? 1),
+              })
 
           return NextResponse.json(
             {
               success: true,
               userId: owner.userId,
               companyId: owner.companyId,
-              workspaceHomePath: getWorkspaceHomePath({ role: 'OWNER', companyType }),
-              message: 'Workspace created. Sign in to enter your provisioned TASKIT workspace.',
+              checkoutUrl: checkout?.url ?? null,
+              workspaceHomePath: getWorkspaceHomePath({ role: 'OWNER', companyType: normalizedCompanyType }),
+              message: checkout?.url
+                ? 'Workspace created. Continue to Dodo Payments checkout to activate billing.'
+                : 'Workspace created. Sign in to enter your provisioned TASKIT workspace.',
             },
             { status: 201 }
           )

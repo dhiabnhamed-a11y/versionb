@@ -70,7 +70,10 @@ const NAV_SECTIONS: NavSection[] = [
 
 function Sidebar() {
   const pathname = usePathname()
+  const { data: session } = useSession()
   const { direction, t } = useLocale()
+  const user = session?.user as { companyId?: string | null } | undefined
+  const billingHref = user?.companyId ? `/workspace/${encodeURIComponent(user.companyId)}/settings/billing` : '/billing'
 
   return (
     <nav
@@ -105,7 +108,7 @@ function Sidebar() {
         {NAV_SECTIONS.map((section) => (
           <div key={section.titleKey} style={{ marginBottom: '8px' }}>
             <div style={{ padding: '8px 16px 4px', fontSize: '10px', fontWeight: 700, color: '#475569', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-{t(section.titleKey as any)}
+              {t(section.titleKey as Parameters<typeof t>[0])}
             </div>
             {section.items.map((item) => {
               const isActive = pathname === item.href || (item.href !== '/erp' && pathname.startsWith(item.href))
@@ -131,7 +134,7 @@ function Sidebar() {
                   onMouseOut={(e) => { if (!isActive) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = '#64748b' } }}
                 >
                   <span style={{ width: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{item.icon}</span>
-                  {t(item.labelKey as any)}
+                  {t(item.labelKey as Parameters<typeof t>[0])}
                 </Link>
               )
             })}
@@ -161,7 +164,7 @@ function Sidebar() {
           {t('nav.profile')}
         </Link>
         <Link
-          href="/billing"
+          href={billingHref}
           style={{
             display: 'flex',
             alignItems: 'center',

@@ -7,6 +7,16 @@ import { persistSignupLegalConsents, type LegalRequestContext, type SignupLegalA
 import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'
 import { createSignupAuthUser, rollbackSignupAuthUser } from '@/lib/signup-auth-user'
 import { provisionWorkspaceForCompany } from '@/lib/workspace-provisioning'
+import {
+  clampSeatCount,
+  getDefaultIsolation,
+  getDefaultPlanForWorkspace,
+  getIsolationType,
+  getWorkspacePlan,
+  getWorkspacePricing,
+  isFreePlan,
+  type BillingCycle,
+} from '@/lib/workspace-pricing'
 import { logger } from '@/modules/shared/logger'
 import {
   createCompanyInvite,
@@ -80,6 +90,12 @@ type CreateOwnerSignupInput = {
   industry: string
   registrationNumber: string
   companyType: CompanyType
+  billingSelection?: {
+    planId?: string
+    seatCount?: number
+    isolationEnabled?: boolean
+    billingCycle?: BillingCycle
+  }
   legalAcceptance: SignupLegalAcceptance
   legalContext: LegalRequestContext
 }
@@ -177,6 +193,16 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
   const registrationNumber = input.registrationNumber.trim().toUpperCase()
   const companyType = normalizeCompanyType(input.companyType)
   const emailDomain = extractEmailDomain(email)
+  const { pricing } = getWorkspacePricing(companyType)
+  const requestedPlan = input.billingSelection?.planId ? getWorkspacePlan(companyType, input.billingSelection.planId) : null
+  const selectedPlan = requestedPlan ?? getDefaultPlanForWorkspace(companyType)
+  const seatCount = isFreePlan(selectedPlan)
+    ? selectedPlan.seats ?? clampSeatCount(pricing, input.billingSelection?.seatCount)
+    : clampSeatCount(pricing, input.billingSelection?.seatCount)
+  const isolationEnabled = selectedPlan.isolationLocked
+    ? false
+    : input.billingSelection?.isolationEnabled ?? getDefaultIsolation(selectedPlan)
+  const billingCycle = input.billingSelection?.billingCycle ?? 'monthly'
 
   if (!name) {
     throw new InviteFlowError('Full name is required.')
@@ -256,7 +282,7 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
   try {
     const createdUser = await prisma.$transaction(
       async (tx) => {
-        const trialEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+        const trialEndsAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000)
 
         const user = await tx.user.create({
           data: {
@@ -285,7 +311,20 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
             subscriptionStatus: 'TRIAL',
             trialEndsAt,
             planType: 'FREE_TRIAL',
-            seatCount: 1,
+            planId: selectedPlan.id,
+            billingType: pricing.billing,
+            seatCount,
+            isolationEnabled,
+            isolationType: getIsolationType(isolationEnabled),
+            billingInterval: billingCycle === 'annual' ? 'YEARLY' : 'MONTHLY',
+            metadata: {
+              workspaceBilling: {
+                billingCycle,
+                billingType: pricing.billing,
+                isolationEnabled,
+                planId: selectedPlan.id,
+              },
+            },
             ownerId: user.id,
           },
           select: {
@@ -297,7 +336,13 @@ export async function createOwnerSignup(input: CreateOwnerSignupInput) {
           data: {
             companyId: company.id,
             event: 'trial_started',
-            payload: { trialEndsAt: trialEndsAt.toISOString() },
+            payload: {
+              billingCycle,
+              billingType: pricing.billing,
+              isolationEnabled,
+              planId: selectedPlan.id,
+              trialEndsAt: trialEndsAt.toISOString(),
+            },
           },
         })
 

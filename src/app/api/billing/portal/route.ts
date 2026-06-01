@@ -18,20 +18,20 @@ export async function GET(req: NextRequest) {
 
       const company = await prisma.company.findUnique({
         where: { id: user.companyId },
-        select: { stripeCustomerId: true, stripeSubscriptionId: true },
+        select: { stripeCustomerId: true, stripeSubscriptionId: true, subscriptionId: true },
       })
 
       if (!company?.stripeCustomerId) {
         return apiData({ error: 'No billing account found. Please subscribe first.' }, { status: 404 })
       }
 
-      const provider: PaymentProviderName = company.stripeSubscriptionId ? 'stripe' : 'dodo'
+      const provider: PaymentProviderName = company.subscriptionId ? 'dodo' : company.stripeSubscriptionId ? 'stripe' : 'dodo'
       const adapter = getPaymentAdapter(provider)
       const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? process.env.NEXTAUTH_URL ?? 'http://localhost:3000'
 
       const result = await adapter.createPortalSession({
         companyId: user.companyId,
-        returnUrl: `${appUrl}/billing`,
+        returnUrl: `${appUrl}/workspace/${encodeURIComponent(user.companyId)}/settings/billing`,
       })
 
       return apiData({ url: result.url }, { code: 'PORTAL_SESSION_CREATED' })
