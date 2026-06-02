@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       }
 
       if (!user.companyId || body.workspaceId !== user.companyId) {
-        return apiData({ error: 'Billing actions are only available inside this workspace.' }, { status: 403 })
+        return apiData({ error: 'Billing actions are only available inside this workspace.' }, { status: 403 }) as never
       }
 
       const company = await prisma.company.findUnique({
@@ -55,7 +55,7 @@ export async function POST(req: NextRequest) {
           stripeSubscriptionId: true,
         },
       })
-      if (!company) return apiData({ error: 'Workspace not found.' }, { status: 404 })
+      if (!company) return apiData({ error: 'Workspace not found.' }, { status: 404 }) as never
 
       const { key: workspaceType, pricing } = getWorkspacePricing(company.companyType)
       const billingCycle: BillingCycle = body.billingCycle === 'annual' ? 'annual' : 'monthly'
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
       if (body.action === 'billing_email') {
         const billingEmail = body.billingEmail?.trim().toLowerCase()
         if (!billingEmail || !billingEmail.includes('@')) {
-          return apiData({ error: 'Enter a valid billing email.' }, { status: 400 })
+          return apiData({ error: 'Enter a valid billing email.' }, { status: 400 }) as never
         }
         await prisma.company.update({
           where: { id: company.id },
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
       if (body.action === 'isolation_change') {
         const enabled = Boolean(body.isolationEnabled)
         if (!enabled && !body.confirmed) {
-          return apiData({ error: 'Confirmation is required before disabling isolation.' }, { status: 400 })
+          return apiData({ error: 'Confirmation is required before disabling isolation.' }, { status: 400 }) as never
         }
         await prisma.$transaction([
           prisma.company.update({
@@ -107,7 +107,7 @@ export async function POST(req: NextRequest) {
       }
 
       const nextPlan = getWorkspacePlan(company.companyType, body.planId ?? company.planId)
-      if (!nextPlan) return apiData({ error: 'Invalid plan for this workspace type.' }, { status: 400 })
+      if (!nextPlan) return apiData({ error: 'Invalid plan for this workspace type.' }, { status: 400 }) as never
       const seatCount = isFreePlan(nextPlan)
         ? nextPlan.seats ?? 1
         : clampSeatCount(pricing, body.seatCount ?? company.seatCount)
@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
       const totals = calculateWorkspacePlanTotal({ billingCycle, isolationEnabled, plan: nextPlan, pricing, seatCount })
 
       if (body.action === 'seat_change' && pricing.billing !== 'per-seat') {
-        return apiData({ error: 'Seat changes are only available for per-seat workspaces.' }, { status: 400 })
+        return apiData({ error: 'Seat changes are only available for per-seat workspaces.' }, { status: 400 }) as never
       }
 
       if (subscriptionId && !isFreePlan(nextPlan) && process.env.DODO_PAYMENTS_API_KEY) {

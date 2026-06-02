@@ -11,7 +11,7 @@ export async function GET(req: NextRequest) {
     undefined,
     async ({ user }) => {
       if (!user.companyId) {
-        return apiData({ error: 'No company associated with your account.' }, { status: 400 })
+        return apiData({ error: 'No company associated with your account.' }, { status: 400 }) as never
       }
 
       const company = await prisma.company.findUnique({
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
       })
 
       if (!company) {
-        return apiData({ error: 'Company not found.' }, { status: 404 })
+        return apiData({ error: 'Company not found.' }, { status: 404 }) as never
       }
 
       const now = new Date()

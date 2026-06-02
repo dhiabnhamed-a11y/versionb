@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
     undefined,
     async ({ user }) => {
       if (!user.companyId) {
-        return apiData({ error: 'No company associated with your account.' }, { status: 400 })
+        return apiData({ error: 'No company associated with your account.' }, { status: 400 }) as never
       }
 
       const body = await validateJson(req, createCheckoutSchema)

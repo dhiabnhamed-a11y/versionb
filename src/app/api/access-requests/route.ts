@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
         return apiData([])
       }
       if (!user.id || user.role === 'EMPLOYEE') {
-        return apiData({ error: 'Forbidden' }, { status: 403 })
+        return apiData({ error: 'Forbidden' }, { status: 403 }) as never
       }
 
       const requests = await listCompanyAccessRequests(user.companyId)
@@ -72,7 +72,7 @@ export async function PATCH(req: NextRequest) {
     undefined,
     async ({ user }) => {
       if (!user.companyId || !user.id || user.role === 'EMPLOYEE') {
-        return apiData({ error: 'Forbidden' }, { status: 403 })
+        return apiData({ error: 'Forbidden' }, { status: 403 }) as never
       }
 
       const parsed = await validateJson(req, accessRequestReviewSchema)

@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
         return apiData([])
       }
       if (user.role === 'EMPLOYEE') {
-        return apiData({ error: 'Forbidden' }, { status: 403 })
+        return apiData({ error: 'Forbidden' }, { status: 403 }) as never
       }
 
       const invites = await listCompanyInvites(user.companyId)
@@ -63,10 +63,10 @@ export async function POST(req: NextRequest) {
     undefined,
     async ({ user }) => {
       if (!user.companyId) {
-        return apiData({ error: 'No company found for this account.' }, { status: 400 })
+        return apiData({ error: 'No company found for this account.' }, { status: 400 }) as never
       }
       if (!user.id || user.role === 'EMPLOYEE') {
-        return apiData({ error: 'Forbidden' }, { status: 403 })
+        return apiData({ error: 'Forbidden' }, { status: 403 }) as never
       }
 
       const parsed = await validateJson(req, inviteCreateSchema)
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
       ])
 
       if (!companyBilling) {
-        return apiData({ error: 'No billing account found. Please subscribe to add team members.', upgradeUrl: '/billing/upgrade' }, { status: 402 })
+        return apiData({ error: 'No billing account found. Please subscribe to add team members.', upgradeUrl: '/billing/upgrade' }, { status: 402 }) as never
       }
 
       const status = companyBilling.subscriptionStatus as string

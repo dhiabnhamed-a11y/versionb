@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       const rawBody = await parseJsonObject(req)
       const parsed = DispatchBodySchema.safeParse(rawBody)
       if (!parsed.success) {
-        return apiData({ error: 'Invalid request', details: parsed.error.flatten().fieldErrors }, { status: 400 })
+        return apiData({ error: 'Invalid request', details: parsed.error.flatten().fieldErrors }, { status: 400 }) as never
       }
       const body = parsed.data
 

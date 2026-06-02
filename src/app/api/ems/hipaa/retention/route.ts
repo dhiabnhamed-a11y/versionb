@@ -26,7 +26,7 @@ export async function POST(req: NextRequest) {
     if (!dryRun) {
       // Require explicit confirmation string to prevent accidental purges
       if (body.confirm !== 'PURGE_CONFIRMED') {
-        return apiData({ error: 'Set confirm: "PURGE_CONFIRMED" to execute purge. Use dryRun: true to preview.' }, { status: 400 })
+        return apiData({ error: 'Set confirm: "PURGE_CONFIRMED" to execute purge. Use dryRun: true to preview.' }, { status: 400 }) as never
       }
     }
 

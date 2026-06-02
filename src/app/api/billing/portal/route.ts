@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
     undefined,
     async ({ user }) => {
       if (!user.companyId) {
-        return apiData({ error: 'No company associated with your account.' }, { status: 400 })
+        return apiData({ error: 'No company associated with your account.' }, { status: 400 }) as never
       }
 
       const company = await prisma.company.findUnique({
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
       })
 
       if (!company?.stripeCustomerId) {
-        return apiData({ error: 'No billing account found. Please subscribe first.' }, { status: 404 })
+        return apiData({ error: 'No billing account found. Please subscribe first.' }, { status: 404 }) as never
       }
 
       const provider: PaymentProviderName = company.subscriptionId ? 'dodo' : company.stripeSubscriptionId ? 'stripe' : 'dodo'

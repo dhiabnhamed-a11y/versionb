@@ -131,10 +131,10 @@ export async function POST(req: NextRequest) {
     undefined,
     async ({ user }) => {
       if (!user.companyId) {
-        return apiData({ error: 'No company found for this account' }, { status: 400 })
+        return apiData({ error: 'No company found for this account' }, { status: 400 }) as never
       }
       if (user.role === 'EMPLOYEE') {
-        return apiData({ error: 'Forbidden' }, { status: 403 })
+        return apiData({ error: 'Forbidden' }, { status: 403 }) as never
       }
 
       const parsed = await validateJson(req, createEventSchema)
@@ -144,10 +144,10 @@ export async function POST(req: NextRequest) {
       const type = EVENT_TYPES_SET.has(parsed.type) ? parsed.type : 'PROJECT_EVENT'
 
       if (Number.isNaN(startsAt.getTime())) {
-        return apiData({ error: 'Title and start date are required.' }, { status: 400 })
+        return apiData({ error: 'Title and start date are required.' }, { status: 400 }) as never
       }
       if (endsAt && endsAt < startsAt) {
-        return apiData({ error: 'End date must be after the start date.' }, { status: 400 })
+        return apiData({ error: 'End date must be after the start date.' }, { status: 400 }) as never
       }
 
       const [projectAllowed, taskAllowed] = await Promise.all([
@@ -155,7 +155,7 @@ export async function POST(req: NextRequest) {
         assertTaskAccess(user.companyId, parsed.taskId),
       ])
       if (!projectAllowed || !taskAllowed) {
-        return apiData({ error: 'Linked project or task was not found in this workspace.' }, { status: 404 })
+        return apiData({ error: 'Linked project or task was not found in this workspace.' }, { status: 404 }) as never
       }
 
       const event = await prisma.calendarEvent.create({

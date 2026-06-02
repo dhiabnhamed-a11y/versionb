@@ -73,9 +73,9 @@ export async function DELETE(req: NextRequest) {
     await EmsService.getOrCreateEmsCompany(companyId)
     const url = new URL(req.url)
     const id = url.searchParams.get('id')
-    if (!id) return apiData({ error: 'id query param is required' }, { status: 400 })
+    if (!id) return apiData({ error: 'id query param is required' }, { status: 400 }) as never
     const rule = await prisma.emsAutomationRule.findFirst({ where: { id, companyId } })
-    if (!rule) return apiData({ error: 'Rule not found' }, { status: 404 })
+    if (!rule) return apiData({ error: 'Rule not found' }, { status: 404 }) as never
     await prisma.emsAutomationRule.delete({ where: { id } })
     return apiData({ success: true })
   }, {

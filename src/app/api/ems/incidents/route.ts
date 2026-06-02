@@ -56,7 +56,7 @@ export async function POST(req: NextRequest) {
       const rawBody = await parseJsonObject(req)
       const parsed = CreateIncidentSchema.safeParse(rawBody)
       if (!parsed.success) {
-        return apiData({ error: 'Invalid request', details: parsed.error.flatten().fieldErrors }, { status: 400 })
+        return apiData({ error: 'Invalid request', details: parsed.error.flatten().fieldErrors }, { status: 400 }) as never
       }
       const incident = await EmsService.createIncident(companyId, { ...parsed.data, createdById: user.id })
       return apiData(incident, { status: 201 })

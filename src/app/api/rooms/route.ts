@@ -61,13 +61,13 @@ export async function POST(req: NextRequest) {
     undefined,
     async ({ user }) => {
       if (!user.companyId) {
-        return apiData({ error: 'No company found for this account.' }, { status: 400 })
+        return apiData({ error: 'No company found for this account.' }, { status: 400 }) as never
       }
       if (user.role === 'EMPLOYEE') {
-        return apiData({ error: 'Forbidden' }, { status: 403 })
+        return apiData({ error: 'Forbidden' }, { status: 403 }) as never
       }
       if (normalizeCompanyType(user.companyType) !== 'INDUSTRY') {
-        return apiData({ error: 'Rooms are only available for industry workspaces.' }, { status: 403 })
+        return apiData({ error: 'Rooms are only available for industry workspaces.' }, { status: 403 }) as never
       }
 
       const parsed = await validateJson(req, createRoomSchema)

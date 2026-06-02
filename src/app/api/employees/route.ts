@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     undefined,
     async ({ user }) => {
       if (user.role === 'EMPLOYEE') {
-        return apiData({ error: 'Forbidden' }, { status: 403 })
+        return apiData({ error: 'Forbidden' }, { status: 403 }) as never
       }
       if (!user.companyId) return apiData([])
 
@@ -57,10 +57,10 @@ export async function POST(req: NextRequest) {
     undefined,
     async ({ user }) => {
       if (!user.companyId) {
-        return apiData({ error: 'No company found for this account' }, { status: 400 })
+        return apiData({ error: 'No company found for this account' }, { status: 400 }) as never
       }
       if (user.role === 'EMPLOYEE') {
-        return apiData({ error: 'Forbidden' }, { status: 403 })
+        return apiData({ error: 'Forbidden' }, { status: 403 }) as never
       }
 
       const TRIAL_SEAT_LIMIT = 5
@@ -75,24 +75,24 @@ export async function POST(req: NextRequest) {
       ])
 
       if (!companyBilling) {
-        return apiData({ error: 'No billing account found. Please subscribe to add team members.', upgradeUrl: '/billing/upgrade' }, { status: 402 })
+        return apiData({ error: 'No billing account found. Please subscribe to add team members.', upgradeUrl: '/billing/upgrade' }, { status: 402 }) as never
       }
 
       const status = companyBilling.subscriptionStatus as string
       if (status === 'ACTIVE' && activeUserCount >= companyBilling.seatCount) {
-        return apiData({ error: 'You have reached your seat limit. Please upgrade your plan to add more team members.', upgradeUrl: '/billing/upgrade' }, { status: 402 })
+        return apiData({ error: 'You have reached your seat limit. Please upgrade your plan to add more team members.', upgradeUrl: '/billing/upgrade' }, { status: 402 }) as never
       }
       if (status === 'TRIAL' && activeUserCount >= TRIAL_SEAT_LIMIT) {
         return apiData({ error: `Free trial is limited to ${TRIAL_SEAT_LIMIT} users. Upgrade to add more team members.`, upgradeUrl: '/billing/upgrade' }, { status: 402 })
       }
       if (status === 'PAST_DUE') {
-        return apiData({ error: 'Your subscription is past due. Please update your billing to add team members.', upgradeUrl: '/billing/upgrade' }, { status: 402 })
+        return apiData({ error: 'Your subscription is past due. Please update your billing to add team members.', upgradeUrl: '/billing/upgrade' }, { status: 402 }) as never
       }
       if (status === 'CANCELED') {
-        return apiData({ error: 'Your subscription has been canceled. Please subscribe to add team members.', upgradeUrl: '/billing/upgrade' }, { status: 402 })
+        return apiData({ error: 'Your subscription has been canceled. Please subscribe to add team members.', upgradeUrl: '/billing/upgrade' }, { status: 402 }) as never
       }
       if (status === 'PAUSED') {
-        return apiData({ error: 'Your subscription is paused. Please resume your subscription to add team members.', upgradeUrl: '/billing/upgrade' }, { status: 402 })
+        return apiData({ error: 'Your subscription is paused. Please resume your subscription to add team members.', upgradeUrl: '/billing/upgrade' }, { status: 402 }) as never
       }
 
       const parsed = await validateJson(req, createEmployeeSchema)

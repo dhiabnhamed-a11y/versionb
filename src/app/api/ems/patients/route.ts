@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
     const parsed = CreatePatientSchema.safeParse(body)
     if (!parsed.success) {
-      return apiData({ error: 'Invalid request', details: parsed.error.flatten().fieldErrors }, { status: 400 })
+      return apiData({ error: 'Invalid request', details: parsed.error.flatten().fieldErrors }, { status: 400 }) as never
     }
 
     // Encrypt PHI before storing

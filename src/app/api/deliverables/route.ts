@@ -68,10 +68,10 @@ export async function POST(req: NextRequest) {
     undefined,
     async ({ user }) => {
       if (!user.companyId) {
-        return apiData({ error: 'No company found for this account' }, { status: 400 })
+        return apiData({ error: 'No company found for this account' }, { status: 400 }) as never
       }
       if (user.role === 'EMPLOYEE') {
-        return apiData({ error: 'Forbidden' }, { status: 403 })
+        return apiData({ error: 'Forbidden' }, { status: 403 }) as never
       }
 
       const parsed = await validateJson(req, createDeliverableSchema)
@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
         select: { id: true, campaignId: true, companyId: true },
       })
       if (!brief) {
-        return apiData({ error: 'Selected brief was not found in this workspace.' }, { status: 404 })
+        return apiData({ error: 'Selected brief was not found in this workspace.' }, { status: 404 }) as never
       }
 
       const deliverable = await prisma.deliverable.create({

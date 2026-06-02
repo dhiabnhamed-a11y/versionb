@@ -47,18 +47,18 @@ export async function POST(req: NextRequest) {
     undefined,
     async ({ user }) => {
       if (!user.companyId) {
-        return apiData({ error: 'No company found for this account.' }, { status: 400 })
+        return apiData({ error: 'No company found for this account.' }, { status: 400 }) as never
       }
       if (user.role === 'EMPLOYEE') {
-        return apiData({ error: 'Forbidden' }, { status: 403 })
+        return apiData({ error: 'Forbidden' }, { status: 403 }) as never
       }
       if (!isAgencyCompanyType(normalizeCompanyType(user.companyType))) {
-        return apiData({ error: 'Categories are only available for agency workspaces.' }, { status: 403 })
+        return apiData({ error: 'Categories are only available for agency workspaces.' }, { status: 403 }) as never
       }
 
       const support = await getProjectCategorySupport()
       if (!support.hasCategoryTable || !support.hasProjectCategoryColumns) {
-        return apiData({ error: 'Project categories are not ready. Apply the latest database migration first.' }, { status: 503 })
+        return apiData({ error: 'Project categories are not ready. Apply the latest database migration first.' }, { status: 503 }) as never
       }
 
       const parsed = await validateJson(req, createCategorySchema)
