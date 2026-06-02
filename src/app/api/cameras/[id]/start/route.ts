@@ -19,12 +19,28 @@ export async function POST(_req: NextRequest, { params }: { params: Promise<{ id
   const result = await getCameraForUser(id, user)
   if (!result) return NextResponse.json({ error: 'Camera not found.' }, { status: 404 })
 
-  const password = decryptCameraSecret(result.camera.encryptedPassword)
-  const rtspUrl = buildRtspUrl({ ...result.camera, password })
-  const stream = startCameraStream(result.camera.id, rtspUrl)
+  let password: string
+  try {
+    password = decryptCameraSecret(result.camera.encryptedPassword)
+  } catch {
+    return NextResponse.json(
+      { error: 'Stored camera password could not be decrypted. Re-save the camera with its password to refresh it.' },
+      { status: 409 }
+    )
+  }
 
-  return NextResponse.json({
-    camera: toCameraDto(result.camera),
-    ...stream,
-  })
+  try {
+    const rtspUrl = buildRtspUrl({ ...result.camera, password })
+    const stream = startCameraStream(result.camera.id, rtspUrl)
+
+    return NextResponse.json({
+      camera: toCameraDto(result.camera),
+      ...stream,
+    })
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : 'Failed to start the camera stream.' },
+      { status: 500 }
+    )
+  }
 }
