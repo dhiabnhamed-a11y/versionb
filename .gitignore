@@ -50,3 +50,4 @@ prisma/dev.db-journal
 info.txt
 
 .env*.local
+build-output.log
