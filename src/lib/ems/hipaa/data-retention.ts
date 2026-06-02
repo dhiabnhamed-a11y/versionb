@@ -79,12 +79,9 @@ export async function purgeExpiredData(
       where: { incident: { companyId, completedAt: { lt: yearsAgo(p.patientRecords) } } },
       data: {
         name: '[ANONYMIZED]',
-        dateOfBirth: null,
-        ssn: null,
         medicalHistory: null,
         medications: null,
         allergies: null,
-        insuranceInfo: null,
       },
     })
     purged.patientsAnonymized = patientResult.count

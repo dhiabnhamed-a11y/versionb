@@ -36,15 +36,21 @@ export async function logPhiAccess(
       data: {
         companyId: ctx.companyId,
         actorId: ctx.actorId,
-        actorRole: ctx.actorRole || 'UNKNOWN',
-        action: `PHI_${action}_${resourceType.toUpperCase()}`,
+        action:
+          action === 'EXPORT'
+            ? resourceType === 'patient'
+              ? 'EMS_PATIENT_EXPORTED'
+              : 'EMS_DATA_EXPORTED'
+            : resourceType === 'incident'
+              ? 'EMS_INCIDENT_ACCESSED'
+              : 'EMS_PATIENT_ACCESSED',
+        description: `PHI_${action} on ${resourceType} ${resourceId}`,
         resourceType,
         resourceId,
         containsPhi: true,
-        phiFields: PHI_FIELDS_BY_TYPE[resourceType],
+        phiFields: PHI_FIELDS_BY_TYPE[resourceType].join(','),
         ipAddress: ctx.ipAddress,
-        route: ctx.route,
-        metadata: { purpose: ctx.purpose || 'operations' },
+        metadata: { purpose: ctx.purpose || 'operations', actorRole: ctx.actorRole || 'UNKNOWN', route: ctx.route },
         // Immutable checksum of the log entry for tamper detection
         checksum: buildChecksum(ctx.companyId, ctx.actorId, resourceId, action),
         timestamp: new Date(),

@@ -63,8 +63,8 @@ export default function EmsCommandCenterDashboard() {
       setError(null)
       const [metricsData, incidentsData, fleetData] = await Promise.all([
         fetchJson<DashboardMetrics>('/api/ems/metrics'),
-        fetchJson<{ units: FleetUnit[]; summary: any }>('/api/ems/fleet'),
         fetchJson<Incident[]>('/api/ems/incidents?active=true'),
+        fetchJson<{ units: FleetUnit[]; summary: any }>('/api/ems/fleet'),
       ])
       setMetrics(metricsData)
       setFleet(fleetData.units ?? [])
