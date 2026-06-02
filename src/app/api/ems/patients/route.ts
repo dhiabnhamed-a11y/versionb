@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     const body = await parseJsonObject(req)
 
     if (body.action === 'add_vitals' && body.patientId) {
-      await logPhiAccess({ companyId, actorId: user.id, actorRole: user.role, route: '/api/ems/patients' }, 'patient', body.patientId, 'WRITE')
+      await logPhiAccess({ companyId, actorId: user.id, actorRole: user.role ?? undefined, route: '/api/ems/patients' }, 'patient', body.patientId, 'WRITE')
       return apiData(await EmsService.addPatientVitals(companyId, body.patientId, body.vitals))
     }
 
@@ -57,7 +57,7 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    await logPhiAccess({ companyId, actorId: user.id, actorRole: user.role, route: '/api/ems/patients' }, 'patient', patient.id, 'WRITE')
+    await logPhiAccess({ companyId, actorId: user.id, actorRole: user.role ?? undefined, route: '/api/ems/patients' }, 'patient', patient.id, 'WRITE')
 
     return apiData(patient, { status: 201 })
   }, {
