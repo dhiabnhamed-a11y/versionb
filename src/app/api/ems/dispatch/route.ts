@@ -23,7 +23,7 @@ const DispatchBodySchema = z.discriminatedUnion('action', [
   z.object({ action: z.literal('classify'), incidentId: z.string().min(1) }),
   LatLng.extend({ action: z.literal('recommend'), incidentId: z.string().min(1), severity: Severity.default('ALPHA') }),
   LatLng.extend({ action: z.literal('nearest_hospital') }),
-  z.object({ action: z.literal('incident_lifecycle'), incidentId: z.string().min(1), newStatus: z.string().min(1), metadata: z.record(z.unknown()).optional() }),
+  z.object({ action: z.literal('incident_lifecycle'), incidentId: z.string().min(1), newStatus: z.string().min(1), metadata: z.record(z.string(), z.unknown()).optional() }),
   z.object({ action: z.literal('send_notification'), incidentId: z.string().min(1), unitIds: z.array(z.string().min(1)).min(1) }),
 ])
 
