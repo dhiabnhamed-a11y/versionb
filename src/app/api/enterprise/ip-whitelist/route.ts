@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/modules/auth/session'
 import { updateIpWhitelist, getClientIp } from '@/modules/enterprise/enterprise-ip-whitelist'
 
+export const runtime = 'nodejs'
+
 export async function GET(request: NextRequest) {
   try {
     const user = await getSessionUser()

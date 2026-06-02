@@ -3,6 +3,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getAiConversationReplay } from '@/lib/ai-conversation-state'
 import { NO_STORE_HEADERS } from '@/lib/http'
 
+export const runtime = 'nodejs'
+
 function cleanConversationId(value: string | null) {
   return value && /^[a-z0-9_-]{8,80}$/i.test(value) ? value : null
 }

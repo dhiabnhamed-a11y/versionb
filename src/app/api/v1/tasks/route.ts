@@ -3,6 +3,8 @@ import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { getIdempotencyKey, runIdempotent } from '@/lib/idempotency'
 import { createTask, listTasks } from '@/modules/tasks/task.service'
 
+export const runtime = 'nodejs'
+
 export async function GET(req: NextRequest) {
   return handleApiRoute(
     req,

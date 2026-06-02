@@ -5,6 +5,8 @@ import { requireSessionUser } from '@/modules/shared/session'
 import { okJson, withApiError } from '@/modules/shared/api'
 import { searchWorkspace } from '@/modules/search/search.service'
 
+export const runtime = 'nodejs'
+
 export async function GET(req: NextRequest) {
   return withApiError(
     req,

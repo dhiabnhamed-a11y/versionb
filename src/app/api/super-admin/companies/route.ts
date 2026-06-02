@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { listSuperAdminCompanies, reviewCompanyRegistration } from '@/lib/company-approvals'
 import { isAuthorizedSuperAdminIdentity } from '@/lib/security'
 
+export const runtime = 'nodejs'
+
 function getSuperAdminUser(user: Awaited<ReturnType<typeof requireSessionUser>>) {
   if (!user.id || !isAuthorizedSuperAdminIdentity(user)) return null
   return user

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/modules/auth/session'
 import { listSavedFilters, saveFilter } from '@/modules/enterprise/enterprise-saved-filters'
 
+export const runtime = 'nodejs'
+
 export async function GET(request: NextRequest) {
   try {
     const user = await getSessionUser()

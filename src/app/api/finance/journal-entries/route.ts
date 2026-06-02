@@ -3,6 +3,8 @@ import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { createJournalEntry, listJournalEntries } from '@/modules/accounting/accounting.service'
 import { parsePagination } from '@/modules/shared/pagination'
 
+export const runtime = 'nodejs'
+
 export async function GET(req: NextRequest) {
   return handleApiRoute(
     req,

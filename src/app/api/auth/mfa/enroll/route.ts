@@ -3,6 +3,8 @@ import { prisma } from '@/lib/db'
 import { encryptMfaSecret } from '@/lib/security/mfa-crypto'
 import { buildTotpUri, generateRecoveryCodes, generateTotpSecret } from '@/modules/security/mfa'
 import { createHash } from 'crypto'
+
+export const runtime = 'nodejs'
 export const POST = apiRoute(async ({ user }) => {
   const secret = generateTotpSecret()
   const existing = await prisma.mfaFactor.findFirst({

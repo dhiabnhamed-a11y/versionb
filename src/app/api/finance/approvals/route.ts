@@ -3,6 +3,8 @@ import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { createFinanceApprovalFlow, listFinanceApprovalFlows } from '@/modules/finance/approval.service'
 import { parsePagination } from '@/modules/shared/pagination'
 
+export const runtime = 'nodejs'
+
 export async function GET(req: NextRequest) {
   return handleApiRoute(
     req,

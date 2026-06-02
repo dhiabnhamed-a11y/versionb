@@ -4,6 +4,8 @@ import { API_RATE_LIMITS } from '@/lib/api-defaults'
 import { cached } from '@/lib/cache'
 import { generateCfoCopilotBrief } from '@/modules/financial-ai/cfo-copilot.service'
 
+export const runtime = 'nodejs'
+
 export async function GET(req: NextRequest) {
   return handleApiRoute(
     req,

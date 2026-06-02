@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { getSessionUser } from '@/modules/auth/session'
 import { listServices } from '@/modules/enterprise/enterprise-service-health'
 
+export const runtime = 'nodejs'
+
 export async function GET() {
   try {
     const user = await getSessionUser()

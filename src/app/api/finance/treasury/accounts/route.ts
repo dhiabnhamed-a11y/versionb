@@ -2,6 +2,8 @@ import type { NextRequest } from 'next/server'
 import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { createTreasuryAccount, listTreasuryAccounts } from '@/modules/treasury/treasury.service'
 
+export const runtime = 'nodejs'
+
 export async function GET(req: NextRequest) {
   return handleApiRoute(req, undefined, async ({ user }) => apiData(await listTreasuryAccounts(user)), {
     auth: 'required',

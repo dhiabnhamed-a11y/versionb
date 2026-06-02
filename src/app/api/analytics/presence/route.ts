@@ -8,6 +8,8 @@ import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'
 import { requireSessionUser } from '@/modules/shared/session'
 import { logger } from '@/modules/shared/logger'
 
+export const runtime = 'nodejs'
+
 type PresenceBody = {
   event?: string
   path?: string

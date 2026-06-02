@@ -15,6 +15,8 @@ import { emitCompanyRealtime } from '@/lib/realtime-server'
 import { getProjectMediaSupport } from '@/lib/project-media-support'
 import { getSupabaseAdmin, TASK_DELIVERABLE_BUCKET } from '@/lib/supabase-admin'
 
+export const runtime = 'nodejs'
+
 type SessionUser = {
   id: string
   role?: string | null

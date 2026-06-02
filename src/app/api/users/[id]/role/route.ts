@@ -8,6 +8,8 @@ import {
   type SettingsSessionUser,
 } from '@/lib/settings'
 
+export const runtime = 'nodejs'
+
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const requester = await requireSessionUser()
 

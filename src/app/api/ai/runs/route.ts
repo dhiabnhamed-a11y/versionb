@@ -5,6 +5,8 @@ import { normalizeAppLocale } from '@/lib/i18n'
 import { createOperationalAiPlan } from '@/modules/ai/services/operational-ai.service'
 import { getAiObservabilitySummary } from '@/modules/ai/observability/metrics'
 
+export const runtime = 'nodejs'
+
 type SessionUser = {
   id: string
   role?: string | null

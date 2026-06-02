@@ -6,6 +6,8 @@ import { requireSessionUser } from '@/modules/shared/session'
 import { recordDuration } from '@/lib/observability'
 import { okJson, withApiError } from '@/modules/shared/api'
 
+export const runtime = 'nodejs'
+
 export async function GET(req: NextRequest) {
   const startedAt = Date.now()
 

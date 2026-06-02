@@ -3,6 +3,8 @@ import { apiData, handleApiRoute } from '@/lib/api'
 import { generateFinancialReport } from '@/modules/reporting'
 import { financialReportQuerySchema } from '@/modules/reporting/reporting.validation'
 
+export const runtime = 'nodejs'
+
 export async function GET(req: NextRequest) {
   return handleApiRoute(
     req,

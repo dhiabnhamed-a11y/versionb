@@ -9,6 +9,8 @@ import {
   updateWorkspaceThemeSettings,
 } from '@/lib/settings'
 
+export const runtime = 'nodejs'
+
 export async function GET() {
   const user = await requireSessionUser()
   if (!user) {

@@ -4,6 +4,8 @@ import { apiData, handleApiRoute, validateJson, type ApiParams } from '@/lib/api
 
 import { listCompanyAccessRequests, reviewCompanyAccessRequest, submitDomainAccessRequest } from '@/lib/onboarding'
 
+export const runtime = 'nodejs'
+
 const accessRequestCreateSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),

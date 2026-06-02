@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/modules/auth/session'
 import { bulkUpdateIncidentStatus, bulkAssign, bulkAssignTeam, bulkUpdatePriority, bulkDeleteAssets } from '@/modules/enterprise/enterprise-bulk'
 
+export const runtime = 'nodejs'
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getSessionUser()

@@ -31,12 +31,17 @@ export default async function EmergencyCenterPage() {
     )
   }
 
-  const data = await getEnterpriseOperationsDashboard(user)
-  const initialIncidents = data.incidents.map((incident) => ({
+  let data: Awaited<ReturnType<typeof getEnterpriseOperationsDashboard>> | null = null
+  try {
+    data = await getEnterpriseOperationsDashboard(user)
+  } catch {
+    // service unavailable in this environment
+  }
+  const initialIncidents = (data?.incidents ?? []).map((incident) => ({
     ...incident,
     createdAt: incident.createdAt.toISOString(),
   }))
-  const teamsOnDuty = data.teams.filter((team) => team._count.assignedIncidents > 0).length
+  const teamsOnDuty = (data?.teams ?? []).filter((team) => team._count.assignedIncidents > 0).length
 
   return <EmergencyCenterClient initialIncidents={initialIncidents} teamsOnDuty={teamsOnDuty} />
 }

@@ -8,6 +8,8 @@ import { getSupabaseAdmin, PROJECT_CAMERA_BUCKET } from '@/lib/supabase-admin'
 import { API_RATE_LIMITS } from '@/lib/api-defaults'
 import { enforceDistributedRateLimit } from '@/lib/rate-limit'
 
+export const runtime = 'nodejs'
+
 export async function POST(req: NextRequest) {
   const rate = await enforceDistributedRateLimit(req, API_RATE_LIMITS.upload)
   if (!rate.allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429 })

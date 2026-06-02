@@ -3,6 +3,8 @@ import { requireSessionUser } from '@/modules/shared/session'
 import { isAuthorizedSuperAdminIdentity } from '@/lib/security'
 import { prisma } from '@/lib/db'
 
+export const runtime = 'nodejs'
+
 const CONFIRMATION_CODE = '11193708'
 
 export async function POST(req: NextRequest) {

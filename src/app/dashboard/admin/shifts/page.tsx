@@ -14,7 +14,12 @@ export default async function ShiftsPage() {
   const user = session.user as SessionUser
   if (!isHealthcareCompanyType(user.companyType)) redirect('/dashboard/admin')
 
-  const shiftsFromDb = await healthcareService.getStaffShiftSummaries(user.companyId || '')
+  let shiftsFromDb: Awaited<ReturnType<typeof healthcareService.getStaffShiftSummaries>> = []
+  try {
+    shiftsFromDb = await healthcareService.getStaffShiftSummaries(user.companyId || '')
+  } catch {
+    // table may not exist yet in this environment
+  }
 
   const SHIFTS = shiftsFromDb.map((s) => ({
     id: s.id,

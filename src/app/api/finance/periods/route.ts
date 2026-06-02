@@ -2,6 +2,8 @@ import type { NextRequest } from 'next/server'
 import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { createFinancialPeriod, listFinancialPeriods } from '@/modules/accounting/accounting.service'
 
+export const runtime = 'nodejs'
+
 export async function GET(req: NextRequest) {
   return handleApiRoute(req, undefined, async ({ user }) => apiData(await listFinancialPeriods(user)), { auth: 'required', responseMode: 'legacy' })
 }

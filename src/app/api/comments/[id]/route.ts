@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { commentSelect, getAllowedCommentFile } from '@/lib/media-comments'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
+
+export const runtime = 'nodejs'
 type UpdateCommentBody = {
   resolved?: boolean
 }

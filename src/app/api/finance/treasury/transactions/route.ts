@@ -3,6 +3,8 @@ import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { createTreasuryTransaction, listTreasuryTransactions } from '@/modules/treasury/treasury.service'
 import { parsePagination } from '@/modules/shared/pagination'
 
+export const runtime = 'nodejs'
+
 export async function GET(req: NextRequest) {
   return handleApiRoute(
     req,

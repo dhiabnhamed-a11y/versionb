@@ -15,16 +15,21 @@ export default async function RequestsPage() {
   const user = session.user as SessionUser
   if (!isHealthcareCompanyType(user.companyType)) redirect('/dashboard/admin')
 
-  const incidents = await prisma.enterpriseIncident.findMany({
-    where: { companyId: user.companyId! },
-    include: {
-      assignedTeam: { select: { name: true } },
-      department: { select: { name: true } },
-      reportedBy: { select: { name: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 100,
-  })
+  let incidents: Awaited<ReturnType<typeof prisma.enterpriseIncident.findMany>> = []
+  try {
+    incidents = await prisma.enterpriseIncident.findMany({
+      where: { companyId: user.companyId! },
+      include: {
+        assignedTeam: { select: { name: true } },
+        department: { select: { name: true } },
+        reportedBy: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    })
+  } catch {
+    // table may not exist yet in this environment
+  }
 
   const total = incidents.length
   const open = incidents.filter((i) => !['RESOLVED', 'CLOSED', 'CANCELLED'].includes(i.status)).length

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/modules/auth/session'
 import { broadcastDashboardToWorkspace, pushIncidentUpdate } from '@/modules/enterprise/enterprise-realtime'
 
+export const runtime = 'nodejs'
+
 export async function POST(request: NextRequest) {
   try {
     const user = await getSessionUser()

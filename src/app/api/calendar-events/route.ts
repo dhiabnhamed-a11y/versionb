@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { apiData, handleApiRoute, validateJson, type ApiParams } from '@/lib/api'
 import { prisma } from '@/lib/db'
 
+export const runtime = 'nodejs'
+
 const EVENT_TYPES = ['PROJECT_EVENT', 'MEETING', 'MILESTONE', 'BLOCKER'] as const
 const EVENT_TYPES_SET = new Set<string>(EVENT_TYPES)
 

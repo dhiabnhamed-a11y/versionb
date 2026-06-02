@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/modules/auth/session'
 import { transitionAssetLifecycle } from '@/modules/enterprise/enterprise-lifecycle'
 
+export const runtime = 'nodejs'
+
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;

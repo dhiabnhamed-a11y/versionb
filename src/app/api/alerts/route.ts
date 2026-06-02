@@ -2,6 +2,8 @@ import type { NextRequest } from 'next/server'
 import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { createUserAlert, listCurrentUserAlerts, markCurrentUserAlertRead } from '@/modules/alerts/service'
 
+export const runtime = 'nodejs'
+
 // GET alerts for the current user
 export async function GET(req: NextRequest) {
   return handleApiRoute(

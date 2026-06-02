@@ -5,6 +5,8 @@ import { createCompanyInvite, getInviteTtlHours, listCompanyInvites } from '@/li
 import { emitCompanyRealtime } from '@/lib/realtime-server'
 import { prisma } from '@/lib/db'
 
+export const runtime = 'nodejs'
+
 const inviteCreateSchema = z.object({
   email: z.string().email().optional(),
   role: z.string().optional(),

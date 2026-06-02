@@ -4,6 +4,8 @@ import { receiveSocialWebhook } from '@/modules/integrations/webhooks/webhook.se
 import { badRequest } from '@/modules/shared/errors'
 import { withApiError } from '@/modules/shared/api'
 
+export const runtime = 'nodejs'
+
 export async function GET(req: NextRequest, ctx: RouteContext<'/api/integrations/webhooks/[provider]'>) {
   const { provider } = await ctx.params
   if (!isSocialProviderSlug(provider)) return NextResponse.json({ error: 'Unsupported provider' }, { status: 400 })

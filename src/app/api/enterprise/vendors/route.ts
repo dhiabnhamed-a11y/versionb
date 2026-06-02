@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/modules/auth/session'
 import { listVendors, createVendor } from '@/modules/enterprise/enterprise-vendor.service'
 
+export const runtime = 'nodejs'
+
 export async function GET() {
   try {
     const user = await getSessionUser()

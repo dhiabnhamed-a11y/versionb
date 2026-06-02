@@ -3,6 +3,8 @@ import { requireSessionUser } from '@/modules/shared/session'
 import { okJson, withApiError } from '@/modules/shared/api'
 import { disconnectWorkspaceConnectedAccount } from '@/modules/integrations/services/integration.service'
 
+export const runtime = 'nodejs'
+
 export async function DELETE(_req: NextRequest, ctx: RouteContext<'/api/integrations/accounts/[id]'>) {
   return withApiError(async () => {
     const user = await requireSessionUser()

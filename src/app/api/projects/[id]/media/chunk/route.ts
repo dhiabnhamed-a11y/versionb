@@ -17,6 +17,8 @@ import { getProjectIfAllowed } from '@/lib/project-access'
 import { getProjectMediaSupport } from '@/lib/project-media-support'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
 
+export const runtime = 'nodejs'
+
 type SessionUser = {
   id: string
   role?: string | null

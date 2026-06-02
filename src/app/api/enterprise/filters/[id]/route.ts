@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/modules/auth/session'
 import { deleteSavedFilter } from '@/modules/enterprise/enterprise-saved-filters'
 
+export const runtime = 'nodejs'
+
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;

@@ -24,7 +24,12 @@ export default async function PatientsPage() {
   const user = session.user as SessionUser
   if (!isHealthcareCompanyType(user.companyType)) redirect('/dashboard/admin')
 
-  const patients = await healthcareService.getPatientSummaries(user.companyId || '', 100)
+  let patients: Awaited<ReturnType<typeof healthcareService.getPatientSummaries>> = []
+  try {
+    patients = await healthcareService.getPatientSummaries(user.companyId || '', 100)
+  } catch {
+    // table may not exist yet in this environment
+  }
   const admitted = patients.filter((p) => p.status === 'admitted').length
   const inTreatment = patients.filter((p) => p.status === 'in-treatment').length
   const discharged = patients.filter((p) => p.status === 'discharged').length

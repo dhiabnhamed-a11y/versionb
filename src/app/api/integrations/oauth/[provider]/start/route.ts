@@ -6,6 +6,8 @@ import { prepareOAuthStart } from '@/modules/integrations/services/oauth.service
 import { logger } from '@/modules/shared/logger'
 import { logOAuthUrlResolution, resolveOAuthOrigin } from '@/lib/oauth-origin'
 
+export const runtime = 'nodejs'
+
 function safeReturnTo(value: string | null) {
   if (!value) return '/dashboard/admin/social-analytics'
   if (!value.startsWith('/dashboard')) return '/dashboard/admin/social-analytics'

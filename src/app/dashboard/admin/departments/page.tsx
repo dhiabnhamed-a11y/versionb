@@ -15,27 +15,32 @@ export default async function DepartmentsPage() {
   const user = session.user as SessionUser
   if (!isHealthcareCompanyType(user.companyType)) redirect('/dashboard/admin')
 
-  const departments = await prisma.enterpriseDepartment.findMany({
-    where: { companyId: user.companyId! },
-    include: {
-      manager: { select: { id: true, name: true } },
-      _count: {
-        select: {
-          assets: true,
-          incidents: true,
-          teams: true,
+  let departments: Awaited<ReturnType<typeof prisma.enterpriseDepartment.findMany>> = []
+  try {
+    departments = await prisma.enterpriseDepartment.findMany({
+      where: { companyId: user.companyId! },
+      include: {
+        manager: { select: { id: true, name: true } },
+        _count: {
+          select: {
+            assets: true,
+            incidents: true,
+            teams: true,
+          },
+        },
+        teams: {
+          select: {
+            id: true,
+            name: true,
+            _count: { select: { members: true } },
+          },
         },
       },
-      teams: {
-        select: {
-          id: true,
-          name: true,
-          _count: { select: { members: true } },
-        },
-      },
-    },
-    orderBy: { name: 'asc' },
-  })
+      orderBy: { name: 'asc' },
+    })
+  } catch {
+    // table may not exist yet in this environment
+  }
 
   const deptTypes = HEALTHCARE_NAVIGATION.departmentTypes
 

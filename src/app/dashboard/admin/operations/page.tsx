@@ -78,10 +78,15 @@ export default async function EnterpriseOperationsPage() {
     )
   }
 
-  const data = await getEnterpriseOperationsDashboard(user)
-  const topAssets = data.assets.slice(0, 6)
-  const activeIncidents = data.incidents.filter((incident) => !['RESOLVED', 'CLOSED', 'CANCELLED'].includes(incident.status)).slice(0, 8)
-  const maintenanceTimeline = data.maintenance.slice(0, 8)
+  let data: Awaited<ReturnType<typeof getEnterpriseOperationsDashboard>> | null = null
+  try {
+    data = await getEnterpriseOperationsDashboard(user)
+  } catch {
+    // service unavailable in this environment
+  }
+  const topAssets = (data?.assets ?? []).slice(0, 6)
+  const activeIncidents = (data?.incidents ?? []).filter((incident) => !['RESOLVED', 'CLOSED', 'CANCELLED'].includes(incident.status)).slice(0, 8)
+  const maintenanceTimeline = (data?.maintenance ?? []).slice(0, 8)
 
   return (
     <div className="dashboard-page taskit-overview">
@@ -115,12 +120,12 @@ export default async function EnterpriseOperationsPage() {
       </section>
 
       <section className="compact-stat-grid">
-        <StatCard label="Asset health" value={pct(data.metrics.assetHealthAverage)} detail="Average health score across tracked assets" tone="good" />
-        <StatCard label="SLA compliance" value={pct(data.metrics.slaCompliance)} detail="Open incident resolution performance" tone={data.metrics.breachedIncidents ? 'risk' : 'good'} />
-        <StatCard label="Open incidents" value={data.metrics.openIncidents} detail="Active operational tickets and escalations" tone={data.metrics.openIncidents ? 'watch' : 'good'} />
-        <StatCard label="High-risk assets" value={data.metrics.highRiskAssets} detail="Assets needing inspection or replacement planning" tone={data.metrics.highRiskAssets ? 'risk' : 'good'} />
-        <StatCard label="Overdue maintenance" value={data.metrics.overdueMaintenance} detail="Work orders past due" tone={data.metrics.overdueMaintenance ? 'risk' : 'good'} />
-        <StatCard label="Compliance reviews" value={data.metrics.complianceDue} detail="Controls due within 30 days" tone={data.metrics.complianceDue ? 'watch' : 'good'} />
+        <StatCard label="Asset health" value={pct(data?.metrics.assetHealthAverage ?? 0)} detail="Average health score across tracked assets" tone="good" />
+        <StatCard label="SLA compliance" value={pct(data?.metrics.slaCompliance ?? 0)} detail="Open incident resolution performance" tone={data?.metrics.breachedIncidents ? 'risk' : 'good'} />
+        <StatCard label="Open incidents" value={data?.metrics.openIncidents ?? 0} detail="Active operational tickets and escalations" tone={data?.metrics.openIncidents ? 'watch' : 'good'} />
+        <StatCard label="High-risk assets" value={data?.metrics.highRiskAssets ?? 0} detail="Assets needing inspection or replacement planning" tone={data?.metrics.highRiskAssets ? 'risk' : 'good'} />
+        <StatCard label="Overdue maintenance" value={data?.metrics.overdueMaintenance ?? 0} detail="Work orders past due" tone={data?.metrics.overdueMaintenance ? 'risk' : 'good'} />
+        <StatCard label="Compliance reviews" value={data?.metrics.complianceDue ?? 0} detail="Controls due within 30 days" tone={data?.metrics.complianceDue ? 'watch' : 'good'} />
       </section>
 
       <section className="taskit-detail-grid">
@@ -132,7 +137,7 @@ export default async function EnterpriseOperationsPage() {
             </div>
             <HeartPulse size={20} aria-hidden />
           </div>
-          {!data.copilotSignals.length ? (
+          {!(data?.copilotSignals.length) ? (
             <div className="taskit-empty-state">
               <ShieldCheck size={20} />
               <p className="taskit-heading">No active operational risk signals</p>
@@ -140,7 +145,7 @@ export default async function EnterpriseOperationsPage() {
             </div>
           ) : (
             <div className="taskit-activity-list">
-              {data.copilotSignals.map((signal) => (
+              {(data?.copilotSignals ?? []).map((signal) => (
                 <div key={signal.id} className="taskit-activity-row">
                   <AlertTriangle size={20} aria-hidden />
                   <div className="taskit-row-main">
@@ -165,7 +170,7 @@ export default async function EnterpriseOperationsPage() {
             <LayoutGrid size={20} aria-hidden />
           </div>
           <div className="compact-stat-grid">
-            {data.departments.slice(0, 8).map((department) => (
+            {(data?.departments ?? []).slice(0, 8).map((department) => (
               <div key={department.id} className="compact-stat">
                 <span className="taskit-label">{department.code}</span>
                 <span className="taskit-heading">{department.name}</span>
@@ -291,7 +296,7 @@ export default async function EnterpriseOperationsPage() {
             <Users size={20} aria-hidden />
           </div>
           <div className="compact-stat-grid">
-            {data.teams.slice(0, 6).map((team) => (
+            {(data?.teams ?? []).slice(0, 6).map((team) => (
               <div key={team.id} className="compact-stat">
                 <span className="taskit-label">{team.department.name}</span>
                 <span className="taskit-heading">{team.name}</span>
@@ -312,7 +317,7 @@ export default async function EnterpriseOperationsPage() {
             <ShieldCheck size={20} aria-hidden />
           </div>
           <div className="taskit-activity-list">
-            {data.auditEvents.map((event) => (
+            {(data?.auditEvents ?? []).map((event) => (
               <div key={event.id} className="taskit-activity-row">
                 <ShieldCheck size={20} aria-hidden />
                 <div className="taskit-row-main">

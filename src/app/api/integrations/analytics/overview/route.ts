@@ -4,6 +4,8 @@ import { okJson, withApiError } from '@/modules/shared/api'
 import { analyticsQuerySchema } from '@/modules/integrations/services/integration.validation'
 import { getSocialAnalyticsDashboard } from '@/modules/integrations/services/analytics.service'
 
+export const runtime = 'nodejs'
+
 export async function GET(req: NextRequest) {
   return withApiError(async () => {
     const user = await requireSessionUser()

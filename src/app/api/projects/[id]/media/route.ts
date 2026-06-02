@@ -14,6 +14,8 @@ import { getProjectMediaSupport } from '@/lib/project-media-support'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
 import { NO_STORE_HEADERS } from '@/lib/http'
 
+export const runtime = 'nodejs'
+
 type SessionUser = {
   id: string
   role?: string | null

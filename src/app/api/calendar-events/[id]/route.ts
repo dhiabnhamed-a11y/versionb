@@ -2,6 +2,8 @@ import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 
+export const runtime = 'nodejs'
+
 type UpdateCalendarEventBody = {
   title?: string
   description?: string | null

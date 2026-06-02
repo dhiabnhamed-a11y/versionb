@@ -4,6 +4,8 @@ import { getIdempotencyKey, runIdempotent } from '@/lib/idempotency'
 import { createInvoice, listInvoices } from '@/modules/invoices/invoice.service'
 import { parsePagination } from '@/modules/shared/pagination'
 
+export const runtime = 'nodejs'
+
 export async function GET(req: NextRequest) {
   return handleApiRoute(
     req,

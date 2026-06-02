@@ -2,6 +2,8 @@ import type { NextRequest } from 'next/server'
 import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { deleteTask, updateTask } from '@/modules/tasks/task.service'
 
+export const runtime = 'nodejs'
+
 export async function PATCH(req: NextRequest, ctx: RouteContext<'/api/tasks/[id]'>) {
   return handleApiRoute(
     req,

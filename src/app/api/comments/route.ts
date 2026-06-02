@@ -10,6 +10,8 @@ import {
   timestampFitsDuration,
 } from '@/lib/media-comments'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
+
+export const runtime = 'nodejs'
 type CreateCommentBody = {
   fileId?: string
   content?: string

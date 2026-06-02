@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { WebhookIngestionService } from '@/lib/ems/integration'
 import { enforceDistributedRateLimit } from '@/lib/rate-limit'
 
+export const runtime = 'nodejs'
+
 export async function POST(req: NextRequest, { params }: { params: Promise<{ provider: string }> }) {
   const rl = await enforceDistributedRateLimit(req, { namespace: 'ems.webhook', windowMs: 60_000, max: 300 })
   if (!rl.allowed) {

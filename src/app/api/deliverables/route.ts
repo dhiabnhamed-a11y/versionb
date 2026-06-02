@@ -4,6 +4,8 @@ import { Prisma } from '@prisma/client'
 import { apiData, handleApiRoute, validateJson, type ApiParams } from '@/lib/api'
 import { prisma } from '@/lib/db'
 
+export const runtime = 'nodejs'
+
 const createDeliverableSchema = z.object({
   briefId: z.string().min(1),
   title: z.string().min(1),

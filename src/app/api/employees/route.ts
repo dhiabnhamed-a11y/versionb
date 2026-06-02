@@ -4,6 +4,8 @@ import { apiData, handleApiRoute, validateJson, type ApiParams } from '@/lib/api
 import { prisma } from '@/lib/db'
 import { createCompanyInvite, getInviteTtlHours } from '@/lib/invites'
 
+export const runtime = 'nodejs'
+
 const createEmployeeSchema = z.object({
   email: z.string().email(),
   role: z.string().optional().default('EMPLOYEE'),

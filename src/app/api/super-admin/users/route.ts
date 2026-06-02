@@ -4,6 +4,8 @@ import { requireSessionUser } from '@/modules/shared/session'
 import { isAuthorizedSuperAdminIdentity } from '@/lib/security'
 import { prisma } from '@/lib/db'
 
+export const runtime = 'nodejs'
+
 function startOfUtcDay(date: Date) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()))
 }

@@ -11,6 +11,8 @@ import {
   updateUserDashboardDesignBuilder,
 } from '@/lib/settings'
 
+export const runtime = 'nodejs'
+
 function inferSourceType(file: File) {
   const name = file.name.toLowerCase()
   if (name.endsWith('.json') || file.type === 'application/json') return 'json'

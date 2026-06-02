@@ -6,6 +6,8 @@ import { NO_STORE_HEADERS } from '@/lib/http'
 import { API_RATE_LIMITS } from '@/lib/api-defaults'
 import { enforceDistributedRateLimit } from '@/lib/rate-limit'
 
+export const runtime = 'nodejs'
+
 type PortalClientRow = {
   id: string
   companyId: string

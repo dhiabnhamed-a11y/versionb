@@ -9,6 +9,8 @@ import {
 import { NO_STORE_HEADERS } from '@/lib/http'
 import { SettingsAccessError } from '@/lib/settings'
 
+export const runtime = 'nodejs'
+
 export async function POST(req: NextRequest) {
   const user = await requireSessionUser()
   if (!user) {

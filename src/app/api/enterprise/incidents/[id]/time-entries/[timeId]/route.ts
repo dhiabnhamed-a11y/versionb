@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/modules/auth/session'
 import { deleteTimeEntry } from '@/modules/enterprise/enterprise.service'
 
+export const runtime = 'nodejs'
+
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string; timeId: string }> }) {
   try {
     const { id, timeId } = await params;

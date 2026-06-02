@@ -6,6 +6,8 @@ import { normalizeCompanyType } from '@/lib/company-types'
 import { prisma } from '@/lib/db'
 import { emitCompanyRealtime } from '@/lib/realtime-server'
 
+export const runtime = 'nodejs'
+
 const createRoomSchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),

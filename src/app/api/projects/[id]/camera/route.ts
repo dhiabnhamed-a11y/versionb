@@ -4,6 +4,8 @@ import { prisma } from '@/lib/db'
 import { getProjectIfAllowed } from '@/lib/project-access'
 import { getProjectCameraSupport } from '@/lib/project-camera-support'
 
+export const runtime = 'nodejs'
+
 /** GET /api/projects/:id/camera — list captured media for a project */
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireSessionUser()

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/modules/auth/session'
 import { getApprovalWorkflowStatus } from '@/modules/enterprise/enterprise-approval-engine'
 
+export const runtime = 'nodejs'
+
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ entityType: string; entityId: string }> }) {
   try {
     const { entityType, entityId } = await params;

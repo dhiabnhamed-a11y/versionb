@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSessionUser } from '@/modules/auth/session'
 import { getDepartmentDashboard } from '@/modules/enterprise/enterprise-dashboards'
 
+export const runtime = 'nodejs'
+
 export const dynamic = 'force-dynamic'
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

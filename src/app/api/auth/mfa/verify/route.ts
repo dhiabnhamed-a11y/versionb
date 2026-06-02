@@ -4,6 +4,8 @@ import { decryptMfaSecret } from '@/lib/security/mfa-crypto'
 import { verifyTotpCode } from '@/modules/security/mfa'
 import { badRequest } from '@/modules/shared/errors'
 
+export const runtime = 'nodejs'
+
 export const POST = apiRoute(async ({ user, req }) => {
   const body = (await req.json().catch(() => ({}))) as { code?: string }
   if (!body.code?.trim()) throw badRequest('Verification code required.')

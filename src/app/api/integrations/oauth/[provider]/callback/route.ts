@@ -5,6 +5,8 @@ import { oauthCookieName } from '@/modules/integrations/security/oauth-state'
 import { normalizeError } from '@/modules/shared/errors'
 import { logger } from '@/modules/shared/logger'
 
+export const runtime = 'nodejs'
+
 export async function GET(req: NextRequest, ctx: RouteContext<'/api/integrations/oauth/[provider]/callback'>) {
   const { provider } = await ctx.params
   const fallback = new URL('/dashboard/admin/social-analytics', req.url)

@@ -3,6 +3,8 @@ import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { getIdempotencyKey, runIdempotent } from '@/lib/idempotency'
 import { deleteInvoice, getInvoice, updateInvoice } from '@/modules/invoices/invoice.service'
 
+export const runtime = 'nodejs'
+
 export async function GET(req: NextRequest, context: { params: Promise<{ id: string }> }) {
   return handleApiRoute(
     req,

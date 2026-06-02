@@ -5,6 +5,8 @@ import { prisma } from '@/lib/db'
 import { NO_STORE_HEADERS } from '@/lib/http'
 import { COMMENT_TIME_TOLERANCE_SECONDS, commentSelect, getAllowedCommentFile } from '@/lib/media-comments'
 
+export const runtime = 'nodejs'
+
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const user = await requireSessionUser()
   const { id } = await params

@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 
 import { getInvitePreview } from '@/lib/invites'
 
+export const runtime = 'nodejs'
+
 export async function GET(_req: Request, context: RouteContext<'/api/invites/[code]'>) {
   const { code } = await context.params
 

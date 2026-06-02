@@ -5,6 +5,8 @@ import { canManageFinance, canManageWorkspace } from '@/modules/permissions/perm
 import { okJson, withApiError } from '@/modules/shared/api'
 import { requireSessionUser } from '@/modules/shared/session'
 
+export const runtime = 'nodejs'
+
 const COMMON_CURRENCIES = ['USD', 'EUR', 'TND', 'GBP', 'CAD', 'AUD']
 
 export async function GET() {

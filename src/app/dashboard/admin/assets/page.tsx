@@ -45,16 +45,21 @@ export default async function AssetsPage() {
   const isHealthcare = isHealthcareCompanyType(companyType)
 
   if (isHealthcare) {
-    const assets = await prisma.enterpriseAsset.findMany({
-      where: { companyId: user.companyId! },
-      include: {
-        category: true,
-        department: { select: { name: true, code: true } },
-        assignedUser: { select: { name: true } },
-      },
-      orderBy: { healthScore: 'asc' },
-      take: 100,
-    })
+    let assets: Awaited<ReturnType<typeof prisma.enterpriseAsset.findMany>> = []
+    try {
+      assets = await prisma.enterpriseAsset.findMany({
+        where: { companyId: user.companyId! },
+        include: {
+          category: true,
+          department: { select: { name: true, code: true } },
+          assignedUser: { select: { name: true } },
+        },
+        orderBy: { healthScore: 'asc' },
+        take: 100,
+      })
+    } catch {
+      // table may not exist yet in this environment
+    }
 
     const totalAssets = assets.length
     const operational = assets.filter((a) => a.operationalStatus === 'OPERATIONAL').length

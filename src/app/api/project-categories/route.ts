@@ -10,6 +10,8 @@ import {
   getProjectCategorySupport,
 } from '@/lib/project-category-support'
 
+export const runtime = 'nodejs'
+
 const createCategorySchema = z.object({
   name: z.string().min(1),
   description: z.string().optional(),

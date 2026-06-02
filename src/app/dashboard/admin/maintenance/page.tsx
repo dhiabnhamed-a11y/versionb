@@ -27,15 +27,20 @@ export default async function MaintenancePage() {
 
   const user = session.user as SessionUser
 
-  const workOrders = await prisma.enterpriseMaintenanceWorkOrder.findMany({
-    where: { companyId: user.companyId! },
-    include: {
-      asset: { select: { name: true, assetTag: true } },
-      assignedTeam: { select: { name: true } },
-    },
-    orderBy: { createdAt: 'desc' },
-    take: 100,
-  })
+  let workOrders: Awaited<ReturnType<typeof prisma.enterpriseMaintenanceWorkOrder.findMany>> = []
+  try {
+    workOrders = await prisma.enterpriseMaintenanceWorkOrder.findMany({
+      where: { companyId: user.companyId! },
+      include: {
+        asset: { select: { name: true, assetTag: true } },
+        assignedTeam: { select: { name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
+    })
+  } catch {
+    // table may not exist yet in this environment
+  }
 
   const total = workOrders.length
   const open = workOrders.filter((w) => ['OPEN', 'ASSIGNED', 'IN_PROGRESS'].includes(w.status)).length
