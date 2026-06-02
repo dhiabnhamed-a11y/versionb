@@ -73,7 +73,7 @@ export default async function PatientsPage() {
               <tbody>
                 {patients.map((p) => (
                   <tr key={p.id}>
-                    <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{p.patientId}</td>
+                    <td style={{ fontFamily: 'monospace', fontSize: 12 }}>{p.patientNumber}</td>
                     <td style={{ fontWeight: 600 }}>{p.name}</td>
                     <td>{p.age}</td>
                     <td>{p.gender}</td>
