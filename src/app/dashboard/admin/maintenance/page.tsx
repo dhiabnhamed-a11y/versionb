@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import { auth } from '@/lib/auth'
 import type { SessionUser } from '@/modules/shared/session'
 import { prisma } from '@/lib/db'
+import type { Prisma } from '@prisma/client'
 import { Wrench } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -27,7 +28,13 @@ export default async function MaintenancePage() {
 
   const user = session.user as SessionUser
 
-  let workOrders: Awaited<ReturnType<typeof prisma.enterpriseMaintenanceWorkOrder.findMany>> = []
+  type WorkOrderWithRelations = Prisma.EnterpriseMaintenanceWorkOrderGetPayload<{
+    include: {
+      asset: { select: { name: true; assetTag: true } }
+      assignedTeam: { select: { name: true } }
+    }
+  }>
+  let workOrders: WorkOrderWithRelations[] = []
   try {
     workOrders = await prisma.enterpriseMaintenanceWorkOrder.findMany({
       where: { companyId: user.companyId! },

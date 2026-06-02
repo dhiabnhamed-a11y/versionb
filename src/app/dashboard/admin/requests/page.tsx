@@ -4,6 +4,7 @@ import { auth } from '@/lib/auth'
 import { isHealthcareCompanyType } from '@/lib/company-types'
 import type { SessionUser } from '@/modules/shared/session'
 import { prisma } from '@/lib/db'
+import type { Prisma } from '@prisma/client'
 import { ClipboardList } from 'lucide-react'
 import IncidentsTableClient from '@/components/healthcare/IncidentsTableClient'
 
@@ -15,7 +16,14 @@ export default async function RequestsPage() {
   const user = session.user as SessionUser
   if (!isHealthcareCompanyType(user.companyType)) redirect('/dashboard/admin')
 
-  let incidents: Awaited<ReturnType<typeof prisma.enterpriseIncident.findMany>> = []
+  type IncidentWithRelations = Prisma.EnterpriseIncidentGetPayload<{
+    include: {
+      assignedTeam: { select: { name: true } }
+      department: { select: { name: true } }
+      reportedBy: { select: { name: true } }
+    }
+  }>
+  let incidents: IncidentWithRelations[] = []
   try {
     incidents = await prisma.enterpriseIncident.findMany({
       where: { companyId: user.companyId! },

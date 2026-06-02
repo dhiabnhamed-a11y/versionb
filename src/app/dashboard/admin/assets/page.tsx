@@ -3,6 +3,7 @@ import { auth } from '@/lib/auth'
 import { isHealthcareCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import type { SessionUser } from '@/modules/shared/session'
 import { prisma } from '@/lib/db'
+import type { Prisma } from '@prisma/client'
 import { HeartPulse } from 'lucide-react'
 import GeneralAssetsClient from './GeneralAssetsClient'
 
@@ -45,7 +46,14 @@ export default async function AssetsPage() {
   const isHealthcare = isHealthcareCompanyType(companyType)
 
   if (isHealthcare) {
-    let assets: Awaited<ReturnType<typeof prisma.enterpriseAsset.findMany>> = []
+    type AssetWithRelations = Prisma.EnterpriseAssetGetPayload<{
+      include: {
+        category: true
+        department: { select: { name: true; code: true } }
+        assignedUser: { select: { name: true } }
+      }
+    }>
+    let assets: AssetWithRelations[] = []
     try {
       assets = await prisma.enterpriseAsset.findMany({
         where: { companyId: user.companyId! },

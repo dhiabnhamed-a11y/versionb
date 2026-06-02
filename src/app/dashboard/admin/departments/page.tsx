@@ -4,6 +4,7 @@ import { isHealthcareCompanyType } from '@/lib/company-types'
 import { HEALTHCARE_NAVIGATION } from '@/lib/healthcare-config'
 import type { SessionUser } from '@/modules/shared/session'
 import { prisma } from '@/lib/db'
+import type { Prisma } from '@prisma/client'
 import { Building2 } from 'lucide-react'
 
 export const dynamic = 'force-dynamic'
@@ -15,7 +16,14 @@ export default async function DepartmentsPage() {
   const user = session.user as SessionUser
   if (!isHealthcareCompanyType(user.companyType)) redirect('/dashboard/admin')
 
-  let departments: Awaited<ReturnType<typeof prisma.enterpriseDepartment.findMany>> = []
+  type DepartmentWithRelations = Prisma.EnterpriseDepartmentGetPayload<{
+    include: {
+      manager: { select: { id: true; name: true } }
+      _count: { select: { assets: true; incidents: true; teams: true } }
+      teams: { select: { id: true; name: true; _count: { select: { members: true } } } }
+    }
+  }>
+  let departments: DepartmentWithRelations[] = []
   try {
     departments = await prisma.enterpriseDepartment.findMany({
       where: { companyId: user.companyId! },
