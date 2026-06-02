@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { WebhookIngestionService } from '@/lib/ems/integration'
+import { enforceDistributedRateLimit } from '@/lib/rate-limit'
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ provider: string }> }) {
+  const rl = await enforceDistributedRateLimit(req, { namespace: 'ems.webhook', windowMs: 60_000, max: 300 })
+  if (!rl.allowed) {
+    return NextResponse.json({ error: 'Too Many Requests' }, { status: 429, headers: { 'Retry-After': String(rl.retryAfterSeconds) } })
+  }
   const { provider } = await params
   const path = `/api/ems/integrations/webhooks/${provider}`
   const headers: Record<string, string | string[] | undefined> = {}

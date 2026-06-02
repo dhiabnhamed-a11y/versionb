@@ -121,14 +121,18 @@ export class DispatchEngine {
           totalScore += 0.05
         }
 
-        const availabilityScore = unit.lastPing
-          ? Math.min(1, (Date.now() - unit.lastPing.getTime()) / 300000)
+        const msSincePing = unit.lastPing ? Date.now() - unit.lastPing.getTime() : null
+        // Higher score = pinged more recently (max 5-min window)
+        const availabilityScore = msSincePing !== null
+          ? Math.max(0, 1 - msSincePing / 300_000)
           : 0.5
         factors.push({
           name: 'Last Contact',
           weight: 0.05,
           value: availabilityScore,
-          description: unit.lastPing ? `${Math.round((Date.now() - unit.lastPing.getTime()) / 60000)}m since last ping` : 'No ping data',
+          description: msSincePing !== null
+            ? `${Math.round(msSincePing / 60000)}m since last ping`
+            : 'No ping data',
         })
         totalScore += 0.05 * availabilityScore
 
@@ -242,7 +246,12 @@ export class DispatchEngine {
   }
 
   private static estimateEta(distanceKm: number): number {
-    const avgSpeedKmh = 60
+    const hour = new Date().getHours()
+    // Approximate urban traffic multiplier: slower during peak hours
+    const peakMorning = hour >= 7 && hour <= 9
+    const peakEvening = hour >= 16 && hour <= 18
+    const trafficMultiplier = (peakMorning || peakEvening) ? 1.35 : 1.0
+    const avgSpeedKmh = 60 / trafficMultiplier
     const baseSeconds = (distanceKm / avgSpeedKmh) * 3600
     const responseDelay = 90
     return baseSeconds + responseDelay

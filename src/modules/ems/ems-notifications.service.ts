@@ -1,7 +1,36 @@
 import { prisma } from '@/lib/db'
-import { sendNotification } from '@/lib/firebase-admin'
+import { sendNotification, isInvalidFirebaseTokenError } from '@/lib/firebase-admin'
 import { emitEmsEvent } from './ems-realtime'
 import { logger } from '@/modules/shared/logger'
+
+async function purgeStaleToken(tokenId: string, userId: string): Promise<void> {
+  try {
+    await prisma.pushToken.delete({ where: { id: tokenId, userId } })
+    logger.info('ems.push.stale_token_purged', { tokenId, userId })
+  } catch { /* already deleted */ }
+}
+
+async function sendEmsNotification(
+  token: string,
+  title: string,
+  body: string,
+  data: Record<string, string>
+): Promise<{ delivered: boolean; staleToken: boolean }> {
+  try {
+    await sendNotification(token, title, body, {
+      ...data,
+      channelId: 'ems-critical-alerts', // Android critical channel
+      sound: 'ems_alert',               // custom sound registered in mobile app
+      priority: 'high',
+      ttl: '300',                        // 5 min max for emergencies
+    })
+    return { delivered: true, staleToken: false }
+  } catch (err) {
+    if (isInvalidFirebaseTokenError(err)) return { delivered: false, staleToken: true }
+    logger.warn('ems.push.send_failed', { error: err })
+    return { delivered: false, staleToken: false }
+  }
+}
 
 export type DispatchNotificationInput = {
   companyId: string
@@ -37,26 +66,23 @@ export class EmsNotificationService {
             where: { userId: member.userId },
           })
 
-          for (const token of pushTokens) {
-            try {
-              await sendNotification(
-                token.token,
-                title,
-                message,
-                {
-                  type: 'ems_dispatch',
-                  incidentId,
-                  incidentNumber,
-                  severity,
-                  unitId,
-                  url: `/dashboard/admin/ems/dispatch`,
-                  tag: `ems-dispatch-${incidentId}`,
-                }
-              )
-            } catch (pushErr) {
-              logger.warn(`[EMS Notifications] Push failed for token ${token.id.slice(0, 8)}...`, { error: pushErr })
-            }
+          const notifData = {
+            type: 'ems_dispatch',
+            incidentId,
+            incidentNumber,
+            severity,
+            unitId,
+            url: `/dashboard/admin/ems/dispatch`,
+            tag: `ems-dispatch-${incidentId}`,
           }
+
+          await Promise.allSettled(
+            pushTokens.map(async (pt) => {
+              const { delivered, staleToken } = await sendEmsNotification(pt.token, title, message, notifData)
+              if (staleToken) await purgeStaleToken(pt.id, member.userId)
+              return delivered
+            })
+          )
         }
 
         results.push({ unitId, success: true })

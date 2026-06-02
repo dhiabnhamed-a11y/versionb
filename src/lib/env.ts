@@ -24,6 +24,16 @@ const CONDITIONAL_ENV_VARS: Array<{ key: string; condition: () => boolean; hint:
     condition: () => process.env.DODO_PAYMENTS_API_KEY !== undefined,
     hint: 'Required when DODO_PAYMENTS_API_KEY is set',
   },
+  {
+    key: 'EMS_PHI_ENCRYPTION_KEY',
+    condition: () => process.env.NODE_ENV === 'production',
+    hint: 'Required in production for HIPAA PHI encryption. Generate: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"',
+  },
+  {
+    key: 'OXR_APP_ID',
+    condition: () => process.env.NODE_ENV === 'production',
+    hint: 'Optional but recommended: Open Exchange Rates App ID for live FX rates. Without it, Frankfurter (ECB, free) is used as fallback with ~40 currencies.',
+  },
 ]
 
 let envValidated = false

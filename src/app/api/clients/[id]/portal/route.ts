@@ -33,16 +33,32 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   const shouldRotate = body.rotate === true || !existing.portalToken
   const portalToken = shouldRotate ? createClientPortalToken() : existing.portalToken
   const portalEnabled = body.enabled === undefined ? true : body.enabled === true
+  // Portal tokens expire after 180 days; rotation resets the clock
+  const portalTokenExpiresAt = shouldRotate
+    ? new Date(Date.now() + 180 * 24 * 60 * 60 * 1000)
+    : null // existing expiry preserved
 
-  await prisma.$executeRaw`
-    UPDATE "Client"
-    SET
-      "portalToken" = ${portalToken},
-      "portalEnabled" = ${portalEnabled},
-      "updatedAt" = ${new Date()}
-    WHERE "id" = ${id}
-      AND "companyId" = ${user.companyId}
-  `
+  if (shouldRotate) {
+    await prisma.$executeRaw`
+      UPDATE "Client"
+      SET
+        "portalToken" = ${portalToken},
+        "portalEnabled" = ${portalEnabled},
+        "portalTokenExpiresAt" = ${portalTokenExpiresAt},
+        "updatedAt" = ${new Date()}
+      WHERE "id" = ${id}
+        AND "companyId" = ${user.companyId}
+    `
+  } else {
+    await prisma.$executeRaw`
+      UPDATE "Client"
+      SET
+        "portalEnabled" = ${portalEnabled},
+        "updatedAt" = ${new Date()}
+      WHERE "id" = ${id}
+        AND "companyId" = ${user.companyId}
+    `
+  }
 
   await prisma.clientActivity.create({
     data: {

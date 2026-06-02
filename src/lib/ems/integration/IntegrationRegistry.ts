@@ -2,6 +2,8 @@ import { prisma } from '@/lib/db'
 import { BaseConnector } from './BaseConnector'
 import { CadConnector } from './CadConnector'
 import { FhirConnector } from './FhirConnector'
+import { RapidSosConnector } from './RapidSosConnector'
+import { MotorolaConnector } from './MotorolaConnector'
 import { AuditService } from './AuditService'
 import type { ConnectorConfig, EmsIntegrationType, ConnectorHealth } from './types'
 
@@ -37,7 +39,11 @@ export class IntegrationRegistry {
     }
 
     let connector: BaseConnector
-    if (type.startsWith('CAD_')) {
+    if (type === 'CAD_RAPID_SOS') {
+      connector = new RapidSosConnector(integrationId, companyId, type, config)
+    } else if (type === 'CAD_MOTOROLA') {
+      connector = new MotorolaConnector(integrationId, companyId, type, config)
+    } else if (type.startsWith('CAD_')) {
       connector = new CadConnector(integrationId, companyId, type, config)
     } else if (type === 'FHIR' || type.startsWith('EHR_')) {
       connector = new FhirConnector(integrationId, companyId, type, config)

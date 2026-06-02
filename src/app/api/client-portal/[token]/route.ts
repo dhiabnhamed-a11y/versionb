@@ -40,6 +40,7 @@ async function getPortalClient(token: string) {
     WHERE "portalToken" = ${token}
       AND "portalEnabled" = true
       AND "status" = 'active'
+      AND ("portalTokenExpiresAt" IS NULL OR "portalTokenExpiresAt" > NOW())
     LIMIT 1
   `
   return rows[0] ?? null

@@ -1,11 +1,11 @@
 import { prisma } from '@/lib/db'
 import type { NextRequest } from 'next/server'
 import { apiData as _apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
-import { notFound } from '@/modules/shared/errors'
 import { EmsService } from '@/modules/ems/ems.service'
 import { DispatchEngine } from '@/modules/ems/dispatch-engine'
 import { EmsAiService } from '@/modules/ems/ai/ems-ai-agent'
 import { EmsNotificationService } from '@/modules/ems/ems-notifications.service'
+import { z } from 'zod'
 
 export const runtime = 'nodejs'
 
@@ -13,10 +13,19 @@ function apiData(data: any, opts?: any) {
   return _apiData(data, opts)
 }
 
-function getSeverityWeight(severity: string): number {
-  const w: Record<string, number> = { ALPHA: 1, BRAVO: 2, CHARLIE: 3, DELTA: 4, ECHO: 5, OMEGA: 10 }
-  return w[severity] || 1
-}
+const Severity = z.enum(['ALPHA', 'BRAVO', 'CHARLIE', 'DELTA', 'ECHO', 'OMEGA'])
+const LatLng = z.object({ lat: z.number().min(-90).max(90), lng: z.number().min(-180).max(180) })
+
+const DispatchBodySchema = z.discriminatedUnion('action', [
+  LatLng.extend({ action: z.literal('find_units'), severity: Severity.default('ALPHA'), maxResults: z.number().int().min(1).max(50).optional(), requiredCapabilities: z.array(z.string()).optional() }),
+  z.object({ action: z.literal('auto_dispatch'), incidentId: z.string().min(1), severity: Severity.default('ALPHA') }),
+  z.object({ action: z.literal('assign_unit'), incidentId: z.string().min(1), unitId: z.string().min(1), decisionType: z.string().optional(), severity: Severity.optional() }),
+  z.object({ action: z.literal('classify'), incidentId: z.string().min(1) }),
+  LatLng.extend({ action: z.literal('recommend'), incidentId: z.string().min(1), severity: Severity.default('ALPHA') }),
+  LatLng.extend({ action: z.literal('nearest_hospital') }),
+  z.object({ action: z.literal('incident_lifecycle'), incidentId: z.string().min(1), newStatus: z.string().min(1), metadata: z.record(z.unknown()).optional() }),
+  z.object({ action: z.literal('send_notification'), incidentId: z.string().min(1), unitIds: z.array(z.string().min(1)).min(1) }),
+])
 
 export async function POST(req: NextRequest) {
   return handleApiRoute(
@@ -25,7 +34,12 @@ export async function POST(req: NextRequest) {
     async ({ user }: any) => {
       const companyId = user.companyId || ''
       await EmsService.getOrCreateEmsCompany(companyId)
-      const body = await parseJsonObject(req)
+      const rawBody = await parseJsonObject(req)
+      const parsed = DispatchBodySchema.safeParse(rawBody)
+      if (!parsed.success) {
+        return apiData({ error: 'Invalid request', details: parsed.error.flatten().fieldErrors }, { status: 400 })
+      }
+      const body = parsed.data
 
       if (body.action === 'find_units') {
         const candidates = await DispatchEngine.findBestUnit(
@@ -54,8 +68,8 @@ export async function POST(req: NextRequest) {
             incidentId: body.incidentId,
             incidentNumber: updated.incidentNumber,
             severity: body.severity || 'ALPHA',
-            lat: updated.lat || body.lat || 0,
-            lng: updated.lng || body.lng || 0,
+            lat: updated.lat || 0,
+            lng: updated.lng || 0,
             address: updated.address,
             chiefComplaint: updated.chiefComplaint,
             unitIds: [result.assigned.unitId],

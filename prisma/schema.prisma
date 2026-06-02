@@ -269,6 +269,9 @@ model Company {
   enterpriseRecurringTickets   EnterpriseRecurringTicket[]
   subscriptionEvents           SubscriptionEvent[]
   emsCompany                   EmsCompany?
+  hospitalPatients             HospitalPatient[]
+  hospitalBeds                 HospitalBed[]
+  hospitalMedicalSupplies      HospitalMedicalSupply[]
 
   @@index([status, createdAt])
   @@index([name, registrationNumber, status])
@@ -286,9 +289,10 @@ model Client {
   notes         String?
   avatarUrl     String?
   status        String   @default("active") // active, inactive
-  portalToken   String?  @unique
-  portalEnabled Boolean  @default(false)
-  createdAt     DateTime @default(now())
+  portalToken          String?   @unique
+  portalEnabled        Boolean   @default(false)
+  portalTokenExpiresAt DateTime?
+  createdAt            DateTime  @default(now())
   updatedAt     DateTime @updatedAt
 
   company                Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -5802,4 +5806,96 @@ model EmsIntegrationEvent {
   @@index([companyId, status])
   @@index([idempotencyKey])
   @@index([receivedAt(sort: Desc)])
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Healthcare workspace — patient census, bed management, medical supplies
+// ──────────────────────────────────────────────────────────────────────────────
+
+model HospitalPatient {
+  id                String    @id @default(cuid())
+  companyId         String
+  patientNumber     String    // MRN - Medical Record Number (facility-assigned)
+  firstName         String
+  lastName          String
+  dateOfBirth       DateTime?
+  gender            String?   // M, F, OTHER, UNKNOWN
+  admissionDate     DateTime?
+  dischargeDate     DateTime?
+  expectedDischarge DateTime?
+  status            String    @default("REGISTERED") // REGISTERED, ADMITTED, IN_TREATMENT, DISCHARGED, TRANSFERRED
+  department        String?
+  bedId             String?
+  primaryPhysician  String?
+  admissionReason   String?
+  diagnosisCode     String?   // ICD-10
+  insuranceProvider String?
+  insurancePolicyNo String?
+  contactPhone      String?
+  contactName       String?
+  notes             String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  bed     HospitalBed?   @relation(fields: [bedId], references: [id], onDelete: SetNull)
+
+  @@unique([companyId, patientNumber])
+  @@index([companyId, status])
+  @@index([companyId, admissionDate])
+  @@index([companyId, department, status])
+  @@index([bedId])
+}
+
+model HospitalBed {
+  id           String    @id @default(cuid())
+  companyId    String
+  bedNumber    String
+  ward         String    // e.g. ICU, GENERAL, ER, PEDIATRICS
+  department   String?
+  floor        String?
+  roomNumber   String?
+  type         String    @default("GENERAL") // GENERAL, ICU, ISOLATION, PEDIATRIC, MATERNITY, SURGICAL
+  status       String    @default("AVAILABLE") // AVAILABLE, OCCUPIED, RESERVED, MAINTENANCE, OUT_OF_SERVICE
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  company  Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  patients HospitalPatient[]
+
+  @@unique([companyId, bedNumber, ward])
+  @@index([companyId, status])
+  @@index([companyId, ward, status])
+}
+
+model HospitalMedicalSupply {
+  id                String    @id @default(cuid())
+  companyId         String
+  name              String
+  sku               String?
+  category          String    // MEDICATION, CONSUMABLE, EQUIPMENT, PROTECTIVE, DIAGNOSTIC
+  unit              String    @default("units") // units, boxes, vials, mg, mL
+  currentStock      Decimal   @default(0)       @db.Decimal(12, 2)
+  minimumStock      Decimal   @default(0)       @db.Decimal(12, 2)
+  reorderPoint      Decimal   @default(0)       @db.Decimal(12, 2)
+  maximumStock      Decimal?  @db.Decimal(12, 2)
+  expiresAt         DateTime?
+  batchNumber       String?
+  department        String?
+  location          String?   // physical storage location
+  isCritical        Boolean   @default(false)   // critical medication / essential supply
+  supplierId        String?
+  unitCost          Decimal?  @db.Decimal(12, 4)
+  notes             String?
+  lastRestockedAt   DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, category])
+  @@index([companyId, isCritical, currentStock])
+  @@index([companyId, expiresAt])
+  @@index([companyId, department])
 }

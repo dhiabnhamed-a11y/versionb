@@ -68,18 +68,28 @@ export class EmsAiService {
     const result = severityMap.find((s) => score <= s.max) || severityMap[severityMap.length - 1]
     const confidence = Math.min(1, score / 40 + 0.1)
 
+    const DISCLAIMER = 'ADVISORY ONLY — This is a decision-support tool, not a clinical diagnosis. A qualified dispatcher or medical professional must verify and authorize all dispatch decisions.'
+    const requiresHumanConfirmation = ['DELTA', 'ECHO', 'OMEGA'].includes(result.severity)
+
     await prisma.emsAiDecision.create({
       data: {
         incidentId,
         decisionType: 'severity_classification',
         input: { chiefComplaint: incident.chiefComplaint, symptoms: incident.symptoms, text },
-        output: { severity: result.severity, score, matchedKeywords: matched },
+        output: { severity: result.severity, score, matchedKeywords: matched, requiresHumanConfirmation },
         confidence,
-        reasoning: `AI severity classification: ${result.severity} (score ${score}, matched ${matched.join(', ') || 'none'})`,
+        reasoning: `AI severity classification: ${result.severity} (score ${score}, matched ${matched.join(', ') || 'none'}) | ${DISCLAIMER}`,
       },
     })
 
-    return { severity: result.severity, confidence, reasoning: `Score ${score}: ${matched.join(', ') || 'no critical keywords'}` }
+    return {
+      severity: result.severity,
+      confidence,
+      reasoning: `Score ${score}: ${matched.join(', ') || 'no critical keywords'}`,
+      disclaimer: DISCLAIMER,
+      requiresHumanConfirmation,
+      advisoryOnly: true,
+    }
   }
 
   static async recommendDispatch(
@@ -111,16 +121,20 @@ export class EmsAiService {
       },
     })
 
+    const advisoryDisclaimer = 'ADVISORY ONLY — AI-generated recommendation. Dispatcher must review and confirm before dispatching. Not a substitute for professional judgment.'
+
     await emitEmsEvent(companyId, 'ems:ai:insight', {
       type: 'dispatch_recommendation',
       incidentId,
+      advisoryOnly: true,
+      disclaimer: advisoryDisclaimer,
       candidates: candidates.map((c) => ({ unitId: c.unitId, unitNumber: c.unitNumber, score: c.score, etaSeconds: c.etaSeconds })),
       nearestHospital: nearestHospital
         ? { name: nearestHospital.name, distanceKm: nearestHospital.distanceKm, etaSeconds: nearestHospital.etaSeconds }
         : null,
     })
 
-    return recommendation
+    return { ...recommendation, disclaimer: advisoryDisclaimer, advisoryOnly: true }
   }
 
   static async generateIncidentSummary(incidentId: string): Promise<string> {

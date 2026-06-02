@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
-import { Brain, Cpu, TrendingUp, Activity, Zap, Shield, Target, Radio } from 'lucide-react'
+import { Brain, Cpu, TrendingUp, Activity, Zap, Shield, Target, Radio, AlertTriangle } from 'lucide-react'
 import type { AiRecommendationResult, DispatchCandidate } from '@/lib/api-client/ems-dispatch'
 import { useLocale } from '@/components/i18n/LocaleProvider'
 
@@ -212,7 +212,28 @@ export default function AiRecommendationPanel({
             </div>
           )}
 
-          <div style={{ fontSize: 10, color: '#475569', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8, display: 'flex', justifyContent: 'space-between' }}>
+          {/* MANDATORY non-diagnostic disclaimer — do not remove */}
+          <div style={{
+            marginTop: 10,
+            padding: '8px 10px',
+            background: 'rgba(234,179,8,0.06)',
+            border: '1px solid rgba(234,179,8,0.25)',
+            borderRadius: 6,
+            display: 'flex', gap: 6, alignItems: 'flex-start',
+          }}>
+            <AlertTriangle size={11} color="#eab308" style={{ flexShrink: 0, marginTop: 1 }} />
+            <div style={{ fontSize: 10, color: '#fde68a', lineHeight: 1.5 }}>
+              <strong>ADVISORY ONLY</strong> — AI decision-support tool. Not a clinical diagnosis.
+              A qualified dispatcher or medical director must verify and authorize all dispatch decisions.
+              {(aiResult as any)?.requiresHumanConfirmation && (
+                <span style={{ display: 'block', marginTop: 3, color: '#fca5a5', fontWeight: 600 }}>
+                  ⚠ HIGH SEVERITY — Mandatory human confirmation required before dispatch.
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div style={{ fontSize: 10, color: '#475569', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 8, marginTop: 8, display: 'flex', justifyContent: 'space-between' }}>
             <span>Dispatch Engine v2 · 6-factor Haversine analysis</span>
             <span style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
               <Shield size={10} color="#60a5fa" /> DB-backed
