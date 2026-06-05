@@ -1,13 +1,6 @@
 'use client'
 
-import type { Metadata } from 'next'
 import { Suspense, useState, useRef } from 'react'
-
-export const metadata: Metadata = {
-  title: 'Sign In',
-  description: 'Sign in to your TASKIT workspace. Access projects, tasks, finance, AI, and real-time team collaboration.',
-  robots: { index: false, follow: false },
-}
 import { signIn } from 'next-auth/react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
