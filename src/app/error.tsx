@@ -5,6 +5,9 @@ import Link from 'next/link'
 import { Home, RefreshCw } from 'lucide-react'
 import ErrorLayout from '@/components/error/ErrorLayout'
 
+// Note: Metadata cannot be exported from client components.
+// The error boundary uses default layout metadata.
+
 export default function Error({
   error,
   reset,

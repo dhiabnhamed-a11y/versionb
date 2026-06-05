@@ -4,6 +4,8 @@ const nextConfig: NextConfig = {
   output: 'standalone',
   poweredByHeader: false,
   compress: true,
+  trailingSlash: false,
+  skipTrailingSlashRedirect: true,
   serverExternalPackages: ['@react-pdf/renderer', 'bufferutil', 'utf-8-validate'],
   experimental: {
     staleTimes: {
@@ -47,6 +49,15 @@ const nextConfig: NextConfig = {
       {
         source: '/api/health',
         headers: [{ key: 'Cache-Control', value: 'no-store' }],
+      },
+      {
+        source: '/:path*',
+        has: [
+          { type: 'header', key: 'x-forwarded-proto', value: 'http' },
+        ],
+        headers: [
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
+        ],
       },
     ]
   },

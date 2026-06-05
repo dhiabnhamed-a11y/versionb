@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Plus_Jakarta_Sans, Fraunces } from 'next/font/google'
 import PWARegistration from '@/components/pwa/PWARegistration'
 import ClientAnalyticsGuard from '@/components/analytics/ClientAnalyticsGuard.client'
+import { JsonLd } from '@/components/seo/JsonLd'
 import './globals.css'
 
 const plusJakartaSans = Plus_Jakarta_Sans({
@@ -19,16 +20,16 @@ const fraunces = Fraunces({
   preload: false,
 })
 
+const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://taskit.app'
+
 export const metadata: Metadata = {
-  title: 'TASKIT OS | Enterprise Operations Platform',
-  description:
-    'Enterprise-grade operations platform for agencies and teams — clients, projects, finance, AI, realtime alerts, and multi-tenant workspaces at scale.',
-  metadataBase: process.env.NEXT_PUBLIC_APP_URL ? new URL(process.env.NEXT_PUBLIC_APP_URL) : undefined,
-  openGraph: {
-    title: 'TASKIT OS',
-    description: 'The operating system for modern agencies and operations teams.',
-    type: 'website',
+  metadataBase: new URL(appUrl),
+  title: {
+    default: 'TASKIT OS — Agency Operations Platform with AI, Billing & Client Portal',
+    template: '%s | TASKIT OS',
   },
+  description:
+    'All-in-one agency operations platform combining project management, client portal, invoicing, AI workflow automation, and real-time team collaboration. Replace 5 tools with one.',
   manifest: '/manifest.json',
   icons: {
     icon: [
@@ -40,6 +41,51 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: 'default',
     title: 'TASKIT',
+  },
+  alternates: {
+    canonical: '/',
+    languages: {
+      en: '/',
+      fr: '/fr',
+      ar: '/ar',
+    },
+  },
+  openGraph: {
+    title: 'TASKIT OS — Agency Operations Platform with AI, Billing & Client Portal',
+    description:
+      'All-in-one agency operations platform combining project management, client portal, invoicing, AI workflow automation, and real-time team collaboration.',
+    url: appUrl,
+    siteName: 'TASKIT OS',
+    type: 'website',
+    locale: 'en_US',
+    alternateLocale: ['fr_FR', 'ar_AE'],
+    images: [
+      {
+        url: `${appUrl}/og-image.png`,
+        width: 1200,
+        height: 630,
+        alt: 'TASKIT OS — Agency Operations Platform',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'TASKIT OS — Agency Operations Platform with AI, Billing & Client Portal',
+    description:
+      'All-in-one agency operations platform combining project management, client portal, invoicing, AI workflow automation, and real-time team collaboration.',
+    images: [`${appUrl}/og-image.png`],
+    creator: '@taskit',
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      'max-video-preview': -1,
+      'max-image-preview': 'large',
+      'max-snippet': -1,
+    },
   },
 }
 
@@ -64,6 +110,7 @@ export default function RootLayout({
       <body suppressHydrationWarning>
         <PWARegistration />
         <ClientAnalyticsGuard />
+        <JsonLd />
         {/* Skip to main content link for accessibility */}
         <a
           href="#main-content"

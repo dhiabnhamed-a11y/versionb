@@ -1,6 +1,11 @@
+import type { Metadata } from 'next'
 import { redirect } from 'next/navigation'
 import { SessionProvider } from 'next-auth/react'
 import { auth } from '@/lib/auth'
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 import { isEmsCompanyType, isHealthcareCompanyType, normalizeCompanyType } from '@/lib/company-types'
 import { getUserDashboardDesignSettings, getUserLanguageSettings, getWorkspaceThemeSettings } from '@/lib/settings'
 import DashboardLayout from './layout-client'

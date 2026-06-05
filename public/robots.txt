@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard/
+Disallow: /workspace/
+Disallow: /client-portal/
+Disallow: /invite/
+Disallow: /billing/
+Disallow: /onboarding/
+Disallow: /webhooks/
+Disallow: /export/
+
+Sitemap: https://taskit.app/sitemap.xml

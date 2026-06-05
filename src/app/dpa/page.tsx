@@ -4,8 +4,12 @@ import LegalDocumentPage from '@/components/legal/LegalDocumentPage'
 import { legalPages } from '@/lib/legal-documents'
 
 export const metadata: Metadata = {
-  title: 'Data Processing Addendum | TASKIT',
+  title: 'Data Processing Addendum',
   description: legalPages.dpa.description,
+  openGraph: {
+    title: 'Data Processing Addendum — TASKIT OS',
+    description: legalPages.dpa.description,
+  },
 }
 
 export default function DpaPage() {
