@@ -2,9 +2,22 @@ import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/db'
 import { isAuthorizedSuperAdminIdentity } from '@/lib/security'
-import type { BillingInterval, PlanType, SubscriptionStatus } from '@prisma/client'
+import type { PlanType, SubscriptionStatus } from '@prisma/client'
 
 export const runtime = 'nodejs'
+
+async function trySetLifetimeBillingInterval(companyId: string) {
+  try {
+    await prisma.company.update({
+      where: { id: companyId },
+      data: { billingInterval: 'LIFETIME' },
+    })
+    return null
+  } catch (error) {
+    console.warn('grant-lifetime billingInterval update skipped:', error)
+    return 'Lifetime access was granted, but billingInterval could not be set. Run the BillingInterval enum migration.'
+  }
+}
 
 export async function POST(req: NextRequest) {
   const user = await requireSessionUser()
@@ -44,9 +57,10 @@ export async function POST(req: NextRequest) {
         data: {
           planType: 'LIFETIME' as PlanType,
           subscriptionStatus: 'ACTIVE' as SubscriptionStatus,
-          billingInterval: 'LIFETIME' as BillingInterval,
         },
       })
+      const warning = await trySetLifetimeBillingInterval(body.companyId)
+      return NextResponse.json({ success: true, warning })
     } else {
       if (company.planType !== 'LIFETIME') {
         return NextResponse.json({ error: 'Company does not have a lifetime subscription.' }, { status: 409 })
