@@ -398,13 +398,20 @@ export default function SignupOnboardingClient({
       error?: string
       details?: { password?: string[] }
       checkoutUrl?: string | null
+      billingCheckoutWarning?: string | null
+      message?: string
       workspaceHomePath?: string
     }
     setLoading(false)
 
     if (!response.ok) {
       const passwordErrors = Array.isArray(data.details?.password) ? data.details.password : []
-      setError(passwordErrors.length > 0 ? passwordErrors.join(' ') : data.error || 'Registration failed.')
+      const errorMessage = passwordErrors.length > 0 ? passwordErrors.join(' ') : data.error || 'Registration failed.'
+      if (response.status === 409 && /email|registered|exists/i.test(errorMessage)) {
+        setError('This account was already created. Sign in with this email, then open Billing to finish payment setup.')
+        return
+      }
+      setError(errorMessage)
       return
     }
 
@@ -1248,11 +1255,11 @@ function PlanStep({
             Back
           </button>
           <button
-                type="button"
+            type="button"
             className={styles.primaryCta}
             onClick={onNext}
             disabled={!activePlan || loading}
-              >
+          >
             {loading ? <Loader2 size={18} className={styles.spin} /> : isFreePlan(activePlan) ? <CheckCircle2 size={18} /> : <CreditCard size={18} />}
             {loading ? 'Creating workspace...' : isFreePlan(activePlan) ? 'Create free workspace' : 'Create workspace and checkout'}
             <ChevronRight size={18} />

@@ -5,6 +5,7 @@ import { getWorkspaceHomePath } from '@/lib/workspace-routing'
 import { assertSignupLegalAcceptance, getLegalRequestContext } from '@/lib/legal'
 import { redeemInviteSignup } from '@/lib/invites'
 import { withApiError } from '@/modules/shared/api'
+import { logger } from '@/modules/shared/logger'
 import { assertPasswordPolicy } from '@/modules/security/password-policy'
 import { createDodoWorkspaceCheckout } from '@/lib/dodo-workspace-billing'
 import { getDefaultPlanForWorkspace, getWorkspacePlan, isFreePlan, type BillingCycle } from '@/lib/workspace-pricing'
@@ -65,9 +66,6 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ error: 'Choose a valid plan for this workspace type.' }, { status: 400 })
         }
         const billingCycle: BillingCycle = body.billingSelection?.billingCycle === 'annual' ? 'annual' : 'monthly'
-        if (!isFreePlan(selectedPlan) && !process.env.DODO_PAYMENTS_API_KEY) {
-          return NextResponse.json({ error: 'Dodo Payments is not configured for paid plan checkout.' }, { status: 500 })
-        }
         try {
           const owner = await createOwnerSignup({
             name,
@@ -87,9 +85,13 @@ export async function POST(req: NextRequest) {
             legalAcceptance,
             legalContext,
           })
-          const checkout = isFreePlan(selectedPlan)
-            ? null
-            : await createDodoWorkspaceCheckout({
+
+          let checkout: Awaited<ReturnType<typeof createDodoWorkspaceCheckout>> = null
+          let checkoutWarning: string | null = null
+
+          if (!isFreePlan(selectedPlan)) {
+            try {
+              checkout = await createDodoWorkspaceCheckout({
                 billingCycle,
                 companyId: owner.companyId,
                 companyType: normalizedCompanyType,
@@ -99,6 +101,18 @@ export async function POST(req: NextRequest) {
                 planId: selectedPlan.id,
                 seatCount: Number(body.billingSelection?.seatCount ?? 1),
               })
+            } catch (checkoutError) {
+              checkoutWarning =
+                checkoutError instanceof Error ? checkoutError.message : 'Unable to create checkout session.'
+              logger.warn('signup.checkout_creation_failed_after_workspace_created', {
+                billingCycle,
+                companyId: owner.companyId,
+                companyType: normalizedCompanyType,
+                planId: selectedPlan.id,
+                reason: checkoutWarning,
+              })
+            }
+          }
 
           return NextResponse.json(
             {
@@ -106,10 +120,13 @@ export async function POST(req: NextRequest) {
               userId: owner.userId,
               companyId: owner.companyId,
               checkoutUrl: checkout?.url ?? null,
+              billingCheckoutWarning: checkoutWarning,
               workspaceHomePath: getWorkspaceHomePath({ role: 'OWNER', companyType: normalizedCompanyType }),
               message: checkout?.url
                 ? 'Workspace created. Continue to Dodo Payments checkout to activate billing.'
-                : 'Workspace created. Sign in to enter your provisioned TASKIT workspace.',
+                : checkoutWarning
+                  ? 'Workspace created. Sign in and open Billing to finish payment setup.'
+                  : 'Workspace created. Sign in to enter your provisioned TASKIT workspace.',
             },
             { status: 201 }
           )
