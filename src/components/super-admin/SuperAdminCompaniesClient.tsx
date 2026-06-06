@@ -1,7 +1,7 @@
 'use client'
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { Building2, CheckCircle2, Eye, Loader2, Search, ShieldCheck, XCircle, CreditCard, Users } from 'lucide-react'
+import { Building2, CheckCircle2, Eye, Loader2, Search, ShieldCheck, XCircle, CreditCard, Users, Award } from 'lucide-react'
 
 import styles from './SuperAdminCompaniesClient.module.css'
 import SuperAdminBillingOverview from './SuperAdminBillingOverview'
@@ -91,6 +91,7 @@ export default function SuperAdminCompaniesClient({ initialStatus }: { initialSt
   const [data, setData] = useState<CompanyResponse | null>(null)
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null)
   const [updatingAction, setUpdatingAction] = useState<string | null>(null)
+  const [grantingLifetime, setGrantingLifetime] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
   useEffect(() => {
@@ -150,6 +151,29 @@ export default function SuperAdminCompaniesClient({ initialStatus }: { initialSt
 
     if (!response.ok) {
       setError(payload.error || 'Failed to update company status.')
+      return
+    }
+
+    setRefreshKey((current) => current + 1)
+  }
+
+  async function handleGrantLifetime(companyId: string) {
+    if (!window.confirm('Are you sure you want to grant a lifetime subscription to this company? This action cannot be undone.')) return
+
+    setGrantingLifetime(true)
+    setError('')
+
+    const response = await fetch('/api/super-admin/grant-lifetime', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ companyId }),
+    })
+    const payload = (await response.json()) as { error?: string }
+
+    setGrantingLifetime(false)
+
+    if (!response.ok) {
+      setError(payload.error || 'Failed to grant lifetime subscription.')
       return
     }
 
@@ -396,6 +420,26 @@ export default function SuperAdminCompaniesClient({ initialStatus }: { initialSt
                 <div className={styles.detailLabel}>Review note</div>
                 <div className={styles.detailSubtext}>{selectedCompany.reviewNote || 'No note recorded.'}</div>
               </div>
+
+              {selectedCompany.status === 'ACTIVE' && (
+                <div className={styles.detailsBlock}>
+                  <div className={styles.detailLabel}>Lifetime Access</div>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={() => void handleGrantLifetime(selectedCompany.id)}
+                    disabled={grantingLifetime}
+                    style={{ fontSize: '13px', padding: '8px 14px' }}
+                  >
+                    {grantingLifetime ? (
+                      <Loader2 size={14} className="animate-spin" />
+                    ) : (
+                      <Award size={14} />
+                    )}
+                    <span>{grantingLifetime ? 'Granting...' : 'Grant Lifetime Subscription'}</span>
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
