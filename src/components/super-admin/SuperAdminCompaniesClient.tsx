@@ -23,6 +23,8 @@ type CompanyRecord = {
   createdAt: string
   updatedAt: string
   reviewedAt: string | null
+  planType: string
+  subscriptionStatus: string
   owner: {
     id: string
     name: string
@@ -157,8 +159,9 @@ export default function SuperAdminCompaniesClient({ initialStatus }: { initialSt
     setRefreshKey((current) => current + 1)
   }
 
-  async function handleGrantLifetime(companyId: string) {
-    if (!window.confirm('Are you sure you want to grant a lifetime subscription to this company? This action cannot be undone.')) return
+  async function handleToggleLifetime(companyId: string, enable: boolean) {
+    const verb = enable ? 'grant' : 'remove'
+    if (!window.confirm(`Are you sure you want to ${verb} the lifetime subscription for this company?`)) return
 
     setGrantingLifetime(true)
     setError('')
@@ -166,14 +169,14 @@ export default function SuperAdminCompaniesClient({ initialStatus }: { initialSt
     const response = await fetch('/api/super-admin/grant-lifetime', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ companyId }),
+      body: JSON.stringify({ companyId, enable }),
     })
     const payload = (await response.json()) as { error?: string }
 
     setGrantingLifetime(false)
 
     if (!response.ok) {
-      setError(payload.error || 'Failed to grant lifetime subscription.')
+      setError(payload.error || `Failed to ${verb} lifetime subscription.`)
       return
     }
 
@@ -424,20 +427,49 @@ export default function SuperAdminCompaniesClient({ initialStatus }: { initialSt
               {selectedCompany.status === 'ACTIVE' && (
                 <div className={styles.detailsBlock}>
                   <div className={styles.detailLabel}>Lifetime Access</div>
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={() => void handleGrantLifetime(selectedCompany.id)}
-                    disabled={grantingLifetime}
-                    style={{ fontSize: '13px', padding: '8px 14px' }}
-                  >
-                    {grantingLifetime ? (
-                      <Loader2 size={14} className="animate-spin" />
-                    ) : (
-                      <Award size={14} />
-                    )}
-                    <span>{grantingLifetime ? 'Granting...' : 'Grant Lifetime Subscription'}</span>
-                  </button>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={selectedCompany.planType === 'LIFETIME'}
+                      onClick={() => void handleToggleLifetime(selectedCompany.id, selectedCompany.planType !== 'LIFETIME')}
+                      disabled={grantingLifetime}
+                      style={{
+                        position: 'relative',
+                        width: '44px',
+                        height: '24px',
+                        borderRadius: '12px',
+                        border: 'none',
+                        cursor: grantingLifetime ? 'not-allowed' : 'pointer',
+                        background: selectedCompany.planType === 'LIFETIME' ? '#16a34a' : '#d1d5db',
+                        transition: 'background 0.2s',
+                        padding: 0,
+                      }}
+                    >
+                      <span
+                        style={{
+                          position: 'absolute',
+                          top: '2px',
+                          left: selectedCompany.planType === 'LIFETIME' ? '22px' : '2px',
+                          width: '20px',
+                          height: '20px',
+                          borderRadius: '50%',
+                          background: '#fff',
+                          transition: 'left 0.2s',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                        }}
+                      />
+                    </button>
+                    <span style={{ fontSize: '13px', color: '#64748b' }}>
+                      {grantingLifetime ? (
+                        <Loader2 size={14} className="animate-spin" />
+                      ) : selectedCompany.planType === 'LIFETIME' ? (
+                        <><Award size={14} style={{ color: '#16a34a', marginRight: '4px' }} /> Active</>
+                      ) : (
+                        'Inactive'
+                      )}
+                    </span>
+                  </div>
                 </div>
               )}
             </div>

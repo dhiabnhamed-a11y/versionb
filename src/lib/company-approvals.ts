@@ -19,6 +19,8 @@ export type SerializedSuperAdminCompany = {
   createdAt: string
   updatedAt: string
   reviewedAt: string | null
+  planType: string
+  subscriptionStatus: string
   owner: {
     id: string
     name: string
@@ -46,6 +48,8 @@ type SuperAdminCompanyRecord = {
   createdAt: Date
   updatedAt: Date
   reviewedAt: Date | null
+  planType: string
+  subscriptionStatus: string
   owner: {
     id: string
     name: string
@@ -64,6 +68,8 @@ type LegacySuperAdminCompanyRecord = Omit<SuperAdminCompanyRecord, 'reviewNote' 
   reviewNote?: null
   reviewedAt?: null
   reviewedBy?: null
+  planType: string
+  subscriptionStatus: string
 }
 
 function serializeCompany(company: SuperAdminCompanyRecord): SerializedSuperAdminCompany {
@@ -80,6 +86,8 @@ function serializeCompany(company: SuperAdminCompanyRecord): SerializedSuperAdmi
     createdAt: company.createdAt.toISOString(),
     updatedAt: company.updatedAt.toISOString(),
     reviewedAt: company.reviewedAt?.toISOString() ?? null,
+    planType: company.planType ?? 'FREE_TRIAL',
+    subscriptionStatus: company.subscriptionStatus ?? 'TRIAL',
     owner: {
       id: company.owner.id,
       name: company.owner.name,
@@ -199,6 +207,8 @@ export async function listSuperAdminCompanies(input: { status?: string; query?: 
           industry: true,
           registrationNumber: true,
           status: true,
+          planType: true,
+          subscriptionStatus: true,
           createdAt: true,
           updatedAt: true,
           owner: {
@@ -327,6 +337,8 @@ export async function reviewCompanyRegistration(input: {
           industry: true,
           registrationNumber: true,
           status: true,
+          planType: true,
+          subscriptionStatus: true,
           createdAt: true,
           updatedAt: true,
           owner: {
