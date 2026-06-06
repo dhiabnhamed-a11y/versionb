@@ -3,7 +3,7 @@ import { SessionProvider } from 'next-auth/react'
 import { auth } from '@/lib/auth'
 import { normalizeCompanyType, isErpWorkspaceType } from '@/lib/company-types'
 import { getWorkspaceHomePath } from '@/lib/workspace-routing'
-import { ERPShell } from '@/components/erp/ERPShell'
+import { ERPRouteFrame } from '@/components/erp/ERPRouteFrame'
 import { prisma } from '@/lib/db'
 import { ensureErpWorkspaceInitialized } from '@/services/erp2/setup.service'
 import { LocaleProvider } from '@/components/i18n/LocaleProvider'
@@ -31,7 +31,7 @@ export default async function ERPRootLayout({ children }: { children: React.Reac
   return (
     <SessionProvider>
       <LocaleProvider initialLocale={initialLanguage.locale}>
-        <ERPShell>{children}</ERPShell>
+        <ERPRouteFrame>{children}</ERPRouteFrame>
       </LocaleProvider>
     </SessionProvider>
   )
