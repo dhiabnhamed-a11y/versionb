@@ -150,6 +150,13 @@ function getRenewalValue(billing: BillingInfo) {
   return '-'
 }
 
+async function readJsonResponse(response: Response) {
+  const contentType = response.headers.get('content-type') ?? ''
+  if (contentType.includes('application/json')) return response.json()
+  const text = await response.text().catch(() => '')
+  throw new Error(text.includes('<!DOCTYPE') ? 'Billing API returned a page instead of JSON. Please refresh and try again.' : text || 'Billing request failed.')
+}
+
 export default function BillingDashboardClient({
   billing,
   events,
@@ -173,7 +180,7 @@ export default function BillingDashboardClient({
     setPortalError(null)
     try {
       const res = await fetch('/api/billing/portal')
-      const data = await res.json()
+      const data = await readJsonResponse(res)
       if (!res.ok) throw new Error(data.error ?? 'Failed to open billing portal.')
       if (data.url) router.push(data.url)
     } catch (err) {

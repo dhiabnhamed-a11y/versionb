@@ -115,6 +115,7 @@ model User {
   enterpriseIncidentNotes      EnterpriseIncidentNote[]         @relation("EnterpriseNoteAuthor")
   enterpriseTimeEntries        EnterpriseIncidentTimeEntry[]    @relation("EnterpriseTimeEntryUser")
   enterpriseRecurringTickets   EnterpriseRecurringTicket[]      @relation("RecurringTicketAssignee")
+  workspaceSubscriptions       WorkspaceSubscription[]
 }
 
 model Company {
@@ -4198,6 +4199,30 @@ model SubscriptionEvent {
 
   @@index([companyId, createdAt])
   @@index([event, createdAt])
+}
+
+model WorkspaceSubscription {
+  id                 String    @id @default(cuid())
+  userId             String    @map("user_id")
+  workspaceId        String    @map("workspace_id") @db.VarChar(50)
+  dodoSubscriptionId String?   @map("dodo_subscription_id") @db.VarChar(255)
+  dodoCustomerId     String    @default("") @map("dodo_customer_id") @db.VarChar(255)
+  billingModel       String    @map("billing_model") @db.VarChar(20)
+  interval           String    @db.VarChar(20)
+  seatCount          Int       @default(1) @map("seat_count")
+  status             String    @default("trialing") @db.VarChar(20)
+  currentPeriodStart DateTime? @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd   DateTime? @map("current_period_end") @db.Timestamptz(6)
+  cancelledAt        DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([dodoSubscriptionId])
+  @@index([dodoCustomerId])
+  @@map("workspace_subscriptions")
 }
 
 enum SubscriptionStatus {

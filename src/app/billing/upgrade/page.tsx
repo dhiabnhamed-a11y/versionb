@@ -1,137 +1,431 @@
 'use client'
 
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { signIn, useSession } from 'next-auth/react'
 import {
   AlertCircle,
   ArrowRight,
-  Calculator,
   Check,
-  Infinity,
-  Lock,
+  ChevronRight,
+  Loader2,
   Minus,
   Plus,
-  RefreshCw,
-  Shield,
-  Users,
-  X,
+  ShieldCheck,
+  Sparkles,
   Zap,
+  type LucideIcon,
 } from 'lucide-react'
 import type { PlanKey } from '@/lib/plans'
 
 type BillingInterval = 'monthly' | 'yearly'
 type Accent = 'blue' | 'emerald' | 'violet'
+type PricingPlanId = 'starter' | 'team' | 'lifetime'
 
-const FEATURE_COMPARISON = [
-  { feature: 'Project & task management', starter: true, team: true, lifetime: true },
-  { feature: 'Client portal', starter: true, team: true, lifetime: true },
-  { feature: 'AI assistant & automation', starter: true, team: true, lifetime: true },
-  { feature: 'Finance & payroll modules', starter: true, team: true, lifetime: true },
-  { feature: 'Enterprise operations', starter: true, team: true, lifetime: true },
-  { feature: 'Social media manager', starter: true, team: true, lifetime: true },
-  { feature: 'Contract management', starter: true, team: true, lifetime: true },
-  { feature: 'Volume discount at 50+ seats', starter: false, team: true, lifetime: true },
-  { feature: 'Dedicated onboarding', starter: false, team: true, lifetime: true },
-  { feature: 'SLA support', starter: false, team: true, lifetime: true },
-  { feature: 'All future updates', starter: false, team: false, lifetime: true },
-]
-
-const PLAN_FEATURES = {
-  starter: ['All core modules', 'Project and task management', 'Client portal', 'AI assistant', 'Up to 49 seats'],
-  team: ['Everything in Starter', '50+ seats included', 'Volume discount', 'Dedicated onboarding', 'SLA support'],
-  lifetime: ['Everything in Team', 'No recurring fees', 'All future updates', 'Lifetime support', 'Priority feature requests'],
+type PricingPlan = {
+  id: PricingPlanId
+  accent: Accent
+  badge: string
+  cta: string
+  description: string
+  features: string[]
+  maxSeats: number | null
+  minSeats: number
+  name: string
+  planKey: (interval: BillingInterval) => PlanKey
+  priceContext: (interval: BillingInterval) => string
+  priceLabel: (interval: BillingInterval) => string
+  priceValue: (interval: BillingInterval) => number
+  totalLabel: (interval: BillingInterval) => string
+  valueProp: string
 }
 
-function money(value: number, decimals = 2) {
+const PLANS: PricingPlan[] = [
+  {
+    id: 'starter',
+    accent: 'blue',
+    badge: 'For focused teams',
+    cta: 'Start with Starter',
+    description: 'Core TASKIT workflows for teams that need a clear operating rhythm.',
+    features: ['AI Assistant', 'Client Portal', 'Project Management', 'Operations Workspace', 'Real-time alerts'],
+    maxSeats: 49,
+    minSeats: 1,
+    name: 'Starter',
+    planKey: (interval) => (interval === 'yearly' ? 'STARTER_YEARLY' : 'STARTER_MONTHLY'),
+    priceContext: (interval) => (interval === 'yearly' ? 'per seat/year' : 'per seat/month'),
+    priceLabel: (interval) => (interval === 'yearly' ? '$30' : '$3'),
+    priceValue: (interval) => (interval === 'yearly' ? 30 : 3),
+    totalLabel: (interval) => (interval === 'yearly' ? 'Estimated Yearly Total' : 'Estimated Monthly Total'),
+    valueProp: 'Launch a reliable workspace for day-to-day execution.',
+  },
+  {
+    id: 'team',
+    accent: 'emerald',
+    badge: 'Most Popular',
+    cta: 'Choose Team',
+    description: 'Advanced operating controls, onboarding, and volume pricing for growing teams.',
+    features: ['Everything in Starter', 'AI Workflow Automation', 'Advanced Client Portal', 'Role Permissions', 'Priority Support'],
+    maxSeats: null,
+    minSeats: 50,
+    name: 'Team',
+    planKey: () => 'TEAM_MONTHLY',
+    priceContext: () => 'per seat/month',
+    priceLabel: () => '$2.50',
+    priceValue: () => 2.5,
+    totalLabel: () => 'Estimated Monthly Total',
+    valueProp: 'Scale departments and client work with premium support.',
+  },
+  {
+    id: 'lifetime',
+    accent: 'violet',
+    badge: 'One-time',
+    cta: 'Get lifetime access',
+    description: 'A one-time purchase for teams that want long-term TASKIT access.',
+    features: ['Everything in Team', 'No Recurring Fees', 'All Future Updates', 'Lifetime Support', 'Priority Feature Requests'],
+    maxSeats: null,
+    minSeats: 1,
+    name: 'Lifetime',
+    planKey: () => 'LIFETIME',
+    priceContext: () => 'per seat',
+    priceLabel: () => '$99',
+    priceValue: () => 99,
+    totalLabel: () => 'One-time Total',
+    valueProp: 'Own your workspace access with no recurring subscription.',
+  },
+]
+
+const COMPARISON_GROUPS = [
+  {
+    group: 'Workspace essentials',
+    rows: [
+      { feature: 'AI Assistant', starter: true, team: true, lifetime: true },
+      { feature: 'Client Portal', starter: true, team: true, lifetime: true },
+      { feature: 'Project Management', starter: true, team: true, lifetime: true },
+      { feature: 'Operations Workspace', starter: true, team: true, lifetime: true },
+    ],
+  },
+  {
+    group: 'Scale and control',
+    rows: [
+      { feature: 'Custom roles and permissions', starter: false, team: true, lifetime: true },
+      { feature: 'Advanced billing and invoicing', starter: true, team: true, lifetime: true },
+      { feature: 'Volume pricing at 50+ seats', starter: false, team: true, lifetime: true },
+      { feature: 'Dedicated onboarding', starter: false, team: true, lifetime: true },
+    ],
+  },
+  {
+    group: 'Support and terms',
+    rows: [
+      { feature: 'Priority support', starter: false, team: true, lifetime: true },
+      { feature: 'SLA support', starter: false, team: true, lifetime: true },
+      { feature: 'No recurring subscription', starter: false, team: false, lifetime: true },
+      { feature: 'All future updates', starter: false, team: false, lifetime: true },
+    ],
+  },
+]
+
+const TRUST_SIGNALS: Array<[string, LucideIcon]> = [
+  ['SOC-ready controls', ShieldCheck],
+  ['Fast secure checkout', Zap],
+  ['Change plans anytime', ChevronRight],
+]
+
+function money(value: number, decimals = Number.isInteger(value) ? 0 : 2) {
   return `$${value.toLocaleString('en-US', {
-    minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,
+    minimumFractionDigits: decimals,
   })}`
 }
 
+async function readJsonResponse(response: Response) {
+  const contentType = response.headers.get('content-type') ?? ''
+  if (contentType.includes('application/json')) return response.json()
+  const text = await response.text().catch(() => '')
+  throw new Error(text.includes('<!DOCTYPE') ? 'Checkout API returned a page instead of JSON. Please refresh and try again.' : text || 'Checkout failed.')
+}
+
+function accentClasses(accent: Accent) {
+  if (accent === 'emerald') {
+    return {
+      badge: 'border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-200',
+      button:
+        'bg-emerald-600 text-white shadow-[0_14px_32px_rgba(5,150,105,0.28)] hover:bg-emerald-500 hover:shadow-[0_18px_38px_rgba(5,150,105,0.34)]',
+      check: 'bg-emerald-50 text-emerald-600 ring-emerald-100 dark:bg-emerald-400/10 dark:text-emerald-200 dark:ring-emerald-400/15',
+      panel: 'bg-emerald-50/80 text-emerald-950 ring-emerald-100 dark:bg-emerald-400/10 dark:text-emerald-100 dark:ring-emerald-400/15',
+    }
+  }
+  if (accent === 'violet') {
+    return {
+      badge: 'border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-200',
+      button:
+        'bg-[linear-gradient(135deg,#7c3aed,#a855f7_45%,#2563eb)] text-white shadow-[0_14px_32px_rgba(124,58,237,0.28)] hover:shadow-[0_18px_38px_rgba(124,58,237,0.36)]',
+      check: 'bg-violet-50 text-violet-600 ring-violet-100 dark:bg-violet-400/10 dark:text-violet-200 dark:ring-violet-400/15',
+      panel: 'bg-violet-50/80 text-violet-950 ring-violet-100 dark:bg-violet-400/10 dark:text-violet-100 dark:ring-violet-400/15',
+    }
+  }
+  return {
+    badge: 'border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-400/20 dark:bg-blue-400/10 dark:text-blue-200',
+    button:
+      'border border-slate-300 bg-white text-slate-950 shadow-sm hover:border-slate-400 hover:bg-slate-50 dark:border-white/15 dark:bg-white/10 dark:text-white dark:hover:bg-white/15',
+    check: 'bg-blue-50 text-blue-600 ring-blue-100 dark:bg-blue-400/10 dark:text-blue-200 dark:ring-blue-400/15',
+    panel: 'bg-blue-50/80 text-blue-950 ring-blue-100 dark:bg-blue-400/10 dark:text-blue-100 dark:ring-blue-400/15',
+  }
+}
+
+function LoadingDot() {
+  return <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+}
+
 function SeatSelector({
-  value,
-  min,
+  label,
   max,
+  min,
   onChange,
+  value,
 }: {
-  value: number
-  min: number
+  label: string
   max: number | null
+  min: number
   onChange: (value: number) => void
+  value: number
 }) {
   function setSeatCount(next: number) {
-    const clampedMin = Math.max(min, next)
-    onChange(max ? Math.min(max, clampedMin) : clampedMin)
+    const nextValue = Math.max(min, Math.floor(next || min))
+    onChange(max ? Math.min(max, nextValue) : nextValue)
   }
 
   return (
-    <div className="flex h-10 w-full max-w-[164px] items-center overflow-hidden rounded-md border border-slate-300 bg-white">
-      <button
-        type="button"
-        aria-label="Decrease seats"
-        onClick={() => setSeatCount(value - 1)}
-        className="grid h-10 w-10 shrink-0 place-items-center text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-        disabled={value <= min}
-      >
-        <Minus className="h-4 w-4" />
-      </button>
-      <input
-        type="number"
-        min={min}
-        max={max ?? 999}
-        value={value}
-        onChange={(event) => setSeatCount(parseInt(event.target.value, 10) || min)}
-        className="h-10 min-w-0 flex-1 border-x border-slate-200 bg-white px-2 text-center text-sm font-bold text-slate-950 outline-none focus:ring-2 focus:ring-blue-500"
-      />
-      <button
-        type="button"
-        aria-label="Increase seats"
-        onClick={() => setSeatCount(value + 1)}
-        className="grid h-10 w-10 shrink-0 place-items-center text-slate-600 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
-        disabled={max ? value >= max : false}
-      >
-        <Plus className="h-4 w-4" />
-      </button>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-4">
+        <label className="text-[15px] font-semibold text-slate-900 dark:text-white" htmlFor={`${label}-seats`}>
+          Seats
+        </label>
+        <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
+          {max ? `${min}-${max} seats` : min > 1 ? `${min}+ seats` : 'Any team size'}
+        </span>
+      </div>
+      <div className="flex h-[52px] items-center overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition duration-250 focus-within:border-slate-400 focus-within:ring-4 focus-within:ring-slate-950/5 dark:border-white/10 dark:bg-white/5 dark:focus-within:border-white/30 dark:focus-within:ring-white/10">
+        <button
+          type="button"
+          aria-label={`Decrease ${label} seats`}
+          onClick={() => setSeatCount(value - 1)}
+          disabled={value <= min}
+          className="grid h-full w-14 shrink-0 place-items-center text-slate-500 transition duration-250 hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-35 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
+        >
+          <Minus className="h-4 w-4" aria-hidden="true" />
+        </button>
+        <input
+          id={`${label}-seats`}
+          aria-label={`${label} seat count`}
+          type="number"
+          min={min}
+          max={max ?? 999}
+          value={value}
+          onChange={(event) => setSeatCount(Number(event.target.value))}
+          className="h-full min-w-0 flex-1 border-x border-slate-200 bg-transparent text-center text-lg font-bold text-slate-950 outline-none transition duration-250 dark:border-white/10 dark:text-white"
+        />
+        <button
+          type="button"
+          aria-label={`Increase ${label} seats`}
+          onClick={() => setSeatCount(value + 1)}
+          disabled={max ? value >= max : false}
+          className="grid h-full w-14 shrink-0 place-items-center text-slate-500 transition duration-250 hover:bg-slate-50 hover:text-slate-950 disabled:cursor-not-allowed disabled:opacity-35 dark:text-slate-300 dark:hover:bg-white/10 dark:hover:text-white"
+        >
+          <Plus className="h-4 w-4" aria-hidden="true" />
+        </button>
+      </div>
     </div>
   )
 }
 
-function PlanFeature({ children, accent }: { children: React.ReactNode; accent: Accent }) {
-  const color =
-    accent === 'blue' ? 'text-blue-600 bg-blue-50' : accent === 'emerald' ? 'text-emerald-600 bg-emerald-50' : 'text-violet-600 bg-violet-50'
-
+function FeatureItem({ accent, feature }: { accent: Accent; feature: string }) {
+  const classes = accentClasses(accent)
   return (
-    <li className="flex items-start gap-3 text-sm leading-6 text-slate-700">
-      <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md ${color}`}>
-        <Check className="h-3.5 w-3.5" strokeWidth={3} />
+    <li className="flex items-start gap-3 text-[15px] leading-6 text-slate-700 dark:text-slate-300">
+      <span className={`mt-0.5 grid h-6 w-6 shrink-0 place-items-center rounded-full ring-1 ${classes.check}`}>
+        <Check className="h-3.5 w-3.5" strokeWidth={3} aria-hidden="true" />
       </span>
-      {children}
+      <span>{feature}</span>
     </li>
   )
 }
 
-function LoadingDot() {
-  return <span className="h-4 w-4 animate-spin rounded-full border-2 border-current border-r-transparent" />
-}
-
-function ComparisonMark({ value, accent }: { value: boolean; accent: Accent }) {
-  if (!value) {
-    return (
-      <span className="mx-auto grid h-6 w-6 place-items-center rounded-md bg-slate-100 text-slate-300">
-        <X className="h-3.5 w-3.5" strokeWidth={3} />
-      </span>
-    )
-  }
-
-  const color =
-    accent === 'blue' ? 'bg-blue-50 text-blue-600' : accent === 'emerald' ? 'bg-emerald-50 text-emerald-600' : 'bg-violet-50 text-violet-600'
+function PricingCard({
+  interval,
+  loading,
+  onCheckout,
+  onSeatsChange,
+  plan,
+  seats,
+}: {
+  interval: BillingInterval
+  loading: boolean
+  onCheckout: (plan: PricingPlan, seats: number) => void
+  onSeatsChange: (planId: PricingPlanId, seats: number) => void
+  plan: PricingPlan
+  seats: number
+}) {
+  const classes = accentClasses(plan.accent)
+  const total = plan.priceValue(interval) * seats
+  const isTeam = plan.id === 'team'
+  const isLifetime = plan.id === 'lifetime'
 
   return (
-    <span className={`mx-auto grid h-6 w-6 place-items-center rounded-md ${color}`}>
-      <Check className="h-3.5 w-3.5" strokeWidth={3} />
+    <article
+      className={`group relative flex min-h-full flex-col rounded-[24px] border bg-white/90 p-6 shadow-[0_20px_60px_rgba(15,23,42,0.08)] backdrop-blur transition duration-250 hover:-translate-y-1 hover:shadow-[0_28px_80px_rgba(15,23,42,0.13)] motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:bg-slate-950/82 ${
+        isTeam
+          ? 'border-emerald-300 shadow-[0_28px_90px_rgba(5,150,105,0.2)] lg:scale-[1.03] dark:border-emerald-400/35'
+          : 'border-slate-200 dark:border-white/10'
+      }`}
+    >
+      {isTeam && (
+        <>
+          <div className="absolute inset-x-6 top-0 h-1.5 rounded-b-full bg-gradient-to-r from-emerald-300 via-emerald-500 to-teal-400" />
+          <div className="absolute -top-4 right-6 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 px-4 py-1.5 text-xs font-bold text-white shadow-[0_14px_32px_rgba(5,150,105,0.32)]">
+            Most Popular
+          </div>
+        </>
+      )}
+
+      <div className="flex flex-1 flex-col">
+        <div>
+          <span className={`inline-flex rounded-full border px-3 py-1 text-xs font-bold ${classes.badge}`}>
+            {plan.badge}
+          </span>
+          <h2 className="mt-5 text-[28px] font-bold leading-tight text-slate-950 dark:text-white">{plan.name}</h2>
+          <p className="mt-3 min-h-12 text-base leading-7 text-slate-600 dark:text-slate-300">{plan.valueProp}</p>
+        </div>
+
+        <div className="mt-8">
+          <div className="flex items-end gap-3">
+            <span className="text-[64px] font-extrabold leading-none tracking-tight text-slate-950 transition duration-250 dark:text-white">
+              {plan.priceLabel(interval)}
+            </span>
+            <span className="pb-2 text-base font-medium text-slate-500 dark:text-slate-400">{plan.priceContext(interval)}</span>
+          </div>
+          <p className="mt-3 text-base leading-7 text-slate-600 dark:text-slate-300">{plan.description}</p>
+        </div>
+
+        <div className="mt-7 space-y-5 rounded-[20px] border border-slate-200 bg-slate-50/70 p-5 dark:border-white/10 dark:bg-white/[0.04]">
+          <SeatSelector
+            label={plan.id}
+            max={plan.maxSeats}
+            min={plan.minSeats}
+            value={seats}
+            onChange={(nextSeats) => onSeatsChange(plan.id, nextSeats)}
+          />
+          <div className={`rounded-2xl p-4 ring-1 transition duration-250 ${classes.panel}`}>
+            <p className="text-xs font-bold uppercase tracking-[0.12em] opacity-75">{plan.totalLabel(interval)}</p>
+            <p className="mt-2 text-3xl font-extrabold tracking-tight">
+              {money(total, isLifetime || interval === 'yearly' ? 0 : 2)}
+              <span className="text-base font-semibold opacity-70">{isLifetime ? ' one-time' : interval === 'yearly' ? '/year' : '/month'}</span>
+            </p>
+          </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={() => onCheckout(plan, seats)}
+          disabled={loading}
+          className={`mt-6 inline-flex h-[52px] w-full items-center justify-center gap-2 rounded-2xl px-5 text-[15px] font-bold transition duration-250 hover:-translate-y-0.5 focus:outline-none focus:ring-4 focus:ring-slate-950/10 disabled:cursor-not-allowed disabled:opacity-65 motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:focus:ring-white/15 ${classes.button}`}
+        >
+          {loading ? (
+            <LoadingDot />
+          ) : (
+            <>
+              {plan.cta}
+              <ArrowRight className="h-4 w-4 transition duration-250 group-hover:translate-x-0.5" aria-hidden="true" />
+            </>
+          )}
+        </button>
+
+        <div className="my-7 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent dark:via-white/12" />
+
+        <ul className="space-y-4">
+          {plan.features.map((feature) => (
+            <FeatureItem key={feature} accent={plan.accent} feature={feature} />
+          ))}
+        </ul>
+      </div>
+    </article>
+  )
+}
+
+function ComparisonMark({ accent, value }: { accent: Accent; value: boolean }) {
+  if (!value) {
+    return <span className="mx-auto block h-2 w-2 rounded-full bg-slate-300 dark:bg-slate-700" aria-label="Not included" />
+  }
+
+  const classes = accentClasses(accent)
+  return (
+    <span className={`mx-auto grid h-8 w-8 place-items-center rounded-full ring-1 ${classes.check}`} aria-label="Included">
+      <Check className="h-4 w-4" strokeWidth={3} aria-hidden="true" />
     </span>
+  )
+}
+
+function PricingComparison() {
+  return (
+    <section className="mx-auto max-w-[1400px] px-4 pb-24 sm:px-6 lg:px-8 lg:pb-[120px]" aria-labelledby="comparison-heading">
+      <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+        <div>
+          <p className="text-sm font-bold uppercase tracking-[0.16em] text-emerald-700 dark:text-emerald-300">Compare plans</p>
+          <h2 id="comparison-heading" className="mt-3 text-3xl font-extrabold tracking-tight text-slate-950 dark:text-white md:text-4xl">
+            Every detail, clearly mapped.
+          </h2>
+        </div>
+        <p className="max-w-xl text-base leading-7 text-slate-600 dark:text-slate-300">
+          A modern comparison matrix for fast buying decisions across workspace, scale, support, and long-term ownership.
+        </p>
+      </div>
+
+      <div className="overflow-hidden rounded-[24px] border border-slate-200 bg-white/85 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur dark:border-white/10 dark:bg-slate-950/78">
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[820px] border-collapse text-left">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50/80 dark:border-white/10 dark:bg-white/[0.04]">
+                <th className="sticky left-0 z-10 w-[38%] bg-slate-50/95 px-6 py-5 text-sm font-bold uppercase tracking-[0.12em] text-slate-500 backdrop-blur dark:bg-slate-950/95 dark:text-slate-400">
+                  Feature
+                </th>
+                {PLANS.map((plan) => (
+                  <th key={plan.id} className="px-6 py-5 text-center">
+                    <span className="text-base font-bold text-slate-950 dark:text-white">{plan.name}</span>
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            {COMPARISON_GROUPS.map((group) => (
+              <tbody key={group.group} className="divide-y divide-slate-100 dark:divide-white/8">
+                <tr>
+                  <th
+                    colSpan={4}
+                    className="bg-slate-100/80 px-6 py-3 text-xs font-bold uppercase tracking-[0.14em] text-slate-500 dark:bg-white/[0.06] dark:text-slate-400"
+                  >
+                    {group.group}
+                  </th>
+                </tr>
+                {group.rows.map((row) => (
+                  <tr key={row.feature} className="transition duration-250 hover:bg-slate-50/90 dark:hover:bg-white/[0.04]">
+                    <th className="sticky left-0 z-10 bg-white/95 px-6 py-5 text-[15px] font-semibold text-slate-800 backdrop-blur dark:bg-slate-950/95 dark:text-slate-200">
+                      {row.feature}
+                    </th>
+                    <td className="px-6 py-5 text-center">
+                      <ComparisonMark accent="blue" value={row.starter} />
+                    </td>
+                    <td className="bg-emerald-50/35 px-6 py-5 text-center dark:bg-emerald-400/[0.04]">
+                      <ComparisonMark accent="emerald" value={row.team} />
+                    </td>
+                    <td className="px-6 py-5 text-center">
+                      <ComparisonMark accent="violet" value={row.lifetime} />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            ))}
+          </table>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -141,357 +435,158 @@ function UpgradePageInner() {
   const { status } = useSession()
   const reason = searchParams.get('reason')
   const [interval, setBillingInterval] = useState<BillingInterval>('monthly')
-  const [starterSeats, setStarterSeats] = useState(5)
-  const [teamSeats, setTeamSeats] = useState(50)
-  const [lifetimeSeats, setLifetimeSeats] = useState(5)
-  const [loading, setLoading] = useState<PlanKey | null>(null)
+  const [seatsByPlan, setSeatsByPlan] = useState<Record<PricingPlanId, number>>({
+    lifetime: 5,
+    starter: 5,
+    team: 50,
+  })
+  const [loadingPlan, setLoadingPlan] = useState<PricingPlanId | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  if (status === 'loading') return null
-  if (status === 'unauthenticated') {
-    signIn(undefined, { callbackUrl: '/billing/upgrade' })
-    return null
+  useEffect(() => {
+    if (status === 'unauthenticated') {
+      void signIn(undefined, { callbackUrl: '/billing/upgrade' })
+    }
+  }, [status])
+
+  const planTotals = useMemo(
+    () =>
+      Object.fromEntries(
+        PLANS.map((plan) => [plan.id, plan.priceValue(interval) * seatsByPlan[plan.id]])
+      ) as Record<PricingPlanId, number>,
+    [interval, seatsByPlan]
+  )
+
+  if (status === 'loading' || status === 'unauthenticated') {
+    return (
+      <main className="grid min-h-screen place-items-center bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-white">
+        <Loader2 className="h-6 w-6 animate-spin text-emerald-600" aria-label="Loading pricing" />
+      </main>
+    )
   }
 
-  const starterKey: PlanKey = interval === 'yearly' ? 'STARTER_YEARLY' : 'STARTER_MONTHLY'
-  const starterSeatRate = interval === 'yearly' ? 30 : 3
-  const starterTotal = starterSeatRate * starterSeats
-  const teamTotal = 2.5 * teamSeats
-  const lifetimeTotal = 99 * lifetimeSeats
+  function setPlanSeats(planId: PricingPlanId, seats: number) {
+    setSeatsByPlan((current) => ({ ...current, [planId]: seats }))
+  }
 
-  async function handleCheckout(planKey: PlanKey, seatCount: number) {
-    setLoading(planKey)
+  async function handleCheckout(plan: PricingPlan, seatCount: number) {
+    setLoadingPlan(plan.id)
     setError(null)
     try {
-      const res = await fetch('/api/billing/create-checkout-session', {
-        method: 'POST',
+      const response = await fetch('/api/billing/create-checkout-session', {
+        body: JSON.stringify({ planKey: plan.planKey(interval), seats: seatCount }),
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ planKey, seats: seatCount }),
+        method: 'POST',
       })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? 'Failed to start checkout.')
+      const payload = (await readJsonResponse(response)) as {
+        data?: { url?: string; error?: string }
+        error?: string
+        url?: string
+      }
+      const data = payload.data ?? payload
+      if (!response.ok) throw new Error(data.error ?? 'Failed to start checkout.')
       if (data.url) router.push(data.url)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong.')
+    } catch (checkoutError) {
+      setError(checkoutError instanceof Error ? checkoutError.message : 'Something went wrong.')
     } finally {
-      setLoading(null)
+      setLoadingPlan(null)
     }
   }
 
   return (
-    <main className="min-h-screen bg-[#f6f8fb]">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:py-10">
-        {reason === 'trial_expired' && (
-          <div className="mb-6 flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-800">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            Your free trial has ended. Choose a plan to continue.
-          </div>
-        )}
-        {reason === 'payment_required' && (
-          <div className="mb-6 flex items-start gap-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-800">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-            Your subscription requires attention. Please update your billing.
-          </div>
-        )}
+    <main className="relative min-h-screen overflow-hidden bg-[#f7f9fc] text-slate-950 dark:bg-[#070b12] dark:text-white">
+      <div
+        className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_12%_8%,rgba(16,185,129,0.14),transparent_30%),radial-gradient(circle_at_86%_12%,rgba(59,130,246,0.12),transparent_26%),radial-gradient(circle_at_55%_88%,rgba(124,58,237,0.11),transparent_32%)] dark:bg-[radial-gradient(circle_at_12%_8%,rgba(16,185,129,0.16),transparent_30%),radial-gradient(circle_at_86%_12%,rgba(59,130,246,0.14),transparent_26%),radial-gradient(circle_at_55%_88%,rgba(124,58,237,0.14),transparent_32%)]"
+        aria-hidden="true"
+      />
+      <div className="pointer-events-none absolute left-8 top-32 -z-10 h-72 w-72 rounded-full bg-emerald-200/25 blur-3xl dark:bg-emerald-500/10" aria-hidden="true" />
+      <div className="pointer-events-none absolute right-8 top-20 -z-10 h-80 w-80 rounded-full bg-blue-200/25 blur-3xl dark:bg-blue-500/10" aria-hidden="true" />
 
-        <section className="mb-8 border-b border-slate-200 pb-7">
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-end">
-            <div>
-              <div className="mb-3 inline-flex items-center gap-2 rounded-md border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 shadow-sm">
-                <Calculator className="h-3.5 w-3.5 text-blue-600" />
-                Transparent seat-based pricing
-              </div>
-              <h1 className="max-w-3xl text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">
-                Choose the plan that matches your team size.
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-600">
-                Every plan includes Taskit core modules. Pricing changes only by seat count, billing cadence, and support level.
-              </p>
+      <section className="mx-auto max-w-[1400px] px-4 py-24 sm:px-6 lg:px-8 lg:py-[120px]" aria-labelledby="pricing-heading">
+        <div className="mx-auto mb-14 max-w-4xl text-center">
+          {reason === 'trial_expired' && (
+            <div className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full border border-amber-200 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 shadow-sm dark:border-amber-400/25 dark:bg-amber-400/10 dark:text-amber-200">
+              <AlertCircle className="h-4 w-4" aria-hidden="true" />
+              Your free trial has ended. Choose a plan to continue.
             </div>
+          )}
+          {reason === 'payment_required' && (
+            <div className="mx-auto mb-5 inline-flex items-center gap-2 rounded-full border border-red-200 bg-red-50 px-4 py-2 text-sm font-semibold text-red-700 shadow-sm dark:border-red-400/25 dark:bg-red-400/10 dark:text-red-200">
+              <AlertCircle className="h-4 w-4" aria-hidden="true" />
+              Your subscription needs attention. Choose or update a plan.
+            </div>
+          )}
 
-            <div className="w-full lg:w-auto">
-              <div className="inline-grid w-full grid-cols-2 rounded-md border border-slate-200 bg-white p-1 shadow-sm sm:w-auto">
-                <button
-                  type="button"
-                  onClick={() => setBillingInterval('monthly')}
-                  className={`min-h-10 rounded-md px-5 text-sm font-semibold transition ${
-                    interval === 'monthly' ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  Monthly
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setBillingInterval('yearly')}
-                  className={`min-h-10 rounded-md px-5 text-sm font-semibold transition ${
-                    interval === 'yearly' ? 'bg-slate-950 text-white' : 'text-slate-600 hover:bg-slate-100'
-                  }`}
-                >
-                  Yearly - save 17%
-                </button>
-              </div>
-            </div>
+          <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white/80 px-4 py-2 text-sm font-bold text-slate-700 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/8 dark:text-slate-200">
+            <Sparkles className="h-4 w-4 text-emerald-600 dark:text-emerald-300" aria-hidden="true" />
+            Premium seat-based pricing
           </div>
-        </section>
+
+          <h1 id="pricing-heading" className="text-5xl font-extrabold tracking-tight text-slate-950 dark:text-white md:text-6xl lg:text-7xl">
+            Choose the plan that matches your operating scale.
+          </h1>
+          <p className="mx-auto mt-6 max-w-3xl text-lg leading-8 text-slate-600 dark:text-slate-300">
+            TASKIT brings AI, client portals, project operations, billing, and workspace execution into one trusted operating layer.
+          </p>
+
+          <div className="mt-9 inline-flex rounded-2xl border border-slate-200 bg-white/85 p-1.5 shadow-[0_14px_40px_rgba(15,23,42,0.08)] backdrop-blur dark:border-white/10 dark:bg-white/8">
+            {[
+              { label: 'Monthly', value: 'monthly' as const },
+              { label: 'Yearly - save 17%', value: 'yearly' as const },
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={interval === option.value}
+                onClick={() => setBillingInterval(option.value)}
+                className={`h-11 rounded-xl px-5 text-sm font-bold transition duration-250 focus:outline-none focus:ring-4 focus:ring-slate-950/10 dark:focus:ring-white/15 ${
+                  interval === option.value
+                    ? 'bg-slate-950 text-white shadow-sm dark:bg-white dark:text-slate-950'
+                    : 'text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/10'
+                }`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         {error && (
-          <div className="mb-6 flex items-start gap-3 rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm font-medium text-red-700">
-            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+          <div className="mx-auto mb-8 flex max-w-4xl items-start gap-3 rounded-2xl border border-red-200 bg-red-50 px-5 py-4 text-sm font-semibold text-red-700 shadow-sm dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-200">
+            <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
             {error}
           </div>
         )}
 
-        <section className="mb-10 grid grid-cols-1 gap-5 lg:grid-cols-3">
-          <article className="flex min-h-full flex-col rounded-lg border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 p-6">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-md bg-blue-50 text-blue-600">
-                  <Zap className="h-5 w-5" />
-                </div>
-                <span className="rounded-md bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">1-49 seats</span>
-              </div>
-              <h2 className="text-xl font-bold text-slate-950">Starter</h2>
-              <p className="mt-1 text-sm text-slate-600">Best for small teams getting organized.</p>
+        <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3 xl:items-stretch">
+          {PLANS.map((plan) => (
+            <PricingCard
+              key={plan.id}
+              interval={interval}
+              loading={loadingPlan === plan.id}
+              onCheckout={handleCheckout}
+              onSeatsChange={setPlanSeats}
+              plan={plan}
+              seats={seatsByPlan[plan.id]}
+            />
+          ))}
+        </div>
+
+        <div className="mx-auto mt-10 grid max-w-4xl gap-3 text-sm font-semibold text-slate-600 dark:text-slate-300 sm:grid-cols-3">
+          {TRUST_SIGNALS.map(([label, Icon]) => (
+            <div key={String(label)} className="flex items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-white/70 px-4 py-3 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/6">
+              <Icon className="h-4 w-4 text-emerald-600 dark:text-emerald-300" aria-hidden="true" />
+              {label}
             </div>
+          ))}
+        </div>
 
-            <div className="flex flex-1 flex-col p-6">
-              <div>
-                <div className="flex items-end gap-2">
-                  <span className="text-4xl font-bold tracking-tight text-slate-950">
-                    {interval === 'yearly' ? '$30' : '$3'}
-                  </span>
-                  <span className="pb-1 text-sm font-medium text-slate-500">
-                    {interval === 'yearly' ? '/seat/year' : '/seat/month'}
-                  </span>
-                </div>
-                <p className="mt-2 text-sm text-slate-500">
-                  {interval === 'yearly' ? 'Equivalent to $2.50 per seat/month, billed yearly.' : 'Billed monthly. Upgrade or cancel anytime.'}
-                </p>
-              </div>
+        <div className="sr-only" aria-live="polite">
+          Starter total {money(planTotals.starter)}. Team total {money(planTotals.team)}. Lifetime total {money(planTotals.lifetime, 0)}.
+        </div>
+      </section>
 
-              <div className="my-6 border-y border-slate-200 py-5">
-                <div className="mb-4 flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Seats</p>
-                    <p className="text-xs text-slate-500">Maximum 49 seats</p>
-                  </div>
-                  <SeatSelector value={starterSeats} min={1} max={49} onChange={setStarterSeats} />
-                </div>
-                <div className="rounded-md bg-slate-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-slate-500">Estimated total</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-950">
-                    {money(starterTotal, interval === 'yearly' ? 0 : 2)}
-                    <span className="text-sm font-medium text-slate-500">{interval === 'yearly' ? '/year' : '/month'}</span>
-                  </p>
-                </div>
-              </div>
-
-              <ul className="mb-6 flex-1 space-y-3">
-                {PLAN_FEATURES.starter.map((feature) => (
-                  <PlanFeature key={feature} accent="blue">
-                    {feature}
-                  </PlanFeature>
-                ))}
-              </ul>
-
-              <button
-                type="button"
-                onClick={() => handleCheckout(starterKey, starterSeats)}
-                disabled={loading === starterKey}
-                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loading === starterKey ? <LoadingDot /> : <>Get started <ArrowRight className="h-4 w-4" /></>}
-              </button>
-            </div>
-          </article>
-
-          <article className="relative flex min-h-full flex-col rounded-lg border-2 border-emerald-500 bg-white shadow-[0_20px_50px_rgba(15,118,110,0.12)]">
-            <div className="absolute right-4 top-4 rounded-md bg-emerald-600 px-2.5 py-1 text-xs font-bold text-white">
-              Most popular
-            </div>
-            <div className="border-b border-slate-200 p-6 pr-32">
-              <div className="mb-4 grid h-10 w-10 place-items-center rounded-md bg-emerald-50 text-emerald-600">
-                <Users className="h-5 w-5" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-950">Team</h2>
-              <p className="mt-1 text-sm text-slate-600">Best for growing agencies and larger departments.</p>
-            </div>
-
-            <div className="flex flex-1 flex-col p-6">
-              <div>
-                <div className="flex items-end gap-2">
-                  <span className="text-4xl font-bold tracking-tight text-slate-950">$2.50</span>
-                  <span className="pb-1 text-sm font-medium text-slate-500">/seat/month</span>
-                </div>
-                <p className="mt-2 text-sm text-slate-500">Volume pricing starts at 50 seats and includes onboarding.</p>
-              </div>
-
-              <div className="my-6 border-y border-slate-200 py-5">
-                <div className="mb-4 flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Seats</p>
-                    <p className="text-xs text-slate-500">Minimum 50 seats</p>
-                  </div>
-                  <SeatSelector value={teamSeats} min={50} max={null} onChange={setTeamSeats} />
-                </div>
-                <div className="rounded-md bg-emerald-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-emerald-700">Estimated total</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-950">
-                    {money(teamTotal)}
-                    <span className="text-sm font-medium text-slate-500">/month</span>
-                  </p>
-                </div>
-              </div>
-
-              <ul className="mb-6 flex-1 space-y-3">
-                {PLAN_FEATURES.team.map((feature) => (
-                  <PlanFeature key={feature} accent="emerald">
-                    {feature}
-                  </PlanFeature>
-                ))}
-              </ul>
-
-              <button
-                type="button"
-                onClick={() => handleCheckout('TEAM_MONTHLY', teamSeats)}
-                disabled={loading === 'TEAM_MONTHLY'}
-                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loading === 'TEAM_MONTHLY' ? <LoadingDot /> : <>Get started <ArrowRight className="h-4 w-4" /></>}
-              </button>
-            </div>
-          </article>
-
-          <article className="flex min-h-full flex-col rounded-lg border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-200 p-6">
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div className="grid h-10 w-10 place-items-center rounded-md bg-violet-50 text-violet-600">
-                  <Infinity className="h-5 w-5" />
-                </div>
-                <span className="rounded-md bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">One-time</span>
-              </div>
-              <h2 className="text-xl font-bold text-slate-950">Lifetime</h2>
-              <p className="mt-1 text-sm text-slate-600">Best for teams that prefer one payment.</p>
-            </div>
-
-            <div className="flex flex-1 flex-col p-6">
-              <div>
-                <div className="flex items-end gap-2">
-                  <span className="text-4xl font-bold tracking-tight text-slate-950">$99</span>
-                  <span className="pb-1 text-sm font-medium text-slate-500">/seat</span>
-                </div>
-                <p className="mt-2 text-sm text-slate-500">Pay once per seat. No recurring subscription.</p>
-              </div>
-
-              <div className="my-6 border-y border-slate-200 py-5">
-                <div className="mb-4 flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">Seats</p>
-                    <p className="text-xs text-slate-500">Add as many as needed</p>
-                  </div>
-                  <SeatSelector value={lifetimeSeats} min={1} max={null} onChange={setLifetimeSeats} />
-                </div>
-                <div className="rounded-md bg-violet-50 p-4">
-                  <p className="text-xs font-semibold uppercase tracking-[0.08em] text-violet-700">One-time total</p>
-                  <p className="mt-1 text-2xl font-bold text-slate-950">
-                    {money(lifetimeTotal, 0)}
-                    <span className="text-sm font-medium text-slate-500"> forever</span>
-                  </p>
-                </div>
-              </div>
-
-              <ul className="mb-6 flex-1 space-y-3">
-                {PLAN_FEATURES.lifetime.map((feature) => (
-                  <PlanFeature key={feature} accent="violet">
-                    {feature}
-                  </PlanFeature>
-                ))}
-              </ul>
-
-              <button
-                type="button"
-                onClick={() => handleCheckout('LIFETIME', lifetimeSeats)}
-                disabled={loading === 'LIFETIME'}
-                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-md bg-violet-600 px-4 text-sm font-semibold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {loading === 'LIFETIME' ? <LoadingDot /> : <>Get lifetime access <ArrowRight className="h-4 w-4" /></>}
-              </button>
-            </div>
-          </article>
-        </section>
-
-        <section className="mb-8 rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="border-b border-slate-200 px-6 py-5">
-            <h2 className="text-lg font-bold text-slate-950">Full feature comparison</h2>
-            <p className="mt-1 text-sm text-slate-600">Every plan includes the core workspace. Higher tiers add buying terms and support.</p>
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[720px] text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="w-1/2 px-6 py-4 text-left font-semibold text-slate-700">Feature</th>
-                  <th className="px-6 py-4 text-center font-semibold text-slate-700">
-                    <span className="inline-flex items-center gap-2">
-                      <Zap className="h-4 w-4 text-blue-600" />
-                      Starter
-                    </span>
-                  </th>
-                  <th className="px-6 py-4 text-center font-semibold text-emerald-700">
-                    <span className="inline-flex items-center gap-2">
-                      <Users className="h-4 w-4 text-emerald-600" />
-                      Team
-                    </span>
-                  </th>
-                  <th className="px-6 py-4 text-center font-semibold text-slate-700">
-                    <span className="inline-flex items-center gap-2">
-                      <Infinity className="h-4 w-4 text-violet-600" />
-                      Lifetime
-                    </span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {FEATURE_COMPARISON.map((row) => (
-                  <tr key={row.feature} className="hover:bg-slate-50">
-                    <td className="px-6 py-4 font-medium text-slate-800">{row.feature}</td>
-                    <td className="px-6 py-4 text-center">
-                      <ComparisonMark value={row.starter} accent="blue" />
-                    </td>
-                    <td className="px-6 py-4 text-center bg-emerald-50/40">
-                      <ComparisonMark value={row.team} accent="emerald" />
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <ComparisonMark value={row.lifetime} accent="violet" />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-
-        <section className="grid gap-3 border-t border-slate-200 pt-6 sm:grid-cols-3">
-          <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
-            <span className="grid h-9 w-9 place-items-center rounded-md bg-white text-slate-600 shadow-sm ring-1 ring-slate-200">
-              <Shield className="h-4 w-4" />
-            </span>
-            Secure checkout
-          </div>
-          <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
-            <span className="grid h-9 w-9 place-items-center rounded-md bg-white text-slate-600 shadow-sm ring-1 ring-slate-200">
-              <RefreshCw className="h-4 w-4" />
-            </span>
-            30-day money-back guarantee
-          </div>
-          <div className="flex items-center gap-3 text-sm font-medium text-slate-600">
-            <span className="grid h-9 w-9 place-items-center rounded-md bg-white text-slate-600 shadow-sm ring-1 ring-slate-200">
-              <Lock className="h-4 w-4" />
-            </span>
-            Cancel anytime
-          </div>
-        </section>
-      </div>
+      <PricingComparison />
     </main>
   )
 }

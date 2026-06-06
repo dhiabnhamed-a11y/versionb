@@ -76,7 +76,8 @@ function rejectUnauthorizedApi(req: NextRequest) {
 
 const BILLING_EXEMPT_PREFIXES = [
   '/billing', '/erp', '/auth', '/login', '/register', '/invite',
-  '/api/webhooks', '/api/auth', '/api/billing/webhook',
+  '/account/billing', '/onboarding/workspace', '/onboarding/success',
+  '/api/webhooks', '/api/auth', '/api/billing',
   '/_next', '/favicon', '/icons', '/sounds',
   '/manifest.json', '/firebase-messaging-sw.js',
 ]
