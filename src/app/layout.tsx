@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Plus_Jakarta_Sans, Fraunces } from 'next/font/google'
+import { IBM_Plex_Sans, Plus_Jakarta_Sans, Fraunces } from 'next/font/google'
 import PWARegistration from '@/components/pwa/PWARegistration'
 import ClientAnalyticsGuard from '@/components/analytics/ClientAnalyticsGuard.client'
 import { JsonLd } from '@/components/seo/JsonLd'
@@ -18,6 +18,13 @@ const fraunces = Fraunces({
   variable: '--font-fraunces',
   display: 'swap',
   preload: false,
+})
+
+const ibmPlexSans = IBM_Plex_Sans({
+  subsets: ['latin'],
+  variable: '--font-ibm-plex-sans',
+  display: 'swap',
+  preload: true,
 })
 
 const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://taskit.app'
@@ -103,7 +110,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${plusJakartaSans.variable} ${fraunces.variable}`}
+      className={`${plusJakartaSans.variable} ${fraunces.variable} ${ibmPlexSans.variable}`}
       data-scroll-behavior="smooth"
       suppressHydrationWarning
     >
