@@ -62,7 +62,7 @@ export function validateEnv() {
   if (missing.length > 0) {
     const msg = `Missing required environment variables: ${missing.join(', ')}`
     logger.error('env.startup_validation_failed', undefined, { missing })
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === 'production' && process.env.NEXT_PHASE !== 'phase-production-build') {
       throw new Error(msg)
     }
   }
