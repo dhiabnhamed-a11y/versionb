@@ -44,6 +44,20 @@ export async function revokeSessionJti(input: {
       expiresAt: input.expiresAt,
     },
   })
+
+  await cacheSessionRevocationInRedis(input.jti)
+}
+
+export async function cacheSessionRevocationInRedis(jti: string, ttlSeconds: number = 60 * 60 * 8) {
+  try {
+    const { getRealtimeRedis } = await import('@/modules/realtime/adapters/redis')
+    const redis = getRealtimeRedis()
+    if (redis) {
+      await redis.set(`taskit:revoked:${jti}`, '1', 'EX', ttlSeconds)
+    }
+  } catch {
+    // Redis cache is best-effort; DB revocation is the source of truth
+  }
 }
 
 export async function revokeAllUserSessions(userId: string, reason: string) {

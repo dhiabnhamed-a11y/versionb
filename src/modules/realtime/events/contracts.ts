@@ -60,6 +60,56 @@ export function buildRealtimeEnvelope(input: {
   })
 }
 
+/** Fast-path envelope builder that skips Zod validation for internal hot-path calls. */
+export function buildRealtimeEnvelopeFast(input: {
+  type: RealtimeEventName
+  workspaceId?: string | null
+  entityId?: string | null
+  actorId?: string | null
+  payload: unknown
+  correlationId?: string | null
+  id?: string
+  timestamp?: string
+}): RealtimeEnvelope {
+  const type = canonicalRealtimeEventName(input.type)
+  return {
+    id: input.id ?? makeEventId(input.type),
+    type,
+    workspaceId: input.workspaceId ?? null,
+    entityId: input.entityId ?? null,
+    actorId: input.actorId ?? null,
+    timestamp: input.timestamp ?? new Date().toISOString(),
+    payload: input.payload,
+    version: REALTIME_CONTRACT_VERSION,
+    correlationId: input.correlationId ?? null,
+  }
+}
+
+/** Fast-path envelope builder that skips Zod validation for internal hot-path calls. */
+export function buildRealtimeEnvelopeFast(input: {
+  type: RealtimeEventName
+  workspaceId?: string | null
+  entityId?: string | null
+  actorId?: string | null
+  payload: unknown
+  correlationId?: string | null
+  id?: string
+  timestamp?: string
+}): RealtimeEnvelope {
+  const type = canonicalRealtimeEventName(input.type)
+  return {
+    id: input.id ?? makeEventId(input.type),
+    type,
+    workspaceId: input.workspaceId ?? null,
+    entityId: input.entityId ?? null,
+    actorId: input.actorId ?? null,
+    timestamp: input.timestamp ?? new Date().toISOString(),
+    payload: input.payload,
+    version: REALTIME_CONTRACT_VERSION,
+    correlationId: input.correlationId ?? null,
+  }
+}
+
 export function workspaceRoom(workspaceId: string) {
   return `workspace:${workspaceId}`
 }

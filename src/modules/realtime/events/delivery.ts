@@ -4,6 +4,7 @@ import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'
 import { getRealtimeEmitter } from '@/modules/realtime/adapters/redis'
 import {
   buildRealtimeEnvelope,
+  buildRealtimeEnvelopeFast,
   realtimeDeliveryJobSchema,
   type RealtimeDeliveryJob,
   type RealtimeDeliveryTarget,
@@ -157,7 +158,10 @@ async function getRealtimeQueue() {
   return queueState.__taskitRealtimeDeliveryQueue
 }
 
+const SHOULD_LOG_DELIVERY_JOBS = process.env.REALTIME_LOG_DELIVERY_JOBS === 'true'
+
 async function recordDeliveryJob(input: RealtimeDeliveryJob, status: 'QUEUED' | 'DEFERRED') {
+  if (!SHOULD_LOG_DELIVERY_JOBS) return null
   try {
     return await prisma.jobRun.create({
       data: {
@@ -180,7 +184,12 @@ async function recordDeliveryJob(input: RealtimeDeliveryJob, status: 'QUEUED' | 
 }
 
 export function emitRealtimeEnvelopeDirect(input: RealtimeDeliveryJob) {
-  const parsed = realtimeDeliveryJobSchema.parse(input)
+  const parseResult = realtimeDeliveryJobSchema.safeParse(input)
+  if (!parseResult.success) {
+    logger.warn('realtime.invalid_delivery_job', { error: parseResult.error.message })
+    return false
+  }
+  const parsed = parseResult.data
   const io = global.io
   const emitter = getRealtimeEmitter()
   const broadcaster = io ?? emitter
@@ -235,7 +244,7 @@ export async function enqueueRealtimeDelivery(input: {
   correlationId?: string | null
   emitLegacyEvent?: boolean
 }) {
-  const envelope = buildRealtimeEnvelope({
+  const envelope = buildRealtimeEnvelopeFast({
     type: input.type,
     workspaceId: input.workspaceId ?? (input.target.scope === 'workspace' ? input.target.workspaceId : null),
     entityId: input.entityId ?? null,
@@ -264,7 +273,7 @@ export async function enqueueRealtimeDelivery(input: {
     jobId: envelope.id,
     deduplication: { id: deduplicationKey, ttl: DELIVERY_DEDUP_WINDOW_MS },
   })
-  if (runRecord) {
+  if (runRecord && SHOULD_LOG_DELIVERY_JOBS) {
     await prisma.jobRun.update({
       where: { id: runRecord.id },
       data: {

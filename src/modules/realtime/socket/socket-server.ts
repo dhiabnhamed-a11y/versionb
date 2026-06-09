@@ -2,7 +2,6 @@ import type { Server as HttpServer } from 'http'
 import { Server as SocketIOServer, type Socket } from 'socket.io'
 import { getToken } from 'next-auth/jwt'
 import { getAuthSecret } from '@/lib/env'
-import { prisma } from '@/lib/db'
 import { canAuthenticateAuthState } from '@/lib/security'
 import { emitPresence } from '@/lib/realtime-server'
 import { assertRealtimeRedisReadyForProduction, attachRedisAdapter, getRealtimeRedis, isRealtimeRedisRequired } from '@/modules/realtime/adapters/redis'
@@ -76,6 +75,17 @@ async function checkSocketRateLimit(socket: Socket, key: string, limit: number, 
   return false
 }
 
+/**
+ * Stateless WebSocket authentication.
+ *
+ * `getToken()` already verifies the JWT signature cryptographically — the
+ * decoded token contains all the claims we need (id, role, accountStatus,
+ * companyStatus, companyId, jti).  Instead of hitting Prisma on every
+ * connection (thundering-herd risk), we:
+ *   1. Trust the verified JWT claims directly.
+ *   2. Run `canAuthenticateAuthState` against those claims.
+ *   3. Check a fast Redis-based session-revocation cache (`taskit:revoked:<jti>`).
+ */
 async function authenticateSocket(socket: Socket) {
   const authSecret = getAuthSecret('realtime.socket')
   if (!authSecret) throw new Error('Unauthorized')
@@ -87,33 +97,30 @@ async function authenticateSocket(socket: Socket) {
 
   if (!token?.id) throw new Error('Unauthorized')
 
-  const liveUser = await prisma.user.findUnique({
-    where: { id: String(token.id) },
-    select: {
-      id: true,
-      name: true,
-      role: true,
-      accountStatus: true,
-      companyId: true,
-      company: { select: { status: true } },
-    },
-  })
-  if (!liveUser) throw new Error('Unauthorized')
+  // Stateless authentication: Redis JTI check + JWT payload validation
+  const jti = typeof token.jti === 'string' ? token.jti : null
+  if (jti) {
+    const redis = getRealtimeRedis()
+    if (redis) {
+      const isRevoked = await redis.get(`taskit:revoked:${jti}`)
+      if (isRevoked) throw new Error('Unauthorized')
+    }
+  }
 
   const authState = {
-    id: liveUser.id,
-    role: liveUser.role,
-    accountStatus: liveUser.accountStatus,
-    companyStatus: liveUser.company?.status ?? null,
+    id: String(token.id),
+    role: String(token.role ?? ''),
+    accountStatus: String(token.accountStatus ?? ''),
+    companyStatus: String(token.companyStatus ?? ''),
     email: typeof token.email === 'string' ? token.email : null,
   }
   if (!canAuthenticateAuthState(authState)) throw new Error('Unauthorized')
 
   return {
-    id: liveUser.id,
-    name: liveUser.name,
-    role: liveUser.role,
-    companyId: liveUser.companyId,
+    id: String(token.id),
+    name: typeof token.name === 'string' ? token.name : null,
+    role: String(token.role ?? 'EMPLOYEE'),
+    companyId: typeof token.companyId === 'string' ? token.companyId : null,
   } satisfies PresenceUser
 }
 

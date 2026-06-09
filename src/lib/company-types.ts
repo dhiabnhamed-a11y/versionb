@@ -249,7 +249,16 @@ export const COMPANY_TYPE_CONFIG = {
   },
 } as const satisfies Record<CompanyType, CompanyTypeConfig>
 
-export const COMPANY_TYPE_OPTIONS = COMPANY_TYPE_VALUES.map((value) => ({
+export const COMPANY_TYPE_OPTIONS = COMPANY_TYPE_VALUES.filter((value) => {
+  return ![
+    'HEALTHCARE',
+    'CLINIC_HOSPITAL',
+    'ENTERPRISE_OPERATIONS',
+    'CORPORATE_IT_OPERATIONS',
+    'ERP_WORKSPACE',
+    'EMS_AGENCY',
+  ].includes(value)
+}).map((value) => ({
   value,
   ...COMPANY_TYPE_CONFIG[value],
 }))

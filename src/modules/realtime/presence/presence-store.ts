@@ -137,17 +137,17 @@ export async function refreshSocketHeartbeat(socketId: string) {
   if (!redis) return
 
   const now = new Date().toISOString()
-  const socket = await redis.hgetall(socketKey(socketId))
-  if (!socket.userId) return
+  const socketData = await redis.hgetall(socketKey(socketId))
+  if (!socketData.userId) return
 
-  await redis
-    .multi()
-    .set(socketHeartbeatKey(socketId), now, 'EX', HEARTBEAT_TTL_SECONDS)
-    .expire(socketKey(socketId), HEARTBEAT_TTL_SECONDS)
-    .expire(userSocketsKey(socket.userId), PRESENCE_TTL_SECONDS)
-    .expire(userKey(socket.userId), PRESENCE_TTL_SECONDS)
-    .hset(userKey(socket.userId), { lastSeenAt: now })
-    .exec()
+  // Single pipeline for all refreshes
+  const pipeline = redis.pipeline()
+  pipeline.set(socketHeartbeatKey(socketId), now, 'EX', HEARTBEAT_TTL_SECONDS)
+  pipeline.expire(socketKey(socketId), HEARTBEAT_TTL_SECONDS)
+  pipeline.expire(userSocketsKey(socketData.userId), PRESENCE_TTL_SECONDS)
+  pipeline.expire(userKey(socketData.userId), PRESENCE_TTL_SECONDS)
+  pipeline.hset(userKey(socketData.userId), { lastSeenAt: now })
+  await pipeline.exec()
 }
 
 export async function markActiveChannel(socketId: string, channelId: string | null) {
@@ -254,36 +254,83 @@ export async function getPresenceSnapshot(workspaceId: string | null | undefined
   const userIds = await redis.smembers(workspaceUsersKey(workspaceId))
   if (!userIds.length) return []
 
-  const entries = await Promise.all(
-    userIds.map(async (userId) => {
-      try {
-        const [user, socketIds] = await Promise.all([redis.hgetall(userKey(userId)), redis.smembers(userSocketsKey(userId))])
-        if (!user.id) return null
-        const live = await hasLiveSockets(redis, userId)
-        if (!live) {
-          await redis.srem(workspaceUsersKey(workspaceId), userId)
-          return null
-        }
+  // Batch fetch: get all user hashes and socket sets in a single pipeline
+  const fetchPipeline = redis.pipeline()
+  for (const userId of userIds) {
+    fetchPipeline.hgetall(userKey(userId))
+    fetchPipeline.smembers(userSocketsKey(userId))
+  }
+  const results = await fetchPipeline.exec()
+  if (!results) return []
 
-        return {
-          userId: user.id,
-          name: deserializeNullable(user.name),
-          role: deserializeNullable(user.role),
-          companyId: deserializeNullable(user.companyId),
-          online: true as boolean,
-          activeChannelId: deserializeNullable(user.activeChannelId),
-          deviceCount: socketIds.length,
-          lastSeenAt: user.lastSeenAt || now,
-          at: now,
-        } satisfies PresenceSnapshotEntry
-      } catch (error) {
-        logger.warn('realtime.presence_snapshot_entry_failed', { userId, error: error instanceof Error ? error.message : String(error) })
-        return null
-      }
+  // Process results and collect heartbeat keys to check
+  const userEntries: Array<{ userId: string; user: Record<string, string>; socketIds: string[] }> = []
+  const allHeartbeatKeys: string[] = []
+  const heartbeatKeyMap: Map<string, { userIndex: number }> = new Map()
+
+  for (let i = 0; i < userIds.length; i++) {
+    const userResult = results[i * 2]
+    const socketsResult = results[i * 2 + 1]
+    if (!userResult || !socketsResult) continue
+
+    const user = (userResult[1] ?? {}) as Record<string, string>
+    const socketIds = (socketsResult[1] ?? []) as string[]
+
+    if (!user.id) continue
+
+    userEntries.push({ userId: userIds[i], user, socketIds })
+    for (const sid of socketIds) {
+      const hbKey = socketHeartbeatKey(sid)
+      allHeartbeatKeys.push(hbKey)
+      heartbeatKeyMap.set(hbKey, { userIndex: userEntries.length - 1 })
+    }
+  }
+
+  // Single MGET for all heartbeat keys across all users
+  let heartbeatResults: (string | null)[] = []
+  if (allHeartbeatKeys.length > 0) {
+    heartbeatResults = await redis.mget(...allHeartbeatKeys)
+  }
+
+  // Build heartbeat lookup: which heartbeat keys are alive
+  const liveHeartbeats = new Set<string>()
+  for (let i = 0; i < allHeartbeatKeys.length; i++) {
+    if (heartbeatResults[i]) liveHeartbeats.add(allHeartbeatKeys[i])
+  }
+
+  // Build final snapshot and collect stale user IDs for cleanup
+  const snapshot: PresenceSnapshotEntry[] = []
+  const staleUserIds: string[] = []
+
+  for (const entry of userEntries) {
+    const liveSocketCount = entry.socketIds.filter(sid => liveHeartbeats.has(socketHeartbeatKey(sid))).length
+
+    if (liveSocketCount === 0) {
+      staleUserIds.push(entry.userId)
+      continue
+    }
+
+    snapshot.push({
+      userId: entry.user.id,
+      name: deserializeNullable(entry.user.name),
+      role: deserializeNullable(entry.user.role),
+      companyId: deserializeNullable(entry.user.companyId),
+      online: true,
+      activeChannelId: deserializeNullable(entry.user.activeChannelId),
+      deviceCount: liveSocketCount,
+      lastSeenAt: entry.user.lastSeenAt || now,
+      at: now,
     })
-  )
+  }
 
-  return entries.filter((entry): entry is PresenceSnapshotEntry => Boolean(entry))
+  // Cleanup stale users in background (non-blocking)
+  if (staleUserIds.length > 0) {
+    redis.srem(workspaceUsersKey(workspaceId), ...staleUserIds).catch((error) =>
+      logger.warn('realtime.stale_presence_cleanup_failed', { workspaceId, error: error instanceof Error ? error.message : String(error) })
+    )
+  }
+
+  return snapshot
 }
 
 export async function cleanupStalePresence(workspaceId: string | null | undefined) {

@@ -72,13 +72,9 @@ export interface WorkspaceTypeInfo {
 }
 
 export const Q1_OPTIONS: Option[] = [
-  { value: 'erp', label: 'ERP and back-office operations', subtitle: 'Finance, procurement, inventory, HR, payroll, and approvals', icon: 'ERP' },
-  { value: 'ems', label: 'Emergency medical services', subtitle: 'Dispatch, fleet, incidents, crews, hospitals, and response analytics', icon: 'EMS' },
   { value: 'business', label: 'General business operations', subtitle: 'Departments, service work, approvals, assets, or multi-site operations', icon: 'OPS' },
-  { value: 'healthcare', label: 'Healthcare facility or care network', subtitle: 'Clinic, hospital, lab, biomedical, compliance, or care operations', icon: 'MED' },
   { value: 'agency', label: 'Agency, studio, or client services', subtitle: 'Client projects, campaigns, creative production, and approvals', icon: 'AGY' },
   { value: 'content', label: 'Content or creator team', subtitle: 'Editorial calendars, media production, publishing, and analytics', icon: 'CNT' },
-  { value: 'it', label: 'IT or technology operations', subtitle: 'Service desk, infrastructure, assets, security, and incidents', icon: 'IT' },
 ]
 
 export const Q2_OPTIONS: Record<string, Option[]> = {
