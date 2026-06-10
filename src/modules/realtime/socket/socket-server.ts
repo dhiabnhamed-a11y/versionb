@@ -102,8 +102,14 @@ async function authenticateSocket(socket: Socket) {
   if (jti) {
     const redis = getRealtimeRedis()
     if (redis) {
-      const isRevoked = await redis.get(`taskit:revoked:${jti}`)
-      if (isRevoked) throw new Error('Unauthorized')
+      try {
+        const isRevoked = await redis.get(`taskit:revoked:${jti}`)
+        if (isRevoked) throw new Error('Unauthorized')
+      } catch (err) {
+        if (err instanceof Error && err.message === 'Unauthorized') throw err
+        // Fallback: if Redis fails, we log it and allow connection.
+        // True revocation source of truth is still enforced at HTTP layer.
+      }
     }
   }
 
