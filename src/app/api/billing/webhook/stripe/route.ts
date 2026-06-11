@@ -114,7 +114,7 @@ async function handleStripeEvent(event: Stripe.Event) {
 
     case 'invoice.payment_failed': {
       const invoice = event.data.object as Stripe.Invoice
-      const companyId = (invoice.subscription_details?.metadata as Record<string, string>)?.companyId
+      const companyId = (invoice.metadata as Record<string, string> | null | undefined)?.companyId ?? null
       if (!companyId) break
 
       await prisma.company.update({
