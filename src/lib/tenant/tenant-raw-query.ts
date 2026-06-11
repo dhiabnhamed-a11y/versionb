@@ -10,17 +10,17 @@ function assertTenantContext(operation: string): void {
 }
 
 // Support both tagged template literal and Prisma.Sql argument
-export function tenantQueryRaw<T = unknown>(sqlOrStrings: Prisma.Sql | TemplateStringsArray, ...values: unknown[]): Promise<T[]> {
+export function tenantQueryRaw<T = any>(sqlOrStrings: Prisma.Sql | TemplateStringsArray, ...values: unknown[]): Promise<T> {
   assertTenantContext('raw query')
   const client = prisma as unknown as PrismaClient
   if (typeof (sqlOrStrings as TemplateStringsArray).raw !== 'undefined') {
     // Tagged template literal: tenantQueryRaw`SELECT ...`
     // eslint-disable-next-line no-restricted-syntax
-    return client.$queryRaw<T[]>(sqlOrStrings as TemplateStringsArray, ...values)
+    return client.$queryRaw<T>(sqlOrStrings as TemplateStringsArray, ...values)
   }
   // Prisma.Sql object: tenantQueryRaw(Prisma.sql`SELECT ...`)
   // eslint-disable-next-line no-restricted-syntax
-  return client.$queryRaw<T[]>(sqlOrStrings as Prisma.Sql)
+  return client.$queryRaw<T>(sqlOrStrings as Prisma.Sql)
 }
 
 export function tenantExecuteRaw(sqlOrStrings: Prisma.Sql | TemplateStringsArray, ...values: unknown[]): Promise<number> {

@@ -1,3 +1,4 @@
+import { tenantQueryRaw } from '@/lib/tenant/tenant-raw-query';
 import { createHash } from 'crypto'
 import { prisma } from '@/lib/db'
 import { isMissingDatabaseObjectError } from '@/lib/prisma-errors'

@@ -13,7 +13,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   return handleApiRoute(
     req,
     undefined,
-    async ({ params, user }) => apiData(await getProjectForUser(user, params.id), { code: 'PROJECT_RETRIEVED' }),
+    async ({ params, user }) => apiData(await getProjectForUser(user, params.id as string), { code: 'PROJECT_RETRIEVED' }),
     { auth: 'required', responseMode: 'canonical', route: '/api/v1/projects/{id}' }
   )
 }
@@ -24,7 +24,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     undefined,
     async ({ params, user }) => {
       const body = await parseJsonObject(req)
-      return apiData(await updateProjectForUser(user, params.id, body), { code: 'PROJECT_UPDATED' })
+      return apiData(await updateProjectForUser(user, params.id as string, body), { code: 'PROJECT_UPDATED' })
     },
     {
       auth: 'required',
@@ -40,7 +40,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
   return handleApiRoute(
     req,
     undefined,
-    async ({ params, user }) => apiData(await deleteProjectForUser(user, params.id), { code: 'PROJECT_DELETED' }),
+    async ({ params, user }) => apiData(await deleteProjectForUser(user, params.id as string), { code: 'PROJECT_DELETED' }),
     {
       auth: 'required',
       idempotency: true,

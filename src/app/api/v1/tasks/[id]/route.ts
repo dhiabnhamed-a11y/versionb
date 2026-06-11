@@ -10,7 +10,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     undefined,
     async ({ params, user }) => {
       const body = await parseJsonObject(req)
-      return apiData(await updateTask(user, params.id, body), { code: 'TASK_UPDATED' })
+      return apiData(await updateTask(user, params.id as string, body), { code: 'TASK_UPDATED' })
     },
     { auth: 'required', idempotency: true, responseMode: 'canonical', route: '/api/v1/tasks/{id}' }
   )
@@ -20,7 +20,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
   return handleApiRoute(
     req,
     undefined,
-    async ({ params, user }) => apiData(await deleteTask(user, params.id), { code: 'TASK_DELETED' }),
+    async ({ params, user }) => apiData(await deleteTask(user, params.id as string), { code: 'TASK_DELETED' }),
     { auth: 'required', idempotency: true, responseMode: 'canonical', route: '/api/v1/tasks/{id}' }
   )
 }

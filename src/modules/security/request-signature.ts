@@ -1,3 +1,4 @@
+import { tenantQueryRaw } from '@/lib/tenant/tenant-raw-query';
 import { createHash, createHmac, randomUUID, timingSafeEqual } from 'crypto'
 import { prisma } from '@/lib/db'
 import { badRequest, unauthorized } from '@/modules/shared/errors'

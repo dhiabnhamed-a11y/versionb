@@ -21,30 +21,16 @@ export async function trackOperationCost(params: {
     await prisma.analyticsMetric.create({
       data: {
         companyId: params.companyId,
-        metric: 'operation_cost',
-        value: estimatedCostUsd,
-        dimensions: {
-          operation: params.operation,
+        key: `operation_cost:${params.operation}`,
+        value: {
+          cost: estimatedCostUsd,
           userId: params.userId,
           ...params.metadata,
         },
-        recordedAt: new Date(),
+        scope: 'workspace',
       },
     })
   } catch (err) {
     logger.warn('cost_attribution.failed', { error: String(err), ...params })
   }
-}
-
-export async function getCostByTenant(startDate: Date, endDate: Date) {
-  return prisma.analyticsMetric.groupBy({
-    by: ['companyId'],
-    where: {
-      metric: 'operation_cost',
-      recordedAt: { gte: startDate, lte: endDate },
-    },
-    _sum: { value: true },
-    _count: { id: true },
-    orderBy: { _sum: { value: 'desc' } },
-  })
 }

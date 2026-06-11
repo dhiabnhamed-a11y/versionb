@@ -1,3 +1,4 @@
+import { tenantQueryRaw, tenantExecuteRaw } from '@/lib/tenant/tenant-raw-query';
 import { Prisma } from '@prisma/client'
 import { randomUUID } from 'crypto'
 import { prisma } from '@/lib/db'

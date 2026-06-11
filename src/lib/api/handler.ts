@@ -430,16 +430,16 @@ export async function handleApiRoute<TParams extends ApiParams = ApiParams, TDat
 export function apiRoute<TParams extends ApiParams = ApiParams, TData = unknown>(
   handler: AuthenticatedApiHandler<TParams, TData>,
   options: ApiRouteOptions<TParams> & { auth: 'required' }
-): (req: NextRequest, context?: ApiRouteContext<TParams>) => Promise<Response>;
+): (req: NextRequest, context: any) => Promise<Response>;
 export function apiRoute<TParams extends ApiParams = ApiParams, TData = unknown>(
   handler: ApiHandler<TParams, TData>,
   options?: ApiRouteOptions<TParams>
-): (req: NextRequest, context?: ApiRouteContext<TParams>) => Promise<Response>;
+): (req: NextRequest, context: any) => Promise<Response>;
 export function apiRoute<TParams extends ApiParams = ApiParams, TData = unknown>(
   handler: ApiHandler<TParams, TData> | AuthenticatedApiHandler<TParams, TData>,
   options: ApiRouteOptions<TParams> = {}
 ) {
-  return (req: NextRequest, context?: ApiRouteContext<TParams>) => handleApiRoute(req, context, handler as ApiHandler<TParams, TData>, options)
+  return (req: NextRequest, context: any) => handleApiRoute(req, context, handler as ApiHandler<TParams, TData>, options)
 }
 
 export const withApiHandler = apiRoute

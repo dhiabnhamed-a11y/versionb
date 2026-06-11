@@ -1,3 +1,4 @@
+import { tenantQueryRaw } from '@/lib/tenant/tenant-raw-query';
 import { prisma } from '@/lib/db'
 
 type CameraTypeValue = 'device' | 'external'
