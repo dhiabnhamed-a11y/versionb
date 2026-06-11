@@ -84,7 +84,7 @@ return NextResponse.json({ received: true, error: 'Processing failed' })
 }, { auth: 'required' });
 
 function extractCompanyIdFromEvent(event: Stripe.Event): string | null {
-  const obj = event.data.object as Record<string, unknown>
+  const obj = event.data.object as unknown as Record<string, unknown>
   return (
     (obj.metadata as Record<string, string> | undefined)?.companyId ??
     (obj.subscription_data as Record<string, unknown> | undefined)?.metadata as string | null ??
