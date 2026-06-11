@@ -22,6 +22,11 @@ for (const sourceFile of project.getSourceFiles('src/app/api/**/route.ts')) {
 
       if (!body) continue
 
+      // Skip if already wrapped or uses internal helpers
+      if (body.includes('withApiHandler') || body.includes('handleApiRoute') || body.includes('apiRoute')) {
+        continue
+      }
+
       // Convert to export const GET = withApiHandler(...)
       let paramStr = '{ req, params }'
       

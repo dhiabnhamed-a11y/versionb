@@ -3,7 +3,6 @@ import { z } from 'zod'
 import { apiData, handleApiRoute, validateJson, type ApiParams } from '@/lib/api'
 
 import { listCompanyAccessRequests, reviewCompanyAccessRequest, submitDomainAccessRequest } from '@/lib/onboarding'
-import { withApiHandler } from "@/lib/api/handler";
 
 export const runtime = 'nodejs'
 
@@ -19,82 +18,82 @@ const accessRequestReviewSchema = z.object({
   ttlHours: z.coerce.number().int().positive().optional(),
 })
 
-export const GET = withApiHandler(async ({ req, params }) => {
-return handleApiRoute<ApiParams, unknown>(
-req,
-undefined,
-async ({ user }) => {
-  if (!user.companyId) {
-    return apiData([])
-  }
-  if (!user.id || user.role === 'EMPLOYEE') {
-    return apiData({ error: 'Forbidden' }, { status: 403 }) as never
-  }
+export async function GET(req: NextRequest) {
+  return handleApiRoute<ApiParams, unknown>(
+    req,
+    undefined,
+    async ({ user }) => {
+      if (!user.companyId) {
+        return apiData([])
+      }
+      if (!user.id || user.role === 'EMPLOYEE') {
+        return apiData({ error: 'Forbidden' }, { status: 403 }) as never
+      }
 
-  const requests = await listCompanyAccessRequests(user.companyId)
-  return apiData(requests)
-},
-{
-  auth: 'required',
-  rateLimit: { max: 30, namespace: 'access-requests.list', windowMs: 60_000 },
-  responseMode: 'canonical',
-  route: '/api/access-requests',
+      const requests = await listCompanyAccessRequests(user.companyId)
+      return apiData(requests)
+    },
+    {
+      auth: 'required',
+      rateLimit: { max: 30, namespace: 'access-requests.list', windowMs: 60_000 },
+      responseMode: 'canonical',
+      route: '/api/access-requests',
+    }
+  )
 }
-)
-}, { auth: 'required' });
 
-export const POST = withApiHandler(async ({ req, params }) => {
-return handleApiRoute<ApiParams, unknown>(
-req,
-undefined,
-async () => {
-  const parsed = await validateJson(req, accessRequestCreateSchema)
+export async function POST(req: NextRequest) {
+  return handleApiRoute<ApiParams, unknown>(
+    req,
+    undefined,
+    async () => {
+      const parsed = await validateJson(req, accessRequestCreateSchema)
 
-  const request = await submitDomainAccessRequest({
-    name: parsed.name,
-    email: parsed.email,
-    role: parsed.role,
-  })
+      const request = await submitDomainAccessRequest({
+        name: parsed.name,
+        email: parsed.email,
+        role: parsed.role,
+      })
 
-  return apiData(request, { status: 201 })
-},
-{
-  auth: 'none',
-  rateLimit: { max: 5, namespace: 'access-requests.create', windowMs: 60_000 },
-  responseMode: 'canonical',
-  route: '/api/access-requests',
+      return apiData(request, { status: 201 })
+    },
+    {
+      auth: 'none',
+      rateLimit: { max: 5, namespace: 'access-requests.create', windowMs: 60_000 },
+      responseMode: 'canonical',
+      route: '/api/access-requests',
+    }
+  )
 }
-)
-}, { auth: 'required' });
 
-export const PATCH = withApiHandler(async ({ req, params }) => {
-return handleApiRoute<ApiParams, unknown>(
-req,
-undefined,
-async ({ user }) => {
-  if (!user.companyId || !user.id || user.role === 'EMPLOYEE') {
-    return apiData({ error: 'Forbidden' }, { status: 403 }) as never
-  }
+export async function PATCH(req: NextRequest) {
+  return handleApiRoute<ApiParams, unknown>(
+    req,
+    undefined,
+    async ({ user }) => {
+      if (!user.companyId || !user.id || user.role === 'EMPLOYEE') {
+        return apiData({ error: 'Forbidden' }, { status: 403 }) as never
+      }
 
-  const parsed = await validateJson(req, accessRequestReviewSchema)
+      const parsed = await validateJson(req, accessRequestReviewSchema)
 
-  const result = await reviewCompanyAccessRequest({
-    requestId: parsed.requestId,
-    action: parsed.action,
-    reviewerId: user.id,
-    reviewerRole: user.role ?? 'EMPLOYEE',
-    companyId: user.companyId,
-    ttlHours: parsed.ttlHours,
-  })
+      const result = await reviewCompanyAccessRequest({
+        requestId: parsed.requestId,
+        action: parsed.action,
+        reviewerId: user.id,
+        reviewerRole: user.role ?? 'EMPLOYEE',
+        companyId: user.companyId,
+        ttlHours: parsed.ttlHours,
+      })
 
-  return apiData(result)
-},
-{
-  auth: 'required',
-  idempotency: true,
-  rateLimit: { max: 20, namespace: 'access-requests.review', windowMs: 60_000 },
-  responseMode: 'canonical',
-  route: '/api/access-requests',
+      return apiData(result)
+    },
+    {
+      auth: 'required',
+      idempotency: true,
+      rateLimit: { max: 20, namespace: 'access-requests.review', windowMs: 60_000 },
+      responseMode: 'canonical',
+      route: '/api/access-requests',
+    }
+  )
 }
-)
-}, { auth: 'required' });

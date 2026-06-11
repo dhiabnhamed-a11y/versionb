@@ -9,7 +9,6 @@ import {
   findProjectCategories,
   getProjectCategorySupport,
 } from '@/lib/project-category-support'
-import { withApiHandler } from "@/lib/api/handler";
 
 export const runtime = 'nodejs'
 
@@ -18,70 +17,70 @@ const createCategorySchema = z.object({
   description: z.string().optional(),
 })
 
-export const GET = withApiHandler(async ({ req, params }) => {
-return handleApiRoute<ApiParams, unknown>(
-req,
-undefined,
-async ({ user }) => {
-  if (!user.companyId) {
-    return apiData([])
-  }
-  if (!isAgencyCompanyType(normalizeCompanyType(user.companyType))) {
-    return apiData([])
-  }
+export async function GET(req: NextRequest) {
+  return handleApiRoute<ApiParams, unknown>(
+    req,
+    undefined,
+    async ({ user }) => {
+      if (!user.companyId) {
+        return apiData([])
+      }
+      if (!isAgencyCompanyType(normalizeCompanyType(user.companyType))) {
+        return apiData([])
+      }
 
-  const categories = await findProjectCategories(user.companyId)
-  return apiData(categories)
-},
-{
-  auth: 'required',
-  rateLimit: { max: 30, namespace: 'categories.list', windowMs: 60_000 },
-  responseMode: 'canonical',
-  route: '/api/project-categories',
+      const categories = await findProjectCategories(user.companyId)
+      return apiData(categories)
+    },
+    {
+      auth: 'required',
+      rateLimit: { max: 30, namespace: 'categories.list', windowMs: 60_000 },
+      responseMode: 'canonical',
+      route: '/api/project-categories',
+    }
+  )
 }
-)
-}, { auth: 'required' });
 
-export const POST = withApiHandler(async ({ req, params }) => {
-return handleApiRoute<ApiParams, unknown>(
-req,
-undefined,
-async ({ user }) => {
-  if (!user.companyId) {
-    return apiData({ error: 'No company found for this account.' }, { status: 400 }) as never
-  }
-  if (user.role === 'EMPLOYEE') {
-    return apiData({ error: 'Forbidden' }, { status: 403 }) as never
-  }
-  if (!isAgencyCompanyType(normalizeCompanyType(user.companyType))) {
-    return apiData({ error: 'Categories are only available for agency workspaces.' }, { status: 403 }) as never
-  }
+export async function POST(req: NextRequest) {
+  return handleApiRoute<ApiParams, unknown>(
+    req,
+    undefined,
+    async ({ user }) => {
+      if (!user.companyId) {
+        return apiData({ error: 'No company found for this account.' }, { status: 400 }) as never
+      }
+      if (user.role === 'EMPLOYEE') {
+        return apiData({ error: 'Forbidden' }, { status: 403 }) as never
+      }
+      if (!isAgencyCompanyType(normalizeCompanyType(user.companyType))) {
+        return apiData({ error: 'Categories are only available for agency workspaces.' }, { status: 403 }) as never
+      }
 
-  const support = await getProjectCategorySupport()
-  if (!support.hasCategoryTable || !support.hasProjectCategoryColumns) {
-    return apiData({ error: 'Project categories are not ready. Apply the latest database migration first.' }, { status: 503 }) as never
-  }
+      const support = await getProjectCategorySupport()
+      if (!support.hasCategoryTable || !support.hasProjectCategoryColumns) {
+        return apiData({ error: 'Project categories are not ready. Apply the latest database migration first.' }, { status: 503 }) as never
+      }
 
-  const parsed = await validateJson(req, createCategorySchema)
-  const name = parsed.name.trim()
-  const description = parsed.description?.trim() || null
+      const parsed = await validateJson(req, createCategorySchema)
+      const name = parsed.name.trim()
+      const description = parsed.description?.trim() || null
 
-  const category = await createProjectCategory({
-    companyId: user.companyId,
-    name,
-    description,
-  })
+      const category = await createProjectCategory({
+        companyId: user.companyId,
+        name,
+        description,
+      })
 
-  emitCompanyRealtime(user.companyId, 'project_category_created', { category })
+      emitCompanyRealtime(user.companyId, 'project_category_created', { category })
 
-  return apiData(category, { status: 201 })
-},
-{
-  auth: 'required',
-  idempotency: true,
-  rateLimit: { max: 20, namespace: 'categories.create', windowMs: 60_000 },
-  responseMode: 'canonical',
-  route: '/api/project-categories',
+      return apiData(category, { status: 201 })
+    },
+    {
+      auth: 'required',
+      idempotency: true,
+      rateLimit: { max: 20, namespace: 'categories.create', windowMs: 60_000 },
+      responseMode: 'canonical',
+      route: '/api/project-categories',
+    }
+  )
 }
-)
-}, { auth: 'required' });
