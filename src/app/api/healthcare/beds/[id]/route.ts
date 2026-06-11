@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function PATCH(req: NextRequest, ctx: Ctx) {
-  const { id } = await ctx.params
+  const { id } = await params
   return handleApiRoute(req, undefined, async ({ user }) => {
     const body = await parseJsonObject(req)
     return apiData(await HealthcareService.updateBed(user.companyId!, id, body))
@@ -16,7 +16,7 @@ export async function PATCH(req: NextRequest, ctx: Ctx) {
 }
 
 export async function DELETE(req: NextRequest, ctx: Ctx) {
-  const { id } = await ctx.params
+  const { id } = await params
   return handleApiRoute(req, undefined, async ({ user }) => {
     return apiData(await HealthcareService.deleteBed(user.companyId!, id))
   }, { auth: 'required', requiredRole: ['OWNER', 'SUPER_ADMIN'], responseMode: 'legacy', route: '/api/healthcare/beds/[id]' })

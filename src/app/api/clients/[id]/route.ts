@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return handleApiRoute(
     req,
-    ctx,
+    undefined,
     async ({ params, user }) =>
       apiData(await getClientDetail(user, params.id), { headers: NO_STORE_HEADERS }),
     { auth: 'required', responseMode: 'legacy', route: '/api/clients/[id]' }
@@ -19,7 +19,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return handleApiRoute(
     req,
-    ctx,
+    undefined,
     async ({ params, user }) => {
       const body = await parseJsonObject(req)
       return apiData(await updateClient(user, params.id, body))
@@ -37,7 +37,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return handleApiRoute(
     req,
-    ctx,
+    undefined,
     async ({ params, user }) => apiData(await deleteClient(user, params.id)),
     {
       auth: 'required',

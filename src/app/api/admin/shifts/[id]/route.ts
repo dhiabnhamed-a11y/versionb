@@ -7,10 +7,10 @@ export const dynamic = 'force-dynamic'
 
 type ShiftParams = { id: string }
 
-export async function GET(_req: NextRequest, ctx: ApiRouteContext<ShiftParams>) {
+export async function GET(req: NextRequest, ctx: ApiRouteContext<ShiftParams>) {
   return handleApiRoute(
-    _req,
-    ctx,
+    req,
+    undefined,
     async ({ params, user }) => {
       const id = params.id
       const rows = await healthcareService.listShifts(user.companyId || '')
@@ -25,7 +25,7 @@ export async function GET(_req: NextRequest, ctx: ApiRouteContext<ShiftParams>) 
 export async function PATCH(req: NextRequest, ctx: ApiRouteContext<ShiftParams>) {
   return handleApiRoute(
     req,
-    ctx,
+    undefined,
     async ({ params, user }) => {
       const id = params.id
       const body = await parseJsonObject(req)
@@ -36,10 +36,10 @@ export async function PATCH(req: NextRequest, ctx: ApiRouteContext<ShiftParams>)
   )
 }
 
-export async function DELETE(_req: NextRequest, ctx: ApiRouteContext<ShiftParams>) {
+export async function DELETE(req: NextRequest, ctx: ApiRouteContext<ShiftParams>) {
   return handleApiRoute(
-    _req,
-    ctx,
+    req,
+    undefined,
     async ({ params, user }) => {
       const id = params.id
       const result = await healthcareService.deleteShift(user.companyId || '', id)

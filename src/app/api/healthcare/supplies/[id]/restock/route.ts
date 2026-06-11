@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function POST(req: NextRequest, ctx: Ctx) {
-  const { id } = await ctx.params
+  const { id } = await params
   return handleApiRoute(req, undefined, async ({ user }) => {
     const body = await parseJsonObject(req)
     const quantity = Number(body.quantity)

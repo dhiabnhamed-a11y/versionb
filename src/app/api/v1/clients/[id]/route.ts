@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return handleApiRoute(
     req,
-    ctx,
+    undefined,
     async ({ params, user }) => apiData(await getClientDetail(user, params.id), { code: 'CLIENT_RETRIEVED' }),
     { auth: 'required', responseMode: 'canonical', route: '/api/v1/clients/{id}' }
   )
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return handleApiRoute(
     req,
-    ctx,
+    undefined,
     async ({ params, user }) => {
       const body = await parseJsonObject(req)
       return apiData(await updateClient(user, params.id, body), { code: 'CLIENT_UPDATED' })
@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return handleApiRoute(
     req,
-    ctx,
+    undefined,
     async ({ params, user }) => apiData(await deleteClient(user, params.id), { code: 'CLIENT_DELETED' }),
     {
       auth: 'required',

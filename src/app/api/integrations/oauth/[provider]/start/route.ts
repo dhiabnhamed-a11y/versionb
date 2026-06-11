@@ -35,7 +35,7 @@ const returnTo = safeReturnTo(req.nextUrl.searchParams.get('returnTo'))
 
 try {
 const user = await requireSessionUser()
-const { provider } = await ctx.params
+const { provider } = await params
 if (!isSocialProviderSlug(provider)) throw badRequest('Unsupported social provider.')
 
 const originResolution = resolveOAuthOrigin({ req })

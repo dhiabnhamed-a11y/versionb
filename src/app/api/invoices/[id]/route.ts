@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return handleApiRoute(
     req,
-    ctx,
+    undefined,
     async ({ params, user }) => apiData(await getInvoice(user, params.id)),
     { auth: 'required', responseMode: 'legacy', route: '/api/invoices/[id]' }
   )
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return handleApiRoute(
     req,
-    ctx,
+    undefined,
     async ({ params, user }) => {
       const body = await parseJsonObject(req)
       return apiData(await updateInvoice(user, params.id, body))
@@ -35,7 +35,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
 export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return handleApiRoute(
     req,
-    ctx,
+    undefined,
     async ({ params, user }) => {
       const body = await parseJsonObject(req)
       return apiData(await deleteInvoice(user, params.id, body))

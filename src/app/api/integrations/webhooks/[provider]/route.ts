@@ -8,7 +8,7 @@ import { withApiHandler } from "@/lib/api/handler";
 export const runtime = 'nodejs'
 
 export const GET = withApiHandler(async ({ req, params }) => {
-const { provider } = await ctx.params
+const { provider } = await params
 if (!isSocialProviderSlug(provider)) return NextResponse.json({ error: 'Unsupported provider' }, { status: 400 })
 
 const challenge = req.nextUrl.searchParams.get('hub.challenge') ?? req.nextUrl.searchParams.get('challenge')
@@ -24,7 +24,7 @@ return NextResponse.json({ ok: true, provider })
 
 export const POST = withApiHandler(async ({ req, params }) => {
 return withApiError(req, async () => {
-const { provider } = await ctx.params
+const { provider } = await params
 if (!isSocialProviderSlug(provider)) throw badRequest('Unsupported social provider.')
 
 const rawBody = await req.text()

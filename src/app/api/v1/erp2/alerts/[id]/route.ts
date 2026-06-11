@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: string }> }) {
   return handleApiRoute(
     req,
-    ctx,
+    undefined,
     async ({ params }) => {
       const url = new URL(req.url)
       const action = url.searchParams.get('action')

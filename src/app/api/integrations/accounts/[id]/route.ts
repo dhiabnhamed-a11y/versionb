@@ -9,7 +9,7 @@ export const runtime = 'nodejs'
 export const DELETE = withApiHandler(async ({ req, params }) => {
 return withApiError(async () => {
 const user = await requireSessionUser()
-const { id } = await ctx.params
+const { id } = await params
 const account = await disconnectWorkspaceConnectedAccount(user, id)
 return okJson({ account })
 })

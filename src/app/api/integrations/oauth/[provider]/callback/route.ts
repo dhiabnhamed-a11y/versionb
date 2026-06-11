@@ -9,7 +9,7 @@ import { withApiHandler } from "@/lib/api/handler";
 export const runtime = 'nodejs'
 
 export const GET = withApiHandler(async ({ req, params }) => {
-const { provider } = await ctx.params
+const { provider } = await params
 const fallback = new URL('/dashboard/admin/social-analytics', req.url)
 fallback.searchParams.set('integration_error', 'OAuth callback could not be completed. Please start the connection again.')
 fallback.searchParams.set('provider', provider)

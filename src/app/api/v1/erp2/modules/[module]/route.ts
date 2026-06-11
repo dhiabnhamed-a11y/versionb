@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 export async function GET(req: NextRequest, ctx: { params: Promise<{ module: string }> }) {
   return handleApiRoute(
     req,
-    ctx,
+    undefined,
     async ({ user, params }) => {
       const url = new URL(req.url)
       const data = await listErpModule(user, params.module, {
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ module: str
 export async function POST(req: NextRequest, ctx: { params: Promise<{ module: string }> }) {
   return handleApiRoute(
     req,
-    ctx,
+    undefined,
     async ({ user, params }) => {
       const body = await parseJsonObject(req)
       const data = await createErpModuleRecord(user, params.module, body)
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ module: st
 export async function PATCH(req: NextRequest, ctx: { params: Promise<{ module: string }> }) {
   return handleApiRoute(
     req,
-    ctx,
+    undefined,
     async ({ user, params }) => {
       const body = await parseJsonObject(req)
       const data = await patchErpModuleRecord(user, params.module, body)
