@@ -135,7 +135,7 @@ function pdfResponse(pdf: Uint8Array, invoiceNumber: string, reqId: string) {
 
 async function routeParams(context: RouteCtx) {
   try {
-    const params = await context.params
+    const params = params
     return typeof params?.id === 'string' ? params.id.trim() : ''
   } catch {
     return ''

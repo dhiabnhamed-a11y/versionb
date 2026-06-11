@@ -15,7 +15,7 @@ export const PATCH = withApiHandler(async ({ req, params }) => {
 const requester = await requireSessionUser()
 
 try {
-const { id } = await params
+const { id } = await params as { id: string }
 const body = (await req.json().catch(() => ({}))) as { role?: string }
 
 const user = await changeWorkspaceUserRole({

@@ -79,9 +79,8 @@ function pdfResponse(pdf: Uint8Array, contractNumber: string, reqId: string) {
   })
 }
 
-async function routeParams(context: RouteCtx) {
+async function routeParams(params: any) {
   try {
-    const params = await context.params
     return typeof params?.id === 'string' ? params.id.trim() : ''
   } catch {
     return ''
@@ -109,7 +108,7 @@ let contractId = ''
 let phase = 'route-params'
 
 try {
-contractId = await routeParams(context)
+contractId = await routeParams(params)
 if (!contractId) return jsonError('Contract id is required.', 400, reqId)
 
 phase = 'auth'

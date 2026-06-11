@@ -13,7 +13,7 @@ export async function POST(req: NextRequest, context: ApiRouteContext<Params>) {
     context,
     async ({ user, params }) => {
       const body = await parseJsonObject(req)
-      return apiData(await reverseErpJournalEntry(user, params.id, body), { code: 'ERP_JOURNAL_ENTRY_REVERSED', status: 201 })
+      return apiData(await reverseErpJournalEntry(user, (params.id as string), body), { code: 'ERP_JOURNAL_ENTRY_REVERSED', status: 201 })
     },
     {
       auth: 'required',

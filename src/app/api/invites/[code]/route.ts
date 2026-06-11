@@ -6,7 +6,7 @@ import { withApiHandler } from "@/lib/api/handler";
 export const runtime = 'nodejs'
 
 export const GET = withApiHandler(async ({ req, params }) => {
-const { code } = await context.params
+const { code } = params
 
 try {
 const invite = await getInvitePreview(code)

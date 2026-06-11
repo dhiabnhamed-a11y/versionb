@@ -56,7 +56,7 @@ if (!user) {
 return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 }
 
-const { id } = await context.params
+const { id } = params
 const task = await getTaskForSubmission(id, user)
 
 if (!task) {
@@ -103,7 +103,7 @@ if (!user) {
 return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 }
 
-const { id } = await context.params
+const { id } = params
 const task = await getTaskForSubmission(id, user)
 
 if (!task) {

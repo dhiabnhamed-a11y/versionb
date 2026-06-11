@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic'
 
 export const POST = withApiHandler(async ({ req, params }) => {
 const user = await requireSessionUser()
-const { id } = await params
+const { id } = await params as { id: string }
 const result = await getCameraForUser(id, user)
 if (!result) return NextResponse.json({ error: 'Camera not found.' }, { status: 404 })
 

@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   return handleApiRoute(req, undefined, async ({ user }) => {
-    const { id } = await params
+    const { id } = await params as { id: string }
     const incident = await prisma.enterpriseIncident.findFirst({
       where: { id, companyId: user.companyId! },
       include: {
@@ -36,7 +36,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     req,
     undefined,
     async ({ user, requestId }) => {
-      const { id } = await params
+      const { id } = await params as { id: string }
       const body = await parseJsonObject(req)
       return apiData(await updateIncident(user, id, body, requestId))
     },

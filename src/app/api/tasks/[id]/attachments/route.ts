@@ -23,7 +23,7 @@ if (user.role === 'EMPLOYEE') {
 return NextResponse.json({ error: 'Only admins and managers can attach files.' }, { status: 403 })
 }
 
-const { id } = await params
+const { id } = await params as { id: string }
 const companyId = user.companyId
 if (!companyId) {
 return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

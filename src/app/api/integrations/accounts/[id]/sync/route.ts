@@ -10,7 +10,7 @@ export const runtime = 'nodejs'
 export const POST = withApiHandler(async ({ req, params }) => {
 return withApiError(async () => {
 const user = await requireSessionUser()
-const { id } = await params
+const { id } = await params as { id: string }
 const body = await parseJsonObject(req)
 const input = manualSyncSchema.parse(body)
 const result = await enqueueManualAccountSync(user, id, input)

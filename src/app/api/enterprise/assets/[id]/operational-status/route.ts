@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 
 export const POST = withApiHandler(async ({ req, params }) => {
 try {
-const { id } = await params;
+const { id } = await params as { id: string };
 const user = await getSessionUser()
 const body = await request.json()
 const result = await transitionAssetOperationalStatus(user, id, body)

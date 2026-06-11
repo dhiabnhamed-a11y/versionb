@@ -14,10 +14,10 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
       const action = url.searchParams.get('action')
 
       if (action === 'resolve') {
-        return apiData(await resolveAlert(params.id), { code: 'ERP_ALERT_RESOLVED' })
+        return apiData(await resolveAlert((params.id as string)), { code: 'ERP_ALERT_RESOLVED' })
       }
       if (action === 'read') {
-        return apiData(await markAlertRead(params.id), { code: 'ERP_ALERT_MARKED_READ' })
+        return apiData(await markAlertRead((params.id as string)), { code: 'ERP_ALERT_MARKED_READ' })
       }
 
       return apiData(null, { code: 'ERP_INVALID_ACTION' })

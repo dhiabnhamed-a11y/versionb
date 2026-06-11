@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 
 export const POST = withApiHandler(async ({ req, params }) => {
 try {
-const { id } = await params;
+const { id } = await params as { id: string };
 await getSessionUser()
 const svg = await generateAssetQr(id)
 if (!svg) return NextResponse.json({ error: 'Asset not found.' }, { status: 404 })

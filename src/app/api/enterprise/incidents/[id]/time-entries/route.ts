@@ -7,7 +7,7 @@ export const runtime = 'nodejs'
 
 export const GET = withApiHandler(async ({ req, params }) => {
 try {
-const { id } = await params;
+const { id } = await params as { id: string };
 const user = await getSessionUser()
 const result = await listTimeEntries(user, id)
 return NextResponse.json(result)
@@ -18,7 +18,7 @@ return NextResponse.json({ error: e.message }, { status: e.status || e.code || 5
 
 export const POST = withApiHandler(async ({ req, params }) => {
 try {
-const { id } = await params;
+const { id } = await params as { id: string };
 const user = await getSessionUser()
 const body = await request.json()
 const result = await createTimeEntry(user, id, body)

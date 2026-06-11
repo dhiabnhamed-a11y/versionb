@@ -10,7 +10,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
     context,
     async ({ params, user }) => {
       const body = await parseJsonObject(req)
-      return apiData(await postPayrollRun(user, params.id, body))
+      return apiData(await postPayrollRun(user, (params.id as string), body))
     },
     { auth: 'required', responseMode: 'legacy' }
   )

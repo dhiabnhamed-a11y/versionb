@@ -13,7 +13,7 @@ type UpdateCommentBody = {
 
 export const PATCH = withApiHandler(async ({ req, params }) => {
 const user = await requireSessionUser()
-const { id } = await params
+const { id } = await params as { id: string }
 const existing = await prisma.comment.findUnique({
 where: { id },
 select: { id: true, fileId: true },

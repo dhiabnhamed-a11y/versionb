@@ -10,7 +10,7 @@ export const runtime = 'nodejs'
 
 export const GET = withApiHandler(async ({ req, params }) => {
 const user = await requireSessionUser()
-const { id } = await params
+const { id } = await params as { id: string }
 const file = await getAllowedCommentFile(id, user)
 if (!file) return NextResponse.json({ error: 'File not found.' }, { status: 404 })
 

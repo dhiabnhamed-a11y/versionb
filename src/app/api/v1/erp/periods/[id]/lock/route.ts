@@ -13,7 +13,7 @@ export async function POST(req: NextRequest, context: ApiRouteContext<Params>) {
     context,
     async ({ user, params }) => {
       const body = await parseJsonObject(req)
-      return apiData(await lockErpFinancialPeriod(user, params.id, body), { code: 'ERP_PERIOD_LOCKED' })
+      return apiData(await lockErpFinancialPeriod(user, (params.id as string), body), { code: 'ERP_PERIOD_LOCKED' })
     },
     {
       auth: 'required',

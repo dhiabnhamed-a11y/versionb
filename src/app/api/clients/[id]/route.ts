@@ -11,7 +11,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
     req,
     undefined,
     async ({ params, user }) =>
-      apiData(await getClientDetail(user, params.id), { headers: NO_STORE_HEADERS }),
+      apiData(await getClientDetail(user, (params.id as string)), { headers: NO_STORE_HEADERS }),
     { auth: 'required', responseMode: 'legacy', route: '/api/clients/[id]' }
   )
 }
@@ -22,7 +22,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     undefined,
     async ({ params, user }) => {
       const body = await parseJsonObject(req)
-      return apiData(await updateClient(user, params.id, body))
+      return apiData(await updateClient(user, (params.id as string), body))
     },
     {
       auth: 'required',
@@ -38,7 +38,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
   return handleApiRoute(
     req,
     undefined,
-    async ({ params, user }) => apiData(await deleteClient(user, params.id)),
+    async ({ params, user }) => apiData(await deleteClient(user, (params.id as string))),
     {
       auth: 'required',
       idempotency: true,

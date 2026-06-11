@@ -61,7 +61,7 @@ async function getAllowedAgencyProject(projectId: string, user: SessionUser) {
 
 export const GET = withApiHandler(async ({ req, params }) => {
 const user = await requireSessionUser()
-const { id } = await context.params
+const { id } = params
 const allowed = await getAllowedAgencyProject(id, user)
 if ('response' in allowed) return allowed.response
 
@@ -81,7 +81,7 @@ return NextResponse.json(media, { headers: NO_STORE_HEADERS })
 
 export const POST = withApiHandler(async ({ req, params }) => {
 const user = await requireSessionUser()
-const { id } = await context.params
+const { id } = params
 const allowed = await getAllowedAgencyProject(id, user)
 if ('response' in allowed) return allowed.response
 

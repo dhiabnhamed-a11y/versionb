@@ -12,7 +12,7 @@ export async function GET(req: NextRequest, ctx: ApiRouteContext<ShiftParams>) {
     req,
     undefined,
     async ({ params, user }) => {
-      const id = params.id
+      const id = params.id as string
       const rows = await healthcareService.listShifts(user.companyId || '')
       const found = rows.find((r) => r.id === id)
       if (!found) throw new Error('Not found')
@@ -27,7 +27,7 @@ export async function PATCH(req: NextRequest, ctx: ApiRouteContext<ShiftParams>)
     req,
     undefined,
     async ({ params, user }) => {
-      const id = params.id
+      const id = params.id as string
       const body = await parseJsonObject(req)
       const updated = await healthcareService.updateShift(user.companyId || '', id, body)
       return apiData(updated)
@@ -41,7 +41,7 @@ export async function DELETE(req: NextRequest, ctx: ApiRouteContext<ShiftParams>
     req,
     undefined,
     async ({ params, user }) => {
-      const id = params.id
+      const id = params.id as string
       const result = await healthcareService.deleteShift(user.companyId || '', id)
       return apiData(result)
     },

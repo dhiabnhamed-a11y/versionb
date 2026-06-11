@@ -24,7 +24,7 @@ export const GET = withApiHandler(async ({ req, params }) => {
 const user = await requireSessionUser()
 if (!user.companyId) return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
 
-const { id } = await params
+const { id } = await params as { id: string }
 const deliverable = await prisma.deliverable.findFirst({
 where: { id, companyId: user.companyId },
 include: {
@@ -55,7 +55,7 @@ const user = await requireSessionUser()
 if (!user.companyId) return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
 if (user.role === 'EMPLOYEE') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-const { id } = await params
+const { id } = await params as { id: string }
 const body = (await req.json().catch(() => ({}))) as UpdateDeliverableBody
 const existing = await prisma.deliverable.findFirst({
 where: { id, companyId: user.companyId },

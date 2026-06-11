@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
 type Ctx = { params: Promise<{ id: string }> }
 
 export async function POST(req: NextRequest, ctx: Ctx) {
-  const { id } = await params
+  const { id } = await params as { id: string }
   return handleApiRoute(req, undefined, async ({ user }) => {
     const result = await HealthcareService.dischargePatient(user.companyId!, id)
     return apiData(result)

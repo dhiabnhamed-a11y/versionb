@@ -14,7 +14,7 @@ if (!canManageProjectCamera(user)) {
 return NextResponse.json({ error: 'Only owners and managers can stop project camera streams.' }, { status: 403 })
 }
 
-const { id } = await params
+const { id } = await params as { id: string }
 const result = await getCameraForUser(id, user)
 if (!result) return NextResponse.json({ error: 'Camera not found.' }, { status: 404 })
 

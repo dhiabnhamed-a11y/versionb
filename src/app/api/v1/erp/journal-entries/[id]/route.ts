@@ -11,7 +11,7 @@ export async function GET(req: NextRequest, context: ApiRouteContext<Params>) {
   return handleApiRoute(
     req,
     context,
-    async ({ user, params }) => apiData(await getErpJournalEntry(user, params.id), { code: 'ERP_JOURNAL_ENTRY_FOUND' }),
+    async ({ user, params }) => apiData(await getErpJournalEntry(user, (params.id as string)), { code: 'ERP_JOURNAL_ENTRY_FOUND' }),
     { auth: 'required', responseMode: 'canonical', route: '/api/v1/erp/journal-entries/[id]' }
   )
 }

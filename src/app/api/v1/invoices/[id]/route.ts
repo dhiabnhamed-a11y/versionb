@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   return handleApiRoute(
     req,
     context,
-    async ({ params, user }) => apiData(await getInvoice(user, params.id), { code: 'INVOICE_RETRIEVED' }),
+    async ({ params, user }) => apiData(await getInvoice(user, (params.id as string)), { code: 'INVOICE_RETRIEVED' }),
     { auth: 'required', responseMode: 'canonical' }
   )
 }
@@ -20,7 +20,7 @@ export async function PATCH(req: NextRequest, context: { params: Promise<{ id: s
     context,
     async ({ params, user }) => {
       const body = await parseJsonObject(req)
-      const invoice = await runIdempotent(getIdempotencyKey(req), body, () => updateInvoice(user, params.id, body), {
+      const invoice = await runIdempotent(getIdempotencyKey(req), body, () => updateInvoice(user, (params.id as string), body), {
         companyId: user.companyId,
         method: req.method,
         route: '/api/v1/invoices/{id}',
@@ -37,7 +37,7 @@ export async function DELETE(req: NextRequest, context: { params: Promise<{ id: 
     context,
     async ({ params, user }) => {
       const body = await parseJsonObject(req)
-      const result = await runIdempotent(getIdempotencyKey(req), body, () => deleteInvoice(user, params.id, body), {
+      const result = await runIdempotent(getIdempotencyKey(req), body, () => deleteInvoice(user, (params.id as string), body), {
         companyId: user.companyId,
         method: req.method,
         route: '/api/v1/invoices/{id}',

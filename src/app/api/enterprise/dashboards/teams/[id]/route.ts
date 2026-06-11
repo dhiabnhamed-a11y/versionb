@@ -9,7 +9,7 @@ export const dynamic = 'force-dynamic'
 
 export const GET = withApiHandler(async ({ req, params }) => {
 try {
-const { id } = await params;
+const { id } = await params as { id: string };
 const user = await getSessionUser()
 const result = await getTeamDashboard(user, id)
 return NextResponse.json(result)

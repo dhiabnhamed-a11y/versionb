@@ -8,7 +8,7 @@ export async function POST(req: NextRequest, context: { params: Promise<{ id: st
   return handleApiRoute(
     req,
     context,
-    async ({ params, user }) => apiData(await closeFinancialPeriod(user, params.id)),
+    async ({ params, user }) => apiData(await closeFinancialPeriod(user, (params.id as string))),
     { auth: 'required', responseMode: 'legacy' }
   )
 }

@@ -27,7 +27,7 @@ async function authorizeClient(user: BillingSessionUser, id: string) {
 
 export const POST = withApiHandler(
   async ({ req, params, user }) => {
-    const { id } = await params
+    const { id } = await params as { id: string }
     const existing = await authorizeClient(user, id)
     if (!existing) return new Response(JSON.stringify({ error: 'Client not found.' }), { status: 404, headers: { 'Content-Type': 'application/json' } })
 

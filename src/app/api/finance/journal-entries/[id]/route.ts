@@ -8,7 +8,7 @@ export async function GET(req: NextRequest, context: { params: Promise<{ id: str
   return handleApiRoute(
     req,
     context,
-    async ({ params, user }) => apiData(await getJournalEntry(user, params.id)),
+    async ({ params, user }) => apiData(await getJournalEntry(user, (params.id as string))),
     { auth: 'required', responseMode: 'legacy' }
   )
 }

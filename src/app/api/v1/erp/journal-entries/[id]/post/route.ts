@@ -11,7 +11,7 @@ export async function POST(req: NextRequest, context: ApiRouteContext<Params>) {
   return handleApiRoute(
     req,
     context,
-    async ({ user, params }) => apiData(await postErpJournalEntry(user, params.id), { code: 'ERP_JOURNAL_ENTRY_POSTED' }),
+    async ({ user, params }) => apiData(await postErpJournalEntry(user, (params.id as string)), { code: 'ERP_JOURNAL_ENTRY_POSTED' }),
     {
       auth: 'required',
       idempotency: true,

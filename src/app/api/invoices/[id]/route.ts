@@ -9,7 +9,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ id: string 
   return handleApiRoute(
     req,
     undefined,
-    async ({ params, user }) => apiData(await getInvoice(user, params.id)),
+    async ({ params, user }) => apiData(await getInvoice(user, (params.id as string))),
     { auth: 'required', responseMode: 'legacy', route: '/api/invoices/[id]' }
   )
 }
@@ -20,7 +20,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
     undefined,
     async ({ params, user }) => {
       const body = await parseJsonObject(req)
-      return apiData(await updateInvoice(user, params.id, body))
+      return apiData(await updateInvoice(user, (params.id as string), body))
     },
     {
       auth: 'required',
@@ -38,7 +38,7 @@ export async function DELETE(req: NextRequest, ctx: { params: Promise<{ id: stri
     undefined,
     async ({ params, user }) => {
       const body = await parseJsonObject(req)
-      return apiData(await deleteInvoice(user, params.id, body))
+      return apiData(await deleteInvoice(user, (params.id as string), body))
     },
     {
       auth: 'required',

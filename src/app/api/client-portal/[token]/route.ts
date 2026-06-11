@@ -58,7 +58,7 @@ export const GET = withApiHandler(async ({ req, params }) => {
 const rate = await enforceDistributedRateLimit(req, { namespace: 'portal:read', windowMs: 60_000, max: 60 })
 if (!rate.allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: NO_STORE_HEADERS })
 
-const { token } = await context.params
+const { token } = params as { token: string }
 if (!/^[a-z0-9]{32,128}$/i.test(token)) {
 return NextResponse.json({ error: 'Portal not found.' }, { status: 404, headers: NO_STORE_HEADERS })
 }
@@ -140,7 +140,7 @@ export const POST = withApiHandler(async ({ req, params }) => {
 const rate = await enforceDistributedRateLimit(req, API_RATE_LIMITS.portal)
 if (!rate.allowed) return NextResponse.json({ error: 'Too many requests' }, { status: 429, headers: NO_STORE_HEADERS })
 
-const { token } = await context.params
+const { token } = params as { token: string }
 const client = await getPortalClient(token)
 if (!client) return NextResponse.json({ error: 'Portal not found.' }, { status: 404 })
 

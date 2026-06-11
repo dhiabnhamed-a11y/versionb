@@ -52,7 +52,7 @@ const user = await requireSessionUser()
 if (!user.companyId) return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
 if (user.role === 'EMPLOYEE') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-const { id } = await params
+const { id } = await params as { id: string }
 
 try {
 const existing = await assertEventAccess(id, user.companyId)
@@ -110,7 +110,7 @@ const user = await requireSessionUser()
 if (!user.companyId) return NextResponse.json({ error: 'No company found for this account' }, { status: 400 })
 if (user.role === 'EMPLOYEE') return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
-const { id } = await params
+const { id } = await params as { id: string }
 
 try {
 const existing = await assertEventAccess(id, user.companyId)
