@@ -3,6 +3,7 @@ import { apiData, handleApiRoute, parseJsonObject } from '@/lib/api'
 import { prisma } from '@/lib/db'
 import { badRequest, notFound } from '@/modules/shared/errors'
 import { z } from 'zod'
+import { withApiHandler } from "@/lib/api/handler";
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -12,55 +13,55 @@ const createNoteSchema = z.object({
   isPrivate: z.boolean().default(true),
 })
 
-export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  return handleApiRoute(req, undefined, async ({ user }) => {
-    const { id } = await params
-    const incident = await prisma.enterpriseIncident.findFirst({
-      where: { id, companyId: user.companyId! },
-      select: { id: true },
-    })
-    if (!incident) throw notFound('Incident not found')
+export const GET = withApiHandler(async ({ req, params }) => {
+return handleApiRoute(req, undefined, async ({ user }) => {
+const { id } = await params
+const incident = await prisma.enterpriseIncident.findFirst({
+  where: { id, companyId: user.companyId! },
+  select: { id: true },
+})
+if (!incident) throw notFound('Incident not found')
 
-    const notes = await prisma.enterpriseIncidentNote.findMany({
-      where: { incidentId: id, companyId: user.companyId! },
-      orderBy: { createdAt: 'desc' },
-      include: {
-        author: { select: { id: true, name: true, email: true } },
-      },
-    })
-    return apiData(notes)
-  }, { auth: 'required', responseMode: 'canonical' })
-}
+const notes = await prisma.enterpriseIncidentNote.findMany({
+  where: { incidentId: id, companyId: user.companyId! },
+  orderBy: { createdAt: 'desc' },
+  include: {
+    author: { select: { id: true, name: true, email: true } },
+  },
+})
+return apiData(notes)
+}, { auth: 'required', responseMode: 'canonical' })
+}, { auth: 'required' });
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  return handleApiRoute(
-    req,
-    undefined,
-    async ({ user }) => {
-      const { id } = await params
-      const body = await parseJsonObject(req)
-      const input = createNoteSchema.parse(body)
+export const POST = withApiHandler(async ({ req, params }) => {
+return handleApiRoute(
+req,
+undefined,
+async ({ user }) => {
+  const { id } = await params
+  const body = await parseJsonObject(req)
+  const input = createNoteSchema.parse(body)
 
-      const incident = await prisma.enterpriseIncident.findFirst({
-        where: { id, companyId: user.companyId! },
-        select: { id: true },
-      })
-      if (!incident) throw notFound('Incident not found')
+  const incident = await prisma.enterpriseIncident.findFirst({
+    where: { id, companyId: user.companyId! },
+    select: { id: true },
+  })
+  if (!incident) throw notFound('Incident not found')
 
-      const note = await prisma.enterpriseIncidentNote.create({
-        data: {
-          companyId: user.companyId!,
-          incidentId: id,
-          authorId: user.id,
-          content: input.content,
-          isPrivate: input.isPrivate,
-        },
-        include: {
-          author: { select: { id: true, name: true, email: true } },
-        },
-      })
-      return apiData(note, { status: 201 })
+  const note = await prisma.enterpriseIncidentNote.create({
+    data: {
+      companyId: user.companyId!,
+      incidentId: id,
+      authorId: user.id,
+      content: input.content,
+      isPrivate: input.isPrivate,
     },
-    { auth: 'required', responseMode: 'canonical' }
-  )
-}
+    include: {
+      author: { select: { id: true, name: true, email: true } },
+    },
+  })
+  return apiData(note, { status: 201 })
+},
+{ auth: 'required', responseMode: 'canonical' }
+)
+}, { auth: 'required' });

@@ -14,13 +14,13 @@ export async function getProjectMediaSupport(): Promise<ProjectMediaSupport> {
     globalForProjectMediaSupport.projectMediaSupportPromise = (async () => {
       try {
         const [tables, columns] = await Promise.all([
-          prisma.$queryRaw<Array<{ table_name: string }>>`
+          tenantQueryRaw<Array<{ table_name: string }>>`
             SELECT table_name
             FROM information_schema.tables
             WHERE table_schema = current_schema()
               AND table_name = 'ProjectMedia'
           `,
-          prisma.$queryRaw<Array<{ column_name: string }>>`
+          tenantQueryRaw<Array<{ column_name: string }>>`
             SELECT column_name
             FROM information_schema.columns
             WHERE table_schema = current_schema()

@@ -5,25 +5,26 @@ import { buildOperationalCommandCenter } from '@/modules/operations/operational-
 import { requireSessionUser } from '@/modules/shared/session'
 import { recordDuration } from '@/lib/observability'
 import { okJson, withApiError } from '@/modules/shared/api'
+import { withApiHandler } from "@/lib/api/handler";
 
 export const runtime = 'nodejs'
 
-export async function GET(req: NextRequest) {
-  const startedAt = Date.now()
+export const GET = withApiHandler(async ({ req, params }) => {
+const startedAt = Date.now()
 
-  return withApiError(req, async () => {
-    const user = await requireSessionUser(req)
-    const cacheKey = `command-center:${user.companyId ?? 'none'}:${user.role ?? 'unknown'}`
+return withApiError(req, async () => {
+const user = await requireSessionUser(req)
+const cacheKey = `command-center:${user.companyId ?? 'none'}:${user.role ?? 'unknown'}`
 
-    const commandCenter = await cached(cacheKey, INFRA.commandCenterCacheTtlSec, () =>
-      buildOperationalCommandCenter({
-        id: user.id,
-        role: user.role,
-        companyId: user.companyId,
-      })
-    )
+const commandCenter = await cached(cacheKey, INFRA.commandCenterCacheTtlSec, () =>
+  buildOperationalCommandCenter({
+    id: user.id,
+    role: user.role,
+    companyId: user.companyId,
+  })
+)
 
-    recordDuration('command_center', startedAt, { companyId: user.companyId ?? null })
-    return okJson(commandCenter)
-  }, { route: '/api/operations/command-center' })
-}
+recordDuration('command_center', startedAt, { companyId: user.companyId ?? null })
+return okJson(commandCenter)
+}, { route: '/api/operations/command-center' })
+}, { auth: 'required' });

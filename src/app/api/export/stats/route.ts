@@ -11,6 +11,7 @@ import {
 } from '@/lib/settings'
 import { prisma } from '@/lib/db'
 import { generateStatsPdf } from '@/lib/stats-pdf'
+import { withApiHandler } from "@/lib/api/handler";
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -103,125 +104,125 @@ async function logExportAuditSafely(input: {
   }
 }
 
-export async function GET(req: NextRequest) {
-  const reqId = requestId()
-  const startedAt = Date.now()
-  const format = getFormat(req.nextUrl.searchParams.get('format')?.toLowerCase() ?? null)
-  let companyId: string | undefined
+export const GET = withApiHandler(async ({ req, params }) => {
+const reqId = requestId()
+const startedAt = Date.now()
+const format = getFormat(req.nextUrl.searchParams.get('format')?.toLowerCase() ?? null)
+let companyId: string | undefined
 
-  try {
-    const user = await requireSessionUser()
-    if (!user) return jsonError('Unauthorized', 401, reqId)
+try {
+const user = await requireSessionUser()
+if (!user) return jsonError('Unauthorized', 401, reqId)
 
-    if (!user.id) return jsonError('Unauthorized', 401, reqId)
-    if (!user.companyId) return jsonError('No company found for this account.', 400, reqId)
-    if (!canManageSettings(user.role)) return jsonError('Forbidden', 403, reqId)
-    companyId = user.companyId
+if (!user.id) return jsonError('Unauthorized', 401, reqId)
+if (!user.companyId) return jsonError('No company found for this account.', 400, reqId)
+if (!canManageSettings(user.role)) return jsonError('Forbidden', 403, reqId)
+companyId = user.companyId
 
-    logStatsExport('info', {
-      requestId: reqId,
-      companyId: user.companyId,
-      format,
-      event: 'export-started',
-    })
+logStatsExport('info', {
+  requestId: reqId,
+  companyId: user.companyId,
+  format,
+  event: 'export-started',
+})
 
-    const exportData = await buildWorkspaceStatsExport(user.companyId)
+const exportData = await buildWorkspaceStatsExport(user.companyId)
 
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    if (format === 'csv') {
-      const csv = buildStatsCsv(exportData)
-      await logExportAuditSafely({
-        companyId: user.companyId,
-        actorId: user.id,
-        format,
-        totals: exportData.summary,
-        requestId: reqId,
-      })
+const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+if (format === 'csv') {
+  const csv = buildStatsCsv(exportData)
+  await logExportAuditSafely({
+    companyId: user.companyId,
+    actorId: user.id,
+    format,
+    totals: exportData.summary,
+    requestId: reqId,
+  })
 
-      logStatsExport('info', {
-        requestId: reqId,
-        companyId: user.companyId,
-        format,
-        event: 'export-completed',
-        byteLength: Buffer.byteLength(csv),
-        durationMs: Date.now() - startedAt,
-      })
+  logStatsExport('info', {
+    requestId: reqId,
+    companyId: user.companyId,
+    format,
+    event: 'export-completed',
+    byteLength: Buffer.byteLength(csv),
+    durationMs: Date.now() - startedAt,
+  })
 
-      return new NextResponse(csv, {
-        headers: {
-          ...buildDownloadHeaders(`taskit-stats-${timestamp}.csv`, 'text/csv; charset=utf-8'),
-          'X-Request-Id': reqId,
-        },
-      })
-    }
-
-    if (format === 'pdf') {
-      const pdf = await generateStatsPdf(exportData, {
-        requestId: reqId,
-        companyId: user.companyId,
-        startedAt,
-      })
-      const body = new Uint8Array(pdf)
-
-      await logExportAuditSafely({
-        companyId: user.companyId,
-        actorId: user.id,
-        format,
-        totals: exportData.summary,
-        requestId: reqId,
-      })
-
-      logStatsExport('info', {
-        requestId: reqId,
-        companyId: user.companyId,
-        format,
-        event: 'export-completed',
-        byteLength: pdf.byteLength,
-        durationMs: Date.now() - startedAt,
-      })
-
-      return new Response(body, {
-        headers: {
-          ...buildDownloadHeaders(`taskit-stats-${timestamp}.pdf`, 'application/pdf'),
-          'Content-Length': String(pdf.byteLength),
-          'X-Request-Id': reqId,
-        },
-      })
-    }
-
-    const json = JSON.stringify(exportData, null, 2)
-    await logExportAuditSafely({
-      companyId: user.companyId,
-      actorId: user.id,
-      format,
-      totals: exportData.summary,
-      requestId: reqId,
-    })
-
-    logStatsExport('info', {
-      requestId: reqId,
-      companyId: user.companyId,
-      format,
-      event: 'export-completed',
-      byteLength: Buffer.byteLength(json),
-      durationMs: Date.now() - startedAt,
-    })
-
-    return new NextResponse(json, {
-      headers: {
-        ...buildDownloadHeaders(`taskit-stats-${timestamp}.json`, 'application/json; charset=utf-8'),
-        'X-Request-Id': reqId,
-      },
-    })
-  } catch (error) {
-    logStatsExport('error', {
-      requestId: reqId,
-      companyId,
-      format,
-      event: 'export-failed',
-      durationMs: Date.now() - startedAt,
-      error: errorDetails(error),
-    })
-    return jsonError('Failed to export statistics.', 500, reqId)
-  }
+  return new NextResponse(csv, {
+    headers: {
+      ...buildDownloadHeaders(`taskit-stats-${timestamp}.csv`, 'text/csv; charset=utf-8'),
+      'X-Request-Id': reqId,
+    },
+  })
 }
+
+if (format === 'pdf') {
+  const pdf = await generateStatsPdf(exportData, {
+    requestId: reqId,
+    companyId: user.companyId,
+    startedAt,
+  })
+  const body = new Uint8Array(pdf)
+
+  await logExportAuditSafely({
+    companyId: user.companyId,
+    actorId: user.id,
+    format,
+    totals: exportData.summary,
+    requestId: reqId,
+  })
+
+  logStatsExport('info', {
+    requestId: reqId,
+    companyId: user.companyId,
+    format,
+    event: 'export-completed',
+    byteLength: pdf.byteLength,
+    durationMs: Date.now() - startedAt,
+  })
+
+  return new Response(body, {
+    headers: {
+      ...buildDownloadHeaders(`taskit-stats-${timestamp}.pdf`, 'application/pdf'),
+      'Content-Length': String(pdf.byteLength),
+      'X-Request-Id': reqId,
+    },
+  })
+}
+
+const json = JSON.stringify(exportData, null, 2)
+await logExportAuditSafely({
+  companyId: user.companyId,
+  actorId: user.id,
+  format,
+  totals: exportData.summary,
+  requestId: reqId,
+})
+
+logStatsExport('info', {
+  requestId: reqId,
+  companyId: user.companyId,
+  format,
+  event: 'export-completed',
+  byteLength: Buffer.byteLength(json),
+  durationMs: Date.now() - startedAt,
+})
+
+return new NextResponse(json, {
+  headers: {
+    ...buildDownloadHeaders(`taskit-stats-${timestamp}.json`, 'application/json; charset=utf-8'),
+    'X-Request-Id': reqId,
+  },
+})
+} catch (error) {
+logStatsExport('error', {
+  requestId: reqId,
+  companyId,
+  format,
+  event: 'export-failed',
+  durationMs: Date.now() - startedAt,
+  error: errorDetails(error),
+})
+return jsonError('Failed to export statistics.', 500, reqId)
+}
+}, { auth: 'required' });

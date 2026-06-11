@@ -10,6 +10,7 @@ import {
 } from '@/lib/billing-subscriptions'
 import { getDodoWebhookSecret } from '@/lib/dodo'
 import { getWorkspaceById, type BillingInterval } from '@/lib/pricing'
+import { withApiHandler } from "@/lib/api/handler";
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -80,84 +81,84 @@ async function recordCompanyEvent(userId: string, event: string, payload: Record
   await prisma.subscriptionEvent.create({ data: { companyId: user.companyId, event, payload: payload as Prisma.InputJsonValue } })
 }
 
-export async function POST(req: NextRequest) {
-  const webhookSecret = getDodoWebhookSecret()
-  const rawBody = await req.text().catch(() => null)
-  if (!rawBody) return NextResponse.json({ error: 'Failed to read body.' }, { status: 400 })
+export const POST = withApiHandler(async ({ req, params }) => {
+const webhookSecret = getDodoWebhookSecret()
+const rawBody = await req.text().catch(() => null)
+if (!rawBody) return NextResponse.json({ error: 'Failed to read body.' }, { status: 400 })
 
-  const dodo = new DodoPayments({
-    environment: process.env.DODO_ENV === 'live' ? 'live_mode' : 'test_mode',
-    webhookKey: webhookSecret ?? undefined,
-  })
+const dodo = new DodoPayments({
+environment: process.env.DODO_ENV === 'live' ? 'live_mode' : 'test_mode',
+webhookKey: webhookSecret ?? undefined,
+})
 
-  let event: DodoWebhookEvent
-  try {
-    const headers: Record<string, string> = {}
-    req.headers.forEach((value, key) => {
-      headers[key.toLowerCase()] = value
-    })
-    event = dodo.webhooks.unwrap(rawBody, { headers, key: webhookSecret ?? undefined }) as unknown as DodoWebhookEvent
-  } catch {
-    return NextResponse.json({ error: 'Invalid signature.' }, { status: 400 })
-  }
-
-  const data = getObject(event.data)
-  const metadata = getMetadata(data)
-  const existing = await loadWorkspaceSubscription(metadata, data, event.type)
-  if (!existing) return NextResponse.json({ received: true, ignored: true })
-
-  const workspaceId = getString(metadata.workspace_id) ?? existing.workspaceId
-  const workspace = getWorkspaceById(workspaceId)
-  if (!workspace) return NextResponse.json({ received: true, ignored: true })
-
-  const interval = getInterval(metadata, data)
-  const seatCount = getSeatCount(metadata, data)
-  const dodoCustomerId = getCustomerId(data) ?? existing.dodoCustomerId
-  const dodoSubscriptionId = getSubscriptionId(event.type, data) ?? existing.dodoSubscriptionId
-  const currentPeriodEnd = parseDodoDate(data.next_billing_date) ?? parseDodoDate(data.current_period_end) ?? existing.currentPeriodEnd
-  const currentPeriodStart = parseDodoDate(data.previous_billing_date) ?? existing.currentPeriodStart
-
-  let status: WorkspaceSubscriptionStatus = existing.status as WorkspaceSubscriptionStatus
-  if (event.type === 'payment.succeeded') status = 'active'
-  if (event.type === 'subscription.updated') status = mapDodoSubscriptionStatus(getString(data.status) ?? 'active')
-  if (event.type === 'subscription.cancelled') status = 'cancelled'
-  if (event.type === 'payment.failed') status = 'past_due'
-
-  const updated = await prisma.workspaceSubscription.update({
-    where: { id: existing.id },
-    data: {
-      billingModel: workspace.billingModel,
-      currentPeriodEnd,
-      currentPeriodStart,
-      dodoCustomerId,
-      dodoSubscriptionId,
-      interval,
-      seatCount,
-      status,
-      workspaceId,
-      ...(status === 'cancelled' ? { cancelledAt: new Date() } : {}),
-    },
-  })
-
-  await syncCompanyBillingFromSubscription({
-    billingModel: workspace.billingModel,
-    currentPeriodEnd: updated.currentPeriodEnd,
-    dodoCustomerId: updated.dodoCustomerId,
-    dodoSubscriptionId: updated.dodoSubscriptionId,
-    interval: updated.interval as BillingInterval,
-    seatCount: updated.seatCount,
-    status,
-    userId: updated.userId,
-    workspaceId: updated.workspaceId,
-  })
-
-  await recordCompanyEvent(updated.userId, event.type.replace(/\./g, '_'), {
-    dodoCustomerId,
-    dodoSubscriptionId,
-    interval,
-    seatCount,
-    workspaceId,
-  })
-
-  return NextResponse.json({ received: true })
+let event: DodoWebhookEvent
+try {
+const headers: Record<string, string> = {}
+req.headers.forEach((value, key) => {
+  headers[key.toLowerCase()] = value
+})
+event = dodo.webhooks.unwrap(rawBody, { headers, key: webhookSecret ?? undefined }) as unknown as DodoWebhookEvent
+} catch {
+return NextResponse.json({ error: 'Invalid signature.' }, { status: 400 })
 }
+
+const data = getObject(event.data)
+const metadata = getMetadata(data)
+const existing = await loadWorkspaceSubscription(metadata, data, event.type)
+if (!existing) return NextResponse.json({ received: true, ignored: true })
+
+const workspaceId = getString(metadata.workspace_id) ?? existing.workspaceId
+const workspace = getWorkspaceById(workspaceId)
+if (!workspace) return NextResponse.json({ received: true, ignored: true })
+
+const interval = getInterval(metadata, data)
+const seatCount = getSeatCount(metadata, data)
+const dodoCustomerId = getCustomerId(data) ?? existing.dodoCustomerId
+const dodoSubscriptionId = getSubscriptionId(event.type, data) ?? existing.dodoSubscriptionId
+const currentPeriodEnd = parseDodoDate(data.next_billing_date) ?? parseDodoDate(data.current_period_end) ?? existing.currentPeriodEnd
+const currentPeriodStart = parseDodoDate(data.previous_billing_date) ?? existing.currentPeriodStart
+
+let status: WorkspaceSubscriptionStatus = existing.status as WorkspaceSubscriptionStatus
+if (event.type === 'payment.succeeded') status = 'active'
+if (event.type === 'subscription.updated') status = mapDodoSubscriptionStatus(getString(data.status) ?? 'active')
+if (event.type === 'subscription.cancelled') status = 'cancelled'
+if (event.type === 'payment.failed') status = 'past_due'
+
+const updated = await prisma.workspaceSubscription.update({
+where: { id: existing.id },
+data: {
+  billingModel: workspace.billingModel,
+  currentPeriodEnd,
+  currentPeriodStart,
+  dodoCustomerId,
+  dodoSubscriptionId,
+  interval,
+  seatCount,
+  status,
+  workspaceId,
+  ...(status === 'cancelled' ? { cancelledAt: new Date() } : {}),
+},
+})
+
+await syncCompanyBillingFromSubscription({
+billingModel: workspace.billingModel,
+currentPeriodEnd: updated.currentPeriodEnd,
+dodoCustomerId: updated.dodoCustomerId,
+dodoSubscriptionId: updated.dodoSubscriptionId,
+interval: updated.interval as BillingInterval,
+seatCount: updated.seatCount,
+status,
+userId: updated.userId,
+workspaceId: updated.workspaceId,
+})
+
+await recordCompanyEvent(updated.userId, event.type.replace(/\./g, '_'), {
+dodoCustomerId,
+dodoSubscriptionId,
+interval,
+seatCount,
+workspaceId,
+})
+
+return NextResponse.json({ received: true })
+}, { auth: 'required' });

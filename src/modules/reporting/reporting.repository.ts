@@ -32,7 +32,7 @@ export type LedgerReportRow = {
 }
 
 export function getMonthlyOperatingRows(companyId: string, startsAt: Date) {
-  return prisma.$queryRaw<MonthlyOperatingRow[]>`
+  return tenantQueryRaw<MonthlyOperatingRow[]>`
     WITH months AS (
       SELECT generate_series(date_trunc('month', ${startsAt}::timestamp), date_trunc('month', now()), interval '1 month') AS month
     ),
@@ -77,7 +77,7 @@ export function getMonthlyOperatingRows(companyId: string, startsAt: Date) {
 }
 
 export function getClientExposureRows(companyId: string, startsAt: Date) {
-  return prisma.$queryRaw<ClientExposureRow[]>`
+  return tenantQueryRaw<ClientExposureRow[]>`
     SELECT
       "clientId",
       "clientName",
@@ -95,7 +95,7 @@ export function getClientExposureRows(companyId: string, startsAt: Date) {
 }
 
 export function getReceivablesAgingRows(companyId: string, asOf: Date) {
-  return prisma.$queryRaw<AgingRow[]>`
+  return tenantQueryRaw<AgingRow[]>`
     SELECT
       CASE
         WHEN "dueDate" IS NULL OR "dueDate" >= ${asOf} THEN 'current'

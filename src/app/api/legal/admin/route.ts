@@ -5,6 +5,7 @@ import { listLegalAdminSnapshot, publishLegalDocumentVersion } from '@/lib/legal
 import { isAuthorizedSuperAdminIdentity } from '@/lib/security'
 import { withApiError } from '@/modules/shared/api'
 import { forbidden } from '@/modules/shared/errors'
+import { withApiHandler } from "@/lib/api/handler";
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -22,36 +23,36 @@ function getSuperAdminUser(user: SessionUser & { id: string }) {
   return user
 }
 
-export async function GET(req: NextRequest) {
-  return withApiError(req, async () => {
-    getSuperAdminUser(await requireSessionUser())
+export const GET = withApiHandler(async ({ req, params }) => {
+return withApiError(req, async () => {
+getSuperAdminUser(await requireSessionUser())
 
-    return NextResponse.json(await listLegalAdminSnapshot())
-  })
+return NextResponse.json(await listLegalAdminSnapshot())
+})
+}, { auth: 'required' });
+
+export const POST = withApiHandler(async ({ req, params }) => {
+return withApiError(req, async () => {
+const user = getSuperAdminUser(await requireSessionUser())
+const body = (await req.json().catch(() => ({}))) as {
+  contentHash?: string
+  documentType?: string
+  requiresReacceptance?: boolean
+  summary?: string
+  title?: string
+  version?: string
 }
 
-export async function POST(req: NextRequest) {
-  return withApiError(req, async () => {
-    const user = getSuperAdminUser(await requireSessionUser())
-    const body = (await req.json().catch(() => ({}))) as {
-      contentHash?: string
-      documentType?: string
-      requiresReacceptance?: boolean
-      summary?: string
-      title?: string
-      version?: string
-    }
+const legalVersion = await publishLegalDocumentVersion({
+  contentHash: body.contentHash,
+  documentType: body.documentType ?? '',
+  publishedById: user.id,
+  requiresReacceptance: body.requiresReacceptance === true,
+  summary: body.summary,
+  title: body.title,
+  version: body.version ?? '',
+})
 
-    const legalVersion = await publishLegalDocumentVersion({
-      contentHash: body.contentHash,
-      documentType: body.documentType ?? '',
-      publishedById: user.id,
-      requiresReacceptance: body.requiresReacceptance === true,
-      summary: body.summary,
-      title: body.title,
-      version: body.version ?? '',
-    })
-
-    return NextResponse.json({ legalVersion }, { status: 201 })
-  })
-}
+return NextResponse.json({ legalVersion }, { status: 201 })
+})
+}, { auth: 'required' });

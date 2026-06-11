@@ -76,10 +76,21 @@ export const TenantPrismaGuards = {
 } satisfies TenantScopedClient
 
 function mergeTenantWhere(model: string, args: Record<string, unknown>) {
+  if (!TENANT_SCOPED_MODELS.has(model)) return args
   const ctx = getPrismaTenantContext()
-  if (!ctx || ctx.bypass || !TENANT_SCOPED_MODELS.has(model)) return args
+  if (!ctx) {
+    throw new Error(`SECURITY: Missing tenant context for scoped model ${model}. Wrap entry point in runWithPrismaTenantContext.`)
+  }
+  if (ctx.bypass) return args
+  
   const where = (args.where ?? {}) as Record<string, unknown>
-  if (where.companyId !== undefined) return args
+  if (where.companyId !== undefined) {
+    // If query provides explicit companyId, it must match context (or super admin context)
+    if (ctx.companyId !== 'SYSTEM' && where.companyId !== ctx.companyId) {
+       throw new Error(`SECURITY: Query companyId ${where.companyId} does not match context companyId ${ctx.companyId}.`)
+    }
+    return args
+  }
   return { ...args, where: { ...where, companyId: ctx.companyId } }
 }
 
@@ -97,7 +108,13 @@ export function createTenantAuditExtension() {
         async count({ model, args, query }) {
           return query(mergeTenantWhere(model, args as Record<string, unknown>))
         },
-        async $allOperations({ args, query }) {
+        async $allOperations({ model, args, query, operation }) {
+          if (model && TENANT_SCOPED_MODELS.has(model)) {
+            const ctx = getPrismaTenantContext()
+            if (!ctx) {
+              throw new Error(`SECURITY: Missing tenant context for operation ${operation} on scoped model ${model}. Wrap entry point in runWithPrismaTenantContext.`)
+            }
+          }
           return query(args)
         },
       },

@@ -1,3 +1,4 @@
+import { PrismaClient } from '@prisma/client'
 import { Queue } from 'bullmq'
 import { prisma } from '@/lib/db'
 import { isQueueConfigured, parseRedisConnection } from '@/modules/jobs/job-queue'
@@ -26,7 +27,8 @@ function queueUrl() {
 export async function collectInfraHealth(): Promise<InfraHealthSnapshot> {
   let db: 'up' | 'down' = 'down'
   try {
-    await prisma.$queryRaw`SELECT 1`
+    // eslint-disable-next-line no-restricted-syntax
+    await (prisma as unknown as PrismaClient).$queryRaw`SELECT 1`
     db = 'up'
   } catch {
     db = 'down'

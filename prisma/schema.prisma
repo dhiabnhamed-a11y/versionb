@@ -116,6 +116,10 @@ model User {
   enterpriseTimeEntries        EnterpriseIncidentTimeEntry[]    @relation("EnterpriseTimeEntryUser")
   enterpriseRecurringTickets   EnterpriseRecurringTicket[]      @relation("RecurringTicketAssignee")
   workspaceSubscriptions       WorkspaceSubscription[]
+
+  @@index([companyId, role])
+  @@index([companyId, accountStatus, createdAt])
+  @@index([email])
 }
 
 model Company {

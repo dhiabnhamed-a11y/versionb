@@ -34,13 +34,13 @@ const globalForProjectCategorySupport = globalThis as typeof globalThis & {
 export async function getProjectCategorySupport(): Promise<ProjectCategorySupport> {
   if (!globalForProjectCategorySupport.projectCategorySupportPromise) {
     globalForProjectCategorySupport.projectCategorySupportPromise = (async () => {
-      const tables = await prisma.$queryRaw<Array<{ table_name: string }>>`
+      const tables = await tenantQueryRaw<Array<{ table_name: string }>>`
         SELECT table_name
         FROM information_schema.tables
         WHERE table_schema = 'public'
           AND table_name IN ('ProjectCategory')
       `
-      const columns = await prisma.$queryRaw<Array<{ column_name: string }>>`
+      const columns = await tenantQueryRaw<Array<{ column_name: string }>>`
         SELECT column_name
         FROM information_schema.columns
         WHERE table_schema = 'public'
@@ -65,7 +65,7 @@ export async function findProjectCategories(companyId: string): Promise<ProjectC
   const support = await getProjectCategorySupport()
   if (!support.hasCategoryTable) return []
 
-  const rows = await prisma.$queryRaw<
+  const rows = await tenantQueryRaw<
     Array<{
       id: string
       name: string
@@ -100,7 +100,7 @@ export async function createProjectCategory(input: {
 }) {
   const id = `cat_${randomUUID()}`
   const now = new Date()
-  const rows = await prisma.$queryRaw<
+  const rows = await tenantQueryRaw<
     Array<{
       id: string
       name: string
@@ -143,7 +143,7 @@ export async function findProjectCategory(companyId: string, categoryId: string)
   const support = await getProjectCategorySupport()
   if (!support.hasCategoryTable) return null
 
-  const rows = await prisma.$queryRaw<Array<{ id: string; name: string; description: string | null }>>`
+  const rows = await tenantQueryRaw<Array<{ id: string; name: string; description: string | null }>>`
     SELECT "id", "name", "description"
     FROM "ProjectCategory"
     WHERE "id" = ${categoryId}
@@ -183,7 +183,7 @@ export async function attachProjectAgencyFields<T extends { id: string }>(
   }
 
   const rows = support.hasProjectClientColumn
-    ? await prisma.$queryRaw<ProjectAgencyFieldRow[]>`
+    ? await tenantQueryRaw<ProjectAgencyFieldRow[]>`
       SELECT
         p."id",
         p."clientName",
@@ -200,7 +200,7 @@ export async function attachProjectAgencyFields<T extends { id: string }>(
       WHERE p."companyId" = ${companyId}
         AND p."id" IN (${Prisma.join(projects.map((project) => project.id))})
     `
-    : await prisma.$queryRaw<ProjectAgencyFieldRow[]>`
+    : await tenantQueryRaw<ProjectAgencyFieldRow[]>`
       SELECT
         p."id",
         p."clientName",
@@ -255,7 +255,7 @@ export async function updateProjectAgencyFields(input: {
 }) {
   const support = await getProjectCategorySupport()
   if (support.hasProjectClientColumn) {
-    await prisma.$executeRaw`
+    await tenantExecuteRaw`
       UPDATE "Project"
       SET
         "categoryId" = ${input.categoryId},
@@ -268,7 +268,7 @@ export async function updateProjectAgencyFields(input: {
     return
   }
 
-  await prisma.$executeRaw`
+  await tenantExecuteRaw`
       UPDATE "Project"
       SET
         "categoryId" = ${input.categoryId},

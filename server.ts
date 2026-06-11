@@ -1,8 +1,6 @@
-// Custom Next.js server with distributed Socket.IO attached.
 import { createServer } from 'http'
 import next from 'next'
 import { disconnectDatabase } from './src/lib/db'
-import { createSocketServer } from './src/modules/realtime/socket/socket-server'
 import { logger } from './src/modules/shared/logger'
 
 const dev = process.env.NODE_ENV !== 'production'
@@ -41,9 +39,7 @@ async function shutdown(signal: string) {
 process.on('SIGTERM', () => void shutdown('SIGTERM'))
 process.on('SIGINT', () => void shutdown('SIGINT'))
 
-app.prepare().then(async () => {
-  await createSocketServer(httpServer)
-
+app.prepare().then(() => {
   httpServer.listen(port, () => {
     logger.info('server.ready', { url: `http://${hostname}:${port}` })
   })

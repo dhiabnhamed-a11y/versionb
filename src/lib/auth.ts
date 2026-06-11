@@ -16,6 +16,8 @@ import {
 } from '@/lib/security'
 import { logger } from '@/modules/shared/logger'
 import { assertLoginNotLocked } from '@/lib/security/brute-force'
+import { tenantQueryRaw, tenantExecuteRaw } from '@/lib/tenant/tenant-raw-query'
+
 
 type AuthUserRecord = {
   id: string
@@ -135,7 +137,7 @@ function hashLoginEmail(email: string) {
 
 async function recordLoginAttempt(email: string, success: boolean, reason?: string) {
   try {
-    await prisma.$executeRaw`
+    await tenantExecuteRaw`
       INSERT INTO "auth_login_attempts" ("id", "emailHash", "success", "reason", "riskScore", "createdAt")
       VALUES (${randomUUID()}, ${hashLoginEmail(email)}, ${success}, ${reason ?? null}, ${success ? 0 : 50}, NOW())
     `

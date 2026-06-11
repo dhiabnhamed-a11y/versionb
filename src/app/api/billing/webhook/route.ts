@@ -3,6 +3,7 @@ import { getStripe } from '@/lib/stripe'
 import { prisma } from '@/lib/db'
 import type { BillingInterval, PlanType, SubscriptionStatus } from '@prisma/client'
 import type Stripe from 'stripe'
+import { withApiHandler } from "@/lib/api/handler";
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -155,47 +156,47 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   })
 }
 
-export async function POST(req: NextRequest) {
-  const sig = req.headers.get('stripe-signature')
-  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
+export const POST = withApiHandler(async ({ req, params }) => {
+const sig = req.headers.get('stripe-signature')
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET
 
-  if (!sig || !webhookSecret) {
-    return NextResponse.json({ error: 'Missing signature or webhook secret.' }, { status: 400 })
-  }
-
-  let event: Stripe.Event
-  try {
-    const rawBody = await req.text()
-    const stripe = getStripe()
-    event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret)
-  } catch (err) {
-    console.error('[billing/webhook] Signature verification failed:', err)
-    return NextResponse.json({ error: 'Invalid signature.' }, { status: 400 })
-  }
-
-  try {
-    switch (event.type) {
-      case 'checkout.session.completed':
-        await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session)
-        break
-      case 'invoice.payment_succeeded':
-        await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice)
-        break
-      case 'invoice.payment_failed':
-        await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice)
-        break
-      case 'customer.subscription.deleted':
-        await handleSubscriptionDeleted(event.data.object as Stripe.Subscription)
-        break
-      case 'customer.subscription.updated':
-        await handleSubscriptionUpdated(event.data.object as Stripe.Subscription)
-        break
-      default:
-        break
-    }
-  } catch (error) {
-    console.error(`[billing/webhook] Error handling event ${event.type}:`, error)
-  }
-
-  return NextResponse.json({ received: true })
+if (!sig || !webhookSecret) {
+return NextResponse.json({ error: 'Missing signature or webhook secret.' }, { status: 400 })
 }
+
+let event: Stripe.Event
+try {
+const rawBody = await req.text()
+const stripe = getStripe()
+event = stripe.webhooks.constructEvent(rawBody, sig, webhookSecret)
+} catch (err) {
+console.error('[billing/webhook] Signature verification failed:', err)
+return NextResponse.json({ error: 'Invalid signature.' }, { status: 400 })
+}
+
+try {
+switch (event.type) {
+  case 'checkout.session.completed':
+    await handleCheckoutSessionCompleted(event.data.object as Stripe.Checkout.Session)
+    break
+  case 'invoice.payment_succeeded':
+    await handleInvoicePaymentSucceeded(event.data.object as Stripe.Invoice)
+    break
+  case 'invoice.payment_failed':
+    await handleInvoicePaymentFailed(event.data.object as Stripe.Invoice)
+    break
+  case 'customer.subscription.deleted':
+    await handleSubscriptionDeleted(event.data.object as Stripe.Subscription)
+    break
+  case 'customer.subscription.updated':
+    await handleSubscriptionUpdated(event.data.object as Stripe.Subscription)
+    break
+  default:
+    break
+}
+} catch (error) {
+console.error(`[billing/webhook] Error handling event ${event.type}:`, error)
+}
+
+return NextResponse.json({ received: true })
+}, { auth: 'required' });

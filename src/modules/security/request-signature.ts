@@ -63,7 +63,7 @@ export function assertTimestampTolerance(timestamp: string | null, toleranceMs =
 export async function storeReplayNonce(input: ReplayNonceInput) {
   const nonceHash = sha256(input.nonce)
   const expiresAt = input.expiresAt ?? new Date(Date.now() + DEFAULT_TOLERANCE_MS)
-  const rows = await prisma.$queryRaw<{ id: string }[]>`
+  const rows = await tenantQueryRaw<{ id: string }[]>`
     INSERT INTO "security_nonces" ("id", "namespace", "nonceHash", "expiresAt", "createdAt")
     VALUES (${randomUUID()}, ${input.namespace}, ${nonceHash}, ${expiresAt}, NOW())
     ON CONFLICT ("namespace", "nonceHash") DO NOTHING

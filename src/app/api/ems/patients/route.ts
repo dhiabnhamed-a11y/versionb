@@ -5,6 +5,7 @@ import { prisma } from '@/lib/db'
 import { logPhiAccess } from '@/lib/ems/hipaa/audit-enforcer'
 import { encryptPhiRecord, PHI_PATIENT_FIELDS } from '@/lib/ems/hipaa/phi-crypto'
 import { z } from 'zod'
+import { withApiHandler } from "@/lib/api/handler";
 
 export const runtime = 'nodejs'
 
@@ -24,46 +25,46 @@ const CreatePatientSchema = z.object({
   status: z.string().optional(),
 })
 
-export async function POST(req: NextRequest) {
-  return handleApiRoute(req, undefined, async ({ user }) => {
-    const companyId = user.companyId || ''
-    const body = await parseJsonObject(req)
+export const POST = withApiHandler(async ({ req, params }) => {
+return handleApiRoute(req, undefined, async ({ user }) => {
+const companyId = user.companyId || ''
+const body = await parseJsonObject(req)
 
-    if (body.action === 'add_vitals' && body.patientId) {
-      await logPhiAccess({ companyId, actorId: user.id, actorRole: user.role ?? undefined, route: '/api/ems/patients' }, 'patient', body.patientId, 'WRITE')
-      return apiData(await EmsService.addPatientVitals(companyId, body.patientId, body.vitals))
-    }
-
-    const parsed = CreatePatientSchema.safeParse(body)
-    if (!parsed.success) {
-      return apiData({ error: 'Invalid request', details: parsed.error.flatten().fieldErrors }, { status: 400 }) as never
-    }
-
-    // Encrypt PHI before storing
-    const encryptedData = encryptPhiRecord(parsed.data, PHI_PATIENT_FIELDS)
-
-    const patient = await prisma.emsPatient.create({
-      data: {
-        incidentId: encryptedData.incidentId,
-        patientNumber: encryptedData.patientNumber || 1,
-        name: encryptedData.name,
-        age: encryptedData.age,
-        gender: encryptedData.gender,
-        chiefComplaint: encryptedData.chiefComplaint,
-        symptoms: encryptedData.symptoms,
-        medicalHistory: encryptedData.medicalHistory,
-        allergies: encryptedData.allergies,
-        medications: encryptedData.medications,
-      },
-    })
-
-    await logPhiAccess({ companyId, actorId: user.id, actorRole: user.role ?? undefined, route: '/api/ems/patients' }, 'patient', patient.id, 'WRITE')
-
-    return apiData(patient, { status: 201 })
-  }, {
-    auth: 'required',
-    requiredRole: ['MANAGER', 'OWNER', 'SUPER_ADMIN'],
-    responseMode: 'legacy',
-    route: '/api/ems/patients',
-  })
+if (body.action === 'add_vitals' && body.patientId) {
+  await logPhiAccess({ companyId, actorId: user.id, actorRole: user.role ?? undefined, route: '/api/ems/patients' }, 'patient', body.patientId, 'WRITE')
+  return apiData(await EmsService.addPatientVitals(companyId, body.patientId, body.vitals))
 }
+
+const parsed = CreatePatientSchema.safeParse(body)
+if (!parsed.success) {
+  return apiData({ error: 'Invalid request', details: parsed.error.flatten().fieldErrors }, { status: 400 }) as never
+}
+
+// Encrypt PHI before storing
+const encryptedData = encryptPhiRecord(parsed.data, PHI_PATIENT_FIELDS)
+
+const patient = await prisma.emsPatient.create({
+  data: {
+    incidentId: encryptedData.incidentId,
+    patientNumber: encryptedData.patientNumber || 1,
+    name: encryptedData.name,
+    age: encryptedData.age,
+    gender: encryptedData.gender,
+    chiefComplaint: encryptedData.chiefComplaint,
+    symptoms: encryptedData.symptoms,
+    medicalHistory: encryptedData.medicalHistory,
+    allergies: encryptedData.allergies,
+    medications: encryptedData.medications,
+  },
+})
+
+await logPhiAccess({ companyId, actorId: user.id, actorRole: user.role ?? undefined, route: '/api/ems/patients' }, 'patient', patient.id, 'WRITE')
+
+return apiData(patient, { status: 201 })
+}, {
+auth: 'required',
+requiredRole: ['MANAGER', 'OWNER', 'SUPER_ADMIN'],
+responseMode: 'legacy',
+route: '/api/ems/patients',
+})
+}, { auth: 'required' });

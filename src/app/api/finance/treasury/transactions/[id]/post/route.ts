@@ -1,14 +1,15 @@
 import type { NextRequest } from 'next/server'
 import { apiData, handleApiRoute } from '@/lib/api'
 import { postTreasuryTransaction } from '@/modules/treasury/treasury.service'
+import { withApiHandler } from "@/lib/api/handler";
 
 export const runtime = 'nodejs'
 
-export async function POST(req: NextRequest, context: { params: Promise<{ id: string }> }) {
-  return handleApiRoute(
-    req,
-    context,
-    async ({ params, user }) => apiData(await postTreasuryTransaction(user, params.id)),
-    { auth: 'required', responseMode: 'legacy' }
-  )
-}
+export const POST = withApiHandler(async ({ req, params }) => {
+return handleApiRoute(
+req,
+context,
+async ({ params, user }) => apiData(await postTreasuryTransaction(user, params.id)),
+{ auth: 'required', responseMode: 'legacy' }
+)
+}, { auth: 'required' });

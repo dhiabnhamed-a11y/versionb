@@ -23,7 +23,7 @@ export async function enforceAuthRateLimit(req: Request, namespace: string): Pro
 export async function assertLoginNotLocked(email: string) {
   const emailHash = hashEmail(email)
   try {
-    const failures = await prisma.$queryRaw<Array<{ count: bigint }>>`
+    const failures = await tenantQueryRaw<Array<{ count: bigint }>>`
       SELECT COUNT(*)::bigint AS count
       FROM "auth_login_attempts"
       WHERE "emailHash" = ${emailHash}

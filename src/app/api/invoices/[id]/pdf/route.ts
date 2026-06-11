@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getDatabaseConfigHint, prisma } from '@/lib/db'
 import { generateInvoicePdf, normalizePdfInvoice, validateInvoiceForPdf, type PdfInvoice } from '@/lib/invoice-pdf'
 import { serializeInvoice } from '@/lib/invoices'
+import { withApiHandler } from "@/lib/api/handler";
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -155,107 +156,107 @@ async function loadInvoice(id: string, companyId: string) {
   })
 }
 
-export async function GET(req: NextRequest, context: RouteCtx) {
-  const reqId = requestId()
-  const startedAt = Date.now()
-  let invoiceId = ''
-  let phase = 'route-params'
+export const GET = withApiHandler(async ({ req, params }) => {
+const reqId = requestId()
+const startedAt = Date.now()
+let invoiceId = ''
+let phase = 'route-params'
 
-  try {
-    invoiceId = await routeParams(context)
-    if (!invoiceId) {
-      return logAndReturnJsonError('Invoice id is required.', 400, reqId, {
-        phase,
-        durationMs: Date.now() - startedAt,
-      })
-    }
-
-    log('info', 'Invoice PDF request started.', {
-      requestId: reqId,
-      invoiceId,
-      accept: req.headers.get('accept'),
-    })
-
-    phase = 'auth'
-    const user = await requireSessionUser()
-    if (!user.companyId) {
-      return logAndReturnJsonError('No company found for this account.', 400, reqId, {
-        phase,
-        invoiceId,
-        durationMs: Date.now() - startedAt,
-      })
-    }
-    if (!canManageInvoices(user)) {
-      return logAndReturnJsonError('Forbidden', 403, reqId, {
-        phase,
-        invoiceId,
-        companyId: user.companyId,
-        role: user.role,
-        durationMs: Date.now() - startedAt,
-      })
-    }
-    if (req.signal.aborted) {
-      return logAndReturnJsonError('PDF request was cancelled.', 499, reqId, {
-        phase,
-        invoiceId,
-        companyId: user.companyId,
-        durationMs: Date.now() - startedAt,
-      })
-    }
-
-    phase = 'load-invoice'
-    const invoice = await loadInvoice(invoiceId, user.companyId)
-    if (!invoice) {
-      return logAndReturnJsonError('Invoice not found.', 404, reqId, {
-        phase,
-        invoiceId,
-        companyId: user.companyId,
-        durationMs: Date.now() - startedAt,
-      })
-    }
-
-    phase = 'normalize-invoice'
-    const serializedInvoice = serializeInvoice(invoice)
-    const pdfInvoice = normalizePdfInvoice(serializedInvoice as unknown as PdfInvoice)
-    const invoiceNumber = pdfInvoice.invoiceNumber || invoice.invoiceNumber || 'invoice'
-    const warnings = validateInvoiceForPdf(pdfInvoice)
-
-    if (warnings.length > 0) {
-      log('warn', 'Invoice PDF request has incomplete data; normalized values will be used.', {
-        requestId: reqId,
-        invoiceId,
-        invoiceNumber,
-        warnings,
-      })
-    }
-
-    phase = 'generate-pdf'
-    const pdf = await generateInvoicePdf(pdfInvoice, {
-      requestId: reqId,
-      invoiceId,
-      invoiceNumber,
-      startedAt,
-    })
-
-    log('info', 'Invoice PDF request completed.', {
-      requestId: reqId,
-      invoiceId,
-      invoiceNumber,
-      byteLength: pdf.byteLength,
-      durationMs: Date.now() - startedAt,
-    })
-
-    return pdfResponse(pdf, invoiceNumber, reqId)
-  } catch (error) {
-    log('error', 'Invoice PDF request failed.', {
-      requestId: reqId,
-      invoiceId,
-      phase,
-      durationMs: Date.now() - startedAt,
-      error: errorDetails(error),
-      databaseHint: phase === 'load-invoice' ? getDatabaseConfigHint() : undefined,
-    })
-
-    return jsonError('Invoice PDF could not be generated right now. Please try again in a moment.', 503, reqId)
-  }
+try {
+invoiceId = await routeParams(context)
+if (!invoiceId) {
+  return logAndReturnJsonError('Invoice id is required.', 400, reqId, {
+    phase,
+    durationMs: Date.now() - startedAt,
+  })
 }
+
+log('info', 'Invoice PDF request started.', {
+  requestId: reqId,
+  invoiceId,
+  accept: req.headers.get('accept'),
+})
+
+phase = 'auth'
+const user = await requireSessionUser()
+if (!user.companyId) {
+  return logAndReturnJsonError('No company found for this account.', 400, reqId, {
+    phase,
+    invoiceId,
+    durationMs: Date.now() - startedAt,
+  })
+}
+if (!canManageInvoices(user)) {
+  return logAndReturnJsonError('Forbidden', 403, reqId, {
+    phase,
+    invoiceId,
+    companyId: user.companyId,
+    role: user.role,
+    durationMs: Date.now() - startedAt,
+  })
+}
+if (req.signal.aborted) {
+  return logAndReturnJsonError('PDF request was cancelled.', 499, reqId, {
+    phase,
+    invoiceId,
+    companyId: user.companyId,
+    durationMs: Date.now() - startedAt,
+  })
+}
+
+phase = 'load-invoice'
+const invoice = await loadInvoice(invoiceId, user.companyId)
+if (!invoice) {
+  return logAndReturnJsonError('Invoice not found.', 404, reqId, {
+    phase,
+    invoiceId,
+    companyId: user.companyId,
+    durationMs: Date.now() - startedAt,
+  })
+}
+
+phase = 'normalize-invoice'
+const serializedInvoice = serializeInvoice(invoice)
+const pdfInvoice = normalizePdfInvoice(serializedInvoice as unknown as PdfInvoice)
+const invoiceNumber = pdfInvoice.invoiceNumber || invoice.invoiceNumber || 'invoice'
+const warnings = validateInvoiceForPdf(pdfInvoice)
+
+if (warnings.length > 0) {
+  log('warn', 'Invoice PDF request has incomplete data; normalized values will be used.', {
+    requestId: reqId,
+    invoiceId,
+    invoiceNumber,
+    warnings,
+  })
+}
+
+phase = 'generate-pdf'
+const pdf = await generateInvoicePdf(pdfInvoice, {
+  requestId: reqId,
+  invoiceId,
+  invoiceNumber,
+  startedAt,
+})
+
+log('info', 'Invoice PDF request completed.', {
+  requestId: reqId,
+  invoiceId,
+  invoiceNumber,
+  byteLength: pdf.byteLength,
+  durationMs: Date.now() - startedAt,
+})
+
+return pdfResponse(pdf, invoiceNumber, reqId)
+} catch (error) {
+log('error', 'Invoice PDF request failed.', {
+  requestId: reqId,
+  invoiceId,
+  phase,
+  durationMs: Date.now() - startedAt,
+  error: errorDetails(error),
+  databaseHint: phase === 'load-invoice' ? getDatabaseConfigHint() : undefined,
+})
+
+return jsonError('Invoice PDF could not be generated right now. Please try again in a moment.', 503, reqId)
+}
+}, { auth: 'required' });

@@ -4,34 +4,35 @@ import {
   createProjectForUser,
   listProjectsForUser,
 } from '@/modules/projects/service'
+import { withApiHandler } from "@/lib/api/handler";
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function GET(req: NextRequest) {
-  return handleApiRoute(
-    req,
-    undefined,
-    async ({ user }) => apiData(await listProjectsForUser(user), { code: 'PROJECTS_LISTED' }),
-    { auth: 'required', responseMode: 'canonical', route: '/api/v1/projects' }
-  )
-}
+export const GET = withApiHandler(async ({ req, params }) => {
+return handleApiRoute(
+req,
+undefined,
+async ({ user }) => apiData(await listProjectsForUser(user), { code: 'PROJECTS_LISTED' }),
+{ auth: 'required', responseMode: 'canonical', route: '/api/v1/projects' }
+)
+}, { auth: 'required' });
 
-export async function POST(req: NextRequest) {
-  return handleApiRoute(
-    req,
-    undefined,
-    async ({ user }) => {
-      const body = await parseJsonObject(req)
-      const project = await createProjectForUser(user, body)
-      return apiData(project, { code: 'PROJECT_CREATED', status: 201 })
-    },
-    {
-      auth: 'required',
-      idempotency: { responseStatus: 201 },
-      rateLimit: { max: 30, namespace: 'projects.write', windowMs: 60_000 },
-      responseMode: 'canonical',
-      route: '/api/v1/projects',
-    }
-  )
+export const POST = withApiHandler(async ({ req, params }) => {
+return handleApiRoute(
+req,
+undefined,
+async ({ user }) => {
+  const body = await parseJsonObject(req)
+  const project = await createProjectForUser(user, body)
+  return apiData(project, { code: 'PROJECT_CREATED', status: 201 })
+},
+{
+  auth: 'required',
+  idempotency: { responseStatus: 201 },
+  rateLimit: { max: 30, namespace: 'projects.write', windowMs: 60_000 },
+  responseMode: 'canonical',
+  route: '/api/v1/projects',
 }
+)
+}, { auth: 'required' });

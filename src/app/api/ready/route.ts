@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { collectInfraHealth } from '@/lib/infra/health'
+import { withApiHandler } from "@/lib/api/handler";
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -11,14 +12,14 @@ function authorized(req: Request) {
   return header === `Bearer ${token}`
 }
 
-export async function GET(req: Request) {
-  if (!authorized(req)) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: { 'Cache-Control': 'no-store' } })
-  }
-  const snapshot = await collectInfraHealth()
-  const ready = snapshot.ok && snapshot.redis.configured
-  return NextResponse.json(
-    { ready, db: snapshot.db, redis: snapshot.redis, queues: snapshot.queues },
-    { status: ready ? 200 : 503, headers: { 'Cache-Control': 'no-store' } }
-  )
+export const GET = withApiHandler(async ({ req, params }) => {
+if (!authorized(req)) {
+return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: { 'Cache-Control': 'no-store' } })
 }
+const snapshot = await collectInfraHealth()
+const ready = snapshot.ok && snapshot.redis.configured
+return NextResponse.json(
+{ ready, db: snapshot.db, redis: snapshot.redis, queues: snapshot.queues },
+{ status: ready ? 200 : 503, headers: { 'Cache-Control': 'no-store' } }
+)
+}, { auth: 'required' });

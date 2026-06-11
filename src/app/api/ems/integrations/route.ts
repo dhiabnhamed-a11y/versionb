@@ -4,6 +4,7 @@ import { prisma } from '@/lib/db'
 import { IntegrationRegistry, AuditService } from '@/lib/ems/integration'
 import type { EmsIntegrationType } from '@/lib/ems/integration'
 import { logger } from '@/modules/shared/logger'
+import { withApiHandler } from "@/lib/api/handler";
 
 export const runtime = 'nodejs'
 
@@ -147,136 +148,136 @@ async function configureConnector(input: {
   }
 }
 
-export async function GET(req: NextRequest) {
-  return handleApiRoute(req, undefined, async ({ user }: any) => {
-    const companyId = user.companyId as string
-    const integrations = await listSerializedIntegrations(companyId)
-    return apiData(summarizeIntegrations(integrations))
-  }, { auth: 'required', responseMode: 'legacy', route: '/api/ems/integrations' })
+export const GET = withApiHandler(async ({ req, params }) => {
+return handleApiRoute(req, undefined, async ({ user }: any) => {
+const companyId = user.companyId as string
+const integrations = await listSerializedIntegrations(companyId)
+return apiData(summarizeIntegrations(integrations))
+}, { auth: 'required', responseMode: 'legacy', route: '/api/ems/integrations' })
+}, { auth: 'required' });
+
+export const POST = withApiHandler(async ({ req, params }) => {
+return handleApiRoute(req, undefined, async ({ user }: any) => {
+const companyId = user.companyId as string
+const body = await req.json()
+const { name, type, endpointUrl, authType, apiKey, webhookSecret, config } = body
+
+if (typeof name !== 'string' || !name.trim()) throw badRequest('name is required')
+if (!isEmsIntegrationType(type)) throw badRequest('Select a valid EMS integration type.')
+
+await ensureEmsCompany(companyId)
+
+const existing = await prisma.emsIntegration.findFirst({ where: { companyId, type } })
+const data = {
+  name: name.trim(),
+  type,
+  status: 'PENDING' as const,
+  endpointUrl: normalizeOptionalText(endpointUrl),
+  authType: normalizeOptionalText(authType) || 'none',
+  apiKey: normalizeOptionalText(apiKey),
+  webhookSecret: normalizeOptionalText(webhookSecret),
+  config: config && typeof config === 'object' ? config : {},
+  lastErrorAt: null,
+  lastErrorMessage: null,
 }
 
-export async function POST(req: NextRequest) {
-  return handleApiRoute(req, undefined, async ({ user }: any) => {
-    const companyId = user.companyId as string
-    const body = await req.json()
-    const { name, type, endpointUrl, authType, apiKey, webhookSecret, config } = body
+const integration = existing
+  ? await prisma.emsIntegration.update({ where: { id: existing.id }, data })
+  : await prisma.emsIntegration.create({ data: { companyId, ...data } })
 
-    if (typeof name !== 'string' || !name.trim()) throw badRequest('name is required')
-    if (!isEmsIntegrationType(type)) throw badRequest('Select a valid EMS integration type.')
+await configureConnector({
+  companyId,
+  integrationId: integration.id,
+  type,
+  endpointUrl: data.endpointUrl,
+  authType: data.authType,
+  apiKey: data.apiKey,
+  webhookSecret: data.webhookSecret,
+  config: data.config as Record<string, unknown>,
+})
 
-    await ensureEmsCompany(companyId)
+await logIntegrationAction(companyId, {
+  integrationId: integration.id,
+  action: 'EMS_INTEGRATION_CONFIGURED',
+  description: `Integration ${name} (${type}) created`, success: true,
+})
 
-    const existing = await prisma.emsIntegration.findFirst({ where: { companyId, type } })
-    const data = {
-      name: name.trim(),
-      type,
-      status: 'PENDING' as const,
-      endpointUrl: normalizeOptionalText(endpointUrl),
-      authType: normalizeOptionalText(authType) || 'none',
-      apiKey: normalizeOptionalText(apiKey),
-      webhookSecret: normalizeOptionalText(webhookSecret),
-      config: config && typeof config === 'object' ? config : {},
-      lastErrorAt: null,
-      lastErrorMessage: null,
-    }
+return apiData(await getSerializedIntegration(integration.id), { status: existing ? 200 : 201 })
+}, {
+auth: 'required', requiredRole: ['MANAGER', 'OWNER', 'SUPER_ADMIN'],
+responseMode: 'legacy', route: '/api/ems/integrations',
+})
+}, { auth: 'required' });
 
-    const integration = existing
-      ? await prisma.emsIntegration.update({ where: { id: existing.id }, data })
-      : await prisma.emsIntegration.create({ data: { companyId, ...data } })
+export const PUT = withApiHandler(async ({ req, params }) => {
+return handleApiRoute(req, undefined, async ({ user }: any) => {
+const companyId = user.companyId as string
+const body = await req.json()
+const { id, name, endpointUrl, authType, apiKey, webhookSecret, isEnabled, config } = body
+if (!id) throw new Error('id is required')
 
-    await configureConnector({
-      companyId,
-      integrationId: integration.id,
-      type,
-      endpointUrl: data.endpointUrl,
-      authType: data.authType,
-      apiKey: data.apiKey,
-      webhookSecret: data.webhookSecret,
-      config: data.config as Record<string, unknown>,
-    })
+const existing = await prisma.emsIntegration.findFirst({ where: { id, companyId } })
+if (!existing) throw new Error('Integration not found')
 
-    await logIntegrationAction(companyId, {
-      integrationId: integration.id,
-      action: 'EMS_INTEGRATION_CONFIGURED',
-      description: `Integration ${name} (${type}) created`, success: true,
-    })
+const updateData: Record<string, unknown> = {}
+if (name !== undefined) updateData.name = name
+if (endpointUrl !== undefined) updateData.endpointUrl = endpointUrl
+if (authType !== undefined) updateData.authType = authType
+if (apiKey !== undefined) updateData.apiKey = apiKey
+if (webhookSecret !== undefined) updateData.webhookSecret = webhookSecret
+if (isEnabled !== undefined) updateData.isEnabled = isEnabled
+if (config !== undefined) updateData.config = config
 
-    return apiData(await getSerializedIntegration(integration.id), { status: existing ? 200 : 201 })
-  }, {
-    auth: 'required', requiredRole: ['MANAGER', 'OWNER', 'SUPER_ADMIN'],
-    responseMode: 'legacy', route: '/api/ems/integrations',
+const updated = await prisma.emsIntegration.update({ where: { id }, data: updateData })
+
+if (endpointUrl !== undefined || authType !== undefined || apiKey !== undefined || config !== undefined) {
+  const registry = IntegrationRegistry.getInstance()
+  await registry.createConnector(id, companyId, existing.type as EmsIntegrationType, {
+    endpointUrl: endpointUrl || existing.endpointUrl || undefined,
+    authType: authType || existing.authType as any || 'none',
+    apiKey: apiKey || existing.apiKey || undefined,
+    webhookSecret: webhookSecret || existing.webhookSecret || undefined,
+    ...((config || existing.config) as Record<string, unknown>),
   })
+  const connector = registry.getConnector(id)
+  if (connector && isEnabled !== false) await connector.connect()
 }
 
-export async function PUT(req: NextRequest) {
-  return handleApiRoute(req, undefined, async ({ user }: any) => {
-    const companyId = user.companyId as string
-    const body = await req.json()
-    const { id, name, endpointUrl, authType, apiKey, webhookSecret, isEnabled, config } = body
-    if (!id) throw new Error('id is required')
-
-    const existing = await prisma.emsIntegration.findFirst({ where: { id, companyId } })
-    if (!existing) throw new Error('Integration not found')
-
-    const updateData: Record<string, unknown> = {}
-    if (name !== undefined) updateData.name = name
-    if (endpointUrl !== undefined) updateData.endpointUrl = endpointUrl
-    if (authType !== undefined) updateData.authType = authType
-    if (apiKey !== undefined) updateData.apiKey = apiKey
-    if (webhookSecret !== undefined) updateData.webhookSecret = webhookSecret
-    if (isEnabled !== undefined) updateData.isEnabled = isEnabled
-    if (config !== undefined) updateData.config = config
-
-    const updated = await prisma.emsIntegration.update({ where: { id }, data: updateData })
-
-    if (endpointUrl !== undefined || authType !== undefined || apiKey !== undefined || config !== undefined) {
-      const registry = IntegrationRegistry.getInstance()
-      await registry.createConnector(id, companyId, existing.type as EmsIntegrationType, {
-        endpointUrl: endpointUrl || existing.endpointUrl || undefined,
-        authType: authType || existing.authType as any || 'none',
-        apiKey: apiKey || existing.apiKey || undefined,
-        webhookSecret: webhookSecret || existing.webhookSecret || undefined,
-        ...((config || existing.config) as Record<string, unknown>),
-      })
-      const connector = registry.getConnector(id)
-      if (connector && isEnabled !== false) await connector.connect()
-    }
-
-    if (isEnabled === false) {
-      const registry = IntegrationRegistry.getInstance()
-      await registry.removeConnector(id)
-    }
-
-    return apiData(updated)
-  }, {
-    auth: 'required', requiredRole: ['MANAGER', 'OWNER', 'SUPER_ADMIN'],
-    responseMode: 'legacy', route: '/api/ems/integrations',
-  })
+if (isEnabled === false) {
+  const registry = IntegrationRegistry.getInstance()
+  await registry.removeConnector(id)
 }
 
-export async function DELETE(req: NextRequest) {
-  return handleApiRoute(req, undefined, async ({ user }: any) => {
-    const companyId = user.companyId as string
-    const { searchParams } = new URL(req.url)
-    const id = searchParams.get('id')
-    if (!id) throw new Error('id is required')
+return apiData(updated)
+}, {
+auth: 'required', requiredRole: ['MANAGER', 'OWNER', 'SUPER_ADMIN'],
+responseMode: 'legacy', route: '/api/ems/integrations',
+})
+}, { auth: 'required' });
 
-    const existing = await prisma.emsIntegration.findFirst({ where: { id, companyId } })
-    if (!existing) throw new Error('Integration not found')
+export const DELETE = withApiHandler(async ({ req, params }) => {
+return handleApiRoute(req, undefined, async ({ user }: any) => {
+const companyId = user.companyId as string
+const { searchParams } = new URL(req.url)
+const id = searchParams.get('id')
+if (!id) throw new Error('id is required')
 
-    const registry = IntegrationRegistry.getInstance()
-    await registry.removeConnector(id)
-    await prisma.emsIntegration.delete({ where: { id } })
+const existing = await prisma.emsIntegration.findFirst({ where: { id, companyId } })
+if (!existing) throw new Error('Integration not found')
 
-    const audit = new AuditService(companyId)
-    await audit.logIntegrationAction({
-      integrationId: id, action: 'EMS_INTEGRATION_CONFIGURED',
-      description: `Integration ${existing.name} deleted`, success: true,
-    })
+const registry = IntegrationRegistry.getInstance()
+await registry.removeConnector(id)
+await prisma.emsIntegration.delete({ where: { id } })
 
-    return apiData({ deleted: true })
-  }, {
-    auth: 'required', requiredRole: ['MANAGER', 'OWNER', 'SUPER_ADMIN'],
-    responseMode: 'legacy', route: '/api/ems/integrations',
-  })
-}
+const audit = new AuditService(companyId)
+await audit.logIntegrationAction({
+  integrationId: id, action: 'EMS_INTEGRATION_CONFIGURED',
+  description: `Integration ${existing.name} deleted`, success: true,
+})
+
+return apiData({ deleted: true })
+}, {
+auth: 'required', requiredRole: ['MANAGER', 'OWNER', 'SUPER_ADMIN'],
+responseMode: 'legacy', route: '/api/ems/integrations',
+})
+}, { auth: 'required' });

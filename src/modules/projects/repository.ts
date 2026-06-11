@@ -72,7 +72,7 @@ export function getProjectUpdateSelect(includeCameraFields: boolean) {
 }
 
 export async function findProjectsWithoutCameraFields(companyId: string) {
-  const projectRows = await prisma.$queryRaw<RawProjectRow[]>`
+  const projectRows = await tenantQueryRaw<RawProjectRow[]>`
     SELECT
       p."id",
       p."title",
@@ -94,7 +94,7 @@ export async function findProjectsWithoutCameraFields(companyId: string) {
   const projectIds = projectRows.map((project) => project.id)
   const taskRows =
     projectIds.length > 0
-      ? await prisma.$queryRaw<RawTaskRow[]>`
+      ? await tenantQueryRaw<RawTaskRow[]>`
           SELECT
             t."id",
             t."projectId",
@@ -154,7 +154,7 @@ export async function createProjectWithoutCameraFields(input: {
   const id = randomUUID()
 
   if (input.hasProjectCategoryColumns && input.hasProjectClientColumn) {
-    const rows = await prisma.$queryRaw<ProjectCreateRow[]>`
+    const rows = await tenantQueryRaw<ProjectCreateRow[]>`
       INSERT INTO "Project" (
         "id","title","description","companyId","roomId","categoryId","clientId","clientName","managerId","createdAt","updatedAt"
       ) VALUES (
@@ -167,7 +167,7 @@ export async function createProjectWithoutCameraFields(input: {
   }
 
   if (input.hasProjectCategoryColumns) {
-    const rows = await prisma.$queryRaw<ProjectCreateRow[]>`
+    const rows = await tenantQueryRaw<ProjectCreateRow[]>`
       INSERT INTO "Project" (
         "id","title","description","companyId","roomId","categoryId","clientName","managerId","createdAt","updatedAt"
       ) VALUES (
@@ -179,7 +179,7 @@ export async function createProjectWithoutCameraFields(input: {
     return rows[0]
   }
 
-  const rows = await prisma.$queryRaw<ProjectCreateRow[]>`
+  const rows = await tenantQueryRaw<ProjectCreateRow[]>`
     INSERT INTO "Project" (
       "id","title","description","companyId","roomId","managerId","createdAt","updatedAt"
     ) VALUES (

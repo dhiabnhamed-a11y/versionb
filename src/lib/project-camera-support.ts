@@ -24,20 +24,20 @@ export async function getProjectCameraSupport(): Promise<ProjectCameraSupport> {
     globalForProjectCameraSupport.projectCameraSupportPromise = (async () => {
       try {
         const [columns, tables, enums] = await Promise.all([
-          prisma.$queryRaw<Array<{ column_name: string }>>`
+          tenantQueryRaw<Array<{ column_name: string }>>`
             SELECT column_name
             FROM information_schema.columns
             WHERE table_schema = current_schema()
               AND table_name = 'Project'
               AND column_name IN ('hasCamera', 'cameraType')
           `,
-          prisma.$queryRaw<Array<{ table_name: string }>>`
+          tenantQueryRaw<Array<{ table_name: string }>>`
             SELECT table_name
             FROM information_schema.tables
             WHERE table_schema = current_schema()
               AND table_name IN ('ProjectCamera', 'ProjectCameraMedia')
           `,
-          prisma.$queryRaw<Array<{ typname: string }>>`
+          tenantQueryRaw<Array<{ typname: string }>>`
             SELECT t.typname
             FROM pg_type t
             JOIN pg_namespace n ON n.oid = t.typnamespace

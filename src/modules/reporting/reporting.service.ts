@@ -247,7 +247,7 @@ export async function getFinancialOperatingSystemDashboard(user: SessionUser): P
     getMonthlyOperatingRows(companyId, trendStart),
     getClientExposureRows(companyId, trendStart),
     getReceivablesAgingRows(companyId, now),
-    prisma.$queryRaw<Array<{ days: Prisma.Decimal | number | string | null }>>`
+    tenantQueryRaw<Array<{ days: Prisma.Decimal | number | string | null }>>`
       SELECT AVG(EXTRACT(EPOCH FROM ("paidAt" - "issueDate")) / 86400) AS days
       FROM "Invoice"
       WHERE "companyId" = ${companyId}

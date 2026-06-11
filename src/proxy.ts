@@ -75,7 +75,7 @@ function rejectUnauthorizedApi(req: NextRequest) {
 }
 
 const BILLING_EXEMPT_PREFIXES = [
-  '/billing', '/erp', '/auth', '/login', '/register', '/invite',
+  '/billing', '/auth', '/login', '/register', '/invite',
   '/account/billing', '/onboarding/workspace', '/onboarding/success',
   '/api/webhooks', '/api/auth', '/api/billing',
   '/_next', '/favicon', '/icons', '/sounds',

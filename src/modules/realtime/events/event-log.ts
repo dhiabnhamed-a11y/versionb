@@ -27,7 +27,7 @@ function stringifyJson(value: unknown) {
 
 async function appendDatabaseEvent(envelope: RealtimeEnvelope, target: RealtimeDeliveryTarget, streamId: string | null) {
   try {
-    await prisma.$executeRaw`
+    await tenantExecuteRaw`
       INSERT INTO "RealtimeEventLog" (
         "id",
         "workspaceId",
@@ -123,7 +123,7 @@ async function loadStreamReplay(workspaceId: string, afterEventId: string | null
 
 async function loadDatabaseReplay(workspaceId: string, afterEventId: string | null, limit: number) {
   try {
-    const rows = await prisma.$queryRaw<Array<{ envelope: Prisma.JsonValue }>>`
+    const rows = await tenantQueryRaw<Array<{ envelope: Prisma.JsonValue }>>`
       SELECT "envelope"
       FROM "RealtimeEventLog"
       WHERE "workspaceId" = ${workspaceId}
@@ -157,7 +157,7 @@ export async function recordRealtimeConsumerOffset(input: { userId: string; work
   }
 
   try {
-    await prisma.$executeRaw`
+    await tenantExecuteRaw`
       INSERT INTO "RealtimeConsumerOffset" ("consumerId", "workspaceId", "lastEventId", "updatedAt")
       VALUES (${input.userId}, ${input.workspaceId ?? ''}, ${input.eventId}, CURRENT_TIMESTAMP)
       ON CONFLICT ("consumerId", "workspaceId")
@@ -178,7 +178,7 @@ export async function getRealtimeConsumerOffset(input: { userId: string; workspa
   }
 
   try {
-    const rows = await prisma.$queryRaw<Array<{ lastEventId: string }>>`
+    const rows = await tenantQueryRaw<Array<{ lastEventId: string }>>`
       SELECT "lastEventId"
       FROM "RealtimeConsumerOffset"
       WHERE "consumerId" = ${input.userId} AND "workspaceId" = ${input.workspaceId}

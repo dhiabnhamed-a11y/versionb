@@ -14,6 +14,23 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  {
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          "selector": "CallExpression[callee.property.name='$queryRaw'], CallExpression[callee.property.name='$executeRaw']",
+          "message": "Raw queries bypass tenant isolation. Use tenantQueryRaw or tenantExecuteRaw from @/lib/tenant/tenant-raw-query instead."
+        }
+      ]
+    }
+  },
+  {
+    files: ["src/lib/tenant/tenant-raw-query.ts"],
+    rules: {
+      "no-restricted-syntax": "off"
+    }
+  }
 ]);
 
 export default eslintConfig;

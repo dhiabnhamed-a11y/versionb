@@ -2,6 +2,8 @@ import { requireSessionUser } from '@/modules/shared/session'
 import { NextRequest, NextResponse } from 'next/server'
 import { generateContractPdf } from '@/lib/contract-pdf'
 import { getContractVersionContent, recordContractDownload } from '@/modules/contracts/contract.service'
+import { withApiHandler } from "@/lib/api/handler";
+
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -100,58 +102,58 @@ function errorDetails(error: unknown) {
   return { message: String(error) }
 }
 
-export async function GET(req: NextRequest, context: RouteCtx) {
-  const reqId = requestId()
-  const startedAt = Date.now()
-  let contractId = ''
-  let phase = 'route-params'
+export const GET = withApiHandler(async ({ req, params }) => {
+const reqId = requestId()
+const startedAt = Date.now()
+let contractId = ''
+let phase = 'route-params'
 
-  try {
-    contractId = await routeParams(context)
-    if (!contractId) return jsonError('Contract id is required.', 400, reqId)
+try {
+contractId = await routeParams(context)
+if (!contractId) return jsonError('Contract id is required.', 400, reqId)
 
-    phase = 'auth'
-    const user = await requireSessionUser()
-    if (!user) return jsonError('Unauthorized', 401, reqId)
+phase = 'auth'
+const user = await requireSessionUser()
+if (!user) return jsonError('Unauthorized', 401, reqId)
 
-    phase = 'load-contract'
-    const versionId = req.nextUrl.searchParams.get('versionId')
-    const { contract, version, content } = await getContractVersionContent(user, contractId, versionId)
+phase = 'load-contract'
+const versionId = req.nextUrl.searchParams.get('versionId')
+const { contract, version, content } = await getContractVersionContent(user, contractId, versionId)
 
-    phase = 'generate-pdf'
-    const pdf = await generateContractPdf(content, {
-      requestId: reqId,
-      contractId,
-      versionId: version.id,
-      contractNumber: contract.contractNumber,
-      startedAt,
-    })
+phase = 'generate-pdf'
+const pdf = await generateContractPdf(content, {
+  requestId: reqId,
+  contractId,
+  versionId: version.id,
+  contractNumber: contract.contractNumber,
+  startedAt,
+})
 
-    phase = 'audit'
-    await recordContractDownload(user, {
-      contractId,
-      versionId: version.id,
-      requestId: reqId,
-      byteLength: pdf.byteLength,
-    })
+phase = 'audit'
+await recordContractDownload(user, {
+  contractId,
+  versionId: version.id,
+  requestId: reqId,
+  byteLength: pdf.byteLength,
+})
 
-    log('info', 'Contract PDF request completed.', {
-      requestId: reqId,
-      contractId,
-      versionId: version.id,
-      byteLength: pdf.byteLength,
-      durationMs: Date.now() - startedAt,
-    })
+log('info', 'Contract PDF request completed.', {
+  requestId: reqId,
+  contractId,
+  versionId: version.id,
+  byteLength: pdf.byteLength,
+  durationMs: Date.now() - startedAt,
+})
 
-    return pdfResponse(pdf, contract.contractNumber, reqId)
-  } catch (error) {
-    log('error', 'Contract PDF request failed.', {
-      requestId: reqId,
-      contractId,
-      phase,
-      durationMs: Date.now() - startedAt,
-      error: errorDetails(error),
-    })
-    return jsonError('Contract PDF could not be generated right now. Please try again in a moment.', 503, reqId)
-  }
+return pdfResponse(pdf, contract.contractNumber, reqId)
+} catch (error) {
+log('error', 'Contract PDF request failed.', {
+  requestId: reqId,
+  contractId,
+  phase,
+  durationMs: Date.now() - startedAt,
+  error: errorDetails(error),
+})
+return jsonError('Contract PDF could not be generated right now. Please try again in a moment.', 503, reqId)
 }
+}, { auth: 'required' });

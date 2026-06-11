@@ -5,6 +5,7 @@ import { getDatabaseConfigHint } from '@/lib/db'
 import { assertLoginNotLocked, enforceAuthRateLimit } from '@/lib/security/brute-force'
 import { withApiError } from '@/modules/shared/api'
 import { logger } from '@/modules/shared/logger'
+import { withApiHandler } from "@/lib/api/handler";
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -14,54 +15,54 @@ type LoginCheckBody = {
   password?: unknown
 }
 
-export async function POST(req: NextRequest) {
-  return withApiError(
-    req,
-    async () => {
-      const body = (await req.json().catch(() => null)) as LoginCheckBody | null
-      const email = typeof body?.email === 'string' ? body.email.trim() : ''
-      const password = typeof body?.password === 'string' ? body.password : ''
+export const POST = withApiHandler(async ({ req, params }) => {
+return withApiError(
+req,
+async () => {
+  const body = (await req.json().catch(() => null)) as LoginCheckBody | null
+  const email = typeof body?.email === 'string' ? body.email.trim() : ''
+  const password = typeof body?.password === 'string' ? body.password : ''
 
-      if (!email || !password) {
-        return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 })
-      }
+  if (!email || !password) {
+    return NextResponse.json({ error: 'Email and password are required.' }, { status: 400 })
+  }
 
-      if (process.env.NODE_ENV === 'production' && process.env.ALLOW_LOGIN_CHECK !== 'true') {
-        return NextResponse.json({ error: 'Not found' }, { status: 404 })
-      }
+  if (process.env.NODE_ENV === 'production' && process.env.ALLOW_LOGIN_CHECK !== 'true') {
+    return NextResponse.json({ error: 'Not found' }, { status: 404 })
+  }
 
-      const authRate = await enforceAuthRateLimit(req, 'auth.login_check')
-      if (!authRate.allowed) {
-        return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
-      }
+  const authRate = await enforceAuthRateLimit(req, 'auth.login_check')
+  if (!authRate.allowed) {
+    return NextResponse.json({ error: 'Too many requests' }, { status: 429 })
+  }
 
-      await assertLoginNotLocked(email)
+  await assertLoginNotLocked(email)
 
-      try {
-        const result = await validateCredentialsForLogin(email, password)
-        if (!result.ok) {
-          return NextResponse.json({ error: result.error }, { status: 401 })
-        }
-
-        return NextResponse.json({ success: true })
-      } catch (error) {
-        logger.error('auth.login_check_failed', error)
-
-        return NextResponse.json(
-          {
-            error: 'Unable to verify credentials right now. Please try again shortly.',
-            hint: process.env.NODE_ENV === 'production' ? undefined : getDatabaseConfigHint(),
-          },
-          { status: 503 }
-        )
-      }
-    },
-    {
-      rateLimit: {
-        namespace: 'auth.login_check',
-        windowMs: 60_000,
-        max: 10,
-      },
+  try {
+    const result = await validateCredentialsForLogin(email, password)
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: 401 })
     }
-  )
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    logger.error('auth.login_check_failed', error)
+
+    return NextResponse.json(
+      {
+        error: 'Unable to verify credentials right now. Please try again shortly.',
+        hint: process.env.NODE_ENV === 'production' ? undefined : getDatabaseConfigHint(),
+      },
+      { status: 503 }
+    )
+  }
+},
+{
+  rateLimit: {
+    namespace: 'auth.login_check',
+    windowMs: 60_000,
+    max: 10,
+  },
 }
+)
+}, { auth: 'required' });
