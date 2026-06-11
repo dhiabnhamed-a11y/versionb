@@ -39,8 +39,10 @@ logger.warn('stripe.webhook_signature_failed', { error: String(err) })
 return NextResponse.json({ error: 'Invalid signature' }, { status: 400 })
 }
 
+const companyId = extractCompanyIdFromEvent(event) ?? 'stripe-webhook'
+
 const existingEvent = await prisma.idempotencyKey.findUnique({
-where: { key: event.id },
+  where: { companyId_key: { companyId, key: event.id } },
 })
 
 if (existingEvent) {
@@ -51,8 +53,11 @@ return NextResponse.json({ received: true, duplicate: true })
 await prisma.idempotencyKey.create({
 data: {
   key: event.id,
-  companyId: extractCompanyIdFromEvent(event) ?? 'stripe-webhook',
-  result: { type: event.type, status: 'processing' },
+  companyId,
+  method: 'WEBHOOK',
+  route: 'stripe',
+  bodyHash: event.id,
+  status: 'PROCESSING',
   expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), 
 },
 })
@@ -61,8 +66,8 @@ try {
 await handleStripeEvent(event)
 
 await prisma.idempotencyKey.update({
-  where: { key: event.id },
-  data: { result: { type: event.type, status: 'completed' } },
+  where: { companyId_key: { companyId, key: event.id } },
+  data: { status: 'COMPLETED', response: { type: event.type, status: 'completed' } },
 })
 
 return NextResponse.json({ received: true })
@@ -70,8 +75,8 @@ return NextResponse.json({ received: true })
 logger.error('stripe.webhook_processing_failed', { eventId: event.id, type: event.type, error: String(err) })
 
 await prisma.idempotencyKey.update({
-  where: { key: event.id },
-  data: { result: { type: event.type, status: 'failed', error: String(err) } },
+  where: { companyId_key: { companyId, key: event.id } },
+  data: { status: 'FAILED', error: String(err) },
 })
 
 return NextResponse.json({ received: true, error: 'Processing failed' })
