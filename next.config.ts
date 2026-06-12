@@ -13,9 +13,6 @@ const nextConfig: NextConfig = {
       static: 30,
     },
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: true,
   },

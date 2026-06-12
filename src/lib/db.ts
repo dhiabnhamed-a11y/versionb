@@ -4,29 +4,36 @@ import { validateEnv } from '@/lib/env'
 
 validateEnv()
 
-const dbUrl = process.env.DATABASE_URL ?? ''
-const isUsingDirectSupabaseHost =
-  dbUrl &&
-  /db\.[a-z0-9-]+\.supabase\.co:5432/i.test(dbUrl) &&
-  !dbUrl.includes('pooler.supabase.com')
+let hasValidatedDb = false
 
-if (isUsingDirectSupabaseHost) {
-  console.warn(
-    '[db] DATABASE_URL uses the direct Supabase host (db.*:5432). Set DATABASE_URL to the Transaction pooler (port 6543, *.pooler.supabase.com) for the app; use DIRECT_URL for migrations. See .env.example.'
-  )
-}
+function validateDatabaseConfig() {
+  if (hasValidatedDb) return
+  hasValidatedDb = true
+  
+  const dbUrl = process.env.DATABASE_URL ?? ''
+  const isUsingDirectSupabaseHost =
+    dbUrl &&
+    /db\.[a-z0-9-]+\.supabase\.co:5432/i.test(dbUrl) &&
+    !dbUrl.includes('pooler.supabase.com')
 
-// FIX 5: Enforce connection_limit — refuse to start in production without it
-const DEFAULT_CONNECTION_LIMIT = 90
-if (dbUrl && !dbUrl.includes('connection_limit=')) {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error(
-      `FATAL: DATABASE_URL is missing &connection_limit=. Append &connection_limit=${DEFAULT_CONNECTION_LIMIT} to prevent pool exhaustion. Refusing to start.`
-    )
-  } else {
+  if (isUsingDirectSupabaseHost) {
     console.warn(
-      `[db] DATABASE_URL is missing &connection_limit=. Defaulting to ${DEFAULT_CONNECTION_LIMIT} for development. Set it explicitly for production.`
+      '[db] DATABASE_URL uses the direct Supabase host (db.*:5432). Set DATABASE_URL to the Transaction pooler (port 6543, *.pooler.supabase.com) for the app; use DIRECT_URL for migrations. See .env.example.'
     )
+  }
+
+  // FIX 5: Enforce connection_limit — refuse to start in production without it
+  const DEFAULT_CONNECTION_LIMIT = 90
+  if (dbUrl && !dbUrl.includes('connection_limit=')) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error(
+        `FATAL: DATABASE_URL is missing &connection_limit=. Append &connection_limit=${DEFAULT_CONNECTION_LIMIT} to prevent pool exhaustion. Refusing to start.`
+      )
+    } else {
+      console.warn(
+        `[db] DATABASE_URL is missing &connection_limit=. Defaulting to ${DEFAULT_CONNECTION_LIMIT} for development. Set it explicitly for production.`
+      )
+    }
   }
 }
 
@@ -44,6 +51,8 @@ const globalForPrisma = globalThis as unknown as {
 }
 
 function createPrismaClient() {
+  validateDatabaseConfig()
+  
   const client = new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   })
