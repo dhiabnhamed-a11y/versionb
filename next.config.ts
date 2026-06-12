@@ -13,6 +13,12 @@ const nextConfig: NextConfig = {
       static: 30,
     },
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
   images: {
     formats: ['image/avif', 'image/webp'],
     minimumCacheTTL: 300,

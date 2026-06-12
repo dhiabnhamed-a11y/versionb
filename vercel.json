@@ -1,4 +1,7 @@
 {
+  "buildCommand": "npm run build",
+  "installCommand": "npm install",
+  "framework": "nextjs",
   "headers": [
     {
       "source": "/firebase-messaging-sw.js",
